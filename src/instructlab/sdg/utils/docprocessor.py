@@ -309,7 +309,7 @@ class DocProcessor:
         chunked_document_all_icl = chunked_document_all_icl.map(
             lambda x: {
                 "chunks": chunk_document(
-                    x["document"], server_ctx_size=4096, chunk_word_count=1024
+                    [x["document"]], server_ctx_size=4096, chunk_word_count=1024
                 )
                 if get_token_count(x["document"], self.tokenizer) > 1024
                 else [x["document"]]
