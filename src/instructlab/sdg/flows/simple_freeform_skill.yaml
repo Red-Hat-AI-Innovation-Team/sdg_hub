@@ -1,0 +1,12 @@
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_skill_freeform
+    config_path: configs/skills/simple_generate_qa_freeform.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    output_cols:
+      - output
+  gen_kwargs:
+    temperature: 0.7
+    max_tokens: 2048
+  drop_duplicates:
+    - output

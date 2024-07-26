@@ -26,7 +26,8 @@ examples: |
   [End of Response]
 
 generation: |
-  Now generate a response to the following prompt. Remember to use the same style and format as the example above. Return the response between [Start of Response] and [End of Response] tags.
+  Now generate a response to the following prompt. Remember to use the same style and format as the example above. 
+  Return the response between [Start of Response] and [End of Response] tags.
 
   [Start of Context]
   {context}
@@ -34,6 +35,8 @@ generation: |
   [Start of Question]
   {question}
   [End of Question]
+
+  Return the response between [Start of Response] and [End of Response] tags.
 
 
 start_tags: ["[Start of Response]"]

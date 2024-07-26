@@ -68,3 +68,65 @@ class CombineColumnsBlock(Block):
     def generate(self, samples: Dataset) -> Dataset:
         samples = samples.map(self._generate, num_proc=self.num_procs)
         return samples
+
+
+class FlattenColumnsBlock(Block):
+    def __init__(self, block_name: str, var_cols: list, value_name: str, var_name: str) -> None:
+        super().__init__(block_name=block_name)
+        self.var_cols = var_cols
+        self.value_name = value_name
+        self.var_name = var_name
+
+    def generate(self, samples: Dataset) -> Dataset:
+        df = samples.to_pandas()
+        id_cols = [col for col in samples.column_names if col not in self.var_cols]
+        flatten_df = df.melt(id_vars=id_cols, 
+                             value_vars=self.var_cols, 
+                             value_name=self.value_name,
+                             var_name=self.var_name)
+        
+        return Dataset.from_pandas(flatten_df)
+
+
+class DuplicateColumns(Block):
+    def __init__(self, block_name: str, columns_map: dict) -> None:
+        """Create duplicate of columns specified in column map.
+
+        Args:
+            columns_map (dict): mapping of existing column to new column names
+        """
+        super().__init__(block_name=block_name)
+        self.columns_map = columns_map    
+    
+    
+    def generate(self, samples: Dataset):
+        for col_to_dup in self.columns_map:
+            samples = samples.add_column(self.columns_map[col_to_dup], samples[col_to_dup])
+        return samples
+
+
+class RenameColumns(Block):
+    def __init__(self, block_name: str, columns_map: dict) -> None:
+        """Rename dataset columns.
+
+        Args:
+            columns_map (dict): mapping of existing column to new column names
+        """
+        self.columns_map = columns_map
+        super().__init__(block_name=block_name)
+    
+    
+    def generate(self, samples: Dataset):
+        samples = samples.rename_columns(self.columns_map)
+        return samples
+
+
+class SetToMajorityValue(Block):
+    def __init__(self, block_name: str, col_name) -> None:
+        self.col_name = col_name
+        super().__init__(block_name)
+    
+    def generate(self, samples: Dataset):
+        samples = samples.to_pandas()
+        samples[self.col_name] = samples[self.col_name].mode()[0]
+        return Dataset.from_pandas(samples)

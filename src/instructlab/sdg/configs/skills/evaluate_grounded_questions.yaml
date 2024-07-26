@@ -34,7 +34,7 @@ examples: |
    [End of Score]
 
 generation: |   
-   Here's the context and question you need to evaluate:
+   Here's the context and question you need to evaluate. Return the evaluation between [Start of Evaluation] and [End of Evaluation] tags.
 
    [Start of Context]
    {context}

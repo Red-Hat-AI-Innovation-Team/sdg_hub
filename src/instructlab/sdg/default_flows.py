@@ -1,24 +1,33 @@
 # SPDX-License-Identifier: Apache-2.0
 # Standard
-from abc import ABC, abstractmethod
+from abc import ABC
 from importlib import resources
+from typing import Any, Optional
 import operator
 import os
 
+# Third Party
+import yaml
+
 # Local
 from .filterblock import FilterByValueBlock
-from .iterblock import IterBlock
-from .llmblock import LLMBlock
+from .llmblock import LLMBlock, ConditionalLLMBlock
+from .utilblocks import CombineColumnsBlock, SamplePopulatorBlock, SelectorBlock, DuplicateColumns, RenameColumns, FlattenColumnsBlock, SetToMajorityValue
 
 MODEL_FAMILY_MIXTRAL = "mixtral"
 MODEL_FAMILY_MERLINITE = "merlinite"
+MODEL_FAMILY_BLANK = "blank"
+
 
 _MODEL_PROMPT_MIXTRAL = "<s> [INST] {prompt} [/INST]"
 _MODEL_PROMPT_MERLINITE = "'<|system|>\nYou are an AI language model developed by IBM Research. You are a cautious assistant. You carefully follow instructions. You are helpful and harmless and you follow ethical guidelines and promote positive behavior.\n<|user|>\n{prompt}\n<|assistant|>\n'"
+_BLANK_PROMPT = "{prompt}"
+
 
 _MODEL_PROMPTS = {
     MODEL_FAMILY_MIXTRAL: _MODEL_PROMPT_MIXTRAL,
     MODEL_FAMILY_MERLINITE: _MODEL_PROMPT_MERLINITE,
+    MODEL_FAMILY_BLANK: _BLANK_PROMPT,
 }
 
 
@@ -28,456 +37,89 @@ def _get_model_prompt(model_family):
     return _MODEL_PROMPTS[model_family]
 
 
+BLOCK_TYPE_MAP = {
+    "LLMBlock": LLMBlock,
+    "FilterByValueBlock": FilterByValueBlock,
+    "CombineColumnsBlock": CombineColumnsBlock,
+    "SamplePopulatorBlock": SamplePopulatorBlock,
+    "SelectorBlock": SelectorBlock,
+    "DuplicateColumns": DuplicateColumns,
+    "RenameColumns": RenameColumns,
+    "FlattenColumnsBlock": FlattenColumnsBlock,
+    "ConditionalLLMBlock": ConditionalLLMBlock,
+    "SetToMajorityValue": SetToMajorityValue
+    
+}
+
+MODEL_FAMILY_MAP = {
+    "mistralai/Mixtral-8x7B-Instruct-v0.1": MODEL_FAMILY_MIXTRAL,
+}
+
+OPERATOR_MAP = {
+    "operator.eq": operator.eq,
+    "operator.ge": operator.ge,
+    "operator.contains": operator.contains,
+}
+
+CONVERT_DTYPE_MAP = {
+    "float": float,
+}
+
+
 class Flow(ABC):
-    def __init__(self, client, model_family, model_id, num_iters, batched=True) -> None:
+    def __init__(
+        self, client: Any, num_instructions_to_generate: Optional[int] = None
+    ) -> None:
         self.client = client
-        self.model_family = model_family
-        self.model_id = model_id
-        self.num_iters = num_iters
-        self.batched = batched
+        self.num_instructions_to_generate = num_instructions_to_generate
+        self.sdg_base = resources.files(__package__)
 
-    @abstractmethod
-    def get_flow(self) -> list:
-        pass
-
-
-class _SimpleFlow(Flow):
-    def get_flow(self) -> list:
-        return [
-            {
-                "block_type": IterBlock,
-                "block_config": {
-                    "block_name": "",  # must be set by subclass
-                    "num_iters": self.num_iters,
-                    "block_type": LLMBlock,
-                    "block_kwargs": {
-                        "block_name": "",  # must be set by subclass
-                        "config_path": "",  # must be set by subclass
-                        "client": self.client,
-                        "model_id": self.model_id,
-                        "model_prompt": _get_model_prompt(self.model_family),
-                        "output_cols": ["output"],
-                        "batch_kwargs": {
-                            "num_procs": 8,
-                            "batched": self.batched,
-                        },
-                    },
-                    "gen_kwargs": {
-                        "max_tokens": 2048,
-                        "temperature": 0.7,
-                    },
-                    "drop_duplicates": ["output"],
-                },
-            }
-        ]
-
-
-class SimpleKnowledgeFlow(_SimpleFlow):
-    def get_flow(self) -> list:
-        flow = super().get_flow()
-        sdg_base = resources.files(__package__)
-        flow[0]["block_config"]["block_kwargs"]["config_path"] = os.path.join(
-            sdg_base, "configs/knowledge/simple_generate_qa.yaml"
-        )
-        flow[0]["block_config"]["block_kwargs"]["block_name"] = "gen_knowledge"
-        flow[0]["block_config"]["block_name"] = "gen_knowledge"
+    def get_flow_from_file(self, yaml_path: str) -> list:
+        yaml_path_relative_to_sdg_base = os.path.join(self.sdg_base, yaml_path)
+        if os.path.isfile(yaml_path_relative_to_sdg_base):
+            yaml_path = yaml_path_relative_to_sdg_base
+        with open(yaml_path, "r", encoding="utf-8") as yaml_file:
+            flow = yaml.safe_load(yaml_file)
+        for block in flow:
+            block["block_type"] = BLOCK_TYPE_MAP[block["block_type"]]
+            if "config_path" in block["block_config"]:
+                block_config_path_relative_to_sdg_base = os.path.join(
+                    self.sdg_base, block["block_config"]["config_path"]
+                )
+                if os.path.isfile(block_config_path_relative_to_sdg_base):
+                    block["block_config"]["config_path"] = (
+                        block_config_path_relative_to_sdg_base
+                    )
+            if "model_id" in block["block_config"]:
+                block["block_config"]["client"] = self.client
+                model_id = block["block_config"]["model_id"]
+                if "model_family" in block["block_config"]:
+                    model_family = block["block_config"]["model_family"]
+                else:
+                    model_family = MODEL_FAMILY_MAP.get(model_id, MODEL_FAMILY_BLANK)
+                block["block_config"]["model_prompt"] = _get_model_prompt(model_family)
+            if "operation" in block["block_config"]:
+                block["block_config"]["operation"] = OPERATOR_MAP[
+                    block["block_config"]["operation"]
+                ]
+            if "convert_dtype" in block["block_config"]:
+                block["block_config"]["convert_dtype"] = CONVERT_DTYPE_MAP[
+                    block["block_config"]["convert_dtype"]
+                ]
+            n = self.num_instructions_to_generate
+            if n is not None:
+                if "gen_kwargs" in block and block["gen_kwargs"].get("n", None) is not None:
+                    block["gen_kwargs"]["n"] = n
         return flow
 
 
-class SimpleFreeformSkillFlow(_SimpleFlow):
-    def get_flow(self) -> list:
-        flow = super().get_flow()
-        sdg_base = resources.files(__package__)
-        flow[0]["block_config"]["block_kwargs"]["config_path"] = os.path.join(
-            sdg_base, "configs/skills/simple_generate_qa_freeform.yaml"
-        )
-        flow[0]["block_config"]["block_kwargs"]["block_name"] = "gen_skill_freeform"
-        flow[0]["block_config"]["block_name"] = "gen_skill_freeform"
-        return flow
-
-
-class SimpleGroundedSkillFlow(_SimpleFlow):
-    def get_flow(self) -> list:
-        flow = super().get_flow()
-        sdg_base = resources.files(__package__)
-        flow[0]["block_config"]["block_kwargs"]["config_path"] = os.path.join(
-            sdg_base, "configs/skills/simple_generate_qa_grounded.yaml"
-        )
-        flow[0]["block_config"]["block_kwargs"]["block_name"] = "gen_skill_grounded"
-        flow[0]["block_config"]["block_name"] = "gen_skill_grounded"
-        return flow
-
-
-class MMLUBenchFlow(Flow):
-    def get_flow(self) -> list:
-        sdg_base = resources.files(__package__)
-        return [
-            {
-                "block_type": LLMBlock,
-                "block_config": {
-                    "block_name": "gen_mmlu_knowledge",
-                    "config_path": os.path.join(
-                        sdg_base, "configs/knowledge/mcq_generation.yaml"
-                    ),
-                    "client": self.client,
-                    "model_id": self.model_id,
-                    "model_prompt": _get_model_prompt(self.model_family),
-                    "output_cols": ["mmlubench_question", "mmlubench_answer"],
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                        "batched": self.batched,
-                    },
-                },
-                "gen_kwargs": {
-                    "temperature": 0,
-                    "max_tokens": 2048,
-                },
-                "drop_duplicates": ["mmlubench_question"],
-            },
-        ]
-
-
-class SynthKnowledgeFlow(Flow):
-    def get_flow(self) -> list:
-        sdg_base = resources.files(__package__)
-        return [
-            {
-                "block_type": LLMBlock,
-                "block_config": {
-                    "block_name": "gen_knowledge",
-                    "config_path": os.path.join(
-                        sdg_base, "configs/knowledge/generate_questions_responses.yaml"
-                    ),
-                    "client": self.client,
-                    "model_id": self.model_id,
-                    "model_prompt": _get_model_prompt(self.model_family),
-                    "output_cols": ["question", "response"],
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                        "batched": self.batched,
-                    },
-                    "parser_kwargs": {
-                        "parser_name": "custom",
-                        "parsing_pattern": r"\[(?:Question|QUESTION)\]\s*(.*?)\s*\[(?:Answer|ANSWER)\]\s*(.*?)\s*(?=\[(?:Question|QUESTION)\]|$)",
-                        "parser_cleanup_tags": ["[END]"],
-                    },
-                },
-                "gen_kwargs": {
-                    "max_tokens": 2048,
-                },
-                "drop_duplicates": ["question"],
-            },
-            {
-                "block_type": LLMBlock,
-                "block_config": {
-                    "block_name": "eval_faithfulness_qa_pair",
-                    "config_path": os.path.join(
-                        sdg_base, "configs/knowledge/evaluate_faithfulness.yaml"
-                    ),
-                    "client": self.client,
-                    "model_id": self.model_id,
-                    "model_prompt": _get_model_prompt(self.model_family),
-                    "output_cols": ["explanation", "judgment"],
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                        "batched": self.batched,
-                    },
-                },
-                "gen_kwargs": {
-                    "max_tokens": 2048,
-                },
-            },
-            {
-                "block_type": FilterByValueBlock,
-                "block_config": {
-                    "block_name": "filter_faithfulness",
-                    "filter_column": "judgment",
-                    "filter_value": "YES",
-                    "operation": operator.eq,
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                    },
-                },
-                "drop_columns": ["judgment", "explanation"],
-            },
-            {
-                "block_type": LLMBlock,
-                "block_config": {
-                    "block_name": "eval_relevancy_qa_pair",
-                    "config_path": os.path.join(
-                        sdg_base, "configs/knowledge/evaluate_relevancy.yaml"
-                    ),
-                    "client": self.client,
-                    "model_id": self.model_id,
-                    "model_prompt": _get_model_prompt(self.model_family),
-                    "output_cols": ["feedback", "score"],
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                        "batched": self.batched,
-                    },
-                },
-                "gen_kwargs": {
-                    "max_tokens": 2048,
-                },
-            },
-            {
-                "block_type": FilterByValueBlock,
-                "block_config": {
-                    "block_name": "filter_relevancy",
-                    "filter_column": "score",
-                    "filter_value": "2",
-                    "operation": operator.eq,
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                    },
-                },
-                "drop_columns": ["feedback", "score"],
-            },
-            {
-                "block_type": LLMBlock,
-                "block_config": {
-                    "block_name": "eval_verify_question",
-                    "config_path": os.path.join(
-                        sdg_base, "configs/knowledge/evaluate_question.yaml"
-                    ),
-                    "client": self.client,
-                    "model_id": self.model_id,
-                    "model_prompt": _get_model_prompt(self.model_family),
-                    "output_cols": ["explanation", "rating"],
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                        "batched": self.batched,
-                    },
-                },
-                "gen_kwargs": {
-                    "max_tokens": 2048,
-                },
-            },
-            {
-                "block_type": FilterByValueBlock,
-                "block_config": {
-                    "block_name": "filter_verify_question",
-                    "filter_column": "rating",
-                    "filter_value": "1",
-                    "operation": operator.eq,
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                    },
-                },
-                "drop_columns": ["explanation", "rating", "__index_level_0__"],
-            },
-        ]
-
-
-class SynthSkillsFlow(Flow):
-    def get_flow(self) -> list:
-        return [
-            {
-                "block_type": LLMBlock,
-                "block_config": {
-                    "block_name": "gen_questions",
-                    "config_path": "src/instructlab/sdg/configs/skills/freeform_questions.yaml",
-                    "client": self.client,
-                    "model_id": self.model_id,
-                    "model_prompt": _get_model_prompt(self.model_family),
-                    "output_cols": ["question"],
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                        "num_samples": 30,
-                        "batched": self.batched,
-                    },
-                },
-                "drop_duplicates": ["question"],
-            },
-            {
-                "block_type": LLMBlock,
-                "block_config": {
-                    "block_name": "eval_questions",
-                    "config_path": "src/instructlab/sdg/configs/skills/evaluate_freeform_questions.yaml",
-                    "client": self.client,
-                    "model_id": self.model_id,
-                    "model_prompt": _get_model_prompt(self.model_family),
-                    "output_cols": ["evaluation", "score"],
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                        "batched": self.batched,
-                    },
-                },
-            },
-            {
-                "block_type": FilterByValueBlock,
-                "block_config": {
-                    "block_name": "filter_questions",
-                    "filter_column": "score",
-                    "filter_value": 1,
-                    "operation": operator.eq,
-                    "convert_dtype": int,
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                    },
-                },
-                "drop_columns": ["evaluation", "score", "num_samples"],
-            },
-            {
-                "block_type": LLMBlock,
-                "block_config": {
-                    "block_name": "gen_responses",
-                    "config_path": "src/instructlab/sdg/configs/skills/freeform_responses.yaml",
-                    "client": self.client,
-                    "model_id": self.model_id,
-                    "model_prompt": _get_model_prompt(self.model_family),
-                    "output_cols": ["answer"],
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                        "batched": self.batched,
-                    },
-                },
-            },
-            {
-                "block_type": LLMBlock,
-                "block_config": {
-                    "block_name": "evaluate_qa_pair",
-                    "config_path": "src/instructlab/sdg/configs/skills/evaluate_freeform_pair.yaml",
-                    "client": self.client,
-                    "model_id": self.model_id,
-                    "model_prompt": _get_model_prompt(self.model_family),
-                    "output_cols": ["evaluation", "score"],
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                        "batched": self.batched,
-                    },
-                },
-            },
-            {
-                "block_type": FilterByValueBlock,
-                "block_config": {
-                    "block_name": "filter_qa_pair",
-                    "filter_column": "score",
-                    "filter_value": 2,
-                    "operation": operator.ge,
-                    "convert_dtype": int,
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                    },
-                },
-                "drop_columns": ["evaluation", "score"],
-            },
-        ]
-
-
-class SynthGroundedSkillsFlow(Flow):
-    def get_flow(self) -> list:
-        return [
-            {
-                "block_type": IterBlock,
-                "block_config": {
-                    "block_name": "context_iter",
-                    "num_iters": 10,
-                    "block_type": LLMBlock,
-                    "block_kwargs": {
-                        "block_name": "gen_contexts",
-                        "config_path": "src/instructlab/sdg/configs/skills/contexts.yaml",
-                        "client": self.client,
-                        "model_id": self.model_id,
-                        "model_prompt": _get_model_prompt(self.model_family),
-                        "output_cols": ["context"],
-                        "batch_kwargs": {
-                            "num_procs": 8,
-                            "batched": self.batched,
-                        },
-                    },
-                    "gen_kwargs": {
-                        "temperature": 0.7,
-                        "max_tokens": 2048,
-                    },
-                },
-            },
-            {
-                "block_type": LLMBlock,
-                "block_config": {
-                    "block_name": "gen_grounded_questions",
-                    "config_path": "src/instructlab/sdg/configs/skills/grounded_questions.yaml",
-                    "client": self.client,
-                    "model_id": self.model_id,
-                    "model_prompt": _get_model_prompt(self.model_family),
-                    "output_cols": ["question"],
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                        "batched": self.batched,
-                    },
-                },
-                "drop_duplicates": ["question"],
-            },
-            {
-                "block_type": LLMBlock,
-                "block_config": {
-                    "block_name": "eval_grounded_questions",
-                    "config_path": "src/instructlab/sdg/configs/skills/evaluate_grounded_questions.yaml",
-                    "client": self.client,
-                    "model_id": self.model_id,
-                    "model_prompt": _get_model_prompt(self.model_family),
-                    "output_cols": ["evaluation", "score"],
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                        "batched": self.batched,
-                    },
-                },
-            },
-            {
-                "block_type": FilterByValueBlock,
-                "block_config": {
-                    "block_name": "filter_grounded_questions",
-                    "filter_column": "score",
-                    "filter_value": 1,
-                    "operation": operator.eq,
-                    "convert_dtype": int,
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                    },
-                },
-                "drop_columns": ["evaluation", "score", "num_samples"],
-            },
-            {
-                "block_type": LLMBlock,
-                "block_config": {
-                    "block_name": "gen_grounded_responses",
-                    "config_path": "src/instructlab/sdg/configs/skills/grounded_responses.yaml",
-                    "client": self.client,
-                    "model_id": self.model_id,
-                    "model_prompt": _get_model_prompt(self.model_family),
-                    "output_cols": ["answer"],
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                        "batched": self.batched,
-                    },
-                },
-            },
-            {
-                "block_type": LLMBlock,
-                "block_config": {
-                    "block_name": "evaluate_grounded_qa_pair",
-                    "config_path": "src/instructlab/sdg/configs/skills/evaluate_grounded_pair.yaml",
-                    "client": self.client,
-                    "model_id": self.model_id,
-                    "model_prompt": _get_model_prompt(self.model_family),
-                    "output_cols": ["evaluation", "score"],
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                        "batched": self.batched,
-                    },
-                },
-            },
-            {
-                "block_type": FilterByValueBlock,
-                "block_config": {
-                    "block_name": "filter_grounded_qa_pair",
-                    "filter_column": "score",
-                    "filter_value": 2,
-                    "operation": operator.ge,
-                    "convert_dtype": int,
-                    "batch_kwargs": {
-                        "num_procs": 8,
-                    },
-                },
-            },
-        ]
+DEFAULT_FLOW_FILE_MAP = {
+    "SimpleKnowledgeFlow": "flows/simple_knowledge.yaml",
+    "SimpleFreeformSkillFlow": "flows/simple_freeform_skill.yaml",
+    "SimpleGroundedSkillFlow": "flows/simple_grounded_skill.yaml",
+    "MMLUBenchFlow": "flows/mmlu_bench.yaml",
+    "SynthKnowledgeFlow": "flows/synth_knowledge.yaml",
+    "SynthSkillsFlow": "flows/synth_skills.yaml",
+    "SynthGroundedSkillsFlow": "flows/synth_grounded_skills.yaml",
+    "SynthKnowledgeFlow1.5": "flows/synth_knowledge1.5.yaml"
+}

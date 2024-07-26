@@ -21,13 +21,13 @@ examples: |
   [End of Response]
 
 generation: |
-  Now generate a response to the following prompt. 
+  Now generate a response to the following prompt. Remember to use the same style and format as the example above. 
 
   [Start of Question]
   {question}
   [End of Question]
 
-  Remember to use the same style and format as the example above. Return the response between [Start of Response] and [End of Response] tags.
+  Return the response between [Start of Response] and [End of Response] tags.
 
 start_tags: ["[Start of Response]"]
 end_tags: ["[End of Response]"]

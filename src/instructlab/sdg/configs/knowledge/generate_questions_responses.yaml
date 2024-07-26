@@ -27,24 +27,9 @@ principles: |
 examples: |
   Here are some examples of questions:
 
-  [QUESTION]
-  Explain the process of photosynthesis in plants. Include in your answer the roles of chlorophyll, light, water, and carbon dioxide, and describe how oxygen and glucose are produced.
-  [ANSWER]
-  Photosynthesis is the process by which plants, algae, and some bacteria use sunlight to synthesize food from carbon dioxide and water. Photosynthesis in plants primarily occurs in the leaves, specifically in the chloroplasts. Chlorophyll, the green pigment in chloroplasts, absorbs light energy, which is then used to convert carbon dioxide (from the air) and water (from the soil) into glucose, a simple sugar. This process also releases oxygen as a byproduct. Light energy splits water molecules, releasing electrons and hydrogen ions and forming oxygen. The light-dependent reactions convert light energy into chemical energy (ATP and NADPH), which is used in the light-independent reactions (Calvin cycle) to convert carbon dioxide into glucose. The overall result is the conversion of solar energy into chemical energy in the form of glucose, which plants use for growth and development.
-  [END]
+  [Document]
+  {icl_document}
 
-  [QUESTION]
-  In a study on the effects of temperature on enzyme activity, an enzyme exhibited its highest activity at 37°C. At both higher and lower temperatures, its activity decreased. Based on this information, which of the following best explains the enzyme's behavior?
-  Options:
-  a) Enzymes are temperature-sensitive and can denature at high temperatures, losing their functional shape, while at low temperatures, their reaction rates decrease due to reduced molecular motion.
-  b) Enzymes are more effective at higher temperatures as increased heat provides more energy for reactions, and lower temperatures cause enzymes to become more active due to enhanced molecular stability.
-  c) The enzyme's behavior is unrelated to temperature; instead, it is likely due to changes in pH levels, which affect enzyme activity.
-  d) All enzymes universally work best at exactly 37°C, as this is the standard temperature for all biochemical reactions in nature.
-  [ANSWER]
-  a) Enzymes are temperature-sensitive and can denature at high temperatures, losing their functional shape, while at low temperatures, their reaction rates decrease due to reduced molecular motion.
-  [END]
-
-  For this {domain} domain here are some sample questions:
   [QUESTION]
   {icl_query_1}
   [ANSWER]
@@ -65,4 +50,7 @@ examples: |
 
 generation: |
   Here is the document:
+  
+  [DOCUMENT]
+  {document_outline}
   {document}

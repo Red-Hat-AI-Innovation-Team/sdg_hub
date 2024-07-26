@@ -19,5 +19,3 @@ generation: |
 
 start_tags: ["[Start of Context]"]
 end_tags: ["[End of Context]"]
-
-sys_prompt: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.

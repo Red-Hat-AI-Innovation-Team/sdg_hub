@@ -75,6 +75,7 @@ generation: |
 
   Here is the document:
   [Start of Document]
+  {document_outline}
   {document}
   [End of Document]
 
