@@ -8,7 +8,7 @@ import time
 from docling.datamodel.base_models import ConversionStatus
 from docling.datamodel.document import ConvertedDocument, DocumentConversionInput
 from docling.document_converter import DocumentConverter
-from .logger_config import setup_logger
+from logger_config import setup_logger
 import click
 
 logger = setup_logger(__name__)
@@ -45,7 +45,13 @@ def export_documents(
 
 
 @click.command()
-@click.argument("file_paths", nargs=-1, required=True, type=click.Path(exists=True))
+@click.option(
+    "--input-dir",
+    "-i",
+    type=click.Path(path_type=Path),
+    help="Directory containing the documents to convert",
+    required=True,
+)
 @click.option(
     "--output-dir",
     "-o",
@@ -53,7 +59,8 @@ def export_documents(
     help="Directory to save the converted documents",
     required=True,
 )
-def main(file_paths: list, output_dir: Path):
+def main(input_dir: Path, output_dir: Path):
+    file_paths = list(input_dir.glob("*.pdf"))
     artifacts_path = DocumentConverter.download_models_hf()
     doc_converter = DocumentConverter(artifacts_path=artifacts_path)
     inputs = DocumentConversionInput.from_paths(file_paths)
