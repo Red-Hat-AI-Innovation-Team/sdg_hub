@@ -110,12 +110,17 @@ def _convert_to_messages(sample: dict, sys_prompt: str):
 def create_auxiliary_dataset(generated_dataset: Dataset):
     if "dataset_type" not in generated_dataset.column_names:
         return None
+
+    # get module path of the current file
+    module_dir = os.path.dirname(os.path.abspath(__file__))
+    aux_inst_path = os.path.join(module_dir, "../configs/knowledge/auxilary_instructions.yaml")
     if os.path.isfile(
-        "src/instructlab/sdg/configs/knowledge/auxilary_instructions.yaml"
+            aux_inst_path
     ):
-        with open("src/instructlab/sdg/configs/knowledge/auxilary_instructions.yaml", "r", encoding="utf-8") as fp:
+        with open(aux_inst_path, "r", encoding="utf-8") as fp:
             auxiliary_inst = yaml.safe_load(fp)
     else:
+        logger.error(f"auxiliary instructions file not found at {aux_inst_path}")
         return None
     auxiliary_ds = generated_dataset.filter(
         lambda x: x["dataset_type"] != "base_document"
