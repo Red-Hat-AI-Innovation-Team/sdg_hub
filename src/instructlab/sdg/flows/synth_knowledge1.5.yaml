@@ -79,12 +79,9 @@
   block_config:
     block_name: knowledge generation
     config_paths:
-      - - src/instructlab/sdg/configs/knowledge/generate_questions_responses.yaml
-        - _A_
-      - - src/instructlab/sdg/configs/knowledge/generate_questions_responses.yaml
-        - _B_
-      - - src/instructlab/sdg/configs/knowledge/generate_code_questions_responses.yaml
-        - _C_
+      _A_: configs/knowledge/generate_questions_responses.yaml
+      _B_: configs/knowledge/generate_questions_responses.yaml
+      _C_: configs/knowledge/generate_code_questions_responses.yaml
     model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
     model_prompt: '<s> [INST] {prompt} [/INST]'
     output_cols:

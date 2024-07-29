@@ -12,7 +12,15 @@ import yaml
 # Local
 from .filterblock import FilterByValueBlock
 from .llmblock import LLMBlock, ConditionalLLMBlock
-from .utilblocks import CombineColumnsBlock, SamplePopulatorBlock, SelectorBlock, DuplicateColumns, RenameColumns, FlattenColumnsBlock, SetToMajorityValue
+from .utilblocks import (
+    CombineColumnsBlock,
+    SamplePopulatorBlock,
+    SelectorBlock,
+    DuplicateColumns,
+    RenameColumns,
+    FlattenColumnsBlock,
+    SetToMajorityValue,
+)
 
 MODEL_FAMILY_MIXTRAL = "mixtral"
 MODEL_FAMILY_MERLINITE = "merlinite"
@@ -20,7 +28,7 @@ MODEL_FAMILY_BLANK = "blank"
 
 
 _MODEL_PROMPT_MIXTRAL = "<s> [INST] {prompt} [/INST]"
-_MODEL_PROMPT_MERLINITE = "'<|system|>\nYou are an AI language model developed by IBM Research. You are a cautious assistant. You carefully follow instructions. You are helpful and harmless and you follow ethical guidelines and promote positive behavior.\n<|user|>\n{prompt}\n<|assistant|>\n'"
+_MODEL_PROMPT_MERLINITE = "<|system|>\nYou are an AI language model developed by IBM Research. You are a cautious assistant. You carefully follow instructions. You are helpful and harmless and you follow ethical guidelines and promote positive behavior.\n<|user|>\n{prompt}\n<|assistant|>\n"
 _BLANK_PROMPT = "{prompt}"
 
 
@@ -47,8 +55,7 @@ BLOCK_TYPE_MAP = {
     "RenameColumns": RenameColumns,
     "FlattenColumnsBlock": FlattenColumnsBlock,
     "ConditionalLLMBlock": ConditionalLLMBlock,
-    "SetToMajorityValue": SetToMajorityValue
-    
+    "SetToMajorityValue": SetToMajorityValue,
 }
 
 MODEL_FAMILY_MAP = {
@@ -82,6 +89,7 @@ class Flow(ABC):
             flow = yaml.safe_load(yaml_file)
         for block in flow:
             block["block_type"] = BLOCK_TYPE_MAP[block["block_type"]]
+
             if "config_path" in block["block_config"]:
                 block_config_path_relative_to_sdg_base = os.path.join(
                     self.sdg_base, block["block_config"]["config_path"]
@@ -90,6 +98,17 @@ class Flow(ABC):
                     block["block_config"]["config_path"] = (
                         block_config_path_relative_to_sdg_base
                     )
+
+            if "config_paths" in block["block_config"]:
+                for key, path in block["block_config"]["config_paths"].items():
+                    block_config_path_relative_to_sdg_base = os.path.join(
+                        self.sdg_base, path
+                    )
+                    if os.path.isfile(block_config_path_relative_to_sdg_base):
+                        block["block_config"]["config_paths"][key] = (
+                            block_config_path_relative_to_sdg_base
+                        )
+
             if "model_id" in block["block_config"]:
                 block["block_config"]["client"] = self.client
                 model_id = block["block_config"]["model_id"]
@@ -98,17 +117,23 @@ class Flow(ABC):
                 else:
                     model_family = MODEL_FAMILY_MAP.get(model_id, MODEL_FAMILY_BLANK)
                 block["block_config"]["model_prompt"] = _get_model_prompt(model_family)
+
             if "operation" in block["block_config"]:
                 block["block_config"]["operation"] = OPERATOR_MAP[
                     block["block_config"]["operation"]
                 ]
+
             if "convert_dtype" in block["block_config"]:
                 block["block_config"]["convert_dtype"] = CONVERT_DTYPE_MAP[
                     block["block_config"]["convert_dtype"]
                 ]
+
             n = self.num_instructions_to_generate
             if n is not None:
-                if "gen_kwargs" in block and block["gen_kwargs"].get("n", None) is not None:
+                if (
+                    "gen_kwargs" in block
+                    and block["gen_kwargs"].get("n", None) is not None
+                ):
                     block["gen_kwargs"]["n"] = n
         return flow
 
@@ -121,5 +146,5 @@ DEFAULT_FLOW_FILE_MAP = {
     "SynthKnowledgeFlow": "flows/synth_knowledge.yaml",
     "SynthSkillsFlow": "flows/synth_skills.yaml",
     "SynthGroundedSkillsFlow": "flows/synth_grounded_skills.yaml",
-    "SynthKnowledgeFlow1.5": "flows/synth_knowledge1.5.yaml"
+    "SynthKnowledgeFlow1.5": "flows/synth_knowledge1.5.yaml",
 }

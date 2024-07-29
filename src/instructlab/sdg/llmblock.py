@@ -201,7 +201,7 @@ class ConditionalLLMBlock(LLMBlock):
     ) -> None:
         super().__init__(
             block_name,
-            config_paths[0][0],
+            list(config_paths.values())[0],
             client,
             model_id,
             output_cols,
@@ -211,7 +211,7 @@ class ConditionalLLMBlock(LLMBlock):
         )
         self.selector_column_name = selector_column_name
         self.prompt_template = {}
-        if len(config_paths) == 1 and config_paths[0][1] == "All":
+        if "All" in config_paths:
             self.prompt_template = self.prompt_struct.format(**self.block_config)
         else:
             for config, config_key in config_paths:
