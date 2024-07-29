@@ -35,9 +35,7 @@ def chunk_document(documents: List, server_ctx_size, chunk_word_count) -> List[s
     # Checks for input type error
     if isinstance(documents, str):
         documents = [documents]
-        logger.info(
-            "Converted single string into a list of string. Assumed the string passed in is the document. Normally, chunk_document() should take a list as input."
-        )
+
     elif not isinstance(documents, list):
         raise TypeError(
             "Expected: documents to be a list, but got {}".format(type(documents))

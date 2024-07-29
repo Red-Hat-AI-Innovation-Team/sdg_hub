@@ -1,0 +1,35 @@
+summary_detailed:
+  - Provide me with a comprehensive summary of the given document.
+  - Prepare a detailed breakdown of the contents of the document for me.
+  - Summarize the document thoroughly, covering all important points.
+  - Create a detailed executive summary of the provided document.
+  - Compose a comprehensive overview of the document's content.
+  - Deliver a detailed synopsis of the material presented in the document.
+  - Furnish me with a detailed analysis of the document's key points.
+  - Generate a thorough summary of the main ideas in the document.
+  - Offer a detailed digest of the information contained in the document.
+  - Supply me with a comprehensive rundown of the document's contents.
+
+summary_extractive:
+  - Provide me with a summary of the document using extractive methods.
+  - Create an extractive summary for the given document.
+  - Generate an extractive summary from the document that was given to you.
+  - Summarize the document using extractive techniques.
+  - Create a summary of the provided document using extractive methods.
+  - Generate an extractive summary for the document provided.
+  - Using extractive techniques, summarize the given document.
+  - Create a summary of the document using extractive summarization.
+  - Generate an extractive summary of the document that was provided.
+  - Summarize the provided document using extractive summarization techniques.
+
+summary_atomic_facts:
+  - Identify and list all atomic facts from the document.
+  - Extract all key facts from the given document.
+  - List all the important facts from the provided document.
+  - Highlight all the atomic facts present in the document.
+  - Identify and enumerate all key facts from the given text.
+  - List out all the critical information from the document.
+  - Highlight all the essential facts from the provided text.
+  - Identify and summarize all the important details from the document.
+  - Extract all the atomic facts from the given document.
+  - List all the key takeaways from the provided text.
