@@ -214,7 +214,7 @@ class ConditionalLLMBlock(LLMBlock):
         if "All" in config_paths:
             self.prompt_template = self.prompt_struct.format(**self.block_config)
         else:
-            for config, config_key in config_paths:
+            for config, config_key in config_paths.items():
                 self.prompt_template[config_key] = self.prompt_struct.format(
                     **self._load_config(config)
                 )
