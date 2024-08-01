@@ -59,7 +59,7 @@
 
 - block_type: FlattenColumnsBlock
   block_config:
-    block_name: flatten_summary_columsn
+    block_name: flatten_summary_columns
     var_cols:
       - summary_detailed
       - summary_extractive
