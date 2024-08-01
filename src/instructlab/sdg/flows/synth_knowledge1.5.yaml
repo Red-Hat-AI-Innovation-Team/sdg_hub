@@ -35,7 +35,7 @@
     output_cols:
       - summary_detailed
   gen_kwargs:
-    max_tokens: 512
+    max_tokens: 2048
 
 - block_type: LLMBlock
   block_config:
@@ -45,7 +45,7 @@
     output_cols:
       - summary_atomic_facts
   gen_kwargs:
-    max_tokens: 512
+    max_tokens: 2048
 
 - block_type: LLMBlock
   block_config:
@@ -55,7 +55,7 @@
     output_cols:
       - summary_extractive
   gen_kwargs:
-    max_tokens: 512
+    max_tokens: 2048
 
 - block_type: FlattenColumnsBlock
   block_config:
@@ -95,7 +95,7 @@
       parser_cleanup_tags:
         - "[END]"
   gen_kwargs:
-    max_tokens: 512
+    max_tokens: 2048
 
 - block_type: LLMBlock
   block_config:
@@ -106,7 +106,7 @@
       - explanation
       - judgment
   gen_kwargs:
-    max_tokens: 512
+    max_tokens: 2048
 
 - block_type: FilterByValueBlock
   block_config:
@@ -127,7 +127,7 @@
       - feedback
       - score
   gen_kwargs:
-    max_tokens: 512
+    max_tokens: 2048
 
 - block_type: FilterByValueBlock
   block_config:
@@ -149,7 +149,7 @@
       - explanation
       - rating
   gen_kwargs:
-    max_tokens: 512
+    max_tokens: 2048
 
 - block_type: FilterByValueBlock
   block_config:
