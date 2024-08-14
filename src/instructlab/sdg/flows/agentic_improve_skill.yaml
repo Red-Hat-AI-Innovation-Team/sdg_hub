@@ -1,0 +1,108 @@
+- block_type: LLMBlock
+  block_config:
+    block_name: router
+    config_path: configs/skills/router.yaml
+    model_id: skill-classifier-v3-clm
+    output_cols:
+      - route
+  gen_kwargs:
+    temperature: 0
+    max_tokens: 1
+    extra_body:
+      allowed_token_ids:  
+        - 32001
+        - 32002
+        - 32003
+        - 32004
+        - 32005
+        - 32006
+        - 32007
+        - 32008
+- block_type: SamplePopulatorBlock
+  block_config:
+    block_name: icl_populator
+    config_paths: 
+      - configs/skills/_A_.yaml
+      - configs/skills/_B_.yaml
+      - configs/skills/_C_.yaml
+      - configs/skills/_D_.yaml
+      - configs/skills/_E_.yaml
+      - configs/skills/_F_.yaml
+      - configs/skills/_G_.yaml
+      - configs/skills/_H_.yaml
+    column_name: route
+    batch_kwargs:
+      num_procs: 8
+- block_type: LLMBlock
+  block_config:
+    block_name: analyzer
+    config_path: configs/skills/analyzer.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_prompt: <s> [INST] {prompt} [/INST]
+    output_cols:
+      - analysis
+      - rubric
+- block_type: LLMBlock
+  block_config:
+    block_name: critic
+    config_path: configs/skills/critic.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_prompt: <s> [INST] {prompt} [/INST]
+    output_cols: 
+      - critique
+- block_type: LLMBlock
+  block_config:
+    block_name: planner
+    config_path: configs/skills/planner.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_prompt: <s> [INST] {prompt} [/INST]
+    output_cols: 
+      - plan
+- block_type: LLMBlock
+  block_config:
+    block_name: revised_responder
+    config_path: configs/skills/revised_responder.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_prompt: <s> [INST] {prompt} [/INST]
+    output_cols: 
+      - revised_response
+  drop_columns:
+    - icl_query
+    - icl_response
+    - icl_analysis
+    - icl_rubric
+    - icl_critique
+    - icl_plan
+    - icl_revised_response
+- block_type: LLMBlock
+  block_config:
+    block_name: judge
+    config_path: configs/skills/judge.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_prompt: <s> [INST] {prompt} [/INST]
+    output_cols:
+      - judgement
+      - verdict
+- block_type: FilterByValueBlock
+  block_config:
+    block_name: filter_judgement
+    filter_column: verdict
+    filter_value:
+      - Assistant A
+      - Assistant B
+    operation: operator.contains
+    batch_kwargs:
+      num_procs: 8
+- block_type: SelectorBlock
+  block_config:
+    block_name: response_selector
+    choice_map:
+       Assistant A: "response"
+       Assistant B: "revised_response"
+    choice_col: verdict
+    output_col: chosen_reponse
+    batch_kwargs:
+      num_procs: 8
+  drop_columns:
+    - judgemnent
+    - verdict

@@ -100,14 +100,25 @@ class Flow(ABC):
                     )
 
             if "config_paths" in block["block_config"]:
-                for key, path in block["block_config"]["config_paths"].items():
-                    block_config_path_relative_to_sdg_base = os.path.join(
-                        self.sdg_base, path
-                    )
-                    if os.path.isfile(block_config_path_relative_to_sdg_base):
-                        block["block_config"]["config_paths"][key] = (
-                            block_config_path_relative_to_sdg_base
+                if isinstance(block["block_config"]["config_paths"], dict):
+                    for key, path in block["block_config"]["config_paths"].items():
+                        block_config_path_relative_to_sdg_base = os.path.join(
+                            self.sdg_base, path
                         )
+                        if os.path.isfile(block_config_path_relative_to_sdg_base):
+                            block["block_config"]["config_paths"][key] = (
+                                block_config_path_relative_to_sdg_base
+                            )
+
+                if isinstance(block["block_config"]["config_paths"], list):
+                    for i, path in enumerate(block["block_config"]["config_paths"]):
+                        block_config_path_relative_to_sdg_base = os.path.join(
+                            self.sdg_base, path
+                        )
+                        if os.path.isfile(block_config_path_relative_to_sdg_base):
+                            block["block_config"]["config_paths"][i] = (
+                                block_config_path_relative_to_sdg_base
+                            )
 
             if "model_id" in block["block_config"]:
                 block["block_config"]["client"] = self.client
@@ -147,4 +158,5 @@ DEFAULT_FLOW_FILE_MAP = {
     "SynthSkillsFlow": "flows/synth_skills.yaml",
     "SynthGroundedSkillsFlow": "flows/synth_grounded_skills.yaml",
     "SynthKnowledgeFlow1.5": "flows/synth_knowledge1.5.yaml",
+    "AgenticImproveFlow": "flows/agentic_improve_skill.yaml",
 }
