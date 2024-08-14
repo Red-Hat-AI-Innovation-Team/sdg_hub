@@ -11,24 +11,26 @@ import yaml
 
 # Local
 from .filterblock import FilterByValueBlock
-from .llmblock import LLMBlock, ConditionalLLMBlock
+from .llmblock import ConditionalLLMBlock, LLMBlock
 from .utilblocks import (
     CombineColumnsBlock,
+    DuplicateColumns,
+    FlattenColumnsBlock,
+    RenameColumns,
     SamplePopulatorBlock,
     SelectorBlock,
-    DuplicateColumns,
-    RenameColumns,
-    FlattenColumnsBlock,
     SetToMajorityValue,
 )
 
 MODEL_FAMILY_MIXTRAL = "mixtral"
 MODEL_FAMILY_MERLINITE = "merlinite"
 MODEL_FAMILY_BLANK = "blank"
-
+MODEL_FAMILY_IBM = "ibm"
+MODEL_FAMILY_RHELAI = "rhelai"
 
 _MODEL_PROMPT_MIXTRAL = "<s> [INST] {prompt} [/INST]"
 _MODEL_PROMPT_MERLINITE = "<|system|>\nYou are an AI language model developed by IBM Research. You are a cautious assistant. You carefully follow instructions. You are helpful and harmless and you follow ethical guidelines and promote positive behavior.\n<|user|>\n{prompt}\n<|assistant|>\n"
+_MODEL_PROMPT_RHELAI = "<|system|>\nI am, Red Hat® Instruct Model based on Granite 7B, an AI language model developed by Red Hat and IBM Research, based on the Granite-7b-base language model. My primary function is to be a chat assistant.\n<|user|>\n{prompt}\n<|assistant|>\n"
 _BLANK_PROMPT = "{prompt}"
 
 
@@ -36,6 +38,8 @@ _MODEL_PROMPTS = {
     MODEL_FAMILY_MIXTRAL: _MODEL_PROMPT_MIXTRAL,
     MODEL_FAMILY_MERLINITE: _MODEL_PROMPT_MERLINITE,
     MODEL_FAMILY_BLANK: _BLANK_PROMPT,
+    MODEL_FAMILY_IBM: _MODEL_PROMPT_MERLINITE,
+    MODEL_FAMILY_RHELAI: _MODEL_PROMPT_RHELAI,
 }
 
 
@@ -88,6 +92,9 @@ class Flow(ABC):
         with open(yaml_path, "r", encoding="utf-8") as yaml_file:
             flow = yaml.safe_load(yaml_file)
         for block in flow:
+            if "LLMBlock" in block["block_type"]:
+                block["block_config"]["client"] = self.client
+
             block["block_type"] = BLOCK_TYPE_MAP[block["block_type"]]
 
             if "config_path" in block["block_config"]:
@@ -121,7 +128,6 @@ class Flow(ABC):
                             )
 
             if "model_id" in block["block_config"]:
-                block["block_config"]["client"] = self.client
                 model_id = block["block_config"]["model_id"]
                 if "model_family" in block["block_config"]:
                     model_family = block["block_config"]["model_family"]
@@ -158,5 +164,6 @@ DEFAULT_FLOW_FILE_MAP = {
     "SynthSkillsFlow": "flows/synth_skills.yaml",
     "SynthGroundedSkillsFlow": "flows/synth_grounded_skills.yaml",
     "SynthKnowledgeFlow1.5": "flows/synth_knowledge1.5.yaml",
+    "GraniteResponsesFlow": "flows/granite_responses.yaml",
     "AgenticImproveFlow": "flows/agentic_improve_skill.yaml",
 }

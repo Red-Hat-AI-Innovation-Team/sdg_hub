@@ -41,10 +41,10 @@ class LLMBlock(Block):
         block_name,
         config_path,
         client,
-        model_id,
         output_cols,
         parser_kwargs={},
         model_prompt="{prompt}",
+        model_id=None,
         **batch_kwargs,
     ) -> None:
         super().__init__(block_name)
@@ -54,7 +54,13 @@ class LLMBlock(Block):
         )
         self.prompt_template = self.prompt_struct.format(**self.block_config)
         self.client = client
-        self.model = model_id
+        if model_id:
+            self.model = model_id
+        else:
+            # get the default model id from client
+            self.model = self.client.models.list().data[0].id
+
+        logger.info(f"Using model: {self.model}")
         self.model_prompt = model_prompt
         self.output_cols = output_cols
         self.batch_params = batch_kwargs.get("batch_kwargs", {})

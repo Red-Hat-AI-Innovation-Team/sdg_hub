@@ -1,0 +1,10 @@
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_response
+    config_path: configs/skills/respond.yaml
+    model_family: rhelai
+    output_cols:
+      - gen_response
+  gen_kwargs:
+    temperature: 0
+    max_tokens: 8

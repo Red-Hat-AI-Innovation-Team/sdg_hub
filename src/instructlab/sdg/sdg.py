@@ -32,10 +32,12 @@ class SDG:
         """Split the dataset into smaller batches."""
         total_size = len(dataset)
         num_batches = (total_size + batch_size - 1) // batch_size
+
         batches = [
-            dataset.select(range(i * batch_size, min((i + 1) * batch_size, total_size)))
-            for i in range(num_batches)
+            (i * batch_size, min((i + 1) * batch_size, total_size))
+            for i in tqdm(range(num_batches))
         ]
+
         return batches
 
     def _get_missing_data(self, seed_data, generated_data):
@@ -69,8 +71,9 @@ class SDG:
         dataset.to_json(checkpoint_file, orient="records", lines=True)
 
     @staticmethod
-    def _generate_data(pipelines, input_split, i=None):
+    def _generate_data(pipelines, input_split, ds, i=None):
         logger.info(f"Processing split {i}")
+        input_split = ds.select(range(input_split[0], input_split[1]))
         try:
             for pipeline in pipelines:
                 input_split = pipeline.generate(input_split)
@@ -116,13 +119,13 @@ class SDG:
             for pipeline in self.pipelines:
                 generated_dataset = pipeline.generate(seed_data)
             return generated_dataset
-
+        
+        logger.info("Splitting the dataset into smaller batches")
         input_splits = (
             self._split_dataset(seed_data, self.batch_size)
             if self.batch_size
             else [seed_data]
         )
-
         logger.info(
             f"Generating dataset with {len(input_splits)} splits, batch size {self.batch_size}, and {self.num_workers} workers"
         )
@@ -132,7 +135,9 @@ class SDG:
 
         with ThreadPoolExecutor(max_workers=self.num_workers) as executor:
             futures = [
-                executor.submit(self._generate_data, self.pipelines, input_split, i)
+                executor.submit(
+                    self._generate_data, self.pipelines, input_split, seed_data, i
+                )
                 for i, input_split in enumerate(input_splits)
             ]
 
