@@ -75,7 +75,7 @@ class LLMBlock(Block):
 
         # Whether the LLM server supports a list of input prompts
         # and supports the n parameter to generate n outputs per input
-        self.server_supports_batched = server_supports_batched(client, model_id)
+        self.server_supports_batched = server_supports_batched(client, self.model)
 
     def _parse(self, generated_string) -> dict:
         matches = {}
