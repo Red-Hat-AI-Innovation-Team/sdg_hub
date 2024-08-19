@@ -6,7 +6,7 @@
     output_cols:
       - response
   gen_kwargs:
-    max_tokens: 16
+    max_tokens: 2048
 
 # - block_type: LLMBlock
 #   block_config:
