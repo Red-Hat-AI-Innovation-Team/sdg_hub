@@ -259,7 +259,7 @@ def build_raft_dataset(ds: Dataset, p, num_doc_in_context=4):
         rec["metadata"] = json.dumps(metadata)
         return rec
 
-    ds = ds.map(_pick_documents, fn_kwargs={"p": p}) #, remove_columns=["context"])
+    ds = ds.map(_pick_documents, fn_kwargs={"p": p}) , remove_columns=["context"])
     return ds
 
 
