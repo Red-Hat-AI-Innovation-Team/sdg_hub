@@ -223,8 +223,7 @@ def build_raft_dataset(ds: Dataset, p, num_doc_in_context=4):
         if len(selected_docs) > 0:
             if len(selected_docs) < num_doc_in_context:
                 logger.info(
-                    f"Number of unique document is {len(selected_docs)} which is less than {num_doc_in_context}. Using all the documents in th\
-e RAFT context"
+                    f"Number of unique document is {len(selected_docs)} which is less than {num_doc_in_context}. Using all the documents in the RAFT context"
                 )
             if random.uniform(0, 1) < p:
                 # golden/answer + distractor documents                                                                                         
