@@ -218,22 +218,23 @@ def build_raft_dataset(ds: Dataset, p, num_doc_in_context=4):
     all_context = list(set(ds["context"]))
 
     def _pick_documents(rec, p):
-        answer_document = [rec["context"]]
+        answer_document = rec["context"]
         selected_docs = [e for e in all_context if e != answer_document]
         if len(selected_docs) > 0:
             if len(selected_docs) < num_doc_in_context:
                 logger.info(
-                    f"Number of unique document is {len(selected_docs)} which is less than {num_doc_in_context}. Using all the documents in the RAFT context"
+                    f"Number of unique document is {len(selected_docs)} which is less than {num_doc_in_context}. Using all the documents in th\
+e RAFT context"
                 )
             if random.uniform(0, 1) < p:
-                # golden/answer + distractor documents
+                # golden/answer + distractor documents                                                                                         
                 docs = (
-                    random.sample(selected_docs, k=num_doc_in_context)
-                    if len(selected_docs) >= num_doc_in_context
+                    random.sample(selected_docs, k=num_doc_in_context-1) + [answer_document]
+                    if len(selected_docs) >= (num_doc_in_context-1)
                     else selected_docs + [answer_document]
                 )
             else:
-                # distractor documents
+                # distractor documents                                                                                                         
                 docs = (
                     random.sample(selected_docs, k=num_doc_in_context)
                     if len(selected_docs) >= num_doc_in_context
@@ -257,11 +258,11 @@ def build_raft_dataset(ds: Dataset, p, num_doc_in_context=4):
         metadata = json.loads(rec["metadata"])
         metadata["dataset"] += f"_raft_p{p}"
         rec["metadata"] = json.dumps(metadata)
-
         return rec
 
-    ds = ds.map(_pick_documents, fn_kwargs={"p": p}, remove_columns=["context"])
+    ds = ds.map(_pick_documents, fn_kwargs={"p": p}) #, remove_columns=["context"])
     return ds
+
 
 
 def _conv_pretrain(rec):
