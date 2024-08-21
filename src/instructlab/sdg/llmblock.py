@@ -201,17 +201,15 @@ class ConditionalLLMBlock(LLMBlock):
         model_id,
         output_cols,
         selector_column_name,
-        parser_kwargs={},
         model_prompt="{prompt}",
         **batch_kwargs,
     ) -> None:
         super().__init__(
-            block_name,
-            list(config_paths.values())[0],
-            client,
-            model_id,
-            output_cols,
-            parser_kwargs=parser_kwargs,
+            block_name=block_name,
+            config_path=list(config_paths.values())[0],
+            client=client,
+            model_id=model_id,
+            output_cols=output_cols,
             model_prompt=model_prompt,
             **batch_kwargs,
         )
