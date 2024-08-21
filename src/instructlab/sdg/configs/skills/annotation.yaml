@@ -1,0 +1,36 @@
+system: |
+  {{ system }}
+introduction: |
+  {{ task_description }}
+principles: |
+  {{ principles }}
+examples: |
+  To better assist you with this task, here are some examples:
+  {% if seed_samples is defined %}
+  {% for sample in seed_samples %}
+  [Start of Question]
+  {{ sample.seed_question }}
+  [End of Question]
+
+  [Start of Response]
+  {{ sample.seed_response }}
+  [End of Response]
+  {% endfor %}
+  {% else %}
+  [Start of Question]
+  {{ seed_question }}
+  [End of Question]
+
+  [Start of Response]
+  {{ seed_response }}
+  [End of Response]
+  {% endif %}
+generation: |
+  Remember to follow the principles mentioned above and use the same format as the examples. 
+  [Start of Question]
+  {{ question }}
+  [End of Question]
+
+  Generate the response to the question above and return it in between the [Start of Response] and [End of Response] tags.
+start_tags: ["[Start of Response]"]
+end_tags: ["[End of Response]"]
