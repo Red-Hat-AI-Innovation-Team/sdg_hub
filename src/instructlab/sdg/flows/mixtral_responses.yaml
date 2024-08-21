@@ -1,12 +1,9 @@
 - block_type: LLMBlock
   block_config:
     block_name: gen_responses
-    config_path: configs/skills/annotation.yaml
+    config_path: configs/skills/freeform_responses.yaml
     model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
     output_cols:
       - response
   gen_kwargs:
-    temperature: 0.7
-    max_tokens: 4096
-  drop_duplicates:
-    - response
+    max_tokens: 2048
