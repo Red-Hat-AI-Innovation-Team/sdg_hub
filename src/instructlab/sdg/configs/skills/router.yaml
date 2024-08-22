@@ -6,7 +6,7 @@ principles: ""
 
 examples: ""
 
-generation: "{question}"
+generation: "{{ question }}"
 
 start_tags: [""]
 end_tags: [""]

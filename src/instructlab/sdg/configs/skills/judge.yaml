@@ -38,15 +38,15 @@ generation: |
   * Return the final verdict between [Start of Verdict] and [End of Verdict] tags. Respond with Assistant A if assistant A is better, Assistant B if assistant B is better
 
   [Start of User Question]
-  {question}
+  {{ question }}
   [End of User Question]
 
   [Start of Assistant A Answer]
-  {response}
+  {{ response }}
   [The End of Assistant A Answer]
 
   [Start of Assistant B Answer]
-  {revised_response}
+  {{ revised_response }}
   [The End of Assistant B Answer]
 
 start_tags: ["[Start of Judgement]", "[Start of Verdict]"]
