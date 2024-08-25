@@ -3,6 +3,6 @@ introduction:
 principles: 
 examples: 
 generation: |
-  {{ question }}
+  {{ prompt }}
 start_tags: [""]
 end_tags: [""]
