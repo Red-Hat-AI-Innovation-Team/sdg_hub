@@ -11,7 +11,7 @@ import yaml
 
 # Local
 from .filterblock import FilterByValueBlock
-from .llmblock import ConditionalLLMBlock, LLMBlock
+from .llmblock import ConditionalLLMBlock, LLMBlock, LLMLogProbBlock
 from .utilblocks import (
     CombineColumnsBlock,
     DuplicateColumns,
@@ -60,6 +60,7 @@ BLOCK_TYPE_MAP = {
     "FlattenColumnsBlock": FlattenColumnsBlock,
     "ConditionalLLMBlock": ConditionalLLMBlock,
     "SetToMajorityValue": SetToMajorityValue,
+    "LLMLogProbBlock": LLMLogProbBlock,
 }
 
 MODEL_FAMILY_MAP = {
@@ -92,7 +93,7 @@ class Flow(ABC):
         with open(yaml_path, "r", encoding="utf-8") as yaml_file:
             flow = yaml.safe_load(yaml_file)
         for block in flow:
-            if "LLMBlock" in block["block_type"]:
+            if "LLM" in block["block_type"]:
                 block["block_config"]["client"] = self.client
 
             block["block_type"] = BLOCK_TYPE_MAP[block["block_type"]]
@@ -127,13 +128,15 @@ class Flow(ABC):
                                 block_config_path_relative_to_sdg_base
                             )
 
+            model_family = MODEL_FAMILY_BLANK
             if "model_id" in block["block_config"]:
                 model_id = block["block_config"]["model_id"]
-                if "model_family" in block["block_config"]:
-                    model_family = block["block_config"]["model_family"]
-                else:
-                    model_family = MODEL_FAMILY_MAP.get(model_id, MODEL_FAMILY_BLANK)
-                block["block_config"]["model_prompt"] = _get_model_prompt(model_family)
+                model_family = MODEL_FAMILY_MAP.get(model_id, MODEL_FAMILY_BLANK)
+
+            if "model_family" in block["block_config"]:
+                model_family = block["block_config"]["model_family"]
+
+            block["block_config"]["model_prompt"] = _get_model_prompt(model_family)
 
             if "operation" in block["block_config"]:
                 block["block_config"]["operation"] = OPERATOR_MAP[
@@ -167,4 +170,5 @@ DEFAULT_FLOW_FILE_MAP = {
     "GraniteResponsesFlow": "flows/granite_responses.yaml",
     "AgenticImproveFlow": "flows/agentic_improve_skill.yaml",
     "AnnotationFlow": "flows/annotate.yaml",
+    "LogProbsFlow": "flows/logprobs.yaml",
 }
