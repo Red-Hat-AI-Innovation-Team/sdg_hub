@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Standard
-from typing import Any, Dict
+from typing import Any, Dict, List
 import re
+import json
 
 # Third Party
 from datasets import Dataset
@@ -53,7 +54,10 @@ class LLMBlock(Block):
         self.prompt_struct = (
             """{system}\n{introduction}\n{principles}\n{examples}\n{generation}"""
         )
-        self.prompt_template = Template(self.prompt_struct.format(**self.block_config))
+        filtered_config = {
+            k: (v if v is not None else "") for k, v in self.block_config.items()
+        }
+        self.prompt_template = Template(self.prompt_struct.format(**filtered_config))
         self.client = client
         if model_id:
             self.model = model_id
@@ -166,6 +170,9 @@ class LLMBlock(Block):
         samples = valid_samples
 
         if len(samples) == 0:
+            logger.warning(
+                "No valid samples to generate outputs for, returning empty dataset"
+            )
             return Dataset.from_list([])
 
         # generate the output
@@ -237,3 +244,104 @@ class ConditionalLLMBlock(LLMBlock):
         if isinstance(prompt_template, dict):
             prompt_template = prompt_template[input_dict[self.selector_column_name]]
         return super()._validate(prompt_template, input_dict)
+
+
+class LLMLogProbBlock(LLMBlock):
+    # init with init of the parent class
+    def __init__(
+        self,
+        block_name,
+        config_path,
+        client,
+        output_cols,
+        parser_kwargs={},
+        model_prompt="{prompt}",
+        model_id=None,
+        **batch_kwargs,
+    ) -> None:
+        super().__init__(
+            block_name=block_name,
+            config_path=config_path,
+            client=client,
+            output_cols=output_cols,
+            parser_kwargs=parser_kwargs,
+            model_prompt=model_prompt,
+            model_id=model_id,
+            **batch_kwargs,
+        )
+
+    def _generate_logprobs(self, samples, **gen_kwargs):
+        prompts = [
+            self.model_prompt.format(prompt=self._format_prompt(sample))
+            for sample in samples
+        ]
+        generate_args = {**self.defaults, **gen_kwargs}
+
+        # verify if logprobs is mentioned in the generate_args, if not add it and return top10 logprobs
+        if "logprobs" not in generate_args:
+            generate_args["logprobs"] = 10
+
+        if self.server_supports_batched:
+            response = self.client.completions.create(prompt=prompts, **generate_args)
+            return [choice.logprobs.top_logprobs for choice in response.choices]
+
+        n = gen_kwargs.get("n", 1)
+        results = []
+        for prompt in prompts:
+            for _ in range(n):
+                response = self.client.completions.create(
+                    prompt=prompt, **generate_args
+                )
+                results.append(response.choices[0].logprobs.top_logprobs)
+        return results
+
+    def _parse(self, generations: List[List[Dict]]) -> List[List[str]]:
+        # override the parse method to convert the generations to json string
+        # convert the generations to json string to save as dataset
+        # this is because the dataset can only store key value pairs which are consistent
+        return [[json.dumps(item) for item in sublist] for sublist in generations]
+
+    def generate(self, samples: Dataset, **gen_kwargs) -> Dataset:
+        """
+        Generate the output from the block. This method should first validate the input data,
+        then generate the output, and finally parse the generated output before returning it.
+
+        :return: The parsed output after generation.
+        """
+        num_samples = self.batch_params.get("num_samples", None)
+        logger.debug("Generating outputs for {} samples".format(len(samples)))
+
+        if (num_samples is not None) and ("num_samples" not in samples.column_names):
+            samples = samples.add_column("num_samples", [num_samples] * len(samples))
+
+        # validate each sample
+        # Log errors and remove invalid samples
+        valid_samples = []
+
+        for sample in samples:
+            if self._validate(self.prompt_template, sample):
+                valid_samples.append(sample)
+            else:
+                logger.warning(
+                    f"Sample failed validation: {sample}"
+                )  # Log details of the failed sample
+
+        samples = valid_samples
+
+        if len(samples) == 0:
+            logger.warning(
+                "No valid samples to generate outputs for, returning empty dataset"
+            )
+            return Dataset.from_list([])
+
+        # generate the output
+
+        outputs = self._generate_logprobs(samples, **gen_kwargs)
+        logger.debug("Generated outputs: %s", outputs)
+
+        output_dataset = Dataset.from_list(samples)
+        output_dataset = output_dataset.add_column(
+            self.output_cols[0], self._parse(outputs)
+        )
+
+        return output_dataset
