@@ -1,0 +1,9 @@
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_responses
+    config_path: configs/skills/freeform_responses.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    output_cols:
+      - response
+  gen_kwargs:
+    max_tokens: 2048

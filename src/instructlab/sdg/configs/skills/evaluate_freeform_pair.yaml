@@ -29,11 +29,11 @@ examples: |
 generation: |
   Here's the question and the answer you need to evaluate:
   [Start of Question]
-  {question}
+  {{ question }}
   [End of Question]
 
   [Start of Answer]
-  {response}
+  {{ response }}
   [End of Answer]
 
   Begin your evaluation by providing a short explanation. Be as objective as possible. After providing your explanation, you must rate the answer on a scale of 1 to 3 as mentioned above. 

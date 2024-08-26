@@ -18,58 +18,58 @@ examples: |
   To help you understand the task, here is an example:
 
   [Start of Query]
-  {icl_query}
+  {{ icl_query }}
   [End of Query]
 
   [Start of Response]
-  {icl_response}
+  {{ icl_response }}
   [End of Response]
 
   [Start of Analysis]
-  {icl_analysis}
+  {{ icl_analysis }}
   [End of Analysis]
 
   [Start of Rubric]
-  {icl_rubric}
+  {{ icl_rubric }}
   [End of Rubric]
 
   [Start of Critique]
-  {icl_critique}
+  {{ icl_critique }}
   [End of Critique]
 
   [Start of Plan]
-  {icl_plan}
+  {{ icl_plan }}
   [End of Plan]
 
   [Start of Revised Response]
-  {icl_revised_response}
+  {{ icl_revised_response }}
   [End of Revised Response]
 
 generation: |
   Now it's your turn to revise the response to the following query. Remember to follow the paradigm and return the revised response in the respective section in the same format as above. Strictly do not include any meta-review or meta-information about how the response was improved or revised. Your response should only include the revised response. You will be heavily penalized if you include any information about the revision process or if you have any reference about how you revised the response.
 
   [Start of Query]
-  {question}
+  {{ question }}
   [End of Query]
 
   [Start of Response]
-  {response}
+  {{ response }}
   [End of Response]
 
   [Start of Analysis]
-  {analysis}
+  {{ analysis }}
   [End of Analysis]
 
   [Start of Rubric]
-  {rubric}
+  {{ rubric }}
   [End of Rubric]
 
   [Start of Critique]
-  {critique}
+  {{ critique }}
   [End of Critique]
 
   [Start of Plan]
-  {plan}
+  {{ plan }}
   [End of Plan]
 
   Start your response with the tag [Start of Revised Response] and end it with the tag [End of Revised Response].

@@ -49,7 +49,7 @@ examples: |
   The context does not provide any information about the taste of apple pies. The statement "Apple pies taste bad" is a subjective opinion and is not supported or mentioned in the given context.
   [Start of Explanation]
   [Start of Answer]
-  YES
+  NO
   [End of Answer]
 
 generation: |

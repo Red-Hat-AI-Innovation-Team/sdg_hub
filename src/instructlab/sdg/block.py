@@ -5,6 +5,7 @@ from collections import ChainMap
 from typing import Any, Dict, Union
 
 # Third Party
+from jinja2 import Template, UndefinedError
 import yaml
 
 # Local
@@ -18,23 +19,26 @@ class Block(ABC):
         self.block_name = block_name
 
     @staticmethod
-    def _validate(prompt_template: str, input_dict: Dict[str, Any]) -> bool:
+    def _validate(prompt_template: Template, input_dict: Dict[str, Any]) -> bool:
         """
-        Validate the input data for this block. This method should be implemented by subclasses
-        to define how the block validates its input data.
+        Validate the input data for this block. This method validates whether all required
+        variables in the Jinja template are provided in the input_dict.
 
-        :return: True if the input data is valid, False otherwise.
+        :param prompt_template: The Jinja2 template object.
+        :param input_dict: A dictionary of input values to check against the template.
+        :return: True if the input data is valid (i.e., no missing variables), False otherwise.
         """
-
+        
         class Default(dict):
             def __missing__(self, key: str) -> None:
                 raise KeyError(key)
-
+        
         try:
-            prompt_template.format_map(ChainMap(input_dict, Default()))
+            # Try rendering the template with the input_dict
+            prompt_template.render(ChainMap(input_dict, Default()))
             return True
-        except KeyError as e:
-            logger.error("Missing key: {}".format(e))
+        except UndefinedError as e:
+            logger.error(f"Missing key: {e}")
             return False
 
     def _load_config(self, config_path: str) -> Union[Dict[str, Any], None]:

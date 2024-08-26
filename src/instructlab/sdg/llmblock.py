@@ -5,6 +5,7 @@ import re
 
 # Third Party
 from datasets import Dataset
+from jinja2 import Template
 import openai
 
 # Local
@@ -52,7 +53,7 @@ class LLMBlock(Block):
         self.prompt_struct = (
             """{system}\n{introduction}\n{principles}\n{examples}\n{generation}"""
         )
-        self.prompt_template = self.prompt_struct.format(**self.block_config)
+        self.prompt_template = Template(self.prompt_struct.format(**self.block_config))
         self.client = client
         if model_id:
             self.model = model_id
@@ -60,7 +61,6 @@ class LLMBlock(Block):
             # get the default model id from client
             self.model = self.client.models.list().data[0].id
 
-        logger.info(f"Using model: {self.model}")
         self.model_prompt = model_prompt
         self.output_cols = output_cols
         self.batch_params = batch_kwargs.get("batch_kwargs", {})
@@ -75,7 +75,7 @@ class LLMBlock(Block):
 
         # Whether the LLM server supports a list of input prompts
         # and supports the n parameter to generate n outputs per input
-        self.server_supports_batched = server_supports_batched(client, model_id)
+        self.server_supports_batched = server_supports_batched(client, self.model)
 
     def _parse(self, generated_string) -> dict:
         matches = {}
@@ -115,7 +115,7 @@ class LLMBlock(Block):
         return matches
 
     def _format_prompt(self, sample: Dict) -> str:
-        return self.prompt_template.format(**sample).strip()
+        return self.prompt_template.render(sample).strip()
 
     def _generate(self, samples, **gen_kwargs) -> list:
         prompts = [

@@ -24,15 +24,15 @@ examples: |
   To help you understand the task, here is an example:
 
   [Start of Question]
-  {icl_query}
+  {{ icl_query }}
   [End of Question]
 
   [Start of Analysis]
-  {icl_analysis}
+  {{ icl_analysis }}
   [End of Analysis]
 
   [Start of Rubric]
-  {icl_rubric}
+  {{ icl_rubric }}
   [End of Rubric]
 
 generation: |
@@ -41,7 +41,7 @@ generation: |
   * Return the rubric between [Start of Rubric] and [End of Rubric] tags.
 
   [Start of Question]
-  {question}
+  {{ question }}
   [End of Question]
 
 start_tags: ["[Start of Analysis]", "[Start of Rubric]"]
