@@ -97,6 +97,7 @@ def main(
 
     generated_data = sdg.generate(ds, checkpoint_dir=checkpoint_dir)
     generated_data.to_json(save_path, orient="records", lines=True)
+    logger.info(f"Data saved to {save_path}")
 
 
 if __name__ == "__main__":
