@@ -151,11 +151,13 @@ class SDG:
                         # Save only the new splits since the last checkpoint
                         new_splits = generated_data[last_saved_split_index : i + 1]
                         checkpoint_dataset = safe_concatenate_datasets(new_splits)
-                        self._save_intermediate_checkpoint(
-                            checkpoint_dataset, checkpoint_dir
-                        )
+                        # check if checkpoint_dataset is not None
+                        if checkpoint_dataset:
+                            self._save_intermediate_checkpoint(
+                                checkpoint_dataset, checkpoint_dir
+                            )
 
-                        last_saved_split_index = i + 1
+                            last_saved_split_index = i + 1
 
         generated_dataset = safe_concatenate_datasets(generated_data)
 
