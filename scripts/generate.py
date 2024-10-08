@@ -2,6 +2,7 @@
 from datasets import load_dataset
 from openai import OpenAI
 import click
+import os
 
 # First Party
 from instructlab.sdg.default_flows import DEFAULT_FLOW_FILE_MAP, Flow
@@ -77,7 +78,10 @@ def main(
 
     if debug:
         # For debugging, use a smaller subset of the dataset
+        # set os level log_level to debug
+        os.environ["LOG_LEVEL"] = "DEBUG"
         ds = ds.shuffle(seed=42).select(range(30))
+        logger.info("Debug mode enabled. Using a subset of the dataset.")
 
     openai_api_key = "EMPTY"
     openai_api_base = endpoint
@@ -87,7 +91,14 @@ def main(
         base_url=openai_api_base,
     )
 
-    flow_cfg = Flow(client).get_flow_from_file(DEFAULT_FLOW_FILE_MAP[flow])
+    # check if flow is already a .yaml file
+    if not flow.endswith(".yaml"):
+        try:
+            flow = DEFAULT_FLOW_FILE_MAP[flow]
+        except KeyError:
+            raise ValueError(f"Invalid flow: {flow}")
+    
+    flow_cfg = Flow(client).get_flow_from_file(flow)
     sdg = SDG(
         [Pipeline(flow_cfg)],
         num_workers=num_workers,

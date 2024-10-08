@@ -169,6 +169,7 @@ DEFAULT_FLOW_FILE_MAP = {
     "SynthKnowledgeFlow1.5": "flows/synth_knowledge1.5.yaml",
     "GraniteResponsesFlow": "flows/granite_responses.yaml",
     "AgenticImproveFlow": "flows/agentic_improve_skill.yaml",
-    "AnnotationFlow": "flows/annotate.yaml",
+    "AnnotationMixtralFlow": "flows/annotate_mixtral.yaml",
+    "AnnotationCoTFlow": "flows/annotate_cot.yaml",
     "LogProbsFlow": "flows/logprobs.yaml",
 }
