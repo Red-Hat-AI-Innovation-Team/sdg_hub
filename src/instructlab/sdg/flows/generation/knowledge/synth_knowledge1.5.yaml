@@ -88,7 +88,6 @@
       - question
       - response
     selector_column_name: route
-    parser_name: default
     parser_kwargs:
       parser_name: custom
       parsing_pattern: "\\[(?:Question|QUESTION)\\]\\s*(.*?)\\s*\\[(?:Answer|ANSWER)\\]\\s*(.*?)\\s*(?=\\[(?:Question|QUESTION)\\]|$)"
