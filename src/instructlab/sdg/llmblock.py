@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Standard
 from typing import Any, Dict, List
-import re
 import json
+import re
 
 # Third Party
 from datasets import Dataset
@@ -126,10 +126,19 @@ class LLMBlock(Block):
             self.model_prompt.format(prompt=self._format_prompt(sample))
             for sample in samples
         ]
+        logger.debug("Prompt: %s", prompts[0])
         generate_args = {**self.defaults, **gen_kwargs}
 
         if self.server_supports_batched:
             response = self.client.completions.create(prompt=prompts, **generate_args)
+            # if stop is provided, then we need to add the stop token to the generated text,
+            # this is because the stop token is not included in the generated text - this is a limitation of the openai api
+            # we need to add the stop token to the generated text to make it consistent for the parser
+            if "stop" in generate_args:
+                return [
+                    choice.text.strip() + "".join(generate_args["stop"])
+                    for choice in response.choices
+                ]
             return [choice.text.strip() for choice in response.choices]
 
         n = gen_kwargs.get("n", 1)
@@ -139,6 +148,11 @@ class LLMBlock(Block):
                 response = self.client.completions.create(
                     prompt=prompt, **generate_args
                 )
+                if "stop" in generate_args:
+                    results.append(
+                        response.choices[0].text.strip()
+                        + "".join(generate_args["stop"])
+                    )
                 results.append(response.choices[0].text.strip())
         return results
 
@@ -178,6 +192,7 @@ class LLMBlock(Block):
         # generate the output
 
         outputs = self._generate(samples, **gen_kwargs)
+
         logger.debug("Generated outputs: %s", outputs)
 
         num_parallel_samples = gen_kwargs.get("n", 1)
@@ -341,7 +356,7 @@ class LLMLogProbBlock(LLMBlock):
 
         output_dataset = Dataset.from_list(samples)
         output_dataset = output_dataset.add_column(
-            self.output_cols[0], self._parse(outputs)
+            self.output_cols[0], self._parse(outputs)  # pylint: disable=no-value-for-parameter
         )
 
         return output_dataset
