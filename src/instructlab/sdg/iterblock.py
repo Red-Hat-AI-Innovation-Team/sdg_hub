@@ -3,11 +3,13 @@ from datasets import Dataset
 
 # Local
 from .block import Block
+from .registry import BlockRegistry
 from .logger_config import setup_logger
 
 logger = setup_logger(__name__)
 
 
+@BlockRegistry.register("IterBlock")
 class IterBlock(Block):
     def __init__(self, block_name, num_iters, block_type, block_kwargs, **kwargs):
         super().__init__(block_name)

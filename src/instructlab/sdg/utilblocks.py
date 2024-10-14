@@ -4,11 +4,13 @@ from datasets import Dataset
 
 # Local
 from .block import Block
+from .registry import BlockRegistry
 from .logger_config import setup_logger
 
 logger = setup_logger(__name__)
 
 
+@BlockRegistry.register("SamplePopulatorBlock")
 class SamplePopulatorBlock(Block):
     def __init__(self, config_paths, column_name, post_fix="", **batch_kwargs) -> None:
         super().__init__(
@@ -34,6 +36,7 @@ class SamplePopulatorBlock(Block):
         return samples
 
 
+@BlockRegistry.register("SelectorBlock")
 class SelectorBlock(Block):
     def __init__(self, choice_map, choice_col, output_col, **batch_kwargs) -> None:
         super().__init__(block_name=self.__class__.__name__)
@@ -51,6 +54,7 @@ class SelectorBlock(Block):
         return samples
 
 
+@BlockRegistry.register("CombineColumnsBlock")
 class CombineColumnsBlock(Block):
     def __init__(self, columns, output_col, separator="\n\n", **batch_kwargs) -> None:
         super().__init__(block_name=self.__class__.__name__)
@@ -70,6 +74,7 @@ class CombineColumnsBlock(Block):
         return samples
 
 
+@BlockRegistry.register("FlattenColumnsBlock")
 class FlattenColumnsBlock(Block):
     def __init__(self, block_name: str, var_cols: list, value_name: str, var_name: str) -> None:
         super().__init__(block_name=block_name)
@@ -88,6 +93,7 @@ class FlattenColumnsBlock(Block):
         return Dataset.from_pandas(flatten_df)
 
 
+@BlockRegistry.register("DuplicateColumns")
 class DuplicateColumns(Block):
     def __init__(self, block_name: str, columns_map: dict) -> None:
         """Create duplicate of columns specified in column map.
@@ -105,6 +111,7 @@ class DuplicateColumns(Block):
         return samples
 
 
+@BlockRegistry.register("RenameColumns")
 class RenameColumns(Block):
     def __init__(self, block_name: str, columns_map: dict) -> None:
         """Rename dataset columns.
@@ -121,6 +128,7 @@ class RenameColumns(Block):
         return samples
 
 
+@BlockRegistry.register("SetToMajorityValue")
 class SetToMajorityValue(Block):
     def __init__(self, block_name: str, col_name) -> None:
         self.col_name = col_name

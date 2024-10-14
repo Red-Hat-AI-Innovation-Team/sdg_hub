@@ -9,11 +9,13 @@ from jinja2 import Template, UndefinedError
 import yaml
 
 # Local
+from .registry import BlockRegistry
 from .logger_config import setup_logger
 
 logger = setup_logger(__name__)
 
 
+@BlockRegistry.register("Block")
 class Block(ABC):
     def __init__(self, block_name: str) -> None:
         self.block_name = block_name

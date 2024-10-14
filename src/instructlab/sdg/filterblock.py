@@ -7,11 +7,13 @@ from datasets import Dataset
 
 # Local
 from .block import Block
+from .registry import BlockRegistry
 from .logger_config import setup_logger
 
 logger = setup_logger(__name__)
 
 
+@BlockRegistry.register("FilterByValueBlock")
 class FilterByValueBlock(Block):
     def __init__(
         self, filter_column, filter_value, operation, convert_dtype=None, **batch_kwargs

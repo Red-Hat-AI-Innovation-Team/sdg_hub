@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Standard
+from collections import Counter
 from typing import Any, Dict, List
 import json
 import re
@@ -12,6 +13,7 @@ import openai
 # Local
 from .block import Block
 from .logger_config import setup_logger
+from .registry import BlockRegistry
 
 logger = setup_logger(__name__)
 
@@ -35,6 +37,7 @@ def server_supports_batched(client, model_id: str) -> bool:
     return supported
 
 
+@BlockRegistry.register("LLMBlock")
 # pylint: disable=dangerous-default-value
 class LLMBlock(Block):
     # pylint: disable=too-many-instance-attributes
@@ -214,6 +217,7 @@ class LLMBlock(Block):
         return Dataset.from_list(new_data)
 
 
+@BlockRegistry.register("ConditionalLLMBlock")
 class ConditionalLLMBlock(LLMBlock):
     def __init__(
         self,
@@ -261,6 +265,7 @@ class ConditionalLLMBlock(LLMBlock):
         return super()._validate(prompt_template, input_dict)
 
 
+@BlockRegistry.register("LLMLogProbBlock")
 class LLMLogProbBlock(LLMBlock):
     # init with init of the parent class
     def __init__(
@@ -356,7 +361,49 @@ class LLMLogProbBlock(LLMBlock):
 
         output_dataset = Dataset.from_list(samples)
         output_dataset = output_dataset.add_column(
-            self.output_cols[0], self._parse(outputs)  # pylint: disable=no-value-for-parameter
+            self.output_cols[0],
+            self._parse(outputs),  # pylint: disable=no-value-for-parameter
         )
 
         return output_dataset
+
+
+@BlockRegistry.register("SelfConsistentLLMBlock")
+class SelfConsistentLLMBlock(LLMBlock):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _generate(self, samples, **gen_kwargs) -> list:
+        # Ensure temperature > 0
+        if gen_kwargs.get("temperature", 0) <= 0:
+            raise ValueError(
+                "Temperature should be greater than 0 for self-consistency sampling."
+            )
+
+        all_responses = super()._generate(samples, **gen_kwargs)
+
+        # Group outputs by original sample (assuming `self.k` responses per sample)
+        grouped_responses = [
+            all_responses[i : i + self.k] for i in range(0, len(all_responses), self.n)
+        ]
+
+        # Select the majority response from each group
+        majority_responses = []
+        for responses in grouped_responses:
+            counter = Counter(responses)
+            # Take the most common response
+            majority_response = counter.most_common(1)[0][0] 
+            majority_responses.append(majority_response)
+
+        return majority_responses
+
+    def generate(self, samples: Dataset, **gen_kwargs) -> Dataset:
+        """
+        Generate self-consistent outputs from the model, validating input args for self-consistency.
+
+        :param samples: Input data samples.
+        :param gen_kwargs: Generation parameters, e.g., temperature, max_tokens, etc.
+        :return: Dataset of parsed, self-consistent outputs.
+        """
+        logger.debug(f"Self-consistent generation with k={self.k}")
+        return super().generate(samples, **gen_kwargs)
