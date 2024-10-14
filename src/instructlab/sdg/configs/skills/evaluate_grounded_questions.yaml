@@ -9,7 +9,7 @@ principles: |
    * The questions should be in English.
    * The questions should be 1 to 2 sentences long and should be properly formatted.
    * The question should not be offensive, abusive, or harmful. It should be safe and respectful.
-   * The question should be relevant to the task given - {task_description}.
+   * The question should be relevant to the task given - {{ task_description }}.
    * Most importantly all the questions should be grounded in the context provided and should be answerable solely based on the provided context.
 
    If the question meets the above requirements, please rate it 1. If not, please rate it 0.
@@ -37,10 +37,10 @@ generation: |
    Here's the context and question you need to evaluate. Return the evaluation between [Start of Evaluation] and [End of Evaluation] tags.
 
    [Start of Context]
-   {context}
+   {{ context }}
    [End of Context]
    [Start of Question]
-   {question}
+   {{ question }}
    [End of Question]
 
    Begin your evaluation by providing a short explanation. Be as objective as possible. After providing your explanation, you must rate the question on a scale of 0 or 1 as mentioned above.

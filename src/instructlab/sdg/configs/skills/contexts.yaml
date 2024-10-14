@@ -1,6 +1,6 @@
 system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
 
-introduction: You are asked to come up with a diverse context for - {task_description}.
+introduction: You are asked to come up with a diverse context for - {{ task_description }}.
 principles: |
   Please follow these guiding principles when generating responses:
   * Use proper grammar and punctuation.
@@ -11,7 +11,7 @@ principles: |
 examples: |
   To better assist you with this task, here is an example of a context:
   [Start of Context]
-  {seed_context}
+  {{ seed_context }}
   [End of Context]
 
 generation: |

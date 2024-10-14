@@ -16,42 +16,42 @@ examples: |
   To help you understand the task, here is an example: 
 
   [Start of Query]
-  {icl_query}
+  {{ icl_query }}
   [End of Query]
 
   [Start of Response]
-  {icl_response}
+  {{ icl_response }}
   [End of Response]
 
   [Start of Analysis]
-  {icl_analysis}
+  {{ icl_analysis }}
   [End of Analysis]
 
   [Start of Rubric]
-  {icl_rubric}
+  {{ icl_rubric }}
   [End of Rubric]
 
   [Start of Critique]
-  {icl_critique}
+  {{ icl_critique }}
   [End of Critique]
 
 generation: |
   Now it's your turn to analyze the following query. 
 
   [Start of Query]
-  {question}
+  {{ question }}
   [End of Query]
 
   [Start of Response]
-  {response}
+  {{ response }}
   [End of Response]
 
   [Start of Analysis]
-  {analysis}
+  {{ analysis }}
   [End of Analysis]
 
   [Start of Rubric]
-  {rubric}
+  {{ rubric }}
   [End of Rubric]
 
   Remember to follow the paradigm and return the critique based on the rubric provided, between [Start of Critique] and [End of Critique] tags.

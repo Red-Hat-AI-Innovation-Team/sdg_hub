@@ -35,15 +35,15 @@ generation: |
   Here's the context, question and the answer you need to evaluate:
   
   [Start of Context]
-  {context}
+  {{ context }}
   [End of Context]
 
   [Start of Question]
-  {question}
+  {{ question }}
   [End of Question]
 
   [Start of Answer]
-  {response}
+  {{ response }}
   [End of Answer]
 
   * Return the evaluation between [Start of Evaluation] and [End of Evaluation] tags.
