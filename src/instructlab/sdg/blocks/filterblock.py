@@ -7,8 +7,8 @@ from datasets import Dataset
 
 # Local
 from .block import Block
-from .registry import BlockRegistry
-from .logger_config import setup_logger
+from ..registry import BlockRegistry
+from ..logger_config import setup_logger
 
 logger = setup_logger(__name__)
 

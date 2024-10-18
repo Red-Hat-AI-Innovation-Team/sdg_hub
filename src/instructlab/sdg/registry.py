@@ -77,6 +77,16 @@ class PromptRegistry:
         return cls._registry[name]
 
     @classmethod
+    def get_registry(cls):
+        """
+        Retrieve the current registry map of block types.
+
+        :return: Dictionary of registered block names and classes.
+        """
+        logger.debug("Fetching the block registry map.")
+        return cls._registry
+
+    @classmethod
     def render_template(
         cls,
         name: str,

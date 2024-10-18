@@ -5,7 +5,7 @@ import click
 import os
 
 # First Party
-from instructlab.sdg.default_flows import DEFAULT_FLOW_FILE_MAP, Flow
+from instructlab.sdg.flow import Flow
 from instructlab.sdg.logger_config import setup_logger
 from instructlab.sdg.pipeline import Pipeline
 from instructlab.sdg.sdg import SDG
@@ -32,7 +32,10 @@ logger = setup_logger(__name__)
     "--endpoint", type=str, required=True, help="Endpoint for data processing."
 )
 @click.option(
-    "--flow", type=str, required=True, help="Flow configuration for the process."
+    "--flow",
+    type=click.Path(exists=True),
+    required=True,
+    help="Flow configuration for the process.",
 )
 @click.option(
     "--checkpoint_dir",
@@ -77,9 +80,6 @@ def main(
     ds = load_dataset("json", data_files=ds_path, split="train")
 
     if debug:
-        # For debugging, use a smaller subset of the dataset
-        # set os level log_level to debug
-        os.environ["LOG_LEVEL"] = "DEBUG"
         ds = ds.shuffle(seed=42).select(range(30))
         logger.info("Debug mode enabled. Using a subset of the dataset.")
 
@@ -91,13 +91,9 @@ def main(
         base_url=openai_api_base,
     )
 
-    # check if flow is already a .yaml file
-    if not flow.endswith(".yaml"):
-        try:
-            flow = DEFAULT_FLOW_FILE_MAP[flow]
-        except KeyError:
-            raise ValueError(f"Invalid flow: {flow}")
-    
+    if not os.path.exists(flow):
+        raise FileNotFoundError(f"Flow file not found: {flow}")
+
     flow_cfg = Flow(client).get_flow_from_file(flow)
     sdg = SDG(
         [Pipeline(flow_cfg)],

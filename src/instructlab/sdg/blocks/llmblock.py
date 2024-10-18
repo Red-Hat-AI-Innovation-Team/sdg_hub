@@ -12,8 +12,8 @@ import openai
 
 # Local
 from .block import Block
-from .logger_config import setup_logger
-from .registry import BlockRegistry
+from ..logger_config import setup_logger
+from ..registry import BlockRegistry, PromptRegistry
 
 logger = setup_logger(__name__)
 
@@ -122,13 +122,13 @@ class LLMBlock(Block):
         return matches
 
     def _format_prompt(self, sample: Dict) -> str:
-        return self.prompt_template.render(sample).strip()
+        prompt_templated_str = self.prompt_template.render(sample).strip()
+        return PromptRegistry.render_template(
+            self.model_prompt, prompt_templated_str, add_generation_prompt=True
+        ).strip()
 
     def _generate(self, samples, **gen_kwargs) -> list:
-        prompts = [
-            self.model_prompt.format(prompt=self._format_prompt(sample))
-            for sample in samples
-        ]
+        prompts = [self._format_prompt(sample) for sample in samples]
         logger.debug("Prompt: %s", prompts[0])
         generate_args = {**self.defaults, **gen_kwargs}
 
@@ -166,7 +166,7 @@ class LLMBlock(Block):
 
         :return: The parsed output after generation.
         """
-        num_samples = self.batch_params.get("num_samples", None)
+        num_samples = self.block_config.get("num_samples", None)
         logger.debug("Generating outputs for {} samples".format(len(samples)))
 
         if (num_samples is not None) and ("num_samples" not in samples.column_names):
@@ -328,7 +328,7 @@ class LLMLogProbBlock(LLMBlock):
 
         :return: The parsed output after generation.
         """
-        num_samples = self.batch_params.get("num_samples", None)
+        num_samples = self.block_config.get("num_samples", None)
         logger.debug("Generating outputs for {} samples".format(len(samples)))
 
         if (num_samples is not None) and ("num_samples" not in samples.column_names):
@@ -392,7 +392,7 @@ class SelfConsistentLLMBlock(LLMBlock):
         for responses in grouped_responses:
             counter = Counter(responses)
             # Take the most common response
-            majority_response = counter.most_common(1)[0][0] 
+            majority_response = counter.most_common(1)[0][0]
             majority_responses.append(majority_response)
 
         return majority_responses
