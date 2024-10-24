@@ -368,42 +368,101 @@ class LLMLogProbBlock(LLMBlock):
         return output_dataset
 
 
-@BlockRegistry.register("SelfConsistentLLMBlock")
-class SelfConsistentLLMBlock(LLMBlock):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+@BlockRegistry.register("LLMMessagesBlock")
+class LLMMessagesBlock(Block):
+    def __init__(
+        self,
+        block_name,
+        client,
+        input_col,
+        output_col,
+        model_prompt=None, 
+        model_id=None,
+        **batch_kwargs,
+    ) -> None:
+        self.block_name = block_name
+        self.model_prompt = model_prompt
+        self.batch_params = batch_kwargs.get("batch_kwargs", {})
+        self.input_col = input_col
+        self.output_col = output_col
+        self.client = client
+
+        if model_id:
+            self.model = model_id
+        else:
+            self.model = self.client.models.list().data[0].id
+        
+        self.defaults = {
+            "model": self.model,
+            "temperature": 0,
+            "max_tokens": 4096,
+        }
+        self.server_supports_batched = server_supports_batched(client, self.model)
 
     def _generate(self, samples, **gen_kwargs) -> list:
-        # Ensure temperature > 0
-        if gen_kwargs.get("temperature", 0) <= 0:
-            raise ValueError(
-                "Temperature should be greater than 0 for self-consistency sampling."
+        generate_args = {**self.defaults, **gen_kwargs}
+
+        if "n" in generate_args and generate_args.get("temperature", 0) <= 0:
+            generate_args["temperature"] = 0.7
+            logger.warning(
+                "Temperature should be greater than 0 for n > 1, setting temperature to 0.7"
             )
 
-        all_responses = super()._generate(samples, **gen_kwargs)
+        messages = samples[self.input_col]
 
-        # Group outputs by original sample (assuming `self.k` responses per sample)
-        grouped_responses = [
-            all_responses[i : i + self.k] for i in range(0, len(all_responses), self.n)
-        ]
-
-        # Select the majority response from each group
-        majority_responses = []
-        for responses in grouped_responses:
-            counter = Counter(responses)
-            # Take the most common response
-            majority_response = counter.most_common(1)[0][0]
-            majority_responses.append(majority_response)
-
-        return majority_responses
+        results = []
+        n = gen_kwargs.get("n", 1)
+        for message in messages:
+            responses = self.client.chat.completions.create(messages=message, **generate_args)
+            if n > 1:
+                results.append([choice.message.content for choice in responses.choices])
+            else:
+                results.append(responses.choices[0].message.content)
+        return results
 
     def generate(self, samples: Dataset, **gen_kwargs) -> Dataset:
-        """
-        Generate self-consistent outputs from the model, validating input args for self-consistency.
+        outputs = self._generate(samples, **gen_kwargs)
+        samples = samples.add_column(self.output_col, outputs)
+        return samples
 
-        :param samples: Input data samples.
-        :param gen_kwargs: Generation parameters, e.g., temperature, max_tokens, etc.
-        :return: Dataset of parsed, self-consistent outputs.
-        """
-        logger.debug(f"Self-consistent generation with k={self.k}")
-        return super().generate(samples, **gen_kwargs)
+
+
+# @BlockRegistry.register("SelfConsistentLLMBlock")
+# class SelfConsistentLLMBlock(LLMBlock):
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+
+#     def _generate(self, samples, **gen_kwargs) -> list:
+#         # Ensure temperature > 0
+#         if gen_kwargs.get("temperature", 0) <= 0:
+#             raise ValueError(
+#                 "Temperature should be greater than 0 for self-consistency sampling."
+#             )
+
+#         all_responses = super()._generate(samples, **gen_kwargs)
+
+#         # Group outputs by original sample (assuming `self.k` responses per sample)
+#         grouped_responses = [
+#             all_responses[i : i + self.k] for i in range(0, len(all_responses), self.n)
+#         ]
+
+#         # Select the majority response from each group
+#         majority_responses = []
+#         for responses in grouped_responses:
+#             counter = Counter(responses)
+#             # Take the most common response
+#             majority_response = counter.most_common(1)[0][0]
+#             majority_responses.append(majority_response)
+
+#         return majority_responses
+
+#     def generate(self, samples: Dataset, **gen_kwargs) -> Dataset:
+#         """
+#         Generate self-consistent outputs from the model, validating input args for self-consistency.
+
+#         :param samples: Input data samples.
+#         :param gen_kwargs: Generation parameters, e.g., temperature, max_tokens, etc.
+#         :return: Dataset of parsed, self-consistent outputs.
+#         """
+#         logger.debug(f"Self-consistent generation with k={self.k}")
+#         return super().generate(samples, **gen_kwargs)
