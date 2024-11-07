@@ -6,7 +6,7 @@ principles: ""
 
 examples: ""
 
-generation: "{document}"
+generation: "{{document}}"
 
 start_tags: [""]
 end_tags: [""]

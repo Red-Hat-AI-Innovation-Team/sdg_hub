@@ -37,7 +37,7 @@ examples: |
 generation: |
   Now it's your turn breakdown following snippet from article about {domain} into atomic facts following similar style as above examples
   [Passage]
-  {document}
+  {{document}}
   [Facts]
 
 

@@ -58,10 +58,10 @@ generation: |
   * Return the answer between [Start of Answer] and [End of Answer] tags.
 
   [Start of Context]
-  {document}
+  {{document}}
   [End of Context]
   [Start of Response]
-  {response}
+  {{response}}
   [End of Response] 
 
 start_tags: ["[Start of Explanation]", "[Start of Answer]"]

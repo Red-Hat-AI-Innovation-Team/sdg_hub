@@ -72,11 +72,11 @@ generation: |
   Begin your response by providing the feedback followed by the score. Be as objective as possible.
 
   [Start of Question]
-  {question}
+  {{question}}
   [End of Question]
 
   [Start of Response]
-  {response}
+  {{response}}
   [End of Response]
 
   * Return the feedback within the [Start of Feedback] and [End of Feedback] tags.

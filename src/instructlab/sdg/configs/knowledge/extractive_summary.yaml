@@ -11,7 +11,7 @@ examples: ""
 
 generation: |
   Document:
-  {document}
+  {{document}}
 
 start_tags: [""]
 end_tags: [""]
