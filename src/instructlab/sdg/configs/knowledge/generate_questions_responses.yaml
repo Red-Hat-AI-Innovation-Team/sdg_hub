@@ -28,29 +28,29 @@ examples: |
   Here are some examples of questions:
 
   [Document]
-  {icl_document}
+  {{icl_document}}
 
   [QUESTION]
-  {icl_query_1}
+  {{icl_query_1}}
   [ANSWER]
-  {icl_response_1}
+  {{icl_response_1}}
   [END]
 
   [QUESTION]
-  {icl_query_2}
+  {{icl_query_2}}
   [ANSWER]
-  {icl_response_2}
+  {{icl_response_2}}
   [END]
 
   [QUESTION]
-  {icl_query_3}
+  {{icl_query_3}}
   [ANSWER]
-  {icl_response_3}
+  {{icl_response_3}}
   [END]
 
 generation: |
   Here is the document:
   
   [DOCUMENT]
-  {document_outline}
-  {document}
+  {{document_outline}}
+  {{document}}

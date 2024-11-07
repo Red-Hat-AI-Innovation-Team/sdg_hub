@@ -15,17 +15,17 @@ Here are the requirements:
 examples: |
   Here are some examples to help you understand the type of questions that are asked for this document:
 
-  {icl_query_1}
-  {icl_response_1}
+  {{icl_query_1}}
+  {{icl_response_1}}
 
-  {icl_query_2}
-  {icl_response_2}
+  {{icl_query_2}}
+  {{icl_response_2}}
 
-  {icl_query_3}
-  {icl_response_3}
+  {{icl_query_3}}
+  {{icl_response_3}}
 
   Here is the document:
-  {document}
+  {{document}}
 
 generation: |
   Provide a single question and answer pair based on the document.

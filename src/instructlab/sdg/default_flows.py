@@ -136,7 +136,8 @@ class Flow(ABC):
             if "model_family" in block["block_config"]:
                 model_family = block["block_config"]["model_family"]
 
-            block["block_config"]["model_prompt"] = _get_model_prompt(model_family)
+            if  block["block_type"] is LLMBlock:
+                block["block_config"]["model_prompt"] = _get_model_prompt(model_family)
 
             if "operation" in block["block_config"]:
                 block["block_config"]["operation"] = OPERATOR_MAP[

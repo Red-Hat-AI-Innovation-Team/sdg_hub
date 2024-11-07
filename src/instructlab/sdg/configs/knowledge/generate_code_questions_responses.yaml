@@ -12,28 +12,28 @@ principles: |
 
 examples: |
   [Document]
-  {icl_document}
+  {{icl_document}}
 
   [QUESTION]
-  {icl_query_1}
+  {{icl_query_1}}
   [ANSWER]
-  {icl_response_1}
+  {{icl_response_1}}
   [END]
 
   [QUESTION]
-  {icl_query_2}
+  {{icl_query_2}}
   [ANSWER]
-  {icl_response_2}
+  {{icl_response_2}}
   [END]
 
   [QUESTION]
-  {icl_query_3}
+  {{icl_query_3}}
   [ANSWER]
-  {icl_response_3}
+  {{icl_response_3}}
   [END]
 
 generation: |
   [Document]
-  {document}
+  {{document}}
   
   [Question]
