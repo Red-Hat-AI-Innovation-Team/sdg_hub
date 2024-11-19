@@ -2,6 +2,8 @@
 
 The SDG Framework is a modular, scalable, and efficient solution for creating synthetic data generation workflows in a “no-code” manner. At its core, this framework is designed to simplify data creation for LLMs, allowing users to chain computational units and build powerful pipelines for generating data and processing tasks.
 
+
+
 ## Core Design Principles
 
 The framework is built around the following principles:
@@ -13,6 +15,8 @@ The framework is built around the following principles:
 ---
 
 ## Framework Architecture
+
+![overview](assets/imgs/overview.png)
 
 ### Blocks: The Fundamental Unit
 
@@ -117,31 +121,43 @@ TODO
 
 ### Data Annotation
 
-Running this command will annotate [datasets/emotion/seed.jsonl](datasets/emotion/seed.jsonl) using the flow defined in [src/instructlab/sdg/flows/annotation/emotion/detailed_description_icl.yaml](src/instructlab/sdg/flows/annotation/emotion/detailed_description_icl.yaml) 
+The following command annotates the dataset located at [datasets/emotion/seed.jsonl](datasets/emotion/seed.jsonl) using the flow defined in [src/instructlab/sdg/flows/annotation/emotion/detailed_description_icl.yaml](src/instructlab/sdg/flows/annotation/emotion/detailed_description_icl.yaml) 
 
-```python
-python run.py --ds_path /shiv/sdg-research-mirror/datasets/emotion/seed.jsonl --bs 8 --num_workers 128 --save_path emotion/output.jsonl --checkpoint_dir checkpoints/emotion --endpoint http://mixtral-8x7b-inference-server:3000/v1 --flow src/instructlab/sdg/flows/annotation/emotion/detailed_description_icl.yaml --save_freq 32
+#### Command to Run the Annotation Workflow
+
+```bash
+python run.py \
+  --ds_path datasets/emotion/seed.jsonl \
+  --save_path emotion/output.jsonl \
+  --checkpoint_dir checkpoints/emotion \
+  --endpoint <replace with your endpoint> \
+  --flow src/instructlab/sdg/flows/annotation/emotion/detailed_description_icl.yaml \
 ```
 
-Evaluating the annotated data with this: 
+
+#### Evaluating the Annotated Data
+
+Once the annotation is complete, you can evaluate the results using the following Python script. The evaluation computes precision, recall, and F1-score using scikit-learn.
 
 ```python
 from datasets import load_dataset
 from sklearn.metrics import classification_report
-import re
 
-def get_eval_report(ds):
+def get_eval_report(ds_path):
+    # Load the annotated dataset
+    ds = load_dataset("json", data_files=ds_path, split="train")
+
+    # Extract ground truth and predictions
     gt = ds["ground_truth"]
     preds = ds["output"]
 
-    print(classification_report(gt, preds,))
-
-get_eval_report(load_dataset("json", data_files="emotion/output.jsonl", split="train"))
+    # Print the evaluation report
+    print(classification_report(gt, preds))
 ```
 
-Should give you this accuracy: 
+Running the evaluation script on the annotated dataset should produce the following metrics:
 
-```
+```python
               precision    recall  f1-score   support
 
        anger       0.45      0.59      0.51       521
@@ -154,5 +170,4 @@ Should give you this accuracy:
     accuracy                           0.53      3792
    macro avg       0.40      0.39      0.38      3792
 weighted avg       0.53      0.53      0.52      3792
-
 ```
