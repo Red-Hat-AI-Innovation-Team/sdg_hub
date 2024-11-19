@@ -1,7 +1,7 @@
 - block_type: LLMBlock
   block_config:
     block_name: gen_responses
-    config_path: configs/annotations/naive_simple.yaml
+    config_path: configs/annotations/detailed_descriptions.yaml
     model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
     output_cols:
       - output

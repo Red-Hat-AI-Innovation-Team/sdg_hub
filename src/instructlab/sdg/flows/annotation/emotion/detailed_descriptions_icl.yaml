@@ -1,7 +1,7 @@
 - block_type: LLMBlock
   block_config:
     block_name: gen_responses
-    config_path: configs/annotations/naive_simple.yaml
+    config_path: configs/annotations/detail_descriptions_icl.yaml
     model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
     output_cols:
       - output
@@ -10,9 +10,10 @@
     temperature: 0
     extra_body:
       guided_choice:
-        - "World"
-        - "Sports"
-        - "Business"
-        - "Sci/Tech"
+        - "joy"
+        - "sadness"
+        - "anger"
+        - "fear"
+        - "love"
   drop_duplicates:
     - prompt
