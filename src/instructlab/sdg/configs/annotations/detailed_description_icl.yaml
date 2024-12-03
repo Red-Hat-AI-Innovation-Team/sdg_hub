@@ -1,0 +1,32 @@
+system: ~
+introduction: |
+  Task Description: {{ task_description }}
+principles: ~
+examples: |
+  To better assist you with this task, here are some examples:
+  {% if questions_and_answers is defined %}
+  {% for sample in questions_and_answers %}
+  [Start of Question]
+  {{ sample.question }}
+  [End of Question]
+
+  [Start of Output]
+  {{ sample.answer }}
+  [End of Output]
+  {% endfor %}
+  {% else %}
+  [Start of Question]
+  {{ seed_question }}
+  [End of Question]
+
+  [Start of Output]
+  {{ seed_response }}
+  [End of Output]
+  {% endif %}
+generation: |
+  Here is the query for annotation:
+  [Start of Question]
+  {{ prompt }}
+  [End of Question]
+start_tags: [""]
+end_tags: [""]

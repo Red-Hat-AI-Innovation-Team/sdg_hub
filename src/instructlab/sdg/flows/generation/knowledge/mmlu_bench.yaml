@@ -1,0 +1,13 @@
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_mmlu_knowledge
+    config_path: configs/knowledge/mcq_generation.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    output_cols:
+      - mmlubench_question
+      - mmlubench_answer
+  gen_kwargs:
+    temperature: 0
+    max_tokens: 2048
+  drop_duplicates:
+    - mmlubench_question

@@ -9,7 +9,7 @@ principles: |
    * The questions should be in English.
    * The questions should be 1 to 2 sentences long and should be properly formatted.
    * The question should not be offensive, abusive, or harmful. It should be safe and respectful.
-   * The question should be relevant to the task given - {task_description}.
+   * The question should be relevant to the task given - {{ task_description }}.
 
    If the question meets the above requirements, please rate it 1. If not, please rate it 0.
 
@@ -32,10 +32,10 @@ examples: |
 generation: |   
    Here's the question you need to evaluate:
 
-   Task Description: {task_description}
+   Task Description: {{ task_description }}
 
    [Start of Question]
-   {question}
+   {{ question }}
    [End of Question]
 
    Begin your evaluation by providing a short explanation. Be as objective as possible. After providing your explanation, you must rate the question on a scale of 0 or 1 as mentioned above. Strictly follow the format below:
