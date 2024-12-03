@@ -245,19 +245,23 @@ class ConditionalLLMBlock(LLMBlock):
             self.prompt_template = self.prompt_struct.format(**self.block_config)
         else:
             for config_key, config in config_paths.items():
-                self.prompt_template[config_key] = self.prompt_struct.format(
+                # Template(self.prompt_struct.format(**filtered_config))
+                filtered_config = {
+                    k: (v if v is not None else "") for k, v in self.block_config.items()
+                }
+                self.prompt_template[config_key] = Template(self.prompt_struct.format(
                     **self._load_config(config)
-                )
+                ))
 
     def _format_prompt(self, sample: Dict) -> str:
         if isinstance(self.prompt_template, dict):
             return (
                 self.prompt_template[sample[self.selector_column_name]]
-                .format(**sample)
+                .render(**sample)
                 .strip()
             )
 
-        return self.prompt_template.format(**sample).strip()
+        return self.prompt_template.render(**sample).strip()
 
     def _validate(self, prompt_template: str, input_dict: Dict[str, Any]) -> bool:
         if isinstance(prompt_template, dict):
