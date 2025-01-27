@@ -1,0 +1,17 @@
+- block_type: LLMBlock
+  block_config:
+    block_name: progressive_understanding
+    config_path: configs/knowledge/progressive_understanding.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    output_cols:
+      - multi_turn_qa
+  gen_kwargs:
+    max_tokens: 2048
+
+- block_type: ParseAsList
+  block_config:
+    block_name: ParseAsList
+    col_name: multi_turn_qa
+    parsing_patterns: 
+      - "\\[(?:Question|QUESTION)\\]\\s*(.*?)\\s*\\[(?:Answer|ANSWER)\\]\\s*(.*?)\\s*(?=\\[(?:Question|QUESTION)\\]|$)"
+      - "(?:\\*\\*Question:\\*\\*)\\s*(.*?)\\s*(?:\\*\\*Answer:\\*\\*)\\s*(.*?)\\s*(?=(?:\\*\\*Question:\\*\\*)|$)"

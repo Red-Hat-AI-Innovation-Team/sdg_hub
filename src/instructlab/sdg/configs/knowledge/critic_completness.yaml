@@ -1,0 +1,27 @@
+system: | 
+  You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: | 
+  You will assume the role of a critic. Your task is to evaluate the completeness of the response.
+
+principles: |
+  Use the following steps to evaluate the completeness of the response:
+    - From the context provided, list key facts that are relevant to answering the question.
+    - Check if each of the key facts is present in the response.
+    - If any key fact is missing, provide a brief explanation for why it is missing.
+
+examples: ~
+generation: |
+  Context:
+  {{document}}
+
+  Question:
+  {{question}}
+
+  Response:
+  {{response}}
+
+start_tags: [""]
+end_tags: [""]
+
+

@@ -1,0 +1,150 @@
+system: You are an AI assistant that is expert at understanding and explaining text.
+
+introduction: |
+  Given below document, create a series of progressive, multi-turn questions and answers that guide a reader through understanding key concepts of a document, ensuring each Q&A pair is directly grounded in the text provided.
+
+principles: |
+  1. Makesure the Question-Answer pairs are grounded in the provided document
+  2. Progressively go over the document when generating the multi-turn question and answer 
+
+examples_: |
+  Here is an example to help you understand the task better:
+  Document:
+  Program synthesis aims to create a program that meets a specified requirement using a domain-specific language (DSL). In programming by example (PBE), this involves finding a program that satisfies given input/output examples.
+
+  To assess generalization, we propose five tasks for testing a synthesizer’s ability to recombine program components creatively:
+
+  1. **Length-Generalization**: Handling longer programs than seen in training.
+  2. **Compose-Different-Concepts**: Combining different concepts in novel ways.
+  3. **Switch-Concept-Order**: Rearranging concept sequences.
+  4. **Compose-New-Operation**: Integrating a new operation into complex compositions.
+  5. **Add-Operation-Functionality**: Inferring missing functionality from related operations.
+
+  This benchmark enables evaluation of compositional generalization across different DSLs.
+
+
+  [QUESTION]
+  What is the main goal of program synthesis as described here?
+  [ANSWER] 
+  The main goal of program synthesis is to create a program that fulfills a specific requirement using a domain-specific language (DSL). This often involves identifying a program that can satisfy certain input/output examples, especially within the programming by example (PBE) approach.
+
+  [QUESTION]
+  How does programming by example (PBE) relate to program synthesis?
+  [ANSWER] 
+  In PBE, program synthesis involves finding a program that meets specific input/output examples provided. This allows the synthesizer to create a program based on demonstrating expected behavior rather than direct coding.
+
+  [QUESTION]
+  What are the proposed tasks intended to assess in a synthesizer?
+  [ANSWER] 
+  The five proposed tasks are designed to assess a synthesizer's ability to generalize by recombining components of programs in creative ways, allowing it to adapt to new situations or variations beyond its training.
+
+  [QUESTION]
+  Can you explain the “Length-Generalization” task and its purpose?
+  [ANSWER] 
+  The “Length-Generalization” task evaluates whether the synthesizer can handle programs that are longer than the ones it encountered during training. This helps in determining the synthesizer's capacity to scale and apply knowledge to more complex scenarios.
+
+  [QUESTION]
+  What does the task “Compose-Different-Concepts” involve, and why is it important?
+  [ANSWER] 
+  “Compose-Different-Concepts” involves the synthesizer's ability to combine various programming concepts in new ways. This task is critical because it evaluates the synthesizer's flexibility and creativity in recombining learned components to solve problems in unfamiliar formats.
+
+  [QUESTION]
+  What does the “Switch-Concept-Order” task test? 
+  [ANSWER] 
+  The “Switch-Concept-Order” task tests the synthesizer's capability to rearrange the sequence of programming concepts it applies, showcasing adaptability in altering the order of steps or operations while still achieving the desired result.
+
+  [QUESTION]
+  Can you describe the “Compose-New-Operation” task?
+  [ANSWER] 
+  The “Compose-New-Operation” task assesses whether the synthesizer can integrate a new or unfamiliar operation into existing complex program structures. This task is significant for evaluating how well the synthesizer adapts to new tools or functionalities within its programming.
+
+  [QUESTION]
+  What challenge does “Add-Operation-Functionality” present to a synthesizer?
+  [ANSWER] 
+  The “Add-Operation-Functionality” task challenges the synthesizer to infer missing functionalities by understanding related operations. This means it should be able to deduce or approximate the behavior of a missing operation based on similar ones it already knows, demonstrating inference skills.
+
+  [QUESTION]
+  What is the overall purpose of this benchmark for synthesizers? 
+  [ANSWER] 
+  The benchmark is designed to evaluate how well synthesizers generalize compositionally across different DSLs, assessing their capacity to creatively and flexibly recombine programming components to meet new requirements.
+
+
+examples: |
+  Here is an example to help you understand the task better:
+  Document:
+  Program synthesis aims to create a program that meets a specified requirement using a domain-specific language (DSL). In programming by example (PBE), this involves finding a program that satisfies given input/output examples.
+
+  To assess generalization, we propose five tasks for testing a synthesizer’s ability to recombine program components creatively:
+
+  1. **Length-Generalization**: Handling longer programs than seen in training.
+  2. **Compose-Different-Concepts**: Combining different concepts in novel ways.
+  3. **Switch-Concept-Order**: Rearranging concept sequences.
+  4. **Compose-New-Operation**: Integrating a new operation into complex compositions.
+  5. **Add-Operation-Functionality**: Inferring missing functionality from related operations.
+
+  This benchmark enables evaluation of compositional generalization across different DSLs.
+
+
+  Turn 1: Basic Introduction
+  [QUESTION]
+  What is the main goal of program synthesis as described here?
+  [ANSWER] 
+  The main goal of program synthesis is to create a program that fulfills a specific requirement using a domain-specific language (DSL). This often involves identifying a program that can satisfy certain input/output examples, especially within the programming by example (PBE) approach.
+
+  Turn 2: Deeper Understanding of Programming by Example (PBE)
+  [QUESTION]
+  How does programming by example (PBE) relate to program synthesis?
+  [ANSWER] 
+  In PBE, program synthesis involves finding a program that meets specific input/output examples provided. This allows the synthesizer to create a program based on demonstrating expected behavior rather than direct coding.
+
+  Turn 3: Purpose of the Proposed Benchmark Tasks
+  [QUESTION]
+  What are the proposed tasks intended to assess in a synthesizer?
+  [ANSWER] 
+  The five proposed tasks are designed to assess a synthesizer's ability to generalize by recombining components of programs in creative ways, allowing it to adapt to new situations or variations beyond its training.
+
+  Turn 4: Exploring Each Task
+  [QUESTION]
+  Can you explain the “Length-Generalization” task and its purpose?
+  [ANSWER] 
+  The “Length-Generalization” task evaluates whether the synthesizer can handle programs that are longer than the ones it encountered during training. This helps in determining the synthesizer's capacity to scale and apply knowledge to more complex scenarios.
+
+  Turn 5: Examining Compositional Generalization
+  [QUESTION]
+  What does the task “Compose-Different-Concepts” involve, and why is it important?
+  [ANSWER] 
+  “Compose-Different-Concepts” involves the synthesizer's ability to combine various programming concepts in new ways. This task is critical because it evaluates the synthesizer's flexibility and creativity in recombining learned components to solve problems in unfamiliar formats.
+
+  Turn 6: Evaluating Concept Sequencing Flexibility
+  [QUESTION]
+  What does the “Switch-Concept-Order” task test? 
+  [ANSWER] 
+  The “Switch-Concept-Order” task tests the synthesizer's capability to rearrange the sequence of programming concepts it applies, showcasing adaptability in altering the order of steps or operations while still achieving the desired result.
+
+  Turn 7: New Operations and Their Integration
+  [QUESTION]
+  Can you describe the “Compose-New-Operation” task?
+  [ANSWER] 
+  The “Compose-New-Operation” task assesses whether the synthesizer can integrate a new or unfamiliar operation into existing complex program structures. This task is significant for evaluating how well the synthesizer adapts to new tools or functionalities within its programming.
+
+  Turn 8: Inferring Missing Functionality
+  [QUESTION]
+  What challenge does “Add-Operation-Functionality” present to a synthesizer?
+  [ANSWER] 
+  The “Add-Operation-Functionality” task challenges the synthesizer to infer missing functionalities by understanding related operations. This means it should be able to deduce or approximate the behavior of a missing operation based on similar ones it already knows, demonstrating inference skills.
+
+  Turn 9: Overall Purpose of These Tasks
+  [QUESTION]
+  What is the overall purpose of this benchmark for synthesizers? 
+  [ANSWER] 
+  The benchmark is designed to evaluate how well synthesizers generalize compositionally across different DSLs, assessing their capacity to creatively and flexibly recombine programming components to meet new requirements.
+
+
+generation: |
+  Now it your turn to create multi-turn questions and answers that guide a reader through understanding key concepts of below document. Follow similar format as the example above
+
+  Document:
+  {{document}}
+
+start_tags: [""]
+end_tags: [""]

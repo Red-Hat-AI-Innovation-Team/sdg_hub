@@ -1,0 +1,132 @@
+# Alternate Improve on Q and A
+
+# Initial Setup
+- block_type: DuplicateColumns
+  block_config:
+    block_name: duplicate_document_col
+    columns_map:
+      question: draft_query
+
+
+- block_type: DuplicateColumns
+  block_config:
+    block_name: duplicate_document_col
+    columns_map:
+      response: draft_response
+
+
+# Iter 1
+- block_type: LLMBlock
+  block_config:
+    block_name: improve_question_1
+    config_path: configs/knowledge/improve_query.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_prompt: <s> [INST] {prompt} [/INST]
+    output_cols: 
+      - improve_question_1
+  drop_columns: 
+      - question
+
+# - block_type: LLMBlock
+#   block_config:
+#     block_name: judge_question_1
+#     config_path: configs/knowledge/judge_query.yaml
+#     model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+#     model_prompt: <s> [INST] {prompt} [/INST]
+#     output_cols: 
+#       - judge_question_1
+
+- block_type: DuplicateColumns
+  block_config:
+    block_name: duplicate_document_col
+    columns_map:
+      improve_question_1: question
+
+- block_type: LLMBlock
+  block_config:
+    block_name: improve_response_1
+    config_path: configs/knowledge/improve_response.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_prompt: <s> [INST] {prompt} [/INST]
+    output_cols: 
+      - improve_response_1
+  drop_columns: 
+      - response
+
+- block_type: DuplicateColumns
+  block_config:
+    block_name: duplicate_document_col
+    columns_map:
+      improve_response_1: response
+
+
+# Iter 2
+- block_type: LLMBlock
+  block_config:
+    block_name: improve_question_2
+    config_path: configs/knowledge/improve_query.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_prompt: <s> [INST] {prompt} [/INST]
+    output_cols: 
+      - improve_question_2
+  drop_columns: 
+      - question
+
+- block_type: DuplicateColumns
+  block_config:
+    block_name: duplicate_document_col
+    columns_map:
+      improve_question_2: question
+
+- block_type: LLMBlock
+  block_config:
+    block_name: improve_response_2
+    config_path: configs/knowledge/improve_response.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_prompt: <s> [INST] {prompt} [/INST]
+    output_cols: 
+      - improve_response_2
+  drop_columns: 
+      - response
+
+- block_type: DuplicateColumns
+  block_config:
+    block_name: duplicate_document_col
+    columns_map:
+      improve_response_2: response
+
+
+# Iter 3
+- block_type: LLMBlock
+  block_config:
+    block_name: improve_question_3
+    config_path: configs/knowledge/improve_query.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_prompt: <s> [INST] {prompt} [/INST]
+    output_cols: 
+      - improve_question_3
+  drop_columns: 
+      - question
+
+- block_type: DuplicateColumns
+  block_config:
+    block_name: duplicate_document_col
+    columns_map:
+      improve_question_3: question
+
+- block_type: LLMBlock
+  block_config:
+    block_name: improve_response_3
+    config_path: configs/knowledge/improve_response.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_prompt: <s> [INST] {prompt} [/INST]
+    output_cols: 
+      - improve_response_3
+  drop_columns: 
+      - response
+
+- block_type: DuplicateColumns
+  block_config:
+    block_name: duplicate_document_col
+    columns_map:
+      improve_response_3: response

@@ -138,3 +138,21 @@ class SetToMajorityValue(Block):
         samples = samples.to_pandas()
         samples[self.col_name] = samples[self.col_name].mode()[0]
         return Dataset.from_pandas(samples)
+
+@BlockRegistry.register("ChainIntoBulletedListBlock")
+class ChainIntoBulletedListBlock(Block):
+    def __init__(self, columns, output_col, **batch_kwargs) -> None:
+        super().__init__(block_name=self.__class__.__name__)
+        self.columns = columns
+        self.output_col = output_col
+        self.num_procs = batch_kwargs.get("num_procs", 8)
+
+    def _generate(self, sample) -> dict:
+        sample[self.output_col] = "\n".join(
+            [f"{idx+1}. {sample[col]}" for idx, col in enumerate(self.columns)]
+        )
+        return sample
+
+    def generate(self, samples: Dataset) -> Dataset:
+        samples = samples.map(self._generate, num_proc=self.num_procs)
+        return samples

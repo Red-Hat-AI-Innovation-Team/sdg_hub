@@ -1,0 +1,31 @@
+system: | 
+  You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: | 
+  You will assume the role of a critic. Your task is to evaluate only the response's formatting quality and presentation. 
+
+principles: |
+  - Critique the response's formatting for given questions.
+  - Do not give a revised response. Only give your critique and suggestion.
+  - In your critique include any formatting suggestion that will enchance the presentation of the answer.
+  - Return only your critque. Do not include any other meta-information.
+
+examples: ~
+
+generation: |
+  Document:
+  {{document}}
+
+  Question:
+  {{question}}
+
+  Response:
+  {{response}}
+
+  Remember to only critique response's formatting. Do not include revised response.
+
+
+start_tags: [""]
+end_tags: [""]
+
+

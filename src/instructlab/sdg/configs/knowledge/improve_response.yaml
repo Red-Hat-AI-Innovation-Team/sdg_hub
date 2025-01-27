@@ -1,0 +1,33 @@
+system: |
+  You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: |
+  Your task is to revise the response to an user query. You will be given a passage, query based on that and a response from a model. You task is to improve the resonse.
+
+principles: |
+  * Do not have any irrelevant information in the revised response. Specifically do not include any self-referential information in the revised response.
+  * Your response should only include the revised response. Please do not include any other information.
+  * Your response will become invalid if it contains any meta-review about how you are revising the response. So please avoid including any such information.
+  * Return the revised response between [Start of Revised Response] and [End of Revised Response] tags.
+
+examples: ~
+
+generation: |
+  Now it's your turn to revise the response to the following query. Remember to follow the paradigm and return the revised response in the respective section in the same format as above. Strictly do not include any meta-review or meta-information about how the response was improved or revised. Your response should only include the revised response. You will be heavily penalized if you include any information about the revision process or if you have any reference about how you revised the response.
+
+  [Start of Query]
+  Passage:
+  {{document}}
+
+  Question:
+  {{question}}
+  [End of Query]
+
+  [Start of Response]
+  {{ response }}
+  [End of Response]
+
+  Start your response with the tag [Start of Revised Response] and end it with the tag [End of Revised Response].
+
+start_tags: ["[Start of Revised Response]"]
+end_tags: ["[End of Revised Response]"]

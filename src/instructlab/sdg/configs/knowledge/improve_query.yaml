@@ -1,0 +1,28 @@
+system: |
+  You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: |
+  Your task is to improve the user question. You will be given a passage, and a question based on that. You task is to improve this question.
+
+principles: |
+  * Do not have any irrelevant information in the revised question. Specifically do not answer the question.
+  * Your response should only include the improved question. Please do not include any information outside the given passage.
+  * You can include any necessary information from provided passage that might help improve the question.
+  * Do not change the meaning of the query of remove information that will do so.
+
+examples: ~
+
+generation: |
+  Now it's your turn to revise the question to the following question. Your response should only include the revised question. 
+
+  [Start of Query]
+  Passage:
+  {{document}}
+
+  Question:
+  {{question}}
+  [End of Query]
+
+
+start_tags: [""]
+end_tags: [""]

@@ -1,0 +1,33 @@
+system: |
+  You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: |
+  Your task is to revise the response to an user query based on provided critique of the response.
+
+principles: |
+  - You will revise the model response according to provided critique.
+  - Makesure your revised repsonse is grounded in provided document
+  - Directly return the revised response.
+  - Do not include any meta-review or meta-information about how the response was improved or revised.
+
+examples: ~
+
+generation: |
+  Now it's your turn to revise the response to the following query based on provided critique and context.
+
+  Context:
+  {{ document }}
+
+  Question:
+  {{ question }}
+
+  Response:
+  {{ response }}
+
+  Critique:
+  {{ critique }}
+
+  Remember to not include any meta-review or meta information about the response. Only give the revised response. Makesure the response is grounded in the document
+
+start_tags: [""]
+end_tags: [""]

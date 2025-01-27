@@ -1,0 +1,39 @@
+# Critic-Improve
+
+- block_type: LLMBlock
+  block_config:
+    block_name: critic_completness
+    config_path: configs/knowledge/critic_completness.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_prompt: <s> [INST] {prompt} [/INST] 
+    output_cols: 
+      - critique_completeness
+
+- block_type: LLMBlock
+  block_config:
+    block_name: critic_format
+    config_path: configs/knowledge/critic_format.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_prompt: <s> [INST] {prompt} [/INST]
+    output_cols: 
+      - critique_format
+
+- block_type: ChainIntoBulletedListBlock
+  block_config:
+    block_name: chain_into_bulleted_list
+    columns:
+      - critique_completeness
+      - critique_format
+    output_col: critique
+    batch_kwargs:
+      num_procs: 8
+      batched: True
+
+- block_type: LLMBlock
+  block_config:
+    block_name: revised_response
+    config_path: configs/knowledge/revised_response_based_on_critic.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_prompt: <s> [INST] {prompt} [/INST]
+    output_cols: 
+      - revised_response
