@@ -31,7 +31,7 @@
   block_config:
     block_name: gen_detailed_summary
     config_path: configs/knowledge/detailed_summary.yaml
-    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_id: meta-llama/Llama-3.3-70B-Instruct
     output_cols:
       - summary_detailed
   gen_kwargs:
@@ -41,7 +41,7 @@
   block_config:
     block_name: gen_atomic_facts
     config_path: configs/knowledge/atomic_facts.yaml
-    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_id: meta-llama/Llama-3.3-70B-Instruct
     output_cols:
       - summary_atomic_facts
   gen_kwargs:
@@ -51,7 +51,7 @@
   block_config:
     block_name: gen_extractive_summary
     config_path: configs/knowledge/extractive_summary.yaml
-    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_id: meta-llama/Llama-3.3-70B-Instruct
     output_cols:
       - summary_extractive
   gen_kwargs:
@@ -82,7 +82,7 @@
       _A_: configs/knowledge/generate_questions_responses.yaml
       _B_: configs/knowledge/generate_questions_responses.yaml
       _C_: configs/knowledge/generate_code_questions_responses.yaml
-    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_id: meta-llama/Llama-3.3-70B-Instruct
     model_prompt: '<s> [INST] {prompt} [/INST]'
     output_cols:
       - question
@@ -100,7 +100,7 @@
   block_config:
     block_name: eval_faithfulness_qa_pair
     config_path: configs/knowledge/evaluate_faithfulness.yaml
-    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_id: meta-llama/Llama-3.3-70B-Instruct
     output_cols:
       - explanation
       - judgment
@@ -121,7 +121,7 @@
   block_config:
     block_name: eval_relevancy_qa_pair
     config_path: configs/knowledge/evaluate_relevancy.yaml
-    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_id: meta-llama/Llama-3.3-70B-Instruct
     output_cols:
       - feedback
       - score
@@ -143,7 +143,7 @@
   block_config:
     block_name: eval_verify_question
     config_path: configs/knowledge/evaluate_question.yaml
-    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_id: meta-llama/Llama-3.3-70B-Instruct
     output_cols:
       - explanation
       - rating
