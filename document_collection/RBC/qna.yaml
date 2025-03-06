@@ -1,0 +1,633 @@
+document_outline: DB-SUSP-2ND-DAY-BAL Standard Operating Procedure (SOP)
+domain: Standard Procedure Mannual
+seed_examples:
+- context: "-------------------------------------------------------------------------------------------------------|\n\
+    | All Transaction File  (ATF)   | Viewing manual entries (GL vouchers, credit\
+    \ and debit memos, and  Cheques) to do investigation                         \
+    \                                                                            \
+    \                                       |\n| Application Launch Pad        | Performing\
+    \ history inquiries in Unit Reference File Inquiry (URFIQ) - Unit  Inquiry and\
+    \ Demand Deposit Account (DDA) - Deposit Services to obtain  details about transactions\
+    \ processed to personal and business client's  bank accounts. |\n| Chart of Account\
+    \              | Retrieving the general information of the GL numbers.       \
+    \                                                                            \
+    \                                                                            \
+    \                      |\n| Excel                         | Processing of $50\
+    \ and under write-off items through the PeopleSoft bulk  upload process. Also\
+    \ used for manual reconciliation of the Electronic Bill Payments GL.         \
+    \                                                                 |\n\n## DB-SUSP-2ND-DAY-BAL\
+    \ Standard Operating Procedure (SOP)\n\nVendor\n\nTarget Audience:\n\nVersion\
+    \ Number\n\n: 11.4\n\nVersion Date\n\n: February 26, 2024\n\nDate of Last Document\
+    \ Review : September 20, 2019\n\nNext Review Date\n\n: TBD\n| Image Retrieval\
+    \  Integrated System (IRIS)   | Viewing manual entries (GL vouchers, credit and\
+    \ debit memos, and  transaction history) to do investigation.                \
+    \                                                                            \
+    \                                      |\n|---------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|\n\
+    | OnDemand                                    | Viewing activity contained on\
+    \ the common reports required for  investigation.                            \
+    \                                                                            \
+    \                                                        |\n| Outlook        \
+    \                             | Getting email addresses and retrieving emails\
+    \ with attachments.  Also used for email correspondence between the Service Partner\
+    \ and  Vendor or FSS for manual reconciliation of the Electronic Bill Payments\
+    \  GL.                            |\n| PeopleSoft                            \
+    \      | Creating GL account entries, searching for and viewing previously posted\
+    \  journal entries.                                                          \
+    \                                                                            \
+    \             |\n| RightFax FaxUtil                            | Sending faxes\
+    \ to Symcor centers.                                                         \
+    \                                                                            \
+    \                                                                        |\n|\
+    \ Sales Platform                              | Viewing client profile and account\
+    \ details for the following:  \xB7  Current Account   Savings  \xB7  Royal Credit\
+    \ Line(RCL)                                                                  \
+    \                                                     |\n| Service Platform (SP)\
+    \                       | Processing debits and/or credits entries to client's\
+    \ account and also posting  current dated entries between client account and respective\
+    \ GL other than  Global Banking Service Centre (GBSC) and Payment and Trade (P\
+    \ And T).              |\n| Siebel                                      | Viewing\
+    \ branch financial and non-financial transactions posted via Service  Platform.\
+    \                                                                            \
+    \                                                                            |\n\
+    | Transaction Lifecycle  Management (TLM)     | Monitoring, reconciling, and investigating\
+    \ GL accounts, and for completing  enrichment, balancing, and investigation for\
+    \ all types of transactions and  forwarding the communication to the respective\
+    \ business units and Service  Partners. |\n| Unit Reference File  Enquiry    \
+    \            | Viewing the Sub transits and other transit details.     \",   \
+    \                                                                            \
+    \                                                             | Matching DDA Transactions\
+    \ by Amount  Step 05                                                         \
+    \                                                                            \
+    \                |\n|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|\n\
+    | Step | Action                                                              \
+    \                                                                            \
+    \                                                 | Action                   \
+    \                                                                            \
+    \                                                                            \
+    \                |\n| 1    | \xB7  On the Items by Status Dashboard, click in\
+    \ the filter field of the Process Dt; a drop down  list will appear.         \
+    \                                                                        | \xB7\
+    \  On the Items by Status Dashboard, click in the filter field of the Process\
+    \ Dt; a drop down  list will appear.                                         \
+    \                                        |\n| 2    | \xB7  Locate the offsetting\
+    \ line items for the GL and transit under review with the same  amounts.     \
+    \                                                                            \
+    \                 | \xB7  Locate the offsetting line items for the GL and transit\
+    \ under review with the same  amounts.                                       \
+    \                                                           |\n|      | If the\
+    \ offsetting line  items ...                                                 \
+    \                                                                            \
+    \                                   | Then \u2026                            \
+    \                                                                            \
+    \                                                                            \
+    \       |\n|      | have the same Client  Account Number in the  Matching Reference\
+    \ field                                                                      \
+    \                                                      | \xB7 of the offsetting\
+    \ line items under review  \xB7  right-click and select Match  select OK  \xB7\
+    \  proceed to step "
+  questions_and_answers:
+  - answer: Siebel is utilized for viewing both financial and non-financial transactions
+      that have been posted through the Service Platform.
+    question: What is Siebel used for?
+  - answer: "The Service Platform is used to process debit and credit entries to a\
+      \ client\u2019s account, as well as to post current dated entries between client\
+      \ accounts and their respective GLs, excluding those managed by the Global Banking\
+      \ Service Centre (GBSC) and Payment and Trade (P&T)."
+    question: What is Service Platform (SP) used for?
+  - answer: "The Sales Platform is used to view client profiles and account details\
+      \ for various accounts, including:\n\n\u2022 Current Accounts\n\u2022 Savings\
+      \ Accounts\n\u2022 Royal Credit Line (RCL)\n\u2022 Visa accounts"
+    question: What is Sales Platform used for?
+  - answer: PeopleSoft is used for creating GL account entries, as well as searching
+      for and viewing previously posted journal entries.
+    question: What is PeopleSoft used for?
+- context: "\n| SharePoint Site             | Template Folder  Name             |\
+    \ Procedure Folder Name                                  | Template  Name   |\n\
+    |-----------------------------|-----------------------------------|--------------------------------------------------------|------------------|\n\
+    | FSS/IGATE                   | Reconciliation                    | iGATE - Second\
+    \ Day Balancing                           | V.1.0 6656       |\n| CapgeminiProduction\
+    \  Portal | Reconciliation  Working Templates | iGATE - Second Day Balancing \
+    \ Reconciliation Templates | 9918863          |\n\n## Back to top\n\n## High Level\
+    \ Process Overview\n\nThe objective of this process is to complete manual matching,\
+    \ reconciliation, and/or investigation for entries outstanding in the in-scope\
+    \ accounts. Investigation in this context may involve activities such as identifying\
+    \ the cause of the outstanding entry and determining the required action to resolve,\
+    \ and contacting the impacted department to ensure the resolution is completed.\n\
+    \nInvestigation is performed for the Transits that have outstanding balances over\
+    \ $50 in the in-scope GLs, for two consecutive days.\n\nOutstanding balances within\
+    \ +/-$50 range are written off on the first day without investigation using PeopleSoft\
+    \ bulk upload process.\n\nData enrichment, Manual Matching, investigation, and\
+    \ aging items review should be done in a timely manner, as per the following documented\
+    \ process, failing which there is a significant client impact and fin ancial risk\
+    \ to RBC if entries are not managed within the defined process.\n\nFor the Branch\
+    \ transactions: Investigation, reconciliation and corrections are performed by\
+    \ the Second Day team. However, there are dependencies on Symcor and Branches\
+    \ for resolving some of the issues. The Second Day Team communicates with the\
+    \ branches and Symcor centers to resolve the issues through email.\n\nFor the\
+    \ Service Centers/Special Transits transactions : Investigation and reconciliation\
+    \ are performed by the Second Day Team but the corrections are processed by the\
+    \ Service Centers or Special Transits respectively.\n\n## DB-SUSP-2ND-DAY-BAL\
+    \ Standard Operating Procedure (SOP)\n\nVendor\n\nTarget Audience:\n\nVersion\
+    \ Number\n\n: 11.4\n\nVersion Date\n\n: February 26, 2024\n\nDate of Last Document\
+    \ Review : September 20, 2019\n\nNext Review Date\n\n: TBD\n\nImportant: Unlocated\
+    \ outages equal to or under $50 are written-off.\n\nThe following is the list\
+    \ of dependent or related accounts where offsetting entry or entries may be located.\n\
+    \n| GL  Number             | GL Name                                         \
+    \                     | Category                        | Account Sets       \
+    \                                                 |\n|------------------------|----------------------------------------------------------------------|---------------------------------|---------------------------------------------------------------------|\n\
+    | 991-680- 0  900-387- 2 | PROOF SUSPENSE  USD PROOF SUSPENSE                \
+    \                   | DB-SUSP-ADJUSTMENTS- SERIALIZED | \xB7  PROOF-SUSP-E   PROOF-SUSP-C\
+    \  \xB7  PROOF-SUSP-W                     |\n| 991-867- 3  900-367- 4 | ADJUSTMENT\
+    \ SUSPENSE #  3  USD ADJUSTMENT  SUSPENSE # 3               | DB-SUSP-ADJUSTMENTS-\
+    \ SERIALIZED | \xB7  ADJ-SUSP-3-E   ADJ-SUSP-3-C  \xB7  ADJ-SUSP-3-          \
+    \            |\n| 991-873- 1             | ADJUSTMENT SUSPENSE  #6           \
+    \                                   | DB-SUSP-ADJUSTMENTS- SERIALIZED | \xB7 \
+    \ ADJ-SUSP-6-E   ADJ-SUSP-6-C                                      |\n| 991-895-\
+    \               | CASH DIFFERENCE  SUSPENSE                                  \
+    \          |                                 | \xB7  ADJ-SUSP-6-W            \
+    \                                         |\n| 4  900-706- 3          | USD CASH\
+    \ DIFFERENCES- US$                                            | DB-SUSP-CASH-DIFF\
+    \               | \xB7  CASH- DIFFERENCE-E  \xB7  CASH- DIFFERENCE-C  \xB7  CASH-\
+    \ DIFFERENCE-W |\n| 990-521- 7             | CASH ACCOUNT                    \
+    \                                     | DB-ASSETS-CASH- HOLDINGS        | \xB7\
+    \  CASH-ACCOUNT-E                                                   |\n| 900-007-\
+    \ 6             | US CASH ACCOUNT                                            \
+    \          |                                 | \xB7  CASH-ACCOUNT-C \xB7  CASH-ACCOUNT-\
+    \ W                                |\n| 991-604- 0  900-352- 6 | ADJUSTMENT SUSPENSE\
+    \  #1  USD ADJUSTMENT  SUSPENSE #1  LOANS SUSPENSE | DB-SUSP-ADJUSTMENTS- SERIALIZED\
+    \ | \xB7  ADJ-SUSP-1-E   ADJ-SUSP-1-C  \xB7  ADJ-SUSP-1-W                    \
+    \ |\n| 991-670- 1  900-381- 5 | ACCOUNT  USD LOANS SUSPENSE                  \
+    \                        | DB-SUSP-LOANS                   | \xB7  LOAN-SUSP-1-C\
+    \   LOAN-SUSP-1-E  \xB7  LOAN-SUSP-1-W                  |\n| 991-656- 0  900-389-\
+    \ 8 | TELEGRAPHIC TRANSFER  SUSP  USD SETTLEMT  TELEGRAPHIC                | DB-SUSP-TT\
+    \                      | \xB7  TT-SUSP-E   TT-SUSP-C  \xB7  TT-SUSP-W        \
+    \                      |\n| 991-630- 5             | PYMTS RECONCILN  REFUND/ADJMT\
+    \                                        |                                 | \xB7\
+    \  PYMTS-REFUNDS- ADJ-E  \xB7  PYMTS-REFUNDS- ADJ-C   PYMTS-REFUNDS-   |\n| 900-383-\
+    \ 1             | USD PYMT REC  REFUND&ADJ SUSP                              \
+    \          | DB-SUSP-ADJUSTMENTS             | \xB7 ADJ-W                    \
+    \                                         |\n"
+  questions_and_answers:
+  - answer: The objective of the process is to complete manual matching, reconciliation,
+      and investigation for entries outstanding in the in-scope accounts. This includes
+      identifying the cause of outstanding entries, determining the required actions
+      to resolve them, and contacting the impacted departments to ensure resolutions
+      are completed.
+    question: What is the objective of the high-level process overview described in
+      the passage?
+  - answer: The aim of this process is to perform manual matching, reconciliation,
+      and investigation for entries outstanding in the in-scope accounts. This investigation
+      includes identifying the cause of outstanding entries, determining necessary
+      actions for resolution, and contacting the relevant departments to ensure resolutions
+      are completed.
+    question: Could you provide a high-level overview of the Second Day balancing
+      process?
+  - answer: Investigations are conducted for transits with outstanding balances over
+      $50 in the in-scope GLs for two consecutive days. Balances within +/- $50 are
+      written off on the first day without investigation using the PeopleSoft bulk
+      upload process. The Second Day team handles data enrichment, manual matching,
+      investigation, and aging item reviews promptly to avoid significant client impact
+      and financial risk to RBC. Branch transactions are investigated, reconciled,
+      and corrected by the Second Day team, with dependencies on Symcor and branches
+      for some resolutions. The team communicates with branches and Symcor centers
+      via email. For Service Centers/Special Transits transactions, the Second Day
+      team performs investigation and reconciliation, while corrections are processed
+      by the Service Centers or Special Transits.
+    question: What steps are involved in the investigation of outstanding balances
+      in the Second Day balancing process?
+- context: " | item under review from Trace Number column in the TLM and paste it\
+    \   select the arrow button at the bottom of the image to retrieve the back  \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                                              |\n| ATF (trace  number starts\
+    \                                                                            \
+    \                                                                            \
+    \             | \xB7 Access  ATF                                             \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                                                      |\n|                  \
+    \                                                                            \
+    \                                                                            \
+    \                     | proceed to step 11                                   \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                                                           |\n|             \
+    \                                                                            \
+    \                                                                            \
+    \                          | Select Incoming to display Search Incoming screen\
+    \  \xB7                                                                      \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                                                                  |\n| with 991\
+    \ or 992  and is 11 digits)                                                  \
+    \                                                                            \
+    \                              | Enter process date of exception in Process Date\
+    \ Begin  Value field in format YYYY-MM-DD                                    \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                                                                 |\n|       \
+    \                                                                            \
+    \                                                                            \
+    \                                | \xB7  Enter trace number of exception  without\
+    \  first digit in  Sequence Number Begin Value field                         \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                                                                     |\n|   \
+    \                                                                            \
+    \                                                                            \
+    \                                    | \xB7  Select Search All to display Item\
+    \ Details View screen   Select Show Image to display Item Details with Image \
+    \ screen                                                                     \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            |\n\
+    | PeopleSoft                                                                 \
+    \                                                                            \
+    \                                       | proceed to step 13                 \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \ |\n|                                                                       \
+    \                                                                            \
+    \                                            | \xB7  Proceed to step 11      \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \         |\n| \xB7  Select the Select Row checkbox appearing in the left corner\
+    \ of the first line item under  review in the grid view of Items by Status in\
+    \ TLM.   Right-click and select Edit Item Exception. |                       \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \              |\n| \xB7  Enter \"Session Number [paste the session number]. Entry\
+    \ was processed in error to the  GL# [insert GL number].\" in the Source System\
+    \ Reference field.                                      |                    \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                 |\n| \xB7  Select Save.  \xB7                              \
+    \                                                                            \
+    \                                                                  | Select X\
+    \ on the top right corner of the Edit Item Exception pop-up window to close it.\
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \                          |\n\n## DB-SUSP-2ND-DAY-BAL Standard Operating Procedure\
+    \ (SOP)\n\nVendor\n\nTarget Audience:\n\nVersion Number\n\n: 11.4\n\nVersion Date\
+    \ : February 26, 2024\n\n: February 26, 2024\n\nDate of Last Document Review\n\
+    \nNext Review Date\n\n: TBD\n\n|    | Refer to  Transaction Lifecycle Management\
+    \ (TLM) System Guide  for detailed instructions  \xB7  Select the Select button.\
+    \   Use the calendar icon to select the date in the Next Review Date field to\
+    \ pend the line item  for 2 business days from the current date.  \xB7  Select\
+    \ Save.   Send 1st Request email type   |\n|----|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|\n\
+    | 11 | \xB7  Select the Select Row checkbox appearing in the left corner of the\
+    \ line item under review  in the grid view of Items by Status in TLM.  \xB7  Right-click\
+    \ and select Edit Item Exception.   Enter \"Entry processed in error to the GL#\
+    \ [insert GL number].\" in the Source System                                 \
+    \  |\n|    | Reference field.  \xB7  Select Save.   Select X on the top right\
+    \ corner of the Edit Item Exception pop-up window to close it.               \
+    \                                                                            \
+    \                                                                            \
+    \                  |\n|    | \xB7  Right-click the line item under review and\
+    \ select Exception Detail.                                                   \
+    \                                                                            \
+    \                                                                            \
+    \                                  |\n|    | Use the TLM Reason and Resolution\
+    \ Code Inventory spreadsheet to identify the required  codes                 \
+    \                                                                            \
+    \                                                                            \
+    \                                              |\n|    | Refer to  Transaction\
+    \ Lifecycle Management (TLM) System Guide \xB7  Select the Select button.    \
+    \                                                                            \
+    \                                                                            \
+    \                                                             |\n|    | for detailed\
+    \ instructions                                               "
+  questions_and_answers:
+  - answer: pend the line item for 2 business days from the current date
+    question: "During Investigation for Visa \u2013 Other CAD (GL 9918863), How many\
+      \ days should a line item be pended after sending the 1st Request email type?"
+  - answer: Enter the trace number of the exception without the first digit in the
+      Sequence Number Begin Value field.
+    question: During the process of handling exceptions in PeopleSoft, where should
+      you enter the trace number of the exception?
+  - answer: Enter the process date of the exception in the Process Date Begin Value
+      field in the format YYYY-MM-DD.
+    question: When accessing the ATF (trace number starts with 991 or 992 and is 11
+      digits), what is the format required for the Process Date Begin Value field?
+- context: "## Write-off Procedures\n\n| Purpose   | The Vendor follows the steps\
+    \ in the table below to write-off any outstanding balance less  than or equal\
+    \ to $50 without investigation.                                              \
+    \                                                                            \
+    \            |\n|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|\n\
+    | 1         | Access TLM                                                     \
+    \                                                                            \
+    \                                                                            \
+    \                                                     |\n| 2         | Right-click\
+    \ DB-SUSP-2ND-DAY-BAL category from the RBC REC Lifecycles Summary tree  view\
+    \ and select Items Status Summary.                                           \
+    \                                                                            \
+    \                             |\n| 3         | Select the HOLDOVER-CC-ITEMS-C\
+    \ account set for a specific region under the Accounts  tab and right click and\
+    \ select Ad-Hoc items search.                                                \
+    \                                                                            \
+    \        |\n|           | Note:  The set containing all data for a specific region\
+    \ is denoted by the letter: E (Eastern),  C (Central), or W (Western) located\
+    \ at the end of the set name. The eGL data is  downloaded region by region in\
+    \ the following order: Eastern, Central followed by Western. |\n| 4         |\
+    \ \xB7  Deselect Pending from Item status                                    \
+    \                                                                            \
+    \                                                                            \
+    \                                            |\n|           | Select Item type\
+    \ Stmt Ccy Credit Write off , Stmt Ccy Debit Write off , Ledger Ccy Credit  Write\
+    \ off , Ledger Ccy Debit Write off ,  Select search                          \
+    \                                                                            \
+    \                    |\n| 5         | \xB7  Right-click in the grid view of Item\
+    \ Matches and select Export to Excel; the File Download  dialog box for smartExportToExcel.do\
+    \ will appear.  \xB7  Retain the excel file without saving it.               \
+    \                                                                |\n|        \
+    \   | Note : This file will be used for reference during the process.        \
+    \                                                                            \
+    \                                                                            \
+    \                                             |\n| 6         | Are there other\
+    \ pending Account Sets?                                                      \
+    \                                                                            \
+    \                                                                            \
+    \                         |\n|           | \xB7  If  Yes , return to step 3 and\
+    \ select the next account set under the Accounts tab.   If  No , proceed to next\
+    \ step.                                                                      \
+    \                                                                            \
+    \    |\n|           | Important : Follow this step until all the account sets\
+    \ have been visited, and report  generated.                                  \
+    \                                                                            \
+    \                                                             |\n| 7         |\
+    \ \xB7  Select My Computer.                                                  \
+    \                                                                            \
+    \                                                                            \
+    \                                            |\n|           | Select Network Attached\
+    \ Storage (NAS) drive.                                                       \
+    \                                                                            \
+    \                                                                            \
+    \                 |\n|           | \xB7  Double-click GL folder.   Double-click\
+    \ Second Day Processing folder.                                              \
+    \                                                                            \
+    \                                                                           |\n\
+    |           | \xB7  Double-click Second Day_CG_Work_Allocation folder.       \
+    \                                                                            \
+    \                                                                            \
+    \                                                        |\n|           | Double-click\
+    \ Branch Transits, Service Center, Special Transits folder.                  \
+    \                                                                            \
+    \                                                                            \
+    \                            |\n|           | \xB7  Double-click Under $50 write-off\
+    \ folder.                                                                    \
+    \                                                                            \
+    \                                                                            \
+    \     |\n|           | Double-click the folder for the year in which you are processing\
+    \ (such as 2013).  \xB7 Is the folder for the current month available?       \
+    \                                                                            \
+    \                                                       |\n|           | -  If\
+    \  Yes :  \xA7  double-click the folder for the month in which you are processing\
+    \ (such as 01 January  2013)                                                 \
+    \                                                                            \
+    \                                  |\n|           | \xA7  proceed to step 9  -\
+    \  If  No , proceed to step 8                                                \
+    \                                                                            \
+    \                                                                            \
+    \                 |"
+  questions_and_answers:
+  - answer: 'If there are other pending Account Sets:
+
+      - Return to step 3 and select the next account set under the Accounts tab.
+
+      - Follow this step until all the account sets have been visited and the report
+      generated.'
+    question: In the write-off procedure, what steps should be followed if there are
+      other pending Account Sets after deselecting Pending from Item status and selecting
+      the appropriate Item types?
+  - answer: 'The excel file generated in step 5 should be retained without saving.
+      Note: This file will be used for reference during the process.'
+    question: During the write-off procedure, how should the excel file generated
+      in step 5 be handled?
+  - answer: 'If the folder for the current month is not available:
+
+      - Proceed to step 8.
+
+
+      Note: If the folder for the current month is available, double-click the folder
+      for the month in which you are processing (such as 01 January 2013) and proceed
+      to step 9.'
+    question: In the write-off procedure, what should be done if the folder for the
+      current month is not available in the Under $50 write-off folder?
+- context: "## Investigation for RFX-Contact Center Transit\n\n| Purpose   | The Vendor\
+    \ follows the steps in the table below to investigate exceptions, assign reason\
+    \  and resolution codes, and send email message to the service partner for the\
+    \ resolution.                                                                \
+    \                           |\n|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|\n\
+    | Step      | Action                                                         \
+    \                                                                            \
+    \                                                                            \
+    \                                                     |\n| 1         | Select\
+    \ DB-SUSP-2ND-DAY-BAL category from the RBC REC Lifecycles Summary tree  view\
+    \ and double-click to open.                                                  \
+    \                                                                            \
+    \                                  |\n| 2         | Select the RFX-PUR-SALE-TXN\
+    \ account set for a specific region under the Accounts tab  and double-click to\
+    \ open.                                                                      \
+    \                                                                            \
+    \           |\n|           | Note:  The set containing all data for a specific\
+    \ region is denoted by the letter: E (Eastern),  C (Central), or W (Western) located\
+    \ at the end of the set name. The eGL data is  downloaded region by region in\
+    \ the following order: Eastern, Central followed by Western. |\n| 3         |\
+    \ \xB7  Select Exceptions tab in the Items dashboard.                        \
+    \                                                                            \
+    \                                                                            \
+    \                                            |\n|           | Select Exceptions\
+    \ folder to open the Exceptions' tree view.                                  \
+    \                                                                            \
+    \                                                                            \
+    \                       |\n| 4         | \xB7  Expand the DOMESTIC BANKING folder.\
+    \                                                                            \
+    \                                                                            \
+    \                                                                            \
+    \  |\n|           | Double-click the RFX Contact Centers exception type. The Item\
+    \ Exceptions by Inbox grid  view will appear.  \xB7                          \
+    \                                                                            \
+    \                                                          |\n|           | Determine\
+    \ the outstanding GL number and the transit number combination.              \
+    \                                                                            \
+    \                                                                            \
+    \                               |\n| 5         | \xB7  Select the Items tab in\
+    \ the Items dashboard.                                                       \
+    \                                                                            \
+    \                                                                            \
+    \              |\n|           | Double-click the Outstanding bar in the bar chart;\
+    \ the Items by Status grid view will  appear.                                \
+    \                                                                            \
+    \                                                                  |\n|      \
+    \     | \xB7  Right-click the header of Items by Status grid.                \
+    \                                                                            \
+    \                                                                            \
+    \                                                  |\n|           | Select Show\
+    \ Filters.   Click in the filter field of the Transit column; a drop down list\
+    \ will appear.                                                               \
+    \                                                                            \
+    \                            |\n|           | \xB7  Enter the transit number under\
+    \ review.                                                                    \
+    \                                                                            \
+    \                                                                            \
+    \       |\n|           | \xB7  Click in the filter field of the Account column;\
+    \ a drop down list will appear.   Select a GL number under review.           \
+    \                                                                            \
+    \                                                                 |\n|       \
+    \    | Determine the current outstanding balance for the GL number and transit\
+    \ number under                                                               \
+    \                                                                            \
+    \                                             |\n|           | \xB7 review.  Important:\
+    \  Outstanding balance, found in the blue line after all line items for the GL\
+    \                                                                            \
+    \                                                                            \
+    \                  |\n| 6         | \xB7  Follow below steps to determine the\
+    \ previous day adjusted balance for the GL number                            \
+    \                                                                            \
+    \                                                                            \
+    \  |\n\n: September 20, 2019\n\n## DB-SUSP-2ND-DAY-BAL Standard Operating Procedure\
+    \ (SOP)\n\nVendor\n\nTarget Audience:\n\nVersion Number\n\n: 11.4\n\nVersion Date\
+    \ : February 26, 2024\n\n: February 26, 2024\n\nDate of Last Document Review\n\
+    \nNext Review Date\n\n: TBD\n\n|    | -  Click on the Process Dt column header\
+    \ of the Items by Status grid view. The sorting  options box will appear.    \
+    \                                                                            \
+    \    |\n|----|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------\
+    \  "
+  questions_and_answers:
+  - answer: "\u2022 The set containing all data for a specific region is denoted by\
+      \ the letter: E (Eastern), C (Central), or W (Western) located at the end of\
+      \ the set name. \u2022 The eGL data is downloaded region by region in the following\
+      \ order: Eastern, Central followed by Western."
+    question: "During Investigation for RFX \u2013 Contact Center Transit, what is\
+      \ the sequence for downloading eGL data for specific regions?"
+  - answer: "\u2022 Select the Items tab in the Items dashboard. \u2022 Double-click\
+      \ the Outstanding bar in the bar chart; the Items by Status grid view will appear.\
+      \ \u2022 Right-click the header of Items by Status grid. \u2022 Select Show\
+      \ Filters. \u2022 Click in the filter field of the Transit column; a drop down\
+      \ list will appear. \u2022 Enter the transit number under review."
+    question: "During Investigation for RFX \u2013 Contact Center Transit, how do\
+      \ you filter items by the transit number under review?"
+  - answer: "\u2022 Select the Items tab in the Items dashboard. \u2022 Double-click\
+      \ the Outstanding bar in the bar chart; the Items by Status grid view will appear.\
+      \ \u2022 Right-click the header of Items by Status grid. \u2022 Select Show\
+      \ Filters. \u2022 Click in the filter field of the Transit column; a drop down\
+      \ list will appear. \u2022 Enter the transit number under review. \u2022 Click\
+      \ in the filter field of the Account column; a drop down list will appear. \u2022\
+      \ Select a GL number under review. \u2022 Determine the current outstanding\
+      \ balance for the GL number and transit number under review."
+    question: "During Investigation for RFX \u2013 Contact Center Transit, how do\
+      \ you find the current outstanding balance for the GL number and transit number\
+      \ under review?"
+- context: "## Investigation for RFX-Other Transits\n\n| Purpose   | The Vendor follows\
+    \ the steps in the table below to investigate exceptions, assign reason  and resolution\
+    \ codes, and send email message to the service partner for the resolution.   |\n\
+    |-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|\n\
+    | Step      | Action                                                         \
+    \                                                                            \
+    \                                         |\n| 1         | Select DB-SUSP-2ND-DAY-BAL\
+    \ category from the RBC REC Lifecycles Summary tree  view and double-click to\
+    \ open.                                                                      \
+    \  |\n| 2         | Select the RFX-PUR-SALE-TXN account set for a specific region\
+    \ under the Accounts tab  and double-click to open.                          \
+    \                                           |\n| 3         | \xB7  Select Exceptions\
+    \ tab in the Items dashboard.   Select Exceptions folder to open the Exceptions'\
+    \ tree view.                                                                 \
+    \     |\n\n## DB-SUSP-2ND-DAY-BAL Standard Operating Procedure (SOP)\n\nVendor\n\
+    \nTarget Audience:\n\nVersion Number\n\n: 11.4\n\nVersion Date : February 26,\
+    \ 2024\n\n: February 26, 2024\n\nDate of Last Document Review\n\nNext Review Date\n\
+    \n: TBD\n\n| 4   | \xB7  Expand the DOMESTIC BANKING folder.   Double-click the\
+    \ 2ND DAY ITEMS exception type. The Item Exceptions by Inbox grid view  will appear.\
+    \  \xB7  Determine the outstanding GL number and the transit number combination.\
+    \                                                                            \
+    \                                    |\n|-----|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|\n\
+    | 5   | \xB7  Select the Items tab in the Items dashboard.   Double-click the\
+    \ Outstanding bar in the bar chart; the Items by Status grid view will  appear.\
+    \  \xB7                                                                      \
+    \                                                                            \
+    \                                   |\n| 6   | \xB7  Follow below steps to determine\
+    \ the previous day adjusted balance for the GL number  and transit number under\
+    \ review:  -  Click on the Process Dt column header of the Items by Status grid\
+    \ view. The sorting  options box will appear.  -  Select sorting order 1 within\
+    \ the bottom portion of the sorting options box. Outstanding |\n|     | item will\
+    \ be sorted by Process Date.  -  Select all items from all Process Dates except\
+    \ for the Process Date under review and  newer.  -  Select all back-dated items\
+    \ from the Process Date under review.                                        \
+    \                                                                            \
+    \           |\n|     | Important:  Back-dated transactions can be identified by\
+    \ the transaction code which  appears under the TC column in TLM. Back-dated transactions\
+    \ codes are: 23, 40, 41, 47,  42, 54, 55, 46, 48, 59, 57, 63, 64, 65, 68, 70,\
+    \ 71, 77. Full transaction code descriptions can  be viewed under the Tran Code\
+    \ Description column in TLM.   |\n| 7   | \xB7  Determine the current outstanding\
+    \ balance for the GL number and transit number under  review.  Important:  Outstanding\
+    \ balance, found in the blue line after all line items for the GL  number and\
+    \ transit number under review, is listed under the column Amount in the grid \
+    \ view.                                                 |\n\n: September 20, 2019\n\
+    \n## DB-SUSP-2ND-DAY-BAL Standard Operating Procedure (SOP)\n\nVendor\n\nTarget\
+    \ Audience:\n\nVersion Number\n\n: 11.4\n\nVersion Date\n\n: February 26, 2024\n\
+    \nDate of Last Document Review\n\nNext Review Date\n\n: TBD\n\n|    | Yes    \
+    \                                                                            \
+    \                                                | Transfer item to FSS  \xB7\
+    \  Manual Item: FSS to raise IR with Symcor                                  \
+    \                                                      | Transfer item to FSS\
+    \  \xB7  Manual Item: FSS to raise IR with Symcor                            \
+    \                                                            | Transfer item to\
+    \ FSS  \xB7  Manual Item: FSS to raise IR with Symcor                        \
+    \                                                                |\n|----|------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|\n\
+    |    | No                                                                    \
+    \                                                             | RFX \n\n\n\nStyle\
+    \ QA:\n        'question': 'During Investigation for RFX - Other Transits, Which\
+    \ database we need to search for corresponding offset amount?',\n        'answer':\
+    \ '\u2022\tCopy the transit number of the line item under review from the Transit\
+    \ column in TLM.\n\u2022\tReturn to the RBC REC Lifecycles Summary tree view to\
+    \ search for corresponding items in GL numbers 991-656-0 or 900-389-8.\n\u2022\
+    \tSelect DB-SUSP-TT category.\n\u2022\tRight-click and select Ad-hoc Items Search.\n\
+    \u2022\tScroll down to the Business Entity field and paste transit number under\
+    \ review into it.\n\u2022\tClick Search.\n\u2022\tAd-hoc Items Search dashboard\
+    \ will open showing outstanding TT Suspense items.\n\u2022\tAre there any line\
+    \ items with Trace Number between 9846 and 9855 for the currency under review?\n\
+    \n-\tIf Yes, proceed to step 16.\n-\tIf No, proceed to step 19."
+  questions_and_answers:
+  - answer: "\u2022 Select the RFX-PUR-SALE-TXN account set for a specific region\
+      \ under the Accounts tab.\n\u2022 Double-click to open the account set."
+    question: During the Investigation for RFX-Other Transits, what steps are followed
+      to open the RFX-PUR-SALE-TXN account set for a specific region?
+  - answer: "\u2022 Click on the Process Dt column header of the Items by Status grid\
+      \ view. The sorting options box will appear.\n\u2022 Select sorting order 1\
+      \ within the bottom portion of the sorting options box. Outstanding items will\
+      \ be sorted by Process Date.\n\u2022 Select all items from all Process Dates\
+      \ except for the Process Date under review and newer.\n\u2022 Select all back-dated\
+      \ items from the Process Date under review.\n\u2022 Important: Back-dated transactions\
+      \ can be identified by the transaction code which appears under the TC column\
+      \ in TLM. Back-dated transactions codes are: 23, 40, 41, 47, 42, 54, 55, 46,\
+      \ 48, 59, 57, 63, 64, 65, 68, 70, 71, 77. Full transaction code descriptions\
+      \ can be viewed under the Tran Code Description column in TLM."
+    question: In the DB-SUSP-2ND-DAY-BAL SOP, how do you determine the previous day's
+      adjusted balance for the GL number and transit number under review?
+  - answer: "\u2022 Determine the current outstanding balance for the GL number and\
+      \ transit number under review.\n\u2022 Important: The outstanding balance, found\
+      \ in the blue line after all line items for the GL number and transit number\
+      \ under review, is listed under the column Amount in the grid view."
+    question: How do you determine the current outstanding balance for the GL number
+      and transit number under review in the DB-SUSP-2ND-DAY-BAL SOP?

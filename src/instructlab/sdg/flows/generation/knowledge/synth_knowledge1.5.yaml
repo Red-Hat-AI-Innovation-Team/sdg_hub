@@ -1,25 +1,25 @@
-- block_type: LLMBlock
-  block_config:
-    block_name: router
-    config_path: configs/knowledge/router.yaml
-    model_id: text-classifier-knowledge-v3-clm
-    output_cols:
-      - route
-    batch_kwargs:
-      num_procs: 8
-  gen_kwargs:
-    temperature: 0
-    max_tokens: 1
-    extra_body:
-      allowed_token_ids:
-        - 32001
-        - 32002
-        - 32003
+# - block_type: LLMBlock
+#   block_config:
+#     block_name: router
+#     config_path: configs/knowledge/router.yaml
+#     model_id: text-classifier-knowledge-v3-clm
+#     output_cols:
+#       - route
+#     batch_kwargs:
+#       num_procs: 8
+#   gen_kwargs:
+#     temperature: 0
+#     max_tokens: 1
+#     extra_body:
+#       allowed_token_ids:
+#         - 32001
+#         - 32002
+#         - 32003
 
-- block_type: SetToMajorityValue
-  block_config:
-    block_name: SetClassifierValue
-    col_name: route
+# - block_type: SetToMajorityValue
+#   block_config:
+#     block_name: SetClassifierValue
+#     col_name: route
 
 - block_type: DuplicateColumns
   block_config:
