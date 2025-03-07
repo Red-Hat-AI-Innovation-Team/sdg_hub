@@ -226,7 +226,6 @@ class ConditionalLLMBlock(LLMBlock):
         client,
         model_id,
         output_cols,
-        selector_column_name,
         model_prompt="{prompt}",
         **batch_kwargs,
     ) -> None:
@@ -239,7 +238,6 @@ class ConditionalLLMBlock(LLMBlock):
             model_prompt=model_prompt,
             **batch_kwargs,
         )
-        self.selector_column_name = selector_column_name
         self.prompt_template = {}
         if "All" in config_paths:
             self.prompt_template = self.prompt_struct.format(**self.block_config)
@@ -256,7 +254,7 @@ class ConditionalLLMBlock(LLMBlock):
     def _format_prompt(self, sample: Dict) -> str:
         if isinstance(self.prompt_template, dict):
             return (
-                self.prompt_template[sample[self.selector_column_name]]
+                self.prompt_template[sample["_A_"]]
                 .render(**sample)
                 .strip()
             )
@@ -265,7 +263,7 @@ class ConditionalLLMBlock(LLMBlock):
 
     def _validate(self, prompt_template: str, input_dict: Dict[str, Any]) -> bool:
         if isinstance(prompt_template, dict):
-            prompt_template = prompt_template[input_dict[self.selector_column_name]]
+            prompt_template = prompt_template[input_dict["_A_"]]
         return super()._validate(prompt_template, input_dict)
 
 
