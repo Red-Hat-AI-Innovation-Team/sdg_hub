@@ -340,3 +340,16 @@ class DocProcessor:
             chunk_ds_with_icls = self._add_icls(chunk_ds)
             datasets.append(chunk_ds_with_icls)
         return safe_concatenate_datasets(datasets)
+
+    def get_processed_markdown_dataset(self, list_md_files: list[Path]) -> Dataset:
+        chunks_md = text
+        for md_file in list_md_files:
+            with open(md_file, "r", encoding="utf-8") as f:
+                text = f.read()
+                chunks_md.append(text)
+        
+        chunk_ds = Dataset.from_dict({"document": chunks_md})
+        chunk_ds_with_icls = self._add_icls(chunk_ds)
+        return chunk_ds_with_icls
+            
+            
