@@ -342,19 +342,17 @@ class DocProcessor:
         return safe_concatenate_datasets(datasets)
 
     def get_processed_markdown_dataset(self, list_md_files: list[Path]) -> Dataset:
-        chunks_md = text
+        chunks_mds = []
         for md_file in list_md_files:
             with open(md_file, "r", encoding="utf-8") as f:
                 text = f.read()
-                chunks_md.append(text)
-        chunk_ds = Dataset.from_dict({
-            "document": chunks_md,
-            "document_outline": [self.user_config["document_outline"]]
-            * len(chunks_md),
-            "document_title": [md_file.name] * len(chunks_md),
-                "domain": [self.user_config["domain"]] * len(chunks_md),
-            }
-        )
+                chunks_mds.append({
+            "document": text,
+            "document_outline": self.user_config["document_outline"],
+            "document_title": md_file,
+            "domain": self.user_config["domain"],
+            })
+        chunk_ds = Dataset.from_list(chunks_mds)
         chunk_ds_with_icls = self._add_icls(chunk_ds)
         return chunk_ds_with_icls
             
