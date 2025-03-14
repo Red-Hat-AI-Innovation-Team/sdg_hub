@@ -1,0 +1,20 @@
+pipeline:
+  ocr:
+    enabled: true
+    languages: 
+      - eng
+      - fra
+  tables:
+    enabled: true
+    cell_matching: false
+  performance:
+    threads: 8
+    device: auto
+
+export:
+  formats:
+    json: true
+    text: true
+    markdown: false
+    html: true
+    doctags: false 
