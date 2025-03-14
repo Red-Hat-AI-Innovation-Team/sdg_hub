@@ -347,8 +347,14 @@ class DocProcessor:
             with open(md_file, "r", encoding="utf-8") as f:
                 text = f.read()
                 chunks_md.append(text)
-        
-        chunk_ds = Dataset.from_dict({"document": chunks_md})
+        chunk_ds = Dataset.from_dict({
+            "document": chunks_md,
+            "document_outline": [self.user_config["document_outline"]]
+            * len(chunks_md),
+            "document_title": [md_file.name] * len(chunks_md),
+                "domain": [self.user_config["domain"]] * len(chunks_md),
+            }
+        )
         chunk_ds_with_icls = self._add_icls(chunk_ds)
         return chunk_ds_with_icls
             
