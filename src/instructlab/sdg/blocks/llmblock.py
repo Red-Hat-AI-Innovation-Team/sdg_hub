@@ -4,6 +4,7 @@ from collections import Counter
 from typing import Any, Dict, List
 import json
 import re
+import random
 
 # Third Party
 from datasets import Dataset
@@ -142,6 +143,11 @@ class LLMBlock(Block):
                     choice.text.strip() + "".join(generate_args["stop"])
                     for choice in response.choices
                 ]
+            if random.uniform(0, 1) < 0.01:
+                logger.info("Input prompt: %s", prompts[0])
+                logger.info("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+                logger.info("Generated text: %s", response.choices[0].text.strip())
+                logger.info("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
             return [choice.text.strip() for choice in response.choices]
 
         n = gen_kwargs.get("n", 1)

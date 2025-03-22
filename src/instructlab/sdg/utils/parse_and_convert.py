@@ -201,8 +201,12 @@ def generate_knowledge_qa_dataset(
                 "context": context,
             }
         else:
+            if rec['document'] == rec['raw_document']:
+                user_message = f"{rec['document_outline']}\n\n{context}\n\n{instruction}"
+            else:
+                user_message = f"{context}\n\n{instruction}"
             messages = [
-                {"role": "user", "content": f"{context}\n\n{instruction}"},
+                {"role": "user", "content": user_message},
                 {"role": "assistant", "content": response},
             ]
 
