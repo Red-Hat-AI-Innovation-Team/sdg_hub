@@ -19,7 +19,3 @@ def mistral_chat_template():
 @PromptRegistry.register("nemotron-super-49b")
 def nemotron_chat_template():
     return """{{- bos_token }}{%- if messages[0][\'role\'] == \'system\' %}{%- set system_message = messages[0][\'content\']|trim %}{%- set messages = messages[1:] %}{%- else %}{%- set system_message = "" %}{%- endif %}{{- "<|start_header_id|>system<|end_header_id|>\\n\\n" }}{{- system_message }}{{- "<|eot_id|>" }}{%- for message in messages %}{%- if message[\'role\'] == \'assistant\' and \'</think>\' in message[\'content\'] %}{%- set content = message[\'content\'].split(\'</think>\')[-1].lstrip() %}{%- else %}{%- set content = message[\'content\'] %}{%- endif %}{{- \'<|start_header_id|>\' + message[\'role\'] + \'<|end_header_id|>\\n\\n\' + content | trim + \'<|eot_id|>\' }}{%- endfor %}{%- if add_generation_prompt %}{{- \'<|start_header_id|>assistant<|end_header_id|>\\n\\n\' }}{%- endif %}"""
-
-@PromptRegistry.register("phi-4")
-def phi_4_chat_template():
-    return """{% for message in messages %}{% if (message['role'] == 'system') %}{{'<|im_start|>system<|im_sep|>' + message['content'] + '<|im_end|>'}}{% elif (message['role'] == 'user') %}{{'<|im_start|>user<|im_sep|>' + message['content'] + '<|im_end|>'}}{% elif (message['role'] == 'assistant') %}{{'<|im_start|>assistant<|im_sep|>' + message['content'] + '<|im_end|>'}}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant<|im_sep|>' }}{% endif %}"""
