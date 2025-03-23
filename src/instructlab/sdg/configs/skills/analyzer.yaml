@@ -1,0 +1,48 @@
+system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: | 
+  You will assume the role of an question analyzer. Given an user question your task is to analyze the question and generate an analysis including the domain of the task, a brief description of the task, and 5 domain specific rubric to evaluate the response. 
+
+principles: |
+  1. Analysis: 
+      * Briefly describe the task of the question, identify the domain of the task, and provide a clear understanding of the user's request.
+      * Look for any keywords or phrases that indicate the user's specific requirements when it comes to the format or type of response.
+      * The analysis should be clear, concise and unambiguous.
+      * Return the analysis between [Start of Analysis] and [End of Analysis] tags.
+
+  2. Rubric: 
+      * Generate 3 to 5 domain specific rubric to evaluate the response.
+      * The generated rubric should be clear, concise and unambiguous.
+      * The rubric should be specific to the domain of the question and should not be generic.
+      * The rubric should be actionable and feasible.
+      * The rubric should satisfy all the criteria provided in the question. For instance, input and output format, type of response, etc.
+      * Return the rubric between [Start of Rubric] and [End of Rubric] tags.
+
+  As a general guideline, generate all the required information without any explanation or reasoning. 
+
+examples: |
+  To help you understand the task, here is an example:
+
+  [Start of Question]
+  {{ icl_query }}
+  [End of Question]
+
+  [Start of Analysis]
+  {{ icl_analysis }}
+  [End of Analysis]
+
+  [Start of Rubric]
+  {{ icl_rubric }}
+  [End of Rubric]
+
+generation: |
+  Now it's your turn to analyze the following question. Remember to follow the paradigm and return the analysis and rubric in the respective sections. Strictly format the response using the specified tags.
+  * Return the analysis between [Start of Analysis] and [End of Analysis] tags.
+  * Return the rubric between [Start of Rubric] and [End of Rubric] tags.
+
+  [Start of Question]
+  {{ question }}
+  [End of Question]
+
+start_tags: ["[Start of Analysis]", "[Start of Rubric]"]
+end_tags: ["[End of Analysis]", "[End of Rubric]"]

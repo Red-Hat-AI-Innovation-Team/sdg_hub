@@ -1,0 +1,19 @@
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_responses
+    config_path: configs/annotations/detailed_description_icl.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    output_cols:
+      - output
+  gen_kwargs:
+    max_tokens: 5
+    temperature: 0
+    extra_body:
+      guided_choice:
+        - "joy"
+        - "sadness"
+        - "anger"
+        - "fear"
+        - "love"
+  drop_duplicates:
+    - prompt

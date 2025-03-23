@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: Lint, Format, and MyPy
+
+on:
+  push:
+    branches:
+      - "main"
+      - "release-**"
+    paths:
+      - '**.py'
+      - 'pyproject.toml'
+      - 'requirements*.txt'
+      - 'tox.ini'
+      - 'scripts/*.sh'
+      - '.github/**'
+  pull_request:
+    branches:
+      - "main"
+      - "release-**"
+    paths:
+      - '**.py'
+      - 'pyproject.toml'
+      - 'requirements*.txt'
+      - 'tox.ini'
+      - 'scripts/*.sh'
+      - '.github/**'
+
+env:
+  PYTHON_VERSION: 3.11
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # https://github.com/actions/checkout/issues/249
+          fetch-depth: 0
+          submodules: true
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+          cache: pip
+          cache-dependency-path: |
+            **/pyproject.toml
+            **/requirements*.txt
+
+      - name: Install dependencies
+        id: deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install tox
+
+      - name: Run Ruff check
+        run: |
+          tox -e ruff -- check
+
+      - name: Run linting
+        if: ${{ !cancelled() && (steps.deps.outcome == 'success') }}
+        run: |
+          echo "::add-matcher::.github/workflows/matchers/pylint.json"
+          tox -e lint
+
+      - name: Run mypy type checks
+        if: ${{ !cancelled() && (steps.deps.outcome == 'success') }}
+        run: |
+          tox -e mypy

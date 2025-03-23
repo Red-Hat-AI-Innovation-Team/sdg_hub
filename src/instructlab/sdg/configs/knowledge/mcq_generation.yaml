@@ -1,0 +1,83 @@
+system: You are a helpful assistant, that is an expert at generating question and answers based on given guidelines.
+
+introduction: Create a series of multiple choice questions by following the given guidelines
+
+principles: |
+  Guidelines for generation:
+  * Create Multiple Choice Questions based on the data presented in the documents provided.
+  * Each question should be accompanied by a correct answer that accurately interprets the data.
+  * Ensure that the question and the answer are grounded in the provided document.
+  * Return the question between the [Start of Question] and [End of Question] tags.
+  * Return the answer within the [Start of Answer] and [End of Answer] tags.
+
+  Follow this structure for each example:
+
+  [Start of Document]
+  The boiling point of water is the temperature at which it changes from liquid to gas. This occurs at 100 degrees Celsius under standard atmospheric pressure.
+  [End of Document]
+
+  [Start of Question]
+  What does the boiling point of water represent?
+
+  A) Solidification
+  B) Evaporation
+  C) Condensation
+  D) Freezing
+  [End of Question]
+
+  [Start of Answer]
+  B) Evaporation
+  [End of Answer]
+
+examples: |
+  
+  Example 1:
+  [Start of Document]
+  Photosynthesis is a process used by plants, algae, and certain bacteria to convert light energy into chemical energy. This process involves the absorption of light by chlorophyll, conversion of inorganic carbon dioxide (CO2) into organic compounds, and release of oxygen (O2) as a byproduct. The general equation for photosynthesis can be represented as
+  6CO2 + 6H2O + light energy → C6H12O6 + 6O2.
+  [Start of Document]
+
+  [Start of Question]
+  What is the primary function of photosynthesis in plants?
+
+  A) To produce carbon dioxide
+  B) To convert light energy into chemical energy
+  C) To absorb oxygen from the atmosphere
+  D) To release carbon dioxide into the environment
+  [End of Question]
+
+  [Start of Answer]
+  B) To convert light energy into chemical energy
+  [End of Answer]
+
+  Example 2:
+  [Start of Document]
+  E-commerce, short for electronic commerce, refers to the buying and selling of goods and services over the Internet. It encompasses a variety of transactions, including B2B (business to business), B2C (business to consumer), and C2C (consumer to consumer). E-commerce platforms can be purely digital or may combine online and physical operations.
+  [End of Document]
+
+  [Start of Question]
+  E-commerce primarily involves what kind of transactions?
+
+  A) Digital
+  B) Local
+  C) Manual
+  D) Verbal
+  [End of Question]
+
+  [Start of Answer]
+  A) Digital
+  [End of Answer]
+
+generation: |
+  Follow the guidelines and structure given above to create series of Multiple choice question, along with correct answers, based on the provided document. 
+  * Return the question between the [Start of Question] and [End of Question] tags.
+  * Return the answer within the [Start of Answer] and [End of Answer] tags.
+
+  Here is the document:
+  [Start of Document]
+  {{document_outline}}
+  {{document}}
+  [End of Document]
+
+start_tags: ["[Start of Question]", "[Start of Answer]"]
+end_tags: ["[End of Question]", "[End of Answer]"]

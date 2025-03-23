@@ -1,0 +1,38 @@
+system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: |
+  Given below question can you verify if it meets below requirements and based on them give a rating of 1 if it meets all of them or 0 otherwise.
+
+principles: |
+  Here are the requirements:
+
+  Non-Referential Clarity and Contextual Independence: Ensure that the question is self-explanatory and does not rely on specific, unprovided external content, such as particular documents, specific tables, or detailed datasets. The question should be structured to be understandable and clear without requiring direct access to or knowledge of these specific external sources.
+
+  Subject-Aware Completeness: The question should be crafted to be answerable on its own, given a reasonable level of specialized knowledge in the relevant subject area. It is acceptable and encouraged for the question to require specialized understanding pertinent to the topic; however, it should not depend on unique, external information not provided in the question itself. This distinction allows for questions that necessitate a deep understanding of a subject while ensuring they are not tied to specific external content like a particular dataset or a line in a document.
+
+  Please give your answer as short explanation followed by rating of either 0 or 1 as below.
+
+  * Return a short explanation within the [Start of Explanation] and [End of Explanation] tags.
+  * Return the rating on a binary 0/1 scale between [Start of Rating] and [End of Rating] tags.
+
+  [Start of Question]  
+  ...
+  [End of Question]
+
+  [Start of Explanation]
+  ...  
+  [End of Explanation]
+
+  [Start of Rating]
+  ...
+  [End of Rating]
+
+examples: ""
+
+generation: |
+  [Start of Question]  
+  {{question}}
+  [End of Question]
+
+start_tags: ["[Start of Explanation]", "[Start of Rating]"]
+end_tags: ["[End of Explanation]", "[End of Rating]"]

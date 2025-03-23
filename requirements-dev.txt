@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: Apache-2.0
+
+-r requirements.txt
+
+# TODO: remove 'instructlab' once https://github.com/instructlab/sdg/issues/6 is resolved
+instructlab>=0.17.0
+pre-commit>=3.0.4,<4.0
+pylint>=2.16.2,<4.0
+pylint-pydantic
+pytest
+pytest-asyncio
+pytest-cov
+pytest-html
+tox>=4.4.2,<5

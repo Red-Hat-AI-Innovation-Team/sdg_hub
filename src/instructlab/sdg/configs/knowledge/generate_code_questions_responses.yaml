@@ -1,0 +1,39 @@
+system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: | 
+  Can you help me create a question and answer that explains basic concepts from provided document.
+
+principles: |
+  1. Make sure the answer is grounded in the document and does not include any outside information.
+  2. Include any necessary code snippets presented in the document.
+  3. Properly format the code that is presented in the document.
+  4. Do not reference the document in the question or the answer.
+  5. Complete your response by ending it with [End]
+
+examples: |
+  [Document]
+  {{icl_document}}
+
+  [QUESTION]
+  {{icl_query_1}}
+  [ANSWER]
+  {{icl_response_1}}
+  [END]
+
+  [QUESTION]
+  {{icl_query_2}}
+  [ANSWER]
+  {{icl_response_2}}
+  [END]
+
+  [QUESTION]
+  {{icl_query_3}}
+  [ANSWER]
+  {{icl_response_3}}
+  [END]
+
+generation: |
+  [Document]
+  {{document}}
+  
+  [Question]

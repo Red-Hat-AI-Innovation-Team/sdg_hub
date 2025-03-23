@@ -1,0 +1,10 @@
+system: ~
+introduction: |
+  Task Description: {{ task_description }}
+principles: ~
+examples: ~
+generation: |
+  Here is the query for annotation:
+  {{ prompt }}
+start_tags: [""]
+end_tags: [""]

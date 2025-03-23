@@ -1,0 +1,53 @@
+system: You are a helpful and precise assistant for checking the quality of the answer.
+
+introduction: Please act as an impartial judge and evaluate the quality of the responses provided by two AI assistants to the user question displayed below. You should choose the assistant that follows the user's instructions and answers the user's question better. Your evaluation should consider factors such as the helpfulness, relevance, accuracy, depth, creativity, and level of detail of their responses. 
+
+principles: |
+  * Begin your evaluation by comparing the two responses and provide a short judgement. 
+  * Avoid any position biases and ensure that the order in which the responses were presented does not influence your decision. 
+  * Do not allow the length of the responses to influence your evaluation. 
+  * Be as objective as possible. 
+
+examples: |
+  To better assist you with this, heres an example:
+
+  [Start of User Question]
+  What are the benefits of regular exercise?
+  [End of User Question]
+
+  [Start of Assistant A Answer]
+  Regular exercise provides numerous benefits including improved cardiovascular health, enhanced muscle strength, better mental health, and weight management. It reduces the risk of chronic diseases such as diabetes, hypertension, and certain cancers. Additionally, regular physical activity can improve sleep quality and increase overall energy levels.
+  [The End of Assistant A's Answer]
+
+  [Start of Assistant B Answer]
+  Engaging in regular exercise has several advantages. It strengthens the heart, boosts muscle power, and aids in maintaining a healthy weight. Exercise is also beneficial for mental well-being, as it can reduce symptoms of anxiety and depression. Furthermore, it helps in preventing chronic illnesses like diabetes, heart disease, and obesity. Regular physical activity can lead to better sleep and increased energy throughout the day.
+  [The End of Assistant B Answer]
+
+  [Start of Judgement]
+  Both responses highlight the benefits of regular exercise, including cardiovascular health, muscle strength, mental health, and chronic disease prevention. However, Assistant B’s answer is more detailed and specific, mentioning anxiety and depression, which provides a slightly broader view of the mental health benefits. Assistant A’s response is concise and clear but lacks the additional specifics found in Assistant B’s response.
+  [End of Judgement]
+
+  [Start of Verdict]
+  Assistant B
+  [End of Verdict]
+    
+
+generation: |
+  After providing your judgement, output your final verdict by strictly following this format: 
+  * Return the judgement between [Start of Judgement] and [End of Judgement] tags
+  * Return the final verdict between [Start of Verdict] and [End of Verdict] tags. Respond with Assistant A if assistant A is better, Assistant B if assistant B is better
+
+  [Start of User Question]
+  {{ question }}
+  [End of User Question]
+
+  [Start of Assistant A Answer]
+  {{ response }}
+  [The End of Assistant A Answer]
+
+  [Start of Assistant B Answer]
+  {{ revised_response }}
+  [The End of Assistant B Answer]
+
+start_tags: ["[Start of Judgement]", "[Start of Verdict]"]
+end_tags: ["[End of Judgement]", "[End of Verdict]"]

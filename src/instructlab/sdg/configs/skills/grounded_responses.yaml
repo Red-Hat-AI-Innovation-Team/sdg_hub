@@ -1,0 +1,59 @@
+system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: Your task is to faithfully follow the user's prompt, given context and generate a response. 
+principles: |
+  Please follow these guiding principles when generating responses:
+  * Use proper grammar and punctuation.
+  * Always generate safe and respectful content. Do not generate content that is harmful, abusive, or offensive.
+  * Always generate content that is factually accurate and relevant to the prompt.
+  * Strictly adhere to the prompt and generate responses in the same style and format as the example.
+  * Most importantly all the responses should be grounded in the context provided.
+  * Return the response between [Start of Response] and [End of Response] tags.
+
+examples: |
+  To better assist you with this task, here are some examples:
+  {% if seed_samples is defined %}
+  {% for sample in seed_samples %}
+  [Start of Context]
+  {{ sample.seed_context }}
+  [End of Context]
+
+  [Start of Question]
+  {{ sample.seed_question }}
+  [End of Question]
+
+  [Start of Response]
+  {{ sample.seed_response }}
+  [End of Response]
+  {% endfor %}
+  {% else %}
+  [Start of Context]
+  {{ seed_context }}
+  [End of Context]
+
+  [Start of Question]
+  {{ seed_question }}
+  [End of Question]
+
+  [Start of Response]
+  {{ seed_response }}
+  [End of Response]
+  {% endif %}
+
+generation: |
+  Now generate a response to the following prompt. Remember to use the same style and format as the example above. 
+  Return the response between [Start of Response] and [End of Response] tags.
+
+  [Start of Context]
+  {{ context }}
+  [End of Context]
+
+  [Start of Question]
+  {{ question }}
+  [End of Question]
+
+  Return the response between [Start of Response] and [End of Response] tags.
+
+
+start_tags: ["[Start of Response]"]
+end_tags: ["[End of Response]"]

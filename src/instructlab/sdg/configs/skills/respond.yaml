@@ -1,0 +1,8 @@
+system: 
+introduction: 
+principles: 
+examples: 
+generation: |
+  {{ prompt }}
+start_tags: [""]
+end_tags: [""]

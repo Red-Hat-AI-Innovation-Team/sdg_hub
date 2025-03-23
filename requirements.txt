@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0
+click>=8.1.7,<9.0.0
+httpx>=0.25.0,<1.0.0
+jinja2
+langchain-text-splitters
+openai>=1.13.3,<2.0.0
+# Note: this dependency goes along with langchain-text-splitters and mayt be
+#       removed once that one is removed.
+# do not use 8.4.0 due to a bug in the library
+# https://github.com/instructlab/instructlab/issues/1389
+tenacity>=8.3.0,!=8.4.0
+tqdm>=4.66.2,<5.0.0

@@ -1,0 +1,78 @@
+system: |
+  You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: |
+  Your task is to revise the response to an user query. You will be given a query from an user and a response from a model. Your task is to provide a better response based on the plan given.
+
+principles: |
+  * You will revise the model response according to the plan given.
+  * The revised response should adhere to the plan and should be better than the original response.
+  * Note that the revised response will be evaluated by a human expert and should thus be of high quality.
+  * Do not have any irrelevant information in the revised response. Specifically do not include any self-referential information in the revised response.
+  * Your response should only include the revised response. Please do not include any other information like the query, analysis, rubric, etc.
+  * Your response will become invalid if it contains any meta-review about how you are revising the response. So please avoid including any such information.
+  * If the plan mentions that there is no need to provide a plan for improvement, simply return the original response as the revised response.
+  * Return the revised response between [Start of Revised Response] and [End of Revised Response] tags.
+
+examples: |
+  To help you understand the task, here is an example:
+
+  [Start of Query]
+  {{ icl_query }}
+  [End of Query]
+
+  [Start of Response]
+  {{ icl_response }}
+  [End of Response]
+
+  [Start of Analysis]
+  {{ icl_analysis }}
+  [End of Analysis]
+
+  [Start of Rubric]
+  {{ icl_rubric }}
+  [End of Rubric]
+
+  [Start of Critique]
+  {{ icl_critique }}
+  [End of Critique]
+
+  [Start of Plan]
+  {{ icl_plan }}
+  [End of Plan]
+
+  [Start of Revised Response]
+  {{ icl_revised_response }}
+  [End of Revised Response]
+
+generation: |
+  Now it's your turn to revise the response to the following query. Remember to follow the paradigm and return the revised response in the respective section in the same format as above. Strictly do not include any meta-review or meta-information about how the response was improved or revised. Your response should only include the revised response. You will be heavily penalized if you include any information about the revision process or if you have any reference about how you revised the response.
+
+  [Start of Query]
+  {{ question }}
+  [End of Query]
+
+  [Start of Response]
+  {{ response }}
+  [End of Response]
+
+  [Start of Analysis]
+  {{ analysis }}
+  [End of Analysis]
+
+  [Start of Rubric]
+  {{ rubric }}
+  [End of Rubric]
+
+  [Start of Critique]
+  {{ critique }}
+  [End of Critique]
+
+  [Start of Plan]
+  {{ plan }}
+  [End of Plan]
+
+  Start your response with the tag [Start of Revised Response] and end it with the tag [End of Revised Response].
+
+start_tags: ["[Start of Revised Response]"]
+end_tags: ["[End of Revised Response]"]

@@ -1,0 +1,80 @@
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_contexts
+    config_path: configs/skills/contexts.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    output_cols:
+      - context
+  gen_kwargs:
+    temperature: 0.7
+    max_tokens: 2048
+    n: 10
+    seed: 42
+  drop_duplicates:
+    - context
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_grounded_questions
+    config_path: configs/skills/grounded_questions.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    output_cols:
+      - question
+    batch_kwargs:
+      num_samples: 3
+  drop_duplicates:
+    - question
+- block_type: LLMBlock
+  block_config:
+    block_name: eval_grounded_questions
+    config_path: configs/skills/evaluate_grounded_questions.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    output_cols:
+      - evaluation
+      - score
+- block_type: FilterByValueBlock
+  block_config:
+    block_name: filter_grounded_questions
+    filter_column: score
+    filter_value: 1.0
+    operation: operator.eq
+    convert_dtype: float
+    batch_kwargs:
+      num_procs: 8
+  drop_columns:
+    - evaluation
+    - score
+    - num_samples
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_grounded_responses
+    config_path: configs/skills/grounded_responses.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    output_cols:
+      - response
+- block_type: LLMBlock
+  block_config:
+    block_name: evaluate_grounded_qa_pair
+    config_path: configs/skills/evaluate_grounded_pair.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    output_cols:
+      - evaluation
+      - score
+- block_type: FilterByValueBlock
+  block_config:
+    block_name: filter_grounded_qa_pair
+    filter_column: score
+    filter_value: 2.0
+    operation: operator.ge
+    convert_dtype: float
+    batch_kwargs:
+      num_procs: 8
+- block_type: CombineColumnsBlock
+  block_config:
+    block_name: combine_question_and_context
+    columns:
+      - context
+      - question
+    output_col: question
+    batch_kwargs:
+      num_procs: 8
+      batched: True

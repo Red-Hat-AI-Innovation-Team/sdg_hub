@@ -1,0 +1,36 @@
+icl_query: |
+  Given the following data, identify the company with the highest profit in 2021 and provide its CEO's name:
+  a) Company X, with CEO Amy Williams, reported $30 billion in revenue and a $3 billion profit in 2021.
+  b) Company Y, led by CEO Mark Thompson, posted a $60 billion revenue and a $6 billion profit in the same year.
+  c) Company Z, under CEO Sarah Johnson, announced a $20 billion revenue and a $7 billion profit in 2021.
+  d) Company W, managed by CEO James Smith, revealed a $300 billion revenue with a $21 billion profit in 2021.
+  e) Company V, with CEO Lisa Brown, reported a $200 billion revenue and a $25 billion profit in 2021.
+  f) Company U, under CEO John White, posted a $180 billion revenue and a $20 billion profit in the same year.
+
+icl_response: The company with the highest profit in 2021 is Company E, led by CEO Lisa Brown, as it reported a profit of $25 billion.
+
+icl_analysis: |
+  The task requires identifying the company with the highest profit in 2021 from a given list and then providing the name of its CEO. This is a quantitative analysis task in the domain of finance and business management. The user query demands sorting or comparing numerical values (profits) and retrieving related textual information (CEO's name). The analysis is straightforward and revolves around extracting specific data points from the provided information.
+
+icl_rubric: |
+  1. Highest Profit Identification: Accurately identify the company with the highest profit from the provided data.
+  2. CEO Identification: Correctly state the name of the CEO of the identified company.
+  3. Data Accuracy: Ensure the profit and revenue figures used in the identification process are correctly extracted from the provided data.
+  4. Clarity and Precision: Provide a clear and precise response, explicitly naming the company and its CEO without ambiguity.
+  5. Relevance: The response should focus solely on the highest profit and corresponding CEO's name, avoiding unnecessary information.
+
+icl_critique: |
+  1. Highest Profit Identification: The assistant correctly identified the company with the highest profit, which is $25 billion. However, the mislabeling of the company (referred to as Company E instead of Company V) affects the accuracy of the identification. 
+  2. CEO Identification: The assistant correctly names Lisa Brown as the CEO of the company with the highest profit.
+  3. Data Accuracy: The profit figure of $25 billion mentioned in the response accurately matches the data provided for Company V. This shows that the assistant has correctly extracted the relevant profit figure from the data.
+  4. Clarity and Precision: The response succinctly names the company and its CEO, which aligns well with the task requirements. However, the incorrect reference to "Company E" instead of "Company V" detracts from the clarity and precision of the response.
+  5. Relevance: The response focuses directly on the query's requirement—identifying the company with the highest profit and its CEO's name. There is no extraneous information included, which meets the criterion of relevance effectively.
+
+icl_plan: |
+  1. Correct Company Labeling: Amend the mislabeling of "Company E" to "Company V" to ensure accuracy in company identification, satisfying the highest profit identification criterion. This correction directly addresses the first point of critique and is essential for the integrity of the response.
+  2. Verification of CEO's Name: Although the CEO's name, Lisa Brown, is already correct, re-confirm this detail in the response to ensure the CEO identification criterion is indisputably met. This step also serves to double-check the data accuracy.
+  3. Reinforcement of Data Accuracy: Maintain the correctly reported profit figure of $25 billion. Reinforce this by explicitly stating that this figure is the highest among all companies listed, as part of the response, thus emphasizing the data's accuracy and relevance.
+  4. Enhance Clarity and Precision: Redraft the response to include a clear mention of "Company V" along with the CEO's name, removing any ambiguity caused by the earlier error. This step will not only correct the mistake but also enhance clarity and precision as required by the rubric.
+  5. Maintain Relevance: Continue to focus solely on the task requirements without adding unnecessary information. The revised response should succinctly state which company had the highest profit and the name of its CEO, fulfilling the relevance criterion.
+
+icl_revised_response: The company with the highest profit in 2021 is Company V, led by CEO Lisa Brown, with a reported profit of $25 billion.

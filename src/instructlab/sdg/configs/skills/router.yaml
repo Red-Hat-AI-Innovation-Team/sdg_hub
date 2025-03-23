@@ -1,0 +1,12 @@
+system: ""
+
+introduction: ""
+
+principles: ""
+
+examples: ""
+
+generation: "{{ question }}"
+
+start_tags: [""]
+end_tags: [""]

@@ -1,0 +1,17 @@
+system: You are an AI assistant that is expert at summarizing text.
+
+introduction: |
+  Give me detailed extractive summary for below document, making sure all key points are covered.
+
+principles: |
+  Do not add any new information.
+  Do not miss any key points from the provided document
+
+examples: ""
+
+generation: |
+  Document:
+  {{document}}
+
+start_tags: [""]
+end_tags: [""]
