@@ -41,6 +41,6 @@ jobs:
         with:
           fetch-depth: 0
       - name: "Check Markdown documents"
-        uses: DavidAnson/markdownlint-cli2-action@b4c9feab76d8025d1e83c653fa3990936df0e6c8 # v16.0.0
+        uses: DavidAnson/markdownlint-cli2-action@05f32210e84442804257b2a6f20b273450ec8265 # v19.1.0
         with:
           globs: '**/*.md'
