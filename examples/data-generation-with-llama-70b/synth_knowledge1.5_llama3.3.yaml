@@ -56,7 +56,7 @@
   block_config:
     block_name: knowledge generation
     config_path: configs/knowledge/generate_questions_responses.yaml
-    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_id: meta-llama/Llama-3.3-70B-Instruct
     output_cols:
       - question
       - response
