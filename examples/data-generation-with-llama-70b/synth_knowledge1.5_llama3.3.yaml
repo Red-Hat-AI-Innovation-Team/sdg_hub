@@ -52,25 +52,21 @@
       document: raw_document
       summary: document
 
-- block_type: ConditionalLLMBlock
+- block_type: LLMBlock
   block_config:
     block_name: knowledge generation
-    config_paths:
-      _A_: configs/knowledge/generate_questions_responses.yaml
-      _B_: configs/knowledge/generate_questions_responses.yaml
-      _C_: configs/knowledge/generate_code_questions_responses.yaml
-    model_id: meta-llama/Llama-3.3-70B-Instruct
-    model_prompt: '<s> [INST] {prompt} [/INST]'
+    config_path: configs/knowledge/generate_questions_responses.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
     output_cols:
       - question
       - response
-    selector_column_name: route
     parser_kwargs:
       parser_name: custom
       parsing_pattern: "\\[(?:Question|QUESTION)\\]\\s*(.*?)\\s*\\[(?:Answer|ANSWER)\\]\\s*(.*?)\\s*(?=\\[(?:Question|QUESTION)\\]|$)"
       parser_cleanup_tags:
         - "[END]"
   gen_kwargs:
+    temperature: 0.0
     max_tokens: 2048
 
 - block_type: LLMBlock
