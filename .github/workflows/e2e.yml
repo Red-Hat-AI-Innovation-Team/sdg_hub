@@ -3,24 +3,29 @@
 name: E2E test
 
 on:
-  push:
-    branches:
-      - "main"
-      - "release-**"
-    paths:
-      - '**.py'
-      - 'pyproject.toml'
-      - 'requirements*.txt'
-      - '.github/workflows/e2e.yml'
-  pull_request:
-    branches:
-      - "main"
-      - "release-**"
-    paths:
-      - '**.py'
-      - 'pyproject.toml'
-      - 'requirements*.txt'
-      - '.github/workflows/e2e.yml'
+  workflow_dispatch:
+  # TODO: e2e workflow set to manual dispatch until it's adjusted to use
+  # AWS GPU runners instead of ubuntu-gpu GitHub runners, since those
+  # GitHub runners are more expensive and not available in this org
+  #
+  # push:
+  #   branches:
+  #     - "main"
+  #     - "release-**"
+  #   paths:
+  #     - '**.py'
+  #     - 'pyproject.toml'
+  #     - 'requirements*.txt'
+  #     - '.github/workflows/e2e.yml'
+  # pull_request:
+  #   branches:
+  #     - "main"
+  #     - "release-**"
+  #   paths:
+  #     - '**.py'
+  #     - 'pyproject.toml'
+  #     - 'requirements*.txt'
+  #     - '.github/workflows/e2e.yml'
 
 jobs:
   e2e:
