@@ -52,7 +52,7 @@ class PostProcessThinkingBlock(Block):
 
 @BlockRegistry.register("RegexParserBlock")
 class RegexParserBlock(Block):
-    def __init__(self, block_name: str, column_name: str, parsing_pattern: str, parser_cleanup_tags: List[str], output_cols: List[str]) -> None:
+    def __init__(self, block_name: str, column_name: str, parsing_pattern: str="", parser_cleanup_tags: List[str]=[], output_cols: List[str]=[]) -> None:
         super().__init__(block_name=block_name)
         self.column_name = column_name
         self.parsing_pattern = parsing_pattern
@@ -60,13 +60,20 @@ class RegexParserBlock(Block):
         self.output_cols = output_cols
 
     def generate(self, samples: Dataset):
-        new_data = []
-        for sample in samples:
-            parsed_outputs = self._parse(sample[self.column_name])
-            max_length = max(len(value) for value in parsed_outputs.values())
-            for values in zip(*(lst[:max_length] for lst in parsed_outputs.values())):
-                new_data.append({**sample, **dict(zip(parsed_outputs.keys(), values))})
-        return Dataset.from_list(new_data)
+        
+        if self.parsing_pattern:
+            new_data = []
+            for sample in samples:
+                parsed_outputs = self._parse(sample[self.column_name])
+                
+                max_length = max(len(value) for value in parsed_outputs.values())
+                for values in zip(*(lst[:max_length] for lst in parsed_outputs.values())):
+                    new_data.append({**sample, **dict(zip(parsed_outputs.keys(), values))})
+            samples = Dataset.from_list(new_data)
+        if self.parser_cleanup_tags:
+            for clean_tag in self.parser_cleanup_tags:
+               samples = samples.map(lambda x: {column_name: x[column_name].replace(clean_tag, "") for column_name in self.output_cols})
+        return samples
 
     def _parse(self, generated_string):      
         pattern = re.compile(self.parsing_pattern, re.DOTALL)
@@ -76,8 +83,8 @@ class RegexParserBlock(Block):
             for match in all_matches:
                 for column_name, value in zip(self.output_cols, match):
                     value = value.strip()
-                    for clean_tag in self.parser_cleanup_tags:
-                        value = value.replace(clean_tag, "")
+                    # for clean_tag in self.parser_cleanup_tags:
+                    #     value = value.replace(clean_tag, "")
                     matches[column_name].append(value)
         else:
             matches[self.output_cols[0]] = (
@@ -177,7 +184,7 @@ def main(
     )
     generated_data = sdg.generate(ds, checkpoint_dir=checkpoint_dir)
     
-        save_path = save_path.replace(".jsonl", f"_{dataset_start_index}_{dataset_end_index}.jsonl")
+    save_path = save_path.replace(".jsonl", f"_{dataset_start_index}_{dataset_end_index}.jsonl")
     generated_data.to_json(save_path, orient="records", lines=True)
     logger.info(f"Data saved to {save_path}")
 
