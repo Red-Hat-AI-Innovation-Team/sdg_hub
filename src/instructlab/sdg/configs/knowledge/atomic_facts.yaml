@@ -1,7 +1,7 @@
-system: You are an AI assistant knowledgeable about {domain} domain. Be accurate but concise in response.
+system: You are an AI assistant knowledgeable about {{domain}} domain. Be accurate but concise in response.
 
 introduction: | 
-  Please break down the following snippet from an article about {domain} into atomic facts.
+  Please break down the following snippet from an article about {{domain}} into atomic facts.
 
 principles: |
   1. Makesure each fact is grounded in the given text.
@@ -35,7 +35,7 @@ examples: |
 
 
 generation: |
-  Now it's your turn breakdown following snippet from article about {domain} into atomic facts following similar style as above examples
+  Now it's your turn breakdown following snippet from article about {{domain}} into atomic facts following similar style as above examples
   [Passage]
   {{document}}
   [Facts]

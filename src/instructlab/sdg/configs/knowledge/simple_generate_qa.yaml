@@ -1,6 +1,6 @@
 system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
 
-introduction: Develop a series of educational question and answer pairs from a chapter in a {domain} textbook.
+introduction: Develop a series of educational question and answer pairs from a chapter in a {{domain}} textbook.
 
 principles: |
 Here are the requirements:

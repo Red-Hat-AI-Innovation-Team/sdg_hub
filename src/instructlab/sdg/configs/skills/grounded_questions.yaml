@@ -28,7 +28,7 @@ examples: |
   [End of Question]
 
 generation: |
-  Now generate {num_samples} such questions, remember to follow the principles mentioned above and use the same format as the examples. Remember to use the same style and format as the example above. Do not return any contexts or answers, only the questions. Return each question between [Start of Question] and [End of Question] tags.
+  Now generate {{num_samples}} such questions, remember to follow the principles mentioned above and use the same format as the examples. Remember to use the same style and format as the example above. Do not return any contexts or answers, only the questions. Return each question between [Start of Question] and [End of Question] tags.
 
   [Start of Context]
   {{ context }}
