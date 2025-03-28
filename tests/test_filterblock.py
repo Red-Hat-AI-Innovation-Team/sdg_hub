@@ -7,7 +7,7 @@ import unittest
 from datasets import Dataset, Features, Value
 
 # First Party
-from instructlab.sdg.filterblock import FilterByValueBlock
+from instructlab.sdg.blocks.filterblock import FilterByValueBlock
 
 
 class TestFilterByValueBlock(unittest.TestCase):
@@ -29,14 +29,14 @@ class TestFilterByValueBlock(unittest.TestCase):
             features=Features({"age": Value("string")}),
         )
 
-    @patch("instructlab.sdg.filterblock.logger")
+    @patch("instructlab.sdg.blocks.filterblock.logger")
     def test_generate_mixed_types(self, mock_logger):
         filtered_dataset = self.block.generate(self.dataset)
         self.assertEqual(len(filtered_dataset), 1)
         self.assertEqual(filtered_dataset["age"], [30])
         mock_logger.error.assert_called()
 
-    @patch("instructlab.sdg.filterblock.logger")
+    @patch("instructlab.sdg.blocks.filterblock.logger")
     def test_generate_mixed_types_multi_value(self, mock_logger):
         filtered_dataset = self.block_with_list.generate(self.dataset)
         self.assertEqual(len(filtered_dataset), 2)

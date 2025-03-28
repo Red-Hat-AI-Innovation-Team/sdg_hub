@@ -51,12 +51,12 @@ jobs:
             platform: "macos-latest"
     steps:
       - name: "Harden Runner"
-        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6 # v2.8.1
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
         with:
           egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
 
       - name: Checkout
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # https://github.com/actions/checkout/issues/249
           fetch-depth: 0
@@ -76,7 +76,7 @@ jobs:
           brew install expect coreutils bash
 
       - name: Setup Python ${{ matrix.python }}
-        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
+        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5.5.0
         with:
           python-version: ${{ matrix.python }}
           cache: pip
@@ -89,7 +89,7 @@ jobs:
           pip cache remove llama_cpp_python
 
       - name: Cache huggingface
-        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: ~/.cache/huggingface
           # config contains DEFAULT_MODEL
