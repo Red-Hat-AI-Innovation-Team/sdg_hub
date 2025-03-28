@@ -69,11 +69,11 @@
 
 - block_type: LLMBlock
   block_config:
-    block_name: knowledge generation
-    config_path: generate_questions_responses.yaml
+    block_name: knowledge question generation
+    config_path: generate_questions.yaml
     model_id: nvidia/Llama-3_3-Nemotron-Super-49B-v1
     output_cols:
-      - qa_pairs
+      - question
   gen_kwargs:
     temperature: 0.6
     max_tokens: 4096
@@ -83,17 +83,42 @@
 - block_type: PostProcessThinkingBlock
   block_config:
     block_name: post_process_thinking
-    column_name: qa_pairs
+    column_name: question
+
 
 - block_type: RegexParserBlock
   block_config:
     block_name: regex_parser
-    column_name: qa_pairs
-    parsing_pattern: "\\[(?:Question|QUESTION)\\]\\s*(.*?)\\s*\\[(?:Answer|ANSWER)\\]\\s*(.*?)\\s*(?=\\[(?:Question|QUESTION)\\]|$)"
+    column_name: question
+    parsing_pattern: "\\[(?:Question|QUESTION)\\]\\s*(.*?)\\s*(?=\\[(?:Question|QUESTION)\\]|$)"
     parser_cleanup_tags:
       - "[END]"
     output_cols:
       - question
+
+
+- block_type: LLMBlock
+  block_config:
+    block_name: knowledge answer generation
+    config_path: generate_answers.yaml
+    model_id: nvidia/Llama-3_3-Nemotron-Super-49B-v1
+    output_cols:
+      - response
+  gen_kwargs:
+    temperature: 0.6
+    max_tokens: 4096
+    top_p: 0.95
+    n: 1
+
+- block_type: RegexParserBlock
+  block_config:
+    block_name: regex_parser
+    column_name: response
+    parser_cleanup_tags:
+      - "[END]"
+      - "[ANSWER]"
+      - "assistant"
+    output_cols:
       - response
 
 - block_type: LLMBlock
@@ -106,7 +131,6 @@
       - judgment
   gen_kwargs:
     max_tokens: 2048
-
 
 # - block_type: FilterByValueBlock
 #   block_config:
@@ -129,11 +153,6 @@
   gen_kwargs:
     max_tokens: 2048
 
-- block_type: PostProcessThinkingBlock
-  block_config:
-    block_name: post_process_thinking
-    column_name: qa_pairs
-
 # - block_type: FilterByValueBlock
 #   block_config:
 #     block_name: filter_relevancy
@@ -155,11 +174,6 @@
       - rating
   gen_kwargs:
     max_tokens: 2048
-
-- block_type: PostProcessThinkingBlock
-  block_config:
-    block_name: post_process_thinking
-    column_name: qa_pairs
 
 # - block_type: FilterByValueBlock
 #   block_config:
