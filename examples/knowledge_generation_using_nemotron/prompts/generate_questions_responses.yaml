@@ -1,0 +1,59 @@
+system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: Develop a series of educational question and answer pairs from a chapter in a {{domain}} textbook. 
+
+principles: |
+  The questions should:
+  * Be self-contained, not requiring references to tables, figures, or specific sections in the text for understanding.
+  * Focus on teaching and reinforcing the key knowledge and concepts presented in the chapter.
+  * Avoid sections with minimal educational content like index pages or prefaces. In such cases, respond with [UNANSWERABLE].
+  * Be directly relevant to the textbook's domain. For instance, in a science textbook, questions should revolve around scientific terms, definitions, and practical applications, while in a legal textbook, they should cover legal principles, case law, and precedents.
+  * Be formulated to allow for independent answers, avoiding direct references to specific theorems or text sections. For example, rather than asking 'Under what conditions is the fixed point of a function unique according to Theorem 3.1.5?', ask 'How does the Fixed Point Iteration method contribute to understanding function uniqueness?'
+  * Span a range of difficulty levels to accommodate a diverse student audience, from basic understanding to advanced comprehension.
+  * Include a variety of question types such as multiple-choice for basic recall, short answer for deeper understanding, and essay or problem-solving questions to test application and analysis skills.
+  * Align closely with the learning objectives of the textbook or the specific chapter, ensuring that the questions test the fundamental concepts and skills that the chapter aims to impart.
+
+  Strictly follow this format for each question answer pair your generate while responding
+
+  [QUESTION]
+  <Insert question here>
+  [ANSWER]
+  <Insert answer here>
+  [END]
+
+
+  Each question and answer pair should stand alone as a mini-lesson, encapsulating a key concept or idea from the chapter in a way that is accessible and informative without requiring the reader to refer back to the textbook.
+
+examples: |
+  Here are some examples of questions:
+
+  [Document]
+  {{icl_document}}
+
+  [QUESTION]
+  {{icl_query_1}}
+  [ANSWER]
+  {{icl_response_1}}
+  [END]
+
+  [QUESTION]
+  {{icl_query_2}}
+  [ANSWER]
+  {{icl_response_2}}
+  [END]
+
+  [QUESTION]
+  {{icl_query_3}}
+  [ANSWER]
+  {{icl_response_3}}
+  [END]
+
+generation: |
+  Here is the document:
+  
+  [DOCUMENT]
+  {{document_outline}}
+  {{document}}
+
+start_tags: [""]
+end_tags: [""]
