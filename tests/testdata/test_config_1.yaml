@@ -1,0 +1,7 @@
+system: system
+introduction: intro
+principles: principles
+examples: The task is {{task_description}}.
+generation: Provide a single question and answer pair based on the examples.
+start_tags: [""]
+end_tags: [""]
