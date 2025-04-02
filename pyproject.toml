@@ -5,7 +5,7 @@ requires = ["setuptools>=64", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "instructlab-sdg"
+name = "sdg-hub"
 authors = [
     { name="InstructLab", email="dev@instructlab.ai" },
 ]
@@ -34,11 +34,11 @@ dynamic = ["dependencies", "optional-dependencies", "version"]
 
 [project.urls]
 homepage = "https://instructlab.ai"
-source = "https://github.com/instructlab/sdg"
-issues = "https://github.com/instructlab/sdg/issues"
+source = "https://github.com/Red-Hat-AI-Innovation-Team/SDG-Research"
+issues = "https://github.com/Red-Hat-AI-Innovation-Team/SDG-Research/issues"
 
 [tool.setuptools_scm]
-version_file = "src/instructlab/sdg/_version.py"
+version_file = "src/sdg/_version.py"
 # do not include +gREV local version, required for Test PyPI upload
 local_scheme = "no-local-version"
 
@@ -50,7 +50,7 @@ dependencies = {file = ["requirements.txt"]}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["instructlab.sdg"]
+include = ["instructlab.sdg_hub"]
 
 [tool.ruff]
 target-version = "py39"
@@ -94,11 +94,11 @@ known-local-folder = ["tuning"]
 [tool.mypy]
 disable_error_code = ["import-not-found", "import-untyped"]
 exclude = [
-    "^src/instructlab/sdg/generate_data\\.py$",
-    "^src/instructlab/sdg/utils/taxonomy\\.py$",
-    "^src/instructlab/sdg/default_flows\\.py$",
-    "^src/instructlab/sdg/llmblock\\.py$",
-    "^src/instructlab/sdg/utilblocks\\.py$",
+    "^src/sdg_hub/generate_data\\.py$",
+    "^src/sdg_hub/utils/taxonomy\\.py$",
+    "^src/sdg_hub/default_flows\\.py$",
+    "^src/sdg_hub/llmblock\\.py$",
+    "^src/sdg_hub/utilblocks\\.py$",
 ]
 # honor excludes by not following there through imports
 follow_imports = "silent"

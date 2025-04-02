@@ -7,7 +7,7 @@ from datasets import Dataset, load_dataset
 import yaml
 
 # First Party
-from instructlab.sdg.logger_config import setup_logger
+from sdg_hub.logger_config import setup_logger
 from .datautils import safe_concatenate_datasets
 
 

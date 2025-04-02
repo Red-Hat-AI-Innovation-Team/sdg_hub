@@ -15,8 +15,8 @@ import yaml
 
 # First Party
 # pylint: disable=ungrouped-imports
-from instructlab.sdg import utils
-from instructlab.sdg.logger_config import setup_logger
+from sdg_hub import utils
+from sdg_hub.logger_config import setup_logger
 from .datautils import safe_concatenate_datasets
 
 logger = setup_logger(__name__)

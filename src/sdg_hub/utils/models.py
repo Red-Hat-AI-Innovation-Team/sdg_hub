@@ -5,7 +5,7 @@ import os
 import re
 
 # First Party
-from instructlab.sdg.utils import GenerateException
+from sdg_hub.utils import GenerateException
 
 # When otherwise unknown, ilab uses this as the default family
 DEFAULT_MODEL_FAMILY = "merlinite"

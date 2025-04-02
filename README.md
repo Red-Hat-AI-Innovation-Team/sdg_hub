@@ -1,6 +1,6 @@
 # Synthetic Data Generation for LLMs
 
-The SDG Framework is a modular, scalable, and efficient solution for creating synthetic data generation workflows in a “no-code” manner. At its core, this framework is designed to simplify data creation for LLMs, allowing users to chain computational units and build powerful pipelines for generating data and processing tasks.
+The SDG Framework is a modular, scalable, and efficient solution for creating synthetic data generation workflows in a "no-code" manner. At its core, this framework is designed to simplify data creation for LLMs, allowing users to chain computational units and build powerful pipelines for generating data and processing tasks.
 
 
 
@@ -30,7 +30,7 @@ Blocks are designed to be:
 - **Modular**: Reusable across multiple pipelines.
 - **Composable**: Easily chained together to create workflows.
 
-These blocks are implemented in the [src/instructlab/sdg/blocks](src/instructlab/sdg/blocks) directory.
+These blocks are implemented in the [src/sdg_hub/blocks](src/sdg_hub/blocks) directory.
 
 ### Pipelines: Higher-Level Abstraction
 
@@ -121,7 +121,7 @@ TODO
 
 ### Data Annotation
 
-The following command annotates the dataset located at [datasets/emotion/seed.jsonl](datasets/emotion/seed.jsonl) using the flow defined in [src/instructlab/sdg/flows/annotation/emotion/detailed_description_icl.yaml](src/instructlab/sdg/flows/annotation/emotion/detailed_description_icl.yaml)
+The following command annotates the dataset located at [datasets/emotion/seed.jsonl](datasets/emotion/seed.jsonl) using the flow defined in [src/sdg_hub/flows/annotation/emotion/detailed_description_icl.yaml](src/sdg_hub/flows/annotation/emotion/detailed_description_icl.yaml)
 
 #### Command to Run the Annotation Workflow
 
@@ -131,7 +131,7 @@ python run.py \
   --save_path emotion/output.jsonl \
   --checkpoint_dir checkpoints/emotion \
   --endpoint <replace with your endpoint> \
-  --flow src/instructlab/sdg/flows/annotation/emotion/detailed_description_icl.yaml \
+  --flow src/sdg_hub/flows/annotation/emotion/detailed_description_icl.yaml \
 ```
 
 

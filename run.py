@@ -5,10 +5,10 @@ import click
 import os
 
 # First Party
-from instructlab.sdg.flow import Flow
-from instructlab.sdg.logger_config import setup_logger
-from instructlab.sdg.pipeline import Pipeline
-from instructlab.sdg.sdg import SDG
+from sdg_hub.flow import Flow
+from sdg_hub.logger_config import setup_logger
+from sdg_hub.pipeline import Pipeline
+from sdg_hub.sdg import SDG
 
 
 logger = setup_logger(__name__)
