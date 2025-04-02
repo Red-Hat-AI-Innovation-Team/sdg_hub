@@ -38,7 +38,7 @@ source = "https://github.com/Red-Hat-AI-Innovation-Team/SDG-Research"
 issues = "https://github.com/Red-Hat-AI-Innovation-Team/SDG-Research/issues"
 
 [tool.setuptools_scm]
-version_file = "src/sdg/_version.py"
+version_file = "src/sdg_hub/_version.py"
 # do not include +gREV local version, required for Test PyPI upload
 local_scheme = "no-local-version"
 
@@ -50,7 +50,7 @@ dependencies = {file = ["requirements.txt"]}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["instructlab.sdg_hub"]
+include = ["sdg_hub"]
 
 [tool.ruff]
 target-version = "py39"
