@@ -38,7 +38,8 @@ Once the model is trained we evaluated it in a **closed-book setting** on [QuALI
 - Evaluation measures how well the model has **memorized and internalized** information from the articles
 - Accuracy is compared between the base nano model and the Quality Customized nano model
 
-![Plot of % improvement in Quality Benchmark](image.png)
+![Plot of % improvement in Quality Benchmark](resutls.jpeg)
+
 *Plot showing percentage improvement in performance on the QuALITY Benchmark after training*
 
 
