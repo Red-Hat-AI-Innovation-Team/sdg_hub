@@ -1,0 +1,51 @@
+system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: Answer the question based on the provided document.  
+
+principles: |
+  The answers should:
+  * The answer is grounded in the provided document.
+  * Follows the format and style of the provided examples.
+  * Directly answers the question.
+  Strictly follow this format for each question your generate while responding
+
+  [ANSWER]
+  <Insert answer here>
+  [END]
+
+
+examples: |
+  Here are some examples of answers for given questions for a document:
+
+  [Document]
+  {{icl_document}}
+
+  [QUESTION]
+  {{icl_query_1}}
+
+  [ANSWER]
+  {{icl_response_1}}
+  [END]
+
+  [QUESTION]
+  {{icl_query_2}}
+
+  [ANSWER]
+  {{icl_response_2}}
+  [END]
+
+
+generation: |
+  Here is the document:
+  
+  [DOCUMENT]
+  {{document_outline}}
+  {{document}}
+
+  [QUESTION]
+  {{question}}
+
+  [ANSWER]
+
+start_tags: [""]
+end_tags: [""]

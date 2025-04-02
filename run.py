@@ -83,7 +83,7 @@ def main(
         ds = ds.shuffle(seed=42).select(range(30))
         logger.info("Debug mode enabled. Using a subset of the dataset.")
 
-    openai_api_key = "EMPTY"
+    openai_api_key = os.environ.get("OPENAI_API_KEY", "EMPTY")
     openai_api_base = endpoint
 
     client = OpenAI(
