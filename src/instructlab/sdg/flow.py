@@ -38,10 +38,37 @@ class Flow(ABC):
         self.base_path = str(resources.files(__package__))
         self.registered_blocks = BlockRegistry.get_registry()
 
+    def _getFilePath(self, dirs, filename):
+        """
+        Find a named configuration file.
+
+        Files are checked in the following order
+            - absulute path is always used
+            - checked relative to the directories in "dirs"
+            - relative the the current directory
+
+        Args:
+            dirs (list): Directories in which to search for "config_path"
+            config_path (str): The path to the configuration file.
+
+        Returns:
+            Selected file path
+        """
+        if os.path.isabs(filename):
+            return filename
+        for d in dirs:
+            full_file_path = os.path.join(d, filename)
+            if os.path.isfile(full_file_path):
+                return full_file_path
+        # If not found above then return the path unchanged i.e.
+        # assume the path is relative to the current directory
+        return filename
+
     def get_flow_from_file(self, yaml_path: str) -> list:
         yaml_path_relative_to_base = os.path.join(self.base_path, yaml_path)
         if os.path.isfile(yaml_path_relative_to_base):
             yaml_path = yaml_path_relative_to_base
+        yaml_dir = os.path.dirname(yaml_path)
 
         try:
             with open(yaml_path, "r", encoding="utf-8") as yaml_file:
@@ -86,33 +113,23 @@ class Flow(ABC):
 
             # update config path to absolute path
             if "config_path" in block["block_config"]:
-                config_path_relative_to_base = os.path.join(
-                    self.base_path, block["block_config"]["config_path"]
+                block["block_config"]["config_path"] = self._getFilePath(
+                    [yaml_dir, self.base_path], block["block_config"]["config_path"]
                 )
-                if os.path.isfile(config_path_relative_to_base):
-                    block["block_config"]["config_path"] = config_path_relative_to_base
 
             # update config paths to absolute paths - this might be a list or a dict
             if "config_paths" in block["block_config"]:
                 if isinstance(block["block_config"]["config_paths"], dict):
                     for key, path in block["block_config"]["config_paths"].items():
-                        config_path_relative_to_base = os.path.join(
-                            self.base_path, path
+                        block["block_config"]["config_paths"][key] = self._getFilePath(
+                            [yaml_dir, self.base_path], path
                         )
-                        if os.path.isfile(config_path_relative_to_base):
-                            block["block_config"]["config_paths"][key] = (
-                                config_path_relative_to_base
-                            )
 
-                if isinstance(block["block_config"]["config_paths"], list):
+                elif isinstance(block["block_config"]["config_paths"], list):
                     for i, path in enumerate(block["block_config"]["config_paths"]):
-                        config_path_relative_to_base = os.path.join(
-                            self.base_path, path
+                        block["block_config"]["config_paths"][i] = self._getFilePath(
+                            [yaml_dir, self.base_path], path
                         )
-                        if os.path.isfile(config_path_relative_to_base):
-                            block["block_config"]["config_paths"][i] = (
-                                config_path_relative_to_base
-                            )
 
             if "operation" in block["block_config"]:
                 block["block_config"]["operation"] = OPERATOR_MAP[
