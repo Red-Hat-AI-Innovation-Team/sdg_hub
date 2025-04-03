@@ -35,14 +35,11 @@ The workflow includes:
 
 Once the model is trained we evaluated it in a **closed-book setting** on [QuALITY Benchmark](https://github.com/nyu-mll/quality/tree/main), where the model answers questions based only on what it has learned during training, without access to the original articles.
 
-We also evaluate the base model and customized nano model in a **RAG setting** where we use OpenAI embeddings and cohere re-ranker to retrieve relevant context from the article.
-
 - Evaluation measures how well the model has **memorized and internalized** information from the articles
 - Accuracy is compared between the base nano model and the Quality Customized nano model
 
-![Plot of % improvement in Quality Benchmark](../../assets/imgs/customized_nano_closed_book_rag_results.png)
-
-*Plot showing percentage improvement in performance on the QuALITY Benchmark in Closed Book and RAG (Retrieval-Augmented Generation) settings after training*
+![Plot of % improvement in Quality Benchmark](image.png)
+*Plot showing percentage improvement in performance on the QuALITY Benchmark after training*
 
 
 ### How does the model's response look?

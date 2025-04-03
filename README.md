@@ -40,7 +40,7 @@ Blocks can be chained together to form a **Pipeline**. Pipelines enable:
 
 ### SDG Workflow: Full Workflow Automation
 
-Pipelines are further orchestrated into **SDG Workflows**, enabling seamless end-to-end processing. When invoking `sdg.generate`, it triggers a pipeline/ or multiple pipelines that processes data through all the configured blocks.
+Pipelines are further orchestrated into **SDG Workflows**, enabling seamless end-to-end processing. When invoking `sdg_hub.generate`, it triggers a pipeline/ or multiple pipelines that processes data through all the configured blocks.
 
 ---
 
