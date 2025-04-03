@@ -3,9 +3,9 @@ from datasets import Dataset
 from openai import OpenAI
 
 # First Party
-from src.instructlab.sdg import SDG
-from src.instructlab.sdg.default_flows import DEFAULT_FLOW_FILE_MAP, Flow
-from src.instructlab.sdg.pipeline import Pipeline
+from sdg_hub.sdg import SDG
+from sdg_hub.flow import Flow
+from sdg_hub.pipeline import Pipeline
 
 # for vLLM endpoints, the api_key remains "EMPTY"
 openai_api_key = "EMPTY"
