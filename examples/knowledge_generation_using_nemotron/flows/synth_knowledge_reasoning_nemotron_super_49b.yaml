@@ -70,7 +70,7 @@
 - block_type: LLMBlock
   block_config:
     block_name: knowledge question generation
-    config_path: generate_questions.yaml
+    config_path: prompts/generate_questions.yaml
     model_id: nvidia/Llama-3_3-Nemotron-Super-49B-v1
     output_cols:
       - question
@@ -100,7 +100,7 @@
 - block_type: LLMBlock
   block_config:
     block_name: knowledge answer generation
-    config_path: generate_answers.yaml
+    config_path: prompts/generate_answers.yaml
     model_id: nvidia/Llama-3_3-Nemotron-Super-49B-v1
     output_cols:
       - response
