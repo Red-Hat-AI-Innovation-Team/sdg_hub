@@ -34,8 +34,8 @@ dynamic = ["dependencies", "optional-dependencies", "version"]
 
 [project.urls]
 homepage = "https://instructlab.ai"
-source = "https://github.com/Red-Hat-AI-Innovation-Team/SDG-Research"
-issues = "https://github.com/Red-Hat-AI-Innovation-Team/SDG-Research/issues"
+source = "https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub"
+issues = "https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/issues"
 
 [tool.setuptools_scm]
 version_file = "src/sdg_hub/_version.py"
