@@ -42,11 +42,11 @@ logger = setup_logger(__name__)
 
 # Constants and type definitions
 EXPORT_FORMATS = {
-    'json': ('json', 'export_to_dict'),      # Deep Search JSON format
-    'text': ('txt', 'export_to_text'),       # Plain text
-    'markdown': ('md', 'export_to_markdown'), # Markdown with structure
-    'html': ('html', 'export_to_html'),      # HTML with styling
-    'doctags': ('doctags', 'export_to_document_tokens')  # Document tokens
+    "json": ("json", "export_to_dict"),      # Deep Search JSON format
+    "text": ("txt", "export_to_text"),       # Plain text
+    "markdown": ("md", "export_to_markdown"), # Markdown with structure
+    "html": ("html", "export_to_html"),      # HTML with styling
+    "doctags": ("doctags", "export_to_document_tokens")  # Document tokens
 }
 
 DEFAULT_CONFIG = {
@@ -81,7 +81,7 @@ def load_config(config_path: Optional[Path] = None) -> dict:
         return DEFAULT_CONFIG
         
     try:
-        with config_path.open('r') as f:
+        with config_path.open("r") as f:
             user_config = yaml.safe_load(f)
             # Merge with defaults to ensure all required fields exist
             return {**DEFAULT_CONFIG, **user_config}
