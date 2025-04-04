@@ -101,13 +101,15 @@ class PRMBlock(Block):
         response = requests.post(self.api_url, headers=headers, json=prompt)
         return response
 
-    def _format_messages(self, sample: Dict) -> List[Dict]:
+    def _format_messages(self, question: str, response: str) -> List[Dict]:
         """Format input sample into messages for the PRM API.
 
         Parameters
         ----------
-        sample : Dict
-            Input sample containing prompt and response
+        question : str
+            Question to score
+        response : str
+            Response to score
 
         Returns
         -------
@@ -118,11 +120,13 @@ class PRMBlock(Block):
         if self.system_prompt:
             messages.append({"role": "system", "content": self.system_prompt})
 
-        messages.append({"role": "user", "content": sample[self.prompt_col]})
+        messages.append({"role": "user", "content": question})
         messages.append(
             {
                 "role": "assistant",
-                "content": self.step_fill_token.join(sample[self.response_col].split(self.step_separator))
+                "content": self.step_fill_token.join(
+                    response.split(self.step_separator)
+                )
                 + self.step_fill_token,
             }
         )
@@ -162,18 +166,44 @@ class PRMBlock(Block):
         dict
             Dictionary with added reward scores column
         """
-        messages = self._format_messages(sample)
-        rm_response = self._post_request(messages)
-
-        if rm_response.status_code != 200:
-            logger.error(f"API request failed with status {rm_response.status_code}")
-            rewards = [0.0] * len(
-                sample[self.response_col].split(self.step_separator)
-            )  # Default to 0 scores on failure
+        if isinstance(sample[self.response_col], list):
+            messages_list = [
+                self._format_messages(sample[self.prompt_col], response)
+                for response in sample[self.response_col]
+            ]
         else:
-            rewards = self._extract_rewards(rm_response)
+            messages_list = [
+                self._format_messages(
+                    sample[self.prompt_col], sample[self.response_col]
+                )
+            ]
+        rm_response_list = [self._post_request(messages) for messages in messages_list]
 
-        sample[self.output_col] = rewards
+        rewards = []
+        for i, rm_response in enumerate(rm_response_list):
+            if isinstance(sample[self.response_col], list):
+                response_steps = sample[self.response_col][i].split(self.step_separator)
+            else:
+                response_steps = sample[self.response_col].split(self.step_separator)
+
+            if rm_response.status_code != 200:
+                logger.error(
+                    f"API request failed with status {rm_response.status_code} returning 0 rewards"
+                )
+                if isinstance(sample[self.response_col], list):
+                    rewards.append([0.0] * len(response_steps))
+                else:
+                    rewards.append([0.0] * len(response_steps))
+            else:
+                step_rewards = self._extract_rewards(rm_response)
+                if step_rewards:
+                    rewards.append(step_rewards)
+                else:
+                    rewards.append([0.0] * len(response_steps))
+
+        sample[self.output_col] = (
+            rewards if isinstance(sample[self.response_col], list) else rewards[0]
+        )
         return sample
 
     def generate(self, samples: Dataset, batch_size: int = 4) -> Dataset:
