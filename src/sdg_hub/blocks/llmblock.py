@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
 # Standard
-from collections import Counter
 from typing import Any, Dict, List
 import json
 import re
@@ -8,7 +7,7 @@ import re
 # Third Party
 from datasets import Dataset
 from jinja2 import Template
-import openai
+from openai import OpenAI, InternalServerError
 
 # Local
 from .block import Block
@@ -30,7 +29,7 @@ def server_supports_batched(client, model_id: str) -> bool:
         )
         # Number outputs should be 2 * 3 = 6
         supported = len(response.choices) == 6
-    except openai.InternalServerError:
+    except InternalServerError:
         supported = False
     client.server_supports_batched = supported
     logger.info(f"LLM server supports batched inputs: {client.server_supports_batched}")
@@ -374,19 +373,55 @@ class LLMLogProbBlock(LLMBlock):
 
 @BlockRegistry.register("LLMMessagesBlock")
 class LLMMessagesBlock(Block):
+    """A Block that generates responses using OpenAI's chat completion API.
+
+    Parameters
+    ----------
+    block_name : str
+        Name of the block
+    client : openai.Client
+        OpenAI client instance
+    input_col : str
+        Name of input column containing prompts
+    output_col : str
+        Name of output column to store generations
+    model_id : str, optional
+        Model ID to use. If None, uses first available model
+    system_prompt : str, optional
+        System prompt to prepend to all messages
+
+
+    Attributes
+    ----------
+    block_name : str
+        Name of the block
+    system_prompt : str or None
+        System prompt prepended to all messages
+    batch_params : dict
+        Parameters for batched generation
+    input_col : str
+        Input column name
+    output_col : str
+        Output column name
+    client : openai.Client
+        OpenAI client instance
+    model : str
+        Model ID being used
+    defaults : dict
+        Default generation parameters
+    """
+
     def __init__(
         self,
-        block_name,
-        client,
-        input_col,
-        output_col,
-        model_prompt=None, 
-        model_id=None,
-        **batch_kwargs,
+        block_name: str,
+        client: OpenAI,
+        input_col: str,
+        output_col: str,
+        model_id: str | None = None,
+        system_prompt: str | None = None,
     ) -> None:
         self.block_name = block_name
-        self.model_prompt = model_prompt
-        self.batch_params = batch_kwargs.get("batch_kwargs", {})
+        self.system_prompt = system_prompt
         self.input_col = input_col
         self.output_col = output_col
         self.client = client
@@ -395,15 +430,33 @@ class LLMMessagesBlock(Block):
             self.model = model_id
         else:
             self.model = self.client.models.list().data[0].id
-        
+
         self.defaults = {
             "model": self.model,
             "temperature": 0,
-            "max_tokens": 4096,
+            "max_tokens": 2048,
         }
-        self.server_supports_batched = server_supports_batched(client, self.model)
 
-    def _generate(self, samples, **gen_kwargs) -> list:
+    def _generate(self, sample: dict, **gen_kwargs: dict) -> str | list[str]:
+        """Generate completions for the given samples.
+
+        Parameters
+        ----------
+        sample : dict
+            Dataset sample
+        **gen_kwargs : dict
+            Additional generation parameters
+
+        Returns
+        -------
+        str or list[str]
+            Generated completion(s). Returns str if n=1, list[str] if n>1
+
+        Notes
+        -----
+        If n>1 is specified in gen_kwargs but temperature=0, temperature will be
+        automatically set to 0.7 to ensure diverse outputs.
+        """
         generate_args = {**self.defaults, **gen_kwargs}
 
         if "n" in generate_args and generate_args.get("temperature", 0) <= 0:
@@ -412,19 +465,42 @@ class LLMMessagesBlock(Block):
                 "Temperature should be greater than 0 for n > 1, setting temperature to 0.7"
             )
 
-        messages = samples[self.input_col]
+        if self.system_prompt:
+            messages = [
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": sample[self.input_col]},
+            ]
+        else:
+            messages = [{"role": "user", "content": sample[self.input_col]}]
 
-        results = []
         n = gen_kwargs.get("n", 1)
-        for message in messages:
-            responses = self.client.chat.completions.create(messages=message, **generate_args)
-            if n > 1:
-                results.append([choice.message.content for choice in responses.choices])
-            else:
-                results.append(responses.choices[0].message.content)
-        return results
 
-    def generate(self, samples: Dataset, **gen_kwargs) -> Dataset:
-        outputs = self._generate(samples, **gen_kwargs)
-        samples = samples.add_column(self.output_col, outputs)
-        return samples
+        responses = self.client.chat.completions.create(
+            messages=messages, **generate_args
+        )
+
+        if n == 1:
+            sample[self.output_col] = responses.choices[0].message.content
+        else:
+            sample[self.output_col] = [
+                choice.message.content for choice in responses.choices
+            ]
+
+        return sample
+
+    def generate(self, samples: Dataset, **gen_kwargs: dict) -> Dataset:
+        """Generate completions and add them to the dataset.
+
+        Parameters
+        ----------
+        samples : Dataset
+            Input dataset containing prompts
+        **gen_kwargs : dict
+            Additional generation parameters
+
+        Returns
+        -------
+        Dataset
+            Dataset with generated completions added in output_col
+        """
+        return samples.map(self._generate, num_proc=8, fn_kwargs=gen_kwargs)
