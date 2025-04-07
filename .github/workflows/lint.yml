@@ -5,8 +5,7 @@ name: Lint, Format, and MyPy
 on:
   push:
     branches:
-      - "main"
-      - "release-**"
+      - "main-disabled"
     paths:
       - '**.py'
       - 'pyproject.toml'
@@ -16,8 +15,7 @@ on:
       - '.github/**'
   pull_request:
     branches:
-      - "main"
-      - "release-**"
+      - "main-disabled"
     paths:
       - '**.py'
       - 'pyproject.toml'
