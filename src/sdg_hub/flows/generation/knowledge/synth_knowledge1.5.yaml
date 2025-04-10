@@ -1,26 +1,3 @@
-- block_type: LLMBlock
-  block_config:
-    block_name: router
-    config_path: configs/knowledge/router.yaml
-    model_id: text-classifier-knowledge-v3-clm
-    output_cols:
-      - route
-    batch_kwargs:
-      num_procs: 8
-  gen_kwargs:
-    temperature: 0
-    max_tokens: 1
-    extra_body:
-      allowed_token_ids:
-        - 32001
-        - 32002
-        - 32003
-
-- block_type: SetToMajorityValue
-  block_config:
-    block_name: SetClassifierValue
-    col_name: route
-
 - block_type: DuplicateColumns
   block_config:
     block_name: duplicate_document_col
@@ -75,25 +52,21 @@
       document: raw_document
       summary: document
 
-- block_type: ConditionalLLMBlock
+- block_type: LLMBlock
   block_config:
     block_name: knowledge generation
-    config_paths:
-      _A_: configs/knowledge/generate_questions_responses.yaml
-      _B_: configs/knowledge/generate_questions_responses.yaml
-      _C_: configs/knowledge/generate_code_questions_responses.yaml
+    config_path: configs/knowledge/generate_questions_responses.yaml
     model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
-    model_prompt: '<s> [INST] {prompt} [/INST]'
     output_cols:
       - question
       - response
-    selector_column_name: route
     parser_kwargs:
       parser_name: custom
       parsing_pattern: "\\[(?:Question|QUESTION)\\]\\s*(.*?)\\s*\\[(?:Answer|ANSWER)\\]\\s*(.*?)\\s*(?=\\[(?:Question|QUESTION)\\]|$)"
       parser_cleanup_tags:
         - "[END]"
   gen_kwargs:
+    temperature: 0.0
     max_tokens: 2048
 
 - block_type: LLMBlock

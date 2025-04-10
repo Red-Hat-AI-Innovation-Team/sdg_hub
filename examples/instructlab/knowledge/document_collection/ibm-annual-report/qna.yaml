@@ -1,0 +1,100 @@
+document_outline: DB-SUSP-2ND-DAY-BAL Standard Operating Procedure (SOP)
+domain: Standard Procedure Mannual
+seed_examples:
+- context: |
+    ## Management Discussion
+
+    International Business Machines Corporation and Subsidiary Companies
+
+    Software revenue of $27,085 million increased 8.3 percent as reported (9.0 percent adjusted for currency) in 2024 compared to the prior year, reflecting growth across all lines of business with double-digit growth in Red Hat and Automation and high single-digit growth in Transaction Processing. This revenue performance reflects the investments we have been making in Software, both organically and through acquisitions. Our investments in generative AI are contributing to growth, as we had strong demand for our generative AI products such as watsonx, Concert and our AI assistants. We also launched new products in the fourth quarter of 2024 including our next generation of watsonx Code Assistant and Guardium Quantum Safe. In 2024, we also had increased revenue contribution from acquisitions compared to the prior year, including Apptio and StreamSets and webMethods. In addition, we had solid growth in our recurring revenue and double-digit growth in our transactional software revenue in 2024, as we accelerated growth through innovation across our Software portfolio.
+
+    Hybrid Platform & Solutions revenue of $18,808 million increased 8.1 percent as reported (8.7 percent adjusted for currency) in 2024 compared to the prior year. Within Hybrid Platform & Solutions, Red Hat revenue increased 11.4 percent as reported (12.0 percent adjusted for currency), which reflects the continued demand for our hybrid cloud solutions as clients are prioritizing application modernization on OpenShift containers and Ansible automation to optimize their IT spending and reduce operational complexity. In 2024, we had double-digit revenue growth in OpenShift and Ansible, and high single-digit revenue growth in RHEL. The growth in OpenShift revenue reflects increased volume in OpenShift Virtualization engagements, and we exited 2024 with OpenShift annual recurring revenue of $1.4 billion. Automation revenue increased 14.2 percent as reported (14.8 percent adjusted for currency), driven by our SaaS subscription offerings such as AIOps and Management, which includes the higher revenue contribution from Apptio. Data & AI revenue increased 1.6 percent as reported (2.2 percent adjusted for currency), with strong growth in Data Fabric and our AI assistant for Customer Care, driven by client demand for our watsonx platform offerings, and strength in asset and supply chain management software which helps clients run sustainable operations. Security revenue increased 0.8 percent as reported (1.5 percent adjusted for currency), with revenue growth in data security and identity and access management, partially offset by a revenue decline in security threat management.
+  questions_and_answers:
+    - question: What contributed to IBM's 8.3% increase in Software revenue in 2024?
+      answer: IBM's 8.3% increase in Software revenue in 2024 was driven by growth across all lines of business, including double-digit growth in Red Hat and Automation, high single-digit growth in Transaction Processing, strong demand for generative AI products like watsonx and Concert, new product launches such as watsonx Code Assistant and Guardium Quantum Safe, and increased revenue from acquisitions including Apptio, StreamSets, and webMethods.
+
+    - question: How did IBM's Hybrid Platform & Solutions segment perform in 2024 and what fueled this growth?
+      answer: The Hybrid Platform & Solutions segment generated $18,808 million in revenue in 2024, an increase of 8.1% as reported. Growth was fueled by strong performance in Red Hat (up 11.4%), especially OpenShift and Ansible with double-digit growth, increased revenue from OpenShift Virtualization, and strong demand for hybrid cloud solutions enabling application modernization and IT optimization.
+
+    - question: What were the key trends in IBM’s Data & AI and Security segments in 2024?
+      answer: In 2024, IBM’s Data & AI segment saw a 1.6% revenue increase, driven by strong growth in Data Fabric and AI assistant offerings, particularly within the watsonx platform and supply chain management software. The Security segment grew 0.8%, with increases in data security and identity and access management, although this was partially offset by a decline in security threat management revenue.
+
+- context: |
+    ## Consulting Signings and Book-to-Bill
+
+    ($ in millions)
+
+
+    | For the year ended December 31:   | 2024      | 2023  (1)   | Yr.-to-Yr. Percent Change   | Yr.-to-Yr. Percent Change Adjusted for Currency   |
+    |-----------------------------------|-----------|-------------|-----------------------------|---------------------------------------------------|
+    | Total Consulting signings         | $  25,103 | $  24,305   | 3.3 %                       | 4.7 %                                             |
+
+    (1) Recast to reflect January 2024 segment changes.
+
+    Consulting signings grew 3.3 percent as reported (4.7 percent adjusted for currency) in 2024, driven by our strong performance in signings in the fourth quarter of 2024. This performance reflects our ability to address client demands and the contribution of our generative AI solutions that help clients accelerate their digital transformations. Our book-to-bill ratio over the trailing twelve months was 1.21. Book-to-bill represents the ratio of IBM Consulting signings to its revenue over the same period and is a useful indicator of the demand for our business over time.
+
+    Signings are management's initial estimate of the value of a client's commitment under a services contract within IBM Consulting. There are no third-party standards or requirements governing the calculation of signings. The calculation used by management involves estimates and judgments to gauge the extent of a client's commitment, including the type and duration of the agreement and the presence of termination charges or wind-down costs.
+
+    Contract extensions and increases in scope are treated as signings only to the extent of the incremental new value. Total signings can vary over time due to a variety of factors including, but not limited to, the timing of signing a small number of larger contracts. Signings associated with an acquisition will be recognized on a prospective basis.
+
+    Management believes the estimated values of signings disclosed provide an indication of our forward-looking revenue. Signings are used to monitor the performance of the business and viewed as useful information for management and shareholders. The conversion of signings into revenue may vary based on the types of services and solutions, contract duration, customer decisions, and other factors, which may include, but are not limited to, the macroeconomic environment."
+  questions_and_answers:
+    - question: What was the total value of IBM’s Consulting signings in 2024 and how did it compare to 2023?
+      answer: In 2024, IBM's total Consulting signings were valued at $25,103 million, representing a 3.3% increase from the 2023 value of $24,305 million. When adjusted for currency, the year-to-year increase was 4.7%.
+
+    - question: What factors contributed to the growth in IBM’s Consulting signings in 2024?
+      answer: The growth in IBM’s Consulting signings in 2024 was driven by strong performance in the fourth quarter and the impact of generative AI solutions, which supported clients in accelerating their digital transformations.
+
+    - question: What does IBM’s book-to-bill ratio indicate about its Consulting business in 2024?
+      answer: IBM's book-to-bill ratio for the trailing twelve months was 1.21, indicating that Consulting signings exceeded revenue. This suggests strong demand for IBM’s Consulting services and is considered a useful indicator of future business performance.
+
+- context: |
+    ## Management Discussion
+
+    International Business Machines Corporation and Subsidiary Companies
+
+    Other (Income) and Expense
+
+
+    | For the year ended December 31:                          | 2024       | 2023     | Yr.-to-Yr. Percent  Change   |
+    |----------------------------------------------------------|------------|----------|------------------------------|
+    | Other (income) and expense                               |            |          |                              |
+    | (Gains)/losses on foreign currency transactions          | $  (458)   | $  116   | NM                           |
+    | (Gains)/losses on derivative instruments  (1)            | 515        | (17)     | NM                           |
+    | Interest income                                          | (747)      | (670)    | 11.4 %                       |
+    | Net (gains)/losses from securities and investment assets | (20)       | (39)     | (49.4)                       |
+    | Retirement-related costs/(income)                        | 3,457      | (39)     | NM                           |
+    | Other                                                    | (877)      | (266)    | 230.3                        |
+    | Total other (income) and expense                         | $  1,871   | $  (914) | NM                           |
+    | Non-operating adjustments                                |            |          |                              |
+    | Amortization of acquired intangible assets               | (2)        | (1)      | 144.6                        |
+    | Acquisition-related charges  (1)                         | (68)       | 11       | NM                           |
+    | Non-operating retirement-related costs/(income)          | (3,457)    | 39       | NM                           |
+    | Operating (non-GAAP) other (income) and expense          | $  (1,656) | $  (866) | 91.3 %                       |
+
+    (1) 2024 and 2023 include the impact of a $68 million loss and $12 million gain, respectively, recognized on foreign exchange derivative contracts entered into by the company prior to the acquisition of StreamSets and webMethods from Software AG. Refer to note S, "Derivative Financial Instruments," for additional information.
+
+    NM-Not meaningful
+
+    Total other (income) and expense was $1,871 million of expense in 2024 compared to income of $914 million in 2023. The year-toyear change was primarily driven by:
+
+    · Non-operating retirement-related cost of $3,457 million in the current-year period versus $39 million of income in the prior-year period primarily driven by the impact of the pension settlement charges of $3,113 million in 2024 and an increase in recognized actuarial losses due to the change in amortization period of the Qualified PPP, effective January 1, 2024. Refer to note U, "Retirement-Related Benefits," for additional information; and
+
+    · Lower gains on land/building dispositions ($126 million) included in "Other"; partially offset by
+
+    · A gain of $349 million from the sale of certain QRadar SaaS assets in 2024, included in "Other". Refer to note E, "Acquisitions & Divestitures," for additional information; and
+
+    · Higher gains on divestitures ($206 million) primarily driven by the divestiture of The Weather Company assets ($243 million), included in "Other". Refer to note E, "Acquisitions & Divestitures," for additional information; and
+
+    · Higher gains on sales of intangibles ($87 million) included in "Other"; and
+
+    · Higher interest income ($77 million) primarily driven by a higher average cash balance in the current year.
+  questions_and_answers:
+    - question: Why did IBM report a total "Other (income) and expense" of $1,871 million in 2024 compared to income of $914 million in 2023?
+      answer: The shift to $1,871 million in expense in 2024 from $914 million in income in 2023 was primarily due to a $3,457 million non-operating retirement-related cost, mainly from a $3,113 million pension settlement charge and actuarial losses from changes in amortization period. This was partially offset by gains from divestitures and asset sales, including $349 million from the sale of QRadar SaaS assets and $243 million from the divestiture of The Weather Company assets.
+
+    - question: What contributed to the significant rise in retirement-related costs in 2024?
+      answer: The significant rise in retirement-related costs in 2024 was driven by a $3,113 million pension settlement charge and increased recognized actuarial losses due to a change in the amortization period of the Qualified PPP plan, effective January 1, 2024.
+
+    - question: How did IBM offset some of the higher expenses in its "Other (income) and expense" category in 2024?
+      answer: IBM partially offset the higher expenses with several gains in 2024, including $349 million from the sale of QRadar SaaS assets, $243 million from the divestiture of The Weather Company, $87 million from sales of intangibles, and $77 million in higher interest income due to a larger average cash balance.
