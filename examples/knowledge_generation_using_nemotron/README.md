@@ -119,3 +119,10 @@ Answer: C.
 - Reasoning-capable LLMs can be used to create high-quality QA datasets to teach the model to for improving a model's reading comprehension and its ability to recall and reason on specific knowledge from source documents.
 - How to use the `sdg` package to generate high-quality QA pairs from a source document, add new prompts, blocks and easy create pipeline variations.
 - How to use our training library to train the model on the generated data.
+
+## Update 1
+- We changed our training backend from FSDP to deepspeed and we found a bump in closed books performance. 
+- The RAG performance takes a hit but this is expected as we did not mix any RAG skill during training
+
+
+![Plot of % improvement in Quality Benchmark](../../assets/imgs/customized_nano_closed_book_rag_results_update_1.png)
