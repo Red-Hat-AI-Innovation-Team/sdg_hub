@@ -8,7 +8,7 @@ through a YAML file, allowing flexible control over processing options.
 
 Example Usage:
     # Using defaults
-    python docparser.py -i ./pdfs -o ./output
+    python docparser_v2.py -i ./pdfs -o ./output
 
     # Using custom config
     python docparser_v2.py -i ./pdfs -o ./output -c config.yaml
