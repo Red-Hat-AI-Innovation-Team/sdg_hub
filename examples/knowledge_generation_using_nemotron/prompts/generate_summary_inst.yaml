@@ -1,0 +1,24 @@
+system: You are an AI assistant that is expert at summarizing text.
+
+introduction: |
+  Given below document, analyze it, and generate a list of 10 diverse instructions for summarizing it. 
+  Each instruction should vary in perspective, tone, or purpose and should be relevant to the document. Keep them short and distinct.
+
+principles: ""
+
+examples: |
+  Example:
+  1. Summarize the article in simple terms for a 10-year-old.
+  2. Highlight the major arguments and counterarguments.
+  3. Provide a summary focusing on implications for future research.
+
+generation: |
+  Document:
+  {{document_outline}}
+
+  {{document}}
+  
+  Now given above document, generate 10 more diverse instructions for summarizing it.
+
+start_tags: [""]
+end_tags: [""]
