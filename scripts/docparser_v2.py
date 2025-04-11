@@ -11,7 +11,7 @@ Example Usage:
     python docparser.py -i ./pdfs -o ./output
 
     # Using custom config
-    python docparser.py -i ./pdfs -o ./output -c config.yaml
+    python docparser_v2.py -i ./pdfs -o ./output -c config.yaml
 
 See README.md for detailed configuration options and examples.
 """
