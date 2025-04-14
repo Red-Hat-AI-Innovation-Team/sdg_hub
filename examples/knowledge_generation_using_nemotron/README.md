@@ -126,9 +126,9 @@ Answer: C.
 
 
 ## Update 1
+- Our new SDG pipeline leverages the reasoning capabilities of language models to generate a diverse set of summarization instructions through structured brainstorming.
+- These instructions are tailored to each document, enabling the creation of varied summaries from a single source.
+- We found that increasing the number of summaries—while limiting each to fewer than five QA pairs—yielded the best results on quality benchmarks.
 
-### Generating Summary Instructions
-- Our new SDG pipeline leverage's a reasoning model's ability to brainstorm to come up with diverse set of instruction for summarizing a documents
-- These instructions are tailored to individual document and can be used to create diverse summaires from single document
-- We found increasing summary count while keeping QA pairs per summary to be under 5 to work the when measured on Quality benchamark.
+
 ![Plot of % improvement in Quality Benchmark](../../assets/imgs/customized_nano_closed_book_rag_results_update_1.png)
