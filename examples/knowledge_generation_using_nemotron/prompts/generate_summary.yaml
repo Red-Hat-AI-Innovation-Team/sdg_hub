@@ -1,0 +1,18 @@
+system: You are an AI assistant that is expert at summarizing text.
+
+introduction: |
+  Given below document, summarize it using the following instructions:
+  {{summary_instruction}}
+
+principles: ""
+
+examples: ""
+
+generation: |
+  Document:
+  {{document_outline}}
+  {{document}}
+  
+
+start_tags: [""]
+end_tags: [""]
