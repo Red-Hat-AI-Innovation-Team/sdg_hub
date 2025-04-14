@@ -2,6 +2,18 @@
 
 This notebook demonstrates how to use the `sdg` package to generate synthetic question-answer data with NEMOTRON Super as the teacher model. The generated data is designed to improve both the reading comprehension and reasoning abilities of a smaller student model, NEMOTRON NAMO, on a benchmark dataset of high-quality articles.
 
+## Table of Contents
+- [Overview](#overview)
+- [Notebook Structure](#notebook-structure)
+  - [Creating ICLs](#creating-icls)
+  - [Generating Data and training](#generating-data-and-training)
+  - [Results](#results)
+  - [Model Response Examples](#how-does-the-models-response-look)
+- [Key Takeaways](#key-takeaways)
+- [Changing backends](#changing-backends)
+- [Update 1](#update-1)
+  - [New Pipeline Output](#how-does-the-new-pipelines-output-look-like)
+
 ## Overview
 
 The workflow includes:
@@ -126,9 +138,11 @@ Answer: C.
 
 
 ## Update 1
+
+### Summary Diversity Pipeline
 - Our new SDG pipeline leverages the reasoning capabilities of language models to generate a diverse set of summarization instructions through structured brainstorming.
 - These instructions are tailored to each document, enabling the creation of varied summaries from a single source.
-- We found that increasing the number of summaries—while limiting each to fewer than five QA pairs—yielded the best results on quality benchmarks.
+- We found that increasing the number of summaries, while limiting each to fewer than five QA pairs, yielded the best results on quality benchmarks.
 
 
 ### How does the new pipeline's output look like?
