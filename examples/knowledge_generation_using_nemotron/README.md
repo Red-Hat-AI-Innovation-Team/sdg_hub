@@ -40,7 +40,7 @@ We also evaluate the base model and customized nano model in a **RAG setting** w
 - Evaluation measures how well the model has **memorized and internalized** information from the articles
 - Accuracy is compared between the base nano model and the Quality Customized nano model
 
-![Plot of % improvement in Quality Benchmark](../../assets/imgs/customized_nano_closed_book_rag_results.png)
+![Plot of % improvement in Quality Benchmark](../../assets/imgs/customized_nano_closed_book_rag_results_deepsepeed.png)
 
 *Plot showing percentage improvement in performance on the QuALITY Benchmark in Closed Book and RAG (Retrieval-Augmented Generation) settings after training*
 
@@ -120,9 +120,15 @@ Answer: C.
 - How to use the `sdg` package to generate high-quality QA pairs from a source document, add new prompts, blocks and easy create pipeline variations.
 - How to use our training library to train the model on the generated data.
 
-## Update 1
+## Changing backends
 - We changed our training backend from FSDP to deepspeed and we found a bump in closed books performance. 
 - The RAG performance takes a hit but this is expected as we did not mix any RAG skill during training
 
 
+## Update 1
+
+### Generating Summary Instructions
+- Our new SDG pipeline leverage's a reasoning model's ability to brainstorm to come up with diverse set of instruction for summarizing a documents
+- These instructions are tailored to individual document and can be used to create diverse summaires from single document
+- We found increasing summary count while keeping QA pairs per summary to be under 5 to work the when measured on Quality benchamark.
 ![Plot of % improvement in Quality Benchmark](../../assets/imgs/customized_nano_closed_book_rag_results_update_1.png)
