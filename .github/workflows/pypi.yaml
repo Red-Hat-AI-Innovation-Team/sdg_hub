@@ -57,7 +57,7 @@ jobs:
     publish-test-pypi:
         name: Publish packages to test.pypi.org
         # environment: publish-test-pypi
-        if: ${{ (github.repository_owner == 'instructlab') && ((github.event.action == 'published') || ((github.event_name == 'push') && (github.ref == 'refs/heads/main'))) }}
+        if: ${{ (github.repository_owner == 'Red-Hat-AI-Innovation-Team') && ((github.event.action == 'published') || ((github.event_name == 'push') && (github.ref == 'refs/heads/main'))) }}
         permissions:
             contents: read
             # see https://docs.pypi.org/trusted-publishers/
@@ -87,7 +87,7 @@ jobs:
     publish-pypi:
         name: Publish release to pypi.org
         # environment: publish-pypi
-        if: ${{ (github.repository_owner == 'instructlab') && (github.event.action == 'published') }}
+        if: ${{ (github.repository_owner == 'Red-Hat-AI-Innovation-Team') && (github.event.action == 'published') }}
         permissions:
             # see https://docs.pypi.org/trusted-publishers/
             id-token: write

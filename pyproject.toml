@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sdg_hub"
 authors = [
-    { name="InstructLab", email="dev@instructlab.ai" },
+    { name="Red Hat AI Innovation", email="abhandwa@redhat.com" },
 ]
 description = "Synthetic Data Generation"
 readme = "README.md"
@@ -33,7 +33,7 @@ dynamic = ["dependencies", "optional-dependencies", "version"]
 [project.scripts]
 
 [project.urls]
-homepage = "https://instructlab.ai"
+homepage = "https://ai-innovation.team/"
 source = "https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub"
 issues = "https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/issues"
 
