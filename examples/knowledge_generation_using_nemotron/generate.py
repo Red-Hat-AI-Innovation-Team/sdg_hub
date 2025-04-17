@@ -4,12 +4,12 @@ from openai import OpenAI
 import click
 
 # First Party
-from instructlab.sdg.flow import  Flow
-from instructlab.sdg.logger_config import setup_logger
-from instructlab.sdg.pipeline import Pipeline
-from instructlab.sdg.sdg import SDG
-from instructlab.sdg.prompts import PromptRegistry
-from instructlab.sdg.blocks import BlockRegistry, Block
+from sdg_hub.flow import  Flow
+from sdg_hub.logger_config import setup_logger
+from sdg_hub.pipeline import Pipeline
+from sdg_hub.sdg import SDG
+from sdg_hub.prompts import PromptRegistry
+from sdg_hub.blocks import BlockRegistry, Block
 from transformers import AutoTokenizer
 import re
 from typing import List

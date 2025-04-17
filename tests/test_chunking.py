@@ -4,7 +4,7 @@
 import pytest
 
 # First Party
-from instructlab.sdg.utils import chunking
+from sdg_hub.utils import chunking
 
 # Local
 from .testdata import testdata

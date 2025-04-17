@@ -1,6 +1,6 @@
 # Synthetic Data Generation for LLMs
 
-The SDG Framework is a modular, scalable, and efficient solution for creating synthetic data generation workflows in a “no-code” manner. At its core, this framework is designed to simplify data creation for LLMs, allowing users to chain computational units and build powerful pipelines for generating data and processing tasks.
+The SDG Framework is a modular, scalable, and efficient solution for creating synthetic data generation workflows in a "no-code" manner. At its core, this framework is designed to simplify data creation for LLMs, allowing users to chain computational units and build powerful pipelines for generating data and processing tasks.
 
 
 
@@ -30,7 +30,7 @@ Blocks are designed to be:
 - **Modular**: Reusable across multiple pipelines.
 - **Composable**: Easily chained together to create workflows.
 
-These blocks are implemented in the [src/instructlab/sdg/blocks](src/instructlab/sdg/blocks) directory.
+These blocks are implemented in the [src/sdg_hub/blocks](src/sdg_hub/blocks) directory.
 
 ### Pipelines: Higher-Level Abstraction
 
@@ -40,7 +40,7 @@ Blocks can be chained together to form a **Pipeline**. Pipelines enable:
 
 ### SDG Workflow: Full Workflow Automation
 
-Pipelines are further orchestrated into **SDG Workflows**, enabling seamless end-to-end processing. When invoking `sdg.generate`, it triggers a pipeline/ or multiple pipelines that processes data through all the configured blocks.
+Pipelines are further orchestrated into **SDG Workflows**, enabling seamless end-to-end processing. When invoking `sdg_hub.generate`, it triggers a pipeline/ or multiple pipelines that processes data through all the configured blocks.
 
 ---
 
@@ -113,61 +113,6 @@ Here is an example of a Flow configuration:
 
 ---
 
-## Sample use cases:
+## Examples
 
-### Knowledge generation
-
-TODO
-
-### Data Annotation
-
-The following command annotates the dataset located at [datasets/emotion/seed.jsonl](datasets/emotion/seed.jsonl) using the flow defined in [src/instructlab/sdg/flows/annotation/emotion/detailed_description_icl.yaml](src/instructlab/sdg/flows/annotation/emotion/detailed_description_icl.yaml)
-
-#### Command to Run the Annotation Workflow
-
-```bash
-python run.py \
-  --ds_path datasets/emotion/seed.jsonl \
-  --save_path emotion/output.jsonl \
-  --checkpoint_dir checkpoints/emotion \
-  --endpoint <replace with your endpoint> \
-  --flow src/instructlab/sdg/flows/annotation/emotion/detailed_description_icl.yaml \
-```
-
-
-#### Evaluating the Annotated Data
-
-Once the annotation is complete, you can evaluate the results using the following Python script. The evaluation computes precision, recall, and F1-score using scikit-learn.
-
-```python
-from datasets import load_dataset
-from sklearn.metrics import classification_report
-
-def get_eval_report(ds_path):
-    # Load the annotated dataset
-    ds = load_dataset("json", data_files=ds_path, split="train")
-
-    # Extract ground truth and predictions
-    gt = ds["ground_truth"]
-    preds = ds["output"]
-
-    # Print the evaluation report
-    print(classification_report(gt, preds))
-```
-
-Running the evaluation script on the annotated dataset should produce the following metrics:
-
-```python
-              precision    recall  f1-score   support
-
-       anger       0.45      0.59      0.51       521
-        fear       0.41      0.34      0.37       432
-         joy       0.74      0.59      0.65      1316
-        love       0.33      0.12      0.17       302
-     sadness       0.48      0.70      0.56      1093
-    surprise       0.00      0.00      0.00       128
-
-    accuracy                           0.53      3792
-   macro avg       0.40      0.39      0.38      3792
-weighted avg       0.53      0.53      0.52      3792
-```
+For sample use cases and implementation examples, please refer to the [examples](examples) directory. This directory contains various examples demonstrating different workflows and use cases of the SDG Framework.

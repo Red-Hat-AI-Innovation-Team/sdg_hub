@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 click>=8.1.7,<9.0.0
-datasets>=2.18.0,<3.0.0
+datasets>=2.18.0,<4.0.0
 httpx>=0.25.0,<1.0.0
 jinja2
 langchain-text-splitters

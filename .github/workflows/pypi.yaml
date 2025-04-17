@@ -37,7 +37,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: "Harden Runner"
-              uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+              uses: step-security/harden-runner@c6295a65d1254861815972266d5933fd6e532bdf # v2.11.1
               with:
                   egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
 
@@ -57,7 +57,7 @@ jobs:
     publish-test-pypi:
         name: Publish packages to test.pypi.org
         # environment: publish-test-pypi
-        if: ${{ (github.repository_owner == 'instructlab') && ((github.event.action == 'published') || ((github.event_name == 'push') && (github.ref == 'refs/heads/main'))) }}
+        if: ${{ (github.repository_owner == 'Red-Hat-AI-Innovation-Team') && ((github.event.action == 'published') || ((github.event_name == 'push') && (github.ref == 'refs/heads/main'))) }}
         permissions:
             contents: read
             # see https://docs.pypi.org/trusted-publishers/
@@ -67,7 +67,7 @@ jobs:
 
         steps:
             - name: "Harden Runner"
-              uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+              uses: step-security/harden-runner@c6295a65d1254861815972266d5933fd6e532bdf # v2.11.1
               with:
                   egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
 
@@ -87,7 +87,7 @@ jobs:
     publish-pypi:
         name: Publish release to pypi.org
         # environment: publish-pypi
-        if: ${{ (github.repository_owner == 'instructlab') && (github.event.action == 'published') }}
+        if: ${{ (github.repository_owner == 'Red-Hat-AI-Innovation-Team') && (github.event.action == 'published') }}
         permissions:
             # see https://docs.pypi.org/trusted-publishers/
             id-token: write
@@ -99,7 +99,7 @@ jobs:
 
         steps:
             - name: "Harden Runner"
-              uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+              uses: step-security/harden-runner@c6295a65d1254861815972266d5933fd6e532bdf # v2.11.1
               with:
                   egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
 
