@@ -7,7 +7,7 @@ import unittest
 import yaml
 
 # First Party
-from instructlab.sdg.flow import Flow
+from sdg_hub.flow import Flow
 
 
 class TestFlow(unittest.TestCase):
@@ -44,7 +44,7 @@ class TestFlow(unittest.TestCase):
         ) as yaml_file:
             y = yaml.safe_load(yaml_file)
         y[0]["block_config"]["config_path"] = os.path.abspath(
-            "src/instructlab/sdg/configs/skills/simple_generate_qa_freeform.yaml"
+            "src/sdg_hub/configs/skills/simple_generate_qa_freeform.yaml"
         )
         with patch("yaml.safe_load", new_callable=MagicMock) as mock_safe_load:
             mock_safe_load.return_value = y
@@ -62,7 +62,7 @@ class TestFlow(unittest.TestCase):
         ) as yaml_file:
             y = yaml.safe_load(yaml_file)
         y[0]["block_config"]["config_paths"]["k3"] = os.path.abspath(
-            "src/instructlab/sdg/configs/skills/simple_generate_qa_freeform.yaml"
+            "src/sdg_hub/configs/skills/simple_generate_qa_freeform.yaml"
         )
 
         with patch("yaml.safe_load", new_callable=MagicMock) as mock_safe_load:
