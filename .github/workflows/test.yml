@@ -102,7 +102,7 @@ jobs:
 
       - name: Run unit tests with tox
         run: |
-          tox
+          tox -e py3-unit
 
       - name: Remove llama-cpp-python from cache
         if: always()
