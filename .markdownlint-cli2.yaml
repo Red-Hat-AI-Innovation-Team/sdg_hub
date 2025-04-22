@@ -17,3 +17,5 @@ ignores:
   - "venv/**"
   - ".venv/**"
   - ".tox/**"
+  - "examples/**"
+  - "!examples/**/README.md"
