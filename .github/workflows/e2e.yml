@@ -75,7 +75,7 @@ jobs:
           # config contains DEFAULT_MODEL
           key: huggingface-${{ hashFiles('src/instructlab/configuration.py') }}
 
-      - name: Install instructlab and instructlab-sdg
+      - name: Install instructlab and sdg_hub
         run: |
           export PATH="/home/runner/.local/bin:/usr/local/cuda/bin:$PATH"
           python3 -m venv venv
@@ -89,7 +89,7 @@ jobs:
           # install instructlab
           python3 -m pip install .
           cd ..
-          # Install instructlab-sdg
+          # Install sdg_hub
           python3 -m pip install .
 
       - name: Run e2e test
