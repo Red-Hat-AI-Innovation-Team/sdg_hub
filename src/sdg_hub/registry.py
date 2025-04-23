@@ -1,8 +1,10 @@
 # Standard
 from typing import Union, List, Dict
+from functools import lru_cache
 
 # Third Party
 from jinja2 import Template
+from transformers import AutoTokenizer
 
 # Local
 from .logger_config import setup_logger
@@ -72,7 +74,10 @@ class PromptRegistry:
         :return: The Jinja2 template instance.
         """
         if name not in cls._registry:
-            raise KeyError(f"Template '{name}' not found.")
+            try:
+                cls._registry[name] = cls.template_from_model(name)
+            except Exception:
+                raise KeyError(f"Template '{name}' not found.")
         logger.debug(f"Retrieving prompt template '{name}'")
         return cls._registry[name]
 
@@ -120,3 +125,11 @@ class PromptRegistry:
         return template.render(
             messages=messages, add_generation_prompt=add_generation_prompt
         )
+
+    @classmethod
+    @lru_cache(maxsize=64) # setting maxsize avoid cache growing unchecked
+    def template_from_model(cls, model_name: str):
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        logger.debug(f"Retrieved prompt template '{model_name}' from AutoTokenizer")
+        return Template(tokenizer.chat_template)
+    

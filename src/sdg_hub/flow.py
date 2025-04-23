@@ -96,9 +96,15 @@ class Flow(ABC):
                     if matched_prompt is not None:
                         block["block_config"]["model_prompt"] = matched_prompt
                     else:
-                        raise KeyError(
-                            f"Prompt not found in registry: {block['block_config']['model_id']}"
-                        )
+                        try:
+                            # test if the model_id is a valid model
+                            PromptRegistry.template_from_model(block["block_config"]["model_id"])
+                            # so we can then use the model_id as the prompt template name
+                            block["block_config"]["model_prompt"] = block["block_config"]["model_id"]
+                        except Exception as exc:
+                            raise KeyError(
+                                f"Prompt not found in registry: {block['block_config']['model_id']}"
+                            ) from exc
 
                 if self.num_samples_to_generate is not None:
                     block["num_samples"] = self.num_samples_to_generate
