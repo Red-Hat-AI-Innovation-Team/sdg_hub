@@ -87,6 +87,9 @@ class LLMBlock(Block):
     def _parse(self, generated_string) -> dict:
         matches = {}
 
+        # Ensure regular expressions can match the end of the string (using a newline)
+        # we can't use "$" in end_tags because it gets escaped by re.escape as a literal "$"
+        generated_string += "\n"
         if self.parser_name is not None and self.parser_name == "custom":
             pattern = re.compile(self.parsing_pattern, re.DOTALL)
             all_matches = pattern.findall(generated_string)
