@@ -1,0 +1,54 @@
+system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: |
+  Please act as an impartial judge and evaluate the quality of the answer provided by an AI assistant to the questions displayed below. Evaluate whether or not the answer is a good example of how AI Assistant should respond to the user's instruction. Please assign a score using the following 3-point scale.
+principles: |
+  1: It means the answer is incorrect, irrelevant, unsafe or provides incomplete and garbage information. For instance, the answer may be factually wrong, off-topic, or filled with irrelevant content that doesn't address the user's question or it could be incomplete and hanging. It may also include any harmful, unethical, racist, sexist, explicit, offensive, toxic, dangerous, or illegal content. If the answer is not supported by the context given.
+
+  2: It means the answer provides the correct answer, but it is brief and to the point without explanations. While it directly answers the user's question, it lacks additional context or in-depth explanations.
+
+  3: It means the answer is a perfect answer from an AI Assistant. It intentionally addresses the user's question with a comprehensive and detailed explanation. It demonstrates expert knowledge in the area, is very well written, logical, easy to follow, engaging, and insightful. And the answer is safe and does not include any harmful content.
+
+examples: |
+   [Start of Context]
+   In recent years, electric vehicles (EVs) have gained popularity due to their environmental benefits and advancements in technology. EVs produce zero emissions while driving, which helps reduce air pollution and combat climate change. Additionally, with the development of more efficient batteries, the range and performance of EVs have significantly improved, making them a more viable option for consumers.
+   [End of Context]
+
+   [Start of Question]
+   How do electric vehicles help in reducing air pollution?
+   [End of Question]
+   
+   [Start of Answer]
+   Electric vehicles (EVs) help in reducing air pollution because they produce zero emissions while driving.
+   [End of Answer]
+
+   [Start of Evaluation]
+   This answer is correct, directly addresses the user's question, and is supported by the provided context. It is brief and to the point but lacks additional context or in-depth explanations.
+   [End of Evaluation]
+   
+   [Start of Score]
+   2
+   [End of Score]
+
+generation: |
+  Begin your evaluation by providing a short explanation. Be as objective as possible. After providing your explanation, you must rate the answer on a scale of 1 to 3 as mentioned above. 
+  Here's the context, question and the answer you need to evaluate:
+  
+  [Start of Context]
+  {{ context }}
+  [End of Context]
+
+  [Start of Question]
+  {{ question }}
+  [End of Question]
+
+  [Start of Answer]
+  {{ response }}
+  [End of Answer]
+
+  * Return the evaluation between [Start of Evaluation] and [End of Evaluation] tags.
+  * Return the score between [Start of Score] and [End of Score] tags.
+
+
+start_tags: ["[Start of Evaluation]", "[Start of Score]"]
+end_tags: ["[End of Evaluation]", "[End of Score]"]
