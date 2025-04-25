@@ -16,7 +16,7 @@ Compositional skills are tasks that combine different abilities to handle comple
 
 ### Demo Overview
 
-This notebook will show you how to:
+The example notebooks will show you how to:
 1. Set up a teacher model for generating training data
 2. Create examples that reflect your preferred style and approach
 3. Generate Synthetic Data
@@ -62,7 +62,23 @@ InstructLab uses a multi-step process of generation and evaluation to generate s
 
 ### Providing the Seed Data
 
-TODO: Add details on how to provide the seed data
+When teaching a language model a new skill, carefully crafted seed examples are the foundation. Seed examples show the model what good behavior looks like by pairing inputs with ideal outputs, allowing the model to learn patterns, structure, reasoning, and formatting that generalize beyond the examples themselves.
+
+A strong seed example, regardless of domain, should:
+
+✅ Clearly define the task context and expected behavior
+
+✅ Provide a realistic, natural input that mimics what users or systems would actually produce
+
+✅ Include a high-quality output that fully satisfies the task requirements—accurate, complete, and formatted correctly
+
+✅ Minimize ambiguity: avoid examples where multiple interpretations are possible without explanation
+
+✅ Reflect diverse edge cases: cover a variety of structures, phrasings, or difficulty levels to help the model generalize
+
+
+
+---
 
 ### Setup Instructions
 
@@ -83,13 +99,6 @@ pip install vllm
 #### vLLM Server
 
 Launch the vLLM server with the following command:
-```bash
-vllm serve mistralai/Mixtral-8x7B-Instruct-v0.1 --tensor-parallel-size 2
-```
-
-This will use 2 GPUs for inference. You can adjust the number of GPUs by changing the `--tensor-parallel-size` argument.
-
-For instance, if your model needs 4 GPUs, you can run:
 
 ```bash
 vllm serve meta-llama/Llama-3.3-70B-Instruct --tensor-parallel-size 4
@@ -120,7 +129,7 @@ pip install llama-stack-client
 
 3. Launch the Llama Stack Server (connected to vLLM)
 ```bash
-export INFERENCE_MODEL=mistralai/Mixtral-8x7B-Instruct-v0.1
+export INFERENCE_MODEL=meta-llama/Llama-3.3-70B-Instruct
 llama stack build --template remote-vllm
 ```
 
