@@ -2,7 +2,7 @@
 
 ![InstructLab Banner](../../../assets/imgs/instructlab-banner.png)
 
-The provided notebooks demonstrates how to customize language models by generating training data for specific skills, following the methodology outlined in the LAB (Large-scale Alignment for Chatbots) framework [[paper link](https://arxiv.org/pdf/2403.01081)].
+The provided notebooks demonstrate how to customize language models by generating training data for specific skills, following the methodology outlined in the LAB (Large-scale Alignment for Chatbots) framework [[paper link](https://arxiv.org/pdf/2403.01081)].
 
 ### Customizing Model Behavior
 
