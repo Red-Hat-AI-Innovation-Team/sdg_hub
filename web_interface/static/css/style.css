@@ -1,0 +1,171 @@
+.block-container {
+    min-height: 400px;
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    position: relative;
+    background-color: #f8f9fa;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.block-container.drag-over {
+    border-color: #0d6efd;
+    background-color: #e9ecef;
+}
+
+.block {
+    background: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 20px;
+    width: 300px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+    position: relative;
+    margin-bottom: 15px;
+    min-height: 100px;
+}
+
+.block:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.block.selected {
+    border: 2px solid #0d6efd;
+    background-color: #f8f9fa;
+}
+
+.block.dragging {
+    opacity: 0.8;
+    transform: scale(1.05);
+    z-index: 1000;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
+
+.block.drag-over {
+    transform: translateY(10px);
+}
+
+.block.drag-over-above {
+    transform: translateY(-10px);
+}
+
+.block-list {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.block-list .block {
+    position: relative;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.block-list .block:hover {
+    background: #e9ecef;
+}
+
+.block-list .block i {
+    color: #6c757d;
+}
+
+.block-order {
+    position: absolute;
+    left: -30px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #6c757d;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    z-index: 2;
+}
+
+.block.dragging .block-order {
+    background: #0d6efd;
+    transform: translateY(-50%) scale(1.1);
+}
+
+.drop-indicator {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: #0d6efd;
+    border-radius: 2px;
+    z-index: 1000;
+    display: none;
+    transition: all 0.2s;
+}
+
+.drop-indicator.above {
+    top: -2px;
+}
+
+.drop-indicator.below {
+    bottom: -2px;
+}
+
+.drop-indicator.active {
+    height: 8px;
+    background: #198754;
+}
+
+.block-handle {
+    position: absolute;
+    left: 10px;
+    top: 20px;
+    color: #6c757d;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.block-handle:hover {
+    color: #0d6efd;
+}
+
+.block.dragging .block-handle {
+    color: #0d6efd;
+}
+
+.block-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 5px;
+    padding: 5px 0;
+}
+
+.block-actions button {
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+.block-content {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.block-name {
+    font-weight: 500;
+    margin-left: 30px;
+    font-size: 1.1em;
+    padding: 5px 0;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.block-type {
+    color: #6c757d;
+    font-size: 0.9em;
+}
+
+.block-name-value {
+    color: #212529;
+} 
