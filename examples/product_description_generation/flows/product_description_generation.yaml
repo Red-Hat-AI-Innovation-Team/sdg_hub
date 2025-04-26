@@ -1,0 +1,59 @@
+- block_type: LLMBlock
+  block_config:
+    block_name: generate_technical_summary
+    config_path: prompts/technical_summary.yaml
+    model_id: nvidia/Llama-3_3-Nemotron-Super-49B-v1
+    output_cols:
+      - technical_summary
+  gen_kwargs:
+    max_tokens: 2048
+    temperature: 0.7
+
+- block_type: PostProcessThinkingBlock
+  block_config:
+    block_name: post_process_thinking
+    column_name: technical_summary
+
+- block_type: LLMBlock
+  block_config:
+    block_name: generate_key_features
+    config_path: prompts/key_features.yaml
+    model_id: nvidia/Llama-3_3-Nemotron-Super-49B-v1
+    output_cols:
+      - key_features
+  gen_kwargs:
+    max_tokens: 2048
+    temperature: 0.7
+
+- block_type: PostProcessThinkingBlock
+  block_config:
+    block_name: post_process_thinking
+    column_name: key_features
+
+- block_type: LLMBlock
+  block_config:
+    block_name: generate_product_description
+    config_path: prompts/product_description.yaml
+    model_id: nvidia/Llama-3_3-Nemotron-Super-49B-v1
+    output_cols:
+      - product_description
+  gen_kwargs:
+    max_tokens: 4096
+    temperature: 0.8
+
+- block_type: PostProcessThinkingBlock
+  block_config:
+    block_name: post_process_thinking
+    column_name: product_description
+
+- block_type: LLMBlock
+  block_config:
+    block_name: evaluate_description_quality
+    config_path: prompts/evaluate_quality.yaml
+    model_id: nvidia/Llama-3_3-Nemotron-Super-49B-v1
+    output_cols:
+      - quality_score
+      - feedback
+  gen_kwargs:
+    max_tokens: 2048
+    temperature: 0.5 

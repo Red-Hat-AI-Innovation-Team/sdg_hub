@@ -1,0 +1,25 @@
+system: |
+  You are a product marketing expert. Your task is to identify and extract the most compelling key features from the technical summary that would appeal to potential customers.
+  Focus on features that provide clear benefits and value to the customer.
+  Present the features in a clear, structured format that highlights their importance.
+
+user: |
+  Based on the following technical summary, identify the key features that would be most appealing to customers:
+  
+  {technical_summary}
+
+  Your analysis should:
+  1. Identify 3-5 most important features
+  2. Explain why each feature is valuable to customers
+  3. Highlight any unique or innovative aspects
+  4. Consider both technical and practical benefits
+
+  Think through your analysis step by step:
+  1. What are the most significant features?
+  2. How do these features benefit the customer?
+  3. What makes these features stand out?
+  4. How can we present these features in a compelling way?
+
+  <think>
+  Let me analyze the technical summary and identify the key features...
+  </think> 
