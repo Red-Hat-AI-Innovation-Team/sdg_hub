@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDG Flow Builder</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .block-container {
+            min-height: 400px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            position: relative;
+            background-color: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        .block-container.drag-over {
+            border-color: #0d6efd;
+            background-color: #e9ecef;
+        }
+        .block {
+            background: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 20px;
+            width: 300px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+            position: relative;
+            margin-bottom: 15px;
+            min-height: 100px;
+        }
+        .block:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .block.selected {
+            border: 2px solid #0d6efd;
+            background-color: #f8f9fa;
+        }
+        .block.dragging {
+            opacity: 0.8;
+            transform: scale(1.05);
+            z-index: 1000;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+        .block.drag-over {
+            transform: translateY(10px);
+        }
+        .block.drag-over-above {
+            transform: translateY(-10px);
+        }
+        .block-ports {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #6c757d;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .block-ports:hover {
+            background: #0d6efd;
+        }
+        .block-ports.invalid {
+            background: #dc3545;
+        }
+        .block-ports.valid {
+            background: #198754;
+        }
+        .input-port {
+            top: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .output-port {
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .connection-line {
+            position: absolute;
+            background: #6c757d;
+            width: 2px;
+            transform-origin: top center;
+            pointer-events: none;
+            z-index: 1;
+            transition: all 0.2s;
+        }
+        .connection-line::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: -4px;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 8px 5px 0 5px;
+            border-color: #6c757d transparent transparent transparent;
+            transition: all 0.2s;
+        }
+        .connection-line.invalid {
+            background: #dc3545;
+        }
+        .connection-line.invalid::after {
+            border-color: #dc3545 transparent transparent transparent;
+        }
+        .connection-line.valid {
+            background: #198754;
+        }
+        .connection-line.valid::after {
+            border-color: #198754 transparent transparent transparent;
+        }
+        .connection-line:hover {
+            background: #0d6efd;
+        }
+        .connection-line:hover::after {
+            border-color: #0d6efd transparent transparent transparent;
+        }
+        .block-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .block-list .block {
+            position: relative;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .block-list .block:hover {
+            background: #e9ecef;
+        }
+        .block-list .block i {
+            color: #6c757d;
+        }
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        .block-order {
+            position: absolute;
+            left: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #6c757d;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            z-index: 2;
+        }
+        .block.dragging .block-order {
+            background: #0d6efd;
+            transform: translateY(-50%) scale(1.1);
+        }
+        .drop-indicator {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #0d6efd;
+            border-radius: 2px;
+            z-index: 1000;
+            display: none;
+            transition: all 0.2s;
+        }
+        .drop-indicator.above {
+            top: -2px;
+        }
+        .drop-indicator.below {
+            bottom: -2px;
+        }
+        .drop-indicator.active {
+            height: 8px;
+            background: #198754;
+        }
+        .block-handle {
+            position: absolute;
+            left: 10px;
+            top: 20px;
+            color: #6c757d;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .block-handle:hover {
+            color: #0d6efd;
+        }
+        .block.dragging .block-handle {
+            color: #0d6efd;
+        }
+        .block-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 5px;
+            padding: 5px 0;
+        }
+        .block-actions button {
+            padding: 4px 10px;
+            font-size: 12px;
+        }
+        .block-content {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .block-name {
+            font-weight: 500;
+            margin-left: 30px;
+            font-size: 1.1em;
+            padding: 5px 0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .block-type {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        .block-name-value {
+            color: #212529;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid mt-4">
+        <h1 class="mb-4">SDG Flow Builder</h1>
+        
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Available Blocks</h5>
+                    </div>
+                    <div class="card-body block-list">
+                        {% for block_id, block_info in block_types.items() %}
+                        <div class="block" draggable="true" data-block-type="{{ block_id }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>{{ block_info.name }}</span>
+                                <i class="fas fa-grip-vertical"></i>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-9">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Flow Canvas</h5>
+                        <div>
+                            <button class="btn btn-outline-primary me-2" onclick="saveFlow()">
+                                <i class="fas fa-save"></i> Save Flow
+                            </button>
+                            <button class="btn btn-outline-info me-2" onclick="loadYAML()">
+                                <i class="fas fa-file-code"></i> Load YAML
+                            </button>
+                            <button class="btn btn-primary" onclick="generateYAML()">
+                                <i class="fas fa-code"></i> Generate YAML
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="flow-canvas" class="block-container">
+                            <!-- Blocks will be dropped here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Generated YAML</h5>
+                    </div>
+                    <div class="card-body">
+                        <pre id="yaml-output" class="bg-light p-3" style="display: none;"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Block Configuration Modal -->
+    <div class="modal fade" id="blockConfigModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Configure Block</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="blockConfigForm">
+                        <!-- Dynamic form fields will be inserted here -->
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveBlockConfig()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- YAML Input Modal -->
+    <div class="modal fade" id="yamlInputModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Load YAML Flow</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="yamlInput" class="form-label">Paste your YAML flow here:</label>
+                        <textarea id="yamlInput" class="form-control" rows="10"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="parseYAML()">Load</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Initialize block types from the server
+        const blockTypes = {{ block_types|tojson|safe }};
+        let blocks = [];
+        let connections = [];
+        let currentBlockId = null;
+        let isConnecting = false;
+        let sourcePort = null;
+        let tooltip = null;
+        let firstBlockId = null; // Track the first block that was dragged
+        let isDraggingBlock = false;
+        let draggedBlock = null;
+        let dragOffset = { x: 0, y: 0 };
+        const blockConfigModal = new bootstrap.Modal(document.getElementById('blockConfigModal'));
+        const yamlInputModal = new bootstrap.Modal(document.getElementById('yamlInputModal'));
+
+        // Create tooltip element
+        function createTooltip() {
+            if (!tooltip) {
+                tooltip = document.createElement('div');
+                tooltip.className = 'tooltip';
+                document.body.appendChild(tooltip);
+            }
+            return tooltip;
+        }
+
+        function showTooltip(text, x, y) {
+            const tooltip = createTooltip();
+            tooltip.textContent = text;
+            tooltip.style.left = `${x + 10}px`;
+            tooltip.style.top = `${y + 10}px`;
+            tooltip.style.display = 'block';
+        }
+
+        function hideTooltip() {
+            if (tooltip) {
+                tooltip.style.display = 'none';
+            }
+        }
+
+        // Make blocks draggable
+        document.querySelectorAll('.block[data-block-type]').forEach(block => {
+            block.setAttribute('draggable', 'true');
+            block.addEventListener('dragstart', handleDragStart);
+        });
+
+        const flowCanvas = document.getElementById('flow-canvas');
+        flowCanvas.addEventListener('dragover', handleDragOver);
+        flowCanvas.addEventListener('dragenter', handleDragEnter);
+        flowCanvas.addEventListener('dragleave', handleDragLeave);
+        flowCanvas.addEventListener('drop', handleDrop);
+        flowCanvas.addEventListener('mousemove', handleMouseMove);
+        flowCanvas.addEventListener('click', handleCanvasClick);
+        flowCanvas.addEventListener('mouseup', handleMouseUp);
+
+        function handleDragStart(e) {
+            e.dataTransfer.setData('text/plain', e.target.dataset.blockType);
+            e.dataTransfer.effectAllowed = 'copy';
+            e.target.classList.add('dragging');
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        }
+
+        function handleDragEnter(e) {
+            e.preventDefault();
+            flowCanvas.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            if (!flowCanvas.contains(e.relatedTarget)) {
+                flowCanvas.classList.remove('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            flowCanvas.classList.remove('drag-over');
+            document.querySelector('.dragging')?.classList.remove('dragging');
+            
+            const blockType = e.dataTransfer.getData('text/plain');
+            const blockInfo = blockTypes[blockType];
+            
+            // Calculate position relative to the canvas
+            const rect = flowCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const block = {
+                id: Date.now(),
+                type: blockType,
+                name: blockInfo.name,
+                config: {},
+                position: { x, y }
+            };
+            
+            blocks.push(block);
+            // Set the first block if it's the first one dragged
+            if (!firstBlockId) {
+                firstBlockId = block.id;
+            }
+            renderBlocks();
+        }
+
+        function handleMouseMove(e) {
+            if (isConnecting && sourcePort) {
+                const rect = flowCanvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Update the temporary connection line
+                const line = document.querySelector('.temp-connection');
+                if (line) {
+                    const sourceRect = sourcePort.getBoundingClientRect();
+                    const sourceX = sourceRect.left - rect.left + sourceRect.width / 2;
+                    const sourceY = sourceRect.top - rect.top + sourceRect.height / 2;
+                    
+                    const angle = Math.atan2(y - sourceY, x - sourceX);
+                    const length = Math.sqrt(Math.pow(x - sourceX, 2) + Math.pow(y - sourceY, 2));
+                    
+                    line.style.width = `${length}px`;
+                    line.style.transform = `rotate(${angle}rad)`;
+                    line.style.left = `${sourceX}px`;
+                    line.style.top = `${sourceY}px`;
+
+                    // Check if hovering over a valid target port
+                    const elements = document.elementsFromPoint(e.clientX, e.clientY);
+                    const targetPort = elements.find(el => el.classList.contains('input-port'));
+                    
+                    if (targetPort) {
+                        const isValid = validateConnection(sourcePort, targetPort);
+                        line.className = `connection-line temp-connection ${isValid ? 'valid' : 'invalid'}`;
+                        showTooltip(isValid ? 'Valid connection' : 'Invalid connection', e.clientX, e.clientY);
+                    } else {
+                        line.className = 'connection-line temp-connection';
+                        hideTooltip();
+                    }
+                }
+            }
+        }
+
+        function handleMouseUp(e) {
+            if (isConnecting && sourcePort) {
+                const elements = document.elementsFromPoint(e.clientX, e.clientY);
+                const targetPort = elements.find(el => el.classList.contains('input-port'));
+                
+                if (targetPort) {
+                    endConnection(targetPort);
+                } else {
+                    // Cancel connection if not dropped on a valid port
+                    isConnecting = false;
+                    sourcePort = null;
+                    document.querySelector('.temp-connection')?.remove();
+                    hideTooltip();
+                }
+            }
+        }
+
+        function handleCanvasClick(e) {
+            // Check if clicking on a connection line
+            const line = e.target.closest('.connection-line');
+            if (line && !line.classList.contains('temp-connection')) {
+                if (confirm('Delete this connection?')) {
+                    const sourceId = parseInt(line.dataset.sourceId);
+                    const targetId = parseInt(line.dataset.targetId);
+                    connections = connections.filter(conn => 
+                        !(conn.sourceBlockId === sourceId && conn.targetBlockId === targetId)
+                    );
+                    renderBlocks();
+                }
+            }
+        }
+
+        function validateConnection(sourcePort, targetPort) {
+            const sourceBlock = sourcePort.closest('.block');
+            const targetBlock = targetPort.closest('.block');
+            
+            if (!sourceBlock || !targetBlock || sourceBlock === targetBlock) {
+                return false;
+            }
+            
+            const sourceBlockId = parseInt(sourceBlock.dataset.blockId);
+            const targetBlockId = parseInt(targetBlock.dataset.blockId);
+            
+            // Check if connection already exists
+            const existingConnection = connections.find(conn => 
+                conn.sourceBlockId === sourceBlockId && conn.targetBlockId === targetBlockId
+            );
+            
+            if (existingConnection) {
+                return false;
+            }
+            
+            // Check if the connection is valid based on block types
+            const sourceBlockType = blocks.find(b => b.id === sourceBlockId)?.type;
+            const targetBlockType = blocks.find(b => b.id === targetBlockId)?.type;
+            
+            if (!sourceBlockType || !targetBlockType) {
+                return false;
+            }
+            
+            const sourceBlockInfo = blockTypes[sourceBlockType];
+            const targetBlockInfo = blockTypes[targetBlockType];
+            
+            return targetBlockInfo.connections.input.includes(sourceBlockType);
+        }
+
+        function startConnection(port) {
+            if (isConnecting) return;
+            
+            isConnecting = true;
+            sourcePort = port;
+            
+            // Create temporary connection line
+            const line = document.createElement('div');
+            line.className = 'connection-line temp-connection';
+            flowCanvas.appendChild(line);
+        }
+
+        function endConnection(targetPort) {
+            if (!isConnecting || !sourcePort) return;
+            
+            const sourceBlock = sourcePort.closest('.block');
+            const targetBlock = targetPort.closest('.block');
+            
+            if (sourceBlock && targetBlock && sourceBlock !== targetBlock) {
+                const sourceBlockId = parseInt(sourceBlock.dataset.blockId);
+                const targetBlockId = parseInt(targetBlock.dataset.blockId);
+                
+                if (validateConnection(sourcePort, targetPort)) {
+                    // Add the connection
+                    connections.push({
+                        sourceBlockId,
+                        targetBlockId
+                    });
+                    
+                    // Create the permanent connection line
+                    const line = document.createElement('div');
+                    line.className = 'connection-line';
+                    line.dataset.sourceId = sourceBlockId;
+                    line.dataset.targetId = targetBlockId;
+                    
+                    const sourceRect = sourceBlock.getBoundingClientRect();
+                    const targetRect = targetBlock.getBoundingClientRect();
+                    const rect = flowCanvas.getBoundingClientRect();
+                    
+                    const sourceX = sourceRect.left - rect.left + sourceRect.width;
+                    const sourceY = sourceRect.top - rect.top + sourceRect.height / 2;
+                    const targetX = targetRect.left - rect.left;
+                    const targetY = targetRect.top - rect.top + targetRect.height / 2;
+                    
+                    const angle = Math.atan2(targetY - sourceY, targetX - sourceX);
+                    const length = Math.sqrt(Math.pow(targetX - sourceX, 2) + Math.pow(targetY - sourceY, 2));
+                    
+                    line.style.width = `${length}px`;
+                    line.style.transform = `rotate(${angle}rad)`;
+                    line.style.left = `${sourceX}px`;
+                    line.style.top = `${sourceY}px`;
+                    
+                    flowCanvas.appendChild(line);
+                }
+            }
+            
+            // Clean up
+            isConnecting = false;
+            sourcePort = null;
+            document.querySelector('.temp-connection')?.remove();
+            hideTooltip();
+        }
+
+        function renderBlocks() {
+            flowCanvas.innerHTML = '';
+            
+            // Render blocks in their current order
+            blocks.forEach((block, index) => {
+                const blockElement = document.createElement('div');
+                blockElement.className = 'block';
+                blockElement.dataset.blockId = block.id;
+                blockElement.dataset.index = index;
+                
+                // Add drag handle
+                const dragHandle = document.createElement('div');
+                dragHandle.className = 'block-handle';
+                dragHandle.innerHTML = '<i class="fas fa-grip-vertical"></i>';
+                blockElement.appendChild(dragHandle);
+                
+                const blockContent = document.createElement('div');
+                blockContent.className = 'block-content';
+                
+                // Create name span
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'block-name';
+                
+                // Add block type
+                const typeSpan = document.createElement('span');
+                typeSpan.className = 'block-type';
+                typeSpan.textContent = block.type;
+                nameSpan.appendChild(typeSpan);
+                
+                // Add block name if it exists
+                if (block.config && block.config.block_name) {
+                    const nameValueSpan = document.createElement('span');
+                    nameValueSpan.className = 'block-name-value';
+                    nameValueSpan.textContent = block.config.block_name;
+                    nameSpan.appendChild(nameValueSpan);
+                }
+                
+                blockContent.appendChild(nameSpan);
+                
+                // Create buttons container
+                const buttonsContainer = document.createElement('div');
+                buttonsContainer.className = 'block-actions';
+                
+                // Create up button
+                const upButton = document.createElement('button');
+                upButton.className = 'btn btn-sm btn-outline-secondary';
+                upButton.innerHTML = '<i class="fas fa-arrow-up"></i>';
+                upButton.onclick = function() { moveBlock(block.id, 'up'); };
+                buttonsContainer.appendChild(upButton);
+                
+                // Create down button
+                const downButton = document.createElement('button');
+                downButton.className = 'btn btn-sm btn-outline-secondary';
+                downButton.innerHTML = '<i class="fas fa-arrow-down"></i>';
+                downButton.onclick = function() { moveBlock(block.id, 'down'); };
+                buttonsContainer.appendChild(downButton);
+                
+                // Create configure button
+                const configureButton = document.createElement('button');
+                configureButton.className = 'btn btn-sm btn-outline-primary';
+                configureButton.onclick = function() { configureBlock(block.id); };
+                configureButton.innerHTML = '<i class="fas fa-cog"></i>';
+                buttonsContainer.appendChild(configureButton);
+                
+                // Create remove button
+                const removeButton = document.createElement('button');
+                removeButton.className = 'btn btn-sm btn-outline-danger';
+                removeButton.onclick = function() { removeBlock(block.id); };
+                removeButton.innerHTML = '<i class="fas fa-times"></i>';
+                buttonsContainer.appendChild(removeButton);
+                
+                blockContent.appendChild(buttonsContainer);
+                blockElement.appendChild(blockContent);
+                flowCanvas.appendChild(blockElement);
+            });
+        }
+
+        function handleBlockDragStart(e) {
+            if (isConnecting) return; // Don't allow dragging while connecting
+            
+            isDraggingBlock = true;
+            draggedBlock = e.target;
+            draggedBlock.classList.add('dragging');
+            
+            // Set the drag image to be transparent
+            const dragImage = document.createElement('div');
+            dragImage.style.opacity = '0';
+            document.body.appendChild(dragImage);
+            e.dataTransfer.setDragImage(dragImage, 0, 0);
+            setTimeout(() => document.body.removeChild(dragImage), 0);
+        }
+
+        function handleBlockDragEnd(e) {
+            if (!isDraggingBlock || !draggedBlock) return;
+            
+            isDraggingBlock = false;
+            draggedBlock.classList.remove('dragging');
+            
+            // Hide all drop indicators and remove drag-over classes
+            document.querySelectorAll('.drop-indicator').forEach(indicator => {
+                indicator.style.display = 'none';
+                indicator.classList.remove('active');
+            });
+            document.querySelectorAll('.block').forEach(block => {
+                block.classList.remove('drag-over', 'drag-over-above');
+            });
+            
+            draggedBlock = null;
+        }
+
+        function handleBlockDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleBlockDragEnter(e) {
+            e.preventDefault();
+            if (!isDraggingBlock || !draggedBlock) return;
+            
+            const targetBlock = e.target.closest('.block');
+            if (!targetBlock || targetBlock === draggedBlock) return;
+            
+            const rect = targetBlock.getBoundingClientRect();
+            const mouseY = e.clientY;
+            const threshold = rect.top + rect.height / 2;
+            
+            // Show appropriate drop indicator and add visual feedback
+            const dropIndicatorAbove = targetBlock.querySelector('.drop-indicator.above');
+            const dropIndicatorBelow = targetBlock.querySelector('.drop-indicator.below');
+            
+            if (mouseY < threshold) {
+                dropIndicatorAbove.style.display = 'block';
+                dropIndicatorAbove.classList.add('active');
+                dropIndicatorBelow.style.display = 'none';
+                dropIndicatorBelow.classList.remove('active');
+                targetBlock.classList.add('drag-over-above');
+                targetBlock.classList.remove('drag-over');
+            } else {
+                dropIndicatorAbove.style.display = 'none';
+                dropIndicatorAbove.classList.remove('active');
+                dropIndicatorBelow.style.display = 'block';
+                dropIndicatorBelow.classList.add('active');
+                targetBlock.classList.add('drag-over');
+                targetBlock.classList.remove('drag-over-above');
+            }
+        }
+
+        function handleBlockDragLeave(e) {
+            e.preventDefault();
+            const targetBlock = e.target.closest('.block');
+            if (!targetBlock) return;
+            
+            // Hide drop indicators and remove visual feedback
+            targetBlock.querySelectorAll('.drop-indicator').forEach(indicator => {
+                indicator.style.display = 'none';
+                indicator.classList.remove('active');
+            });
+            targetBlock.classList.remove('drag-over', 'drag-over-above');
+        }
+
+        function handleBlockDrop(e) {
+            e.preventDefault();
+            if (!isDraggingBlock || !draggedBlock) return;
+            
+            const targetBlock = e.target.closest('.block');
+            if (!targetBlock || targetBlock === draggedBlock) return;
+            
+            const draggedIndex = parseInt(draggedBlock.dataset.index);
+            const targetIndex = parseInt(targetBlock.dataset.index);
+            
+            // Get the ordered blocks
+            const orderedBlocks = getOrderedBlocks();
+            
+            // Remove the dragged block
+            const [draggedBlockData] = orderedBlocks.splice(draggedIndex, 1);
+            
+            // Determine the new position
+            const rect = targetBlock.getBoundingClientRect();
+            const mouseY = e.clientY;
+            const threshold = rect.top + rect.height / 2;
+            const newIndex = mouseY < threshold ? targetIndex : targetIndex + 1;
+            
+            // Insert the block at the new position
+            orderedBlocks.splice(newIndex, 0, draggedBlockData);
+            
+            // Update the blocks array
+            blocks = orderedBlocks;
+            
+            // Update connections
+            connections = [];
+            for (let i = 0; i < blocks.length - 1; i++) {
+                connections.push({
+                    sourceBlockId: blocks[i].id,
+                    targetBlockId: blocks[i + 1].id
+                });
+            }
+            
+            // Hide all drop indicators and remove visual feedback
+            document.querySelectorAll('.drop-indicator').forEach(indicator => {
+                indicator.style.display = 'none';
+                indicator.classList.remove('active');
+            });
+            document.querySelectorAll('.block').forEach(block => {
+                block.classList.remove('drag-over', 'drag-over-above');
+            });
+            
+            // Re-render the blocks with a smooth transition
+            renderBlocks();
+        }
+
+        function removeBlock(id) {
+            blocks = blocks.filter(block => block.id !== id);
+            connections = connections.filter(conn => 
+                conn.sourceBlockId !== id && conn.targetBlockId !== id
+            );
+            renderBlocks();
+        }
+
+        function configureBlock(id) {
+            currentBlockId = id;
+            const block = blocks.find(b => b.id === id);
+            if (!block) return;
+
+            const blockInfo = blockTypes[block.type];
+            const form = document.getElementById('blockConfigForm');
+            form.innerHTML = '';
+
+            // Add block name field
+            const nameGroup = document.createElement('div');
+            nameGroup.className = 'mb-3';
+            
+            const nameLabel = document.createElement('label');
+            nameLabel.className = 'form-label';
+            nameLabel.textContent = 'Block Name';
+            nameLabel.innerHTML += ' <span class="text-danger">*</span>';
+            
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.className = 'form-control';
+            nameInput.name = 'block_name';
+            nameInput.value = block.config.block_name || `${block.type}_${blocks.indexOf(block)}`;
+            nameInput.required = true;
+            
+            nameGroup.appendChild(nameLabel);
+            nameGroup.appendChild(nameInput);
+            form.appendChild(nameGroup);
+
+            // Add other configuration fields
+            Object.entries(blockInfo.config).forEach(([key, config]) => {
+                if (key === 'block_name') return; // Skip block_name as we already added it
+                
+                const formGroup = document.createElement('div');
+                formGroup.className = 'mb-3';
+                
+                const label = document.createElement('label');
+                label.className = 'form-label';
+                label.textContent = key;
+                if (config.required) {
+                    label.innerHTML += ' <span class="text-danger">*</span>';
+                }
+                
+                let input;
+                if (config.type === 'number') {
+                    input = document.createElement('input');
+                    input.type = 'number';
+                    input.className = 'form-control';
+                    input.value = block.config[key] || config.default || '';
+                } else if (config.type === 'array') {
+                    input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'form-control';
+                    input.value = (block.config[key] || []).join(', ');
+                    input.placeholder = 'Comma-separated values';
+                } else if (config.type === 'object') {
+                    input = document.createElement('textarea');
+                    input.className = 'form-control';
+                    input.value = JSON.stringify(block.config[key] || {}, null, 2);
+                    input.rows = 3;
+                    input.placeholder = 'JSON object';
+                } else if (config.enum) {
+                    input = document.createElement('select');
+                    input.className = 'form-select';
+                    config.enum.forEach(option => {
+                        const optionElement = document.createElement('option');
+                        optionElement.value = option;
+                        optionElement.textContent = option;
+                        input.appendChild(optionElement);
+                    });
+                    input.value = block.config[key] || '';
+                } else {
+                    input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'form-control';
+                    input.value = block.config[key] || '';
+                }
+                
+                input.name = key;
+                input.required = config.required;
+                
+                formGroup.appendChild(label);
+                formGroup.appendChild(input);
+                form.appendChild(formGroup);
+            });
+
+            blockConfigModal.show();
+        }
+
+        function saveBlockConfig() {
+            const form = document.getElementById('blockConfigForm');
+            const formData = new FormData(form);
+            const config = {};
+            
+            for (const [key, value] of formData.entries()) {
+                if (key === 'block_name') {
+                    config[key] = value;
+                } else {
+                    const blockInfo = blockTypes[blocks.find(b => b.id === currentBlockId).type];
+                    const fieldConfig = blockInfo.config[key];
+                    
+                    if (fieldConfig.type === 'array') {
+                        config[key] = value.split(',').map(v => v.trim()).filter(v => v);
+                    } else if (fieldConfig.type === 'object') {
+                        try {
+                            config[key] = JSON.parse(value);
+                        } catch (e) {
+                            config[key] = {};
+                        }
+                    } else if (fieldConfig.type === 'number') {
+                        config[key] = parseFloat(value);
+                    } else {
+                        config[key] = value;
+                    }
+                }
+            }
+            
+            const block = blocks.find(b => b.id === currentBlockId);
+            if (block) {
+                block.config = config;
+            }
+            
+            blockConfigModal.hide();
+            renderBlocks();
+        }
+
+        function saveFlow() {
+            const flowData = {
+                blocks: blocks.map(block => ({
+                    type: block.type,
+                    config: block.config
+                }))
+            };
+            
+            // Generate YAML
+            fetch('/api/generate_yaml', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(flowData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Create and download YAML file
+                const blob = new Blob([data.yaml], { type: 'text/yaml' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'flow.yaml';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            })
+            .catch(error => {
+                console.error('Error saving flow:', error);
+                alert('Error saving flow: ' + error.message);
+            });
+        }
+
+        function generateYAML() {
+            const flowData = {
+                blocks: blocks.map(block => ({
+                    type: block.type,
+                    name: block.name,
+                    config: block.config
+                }))
+            };
+
+            fetch('/api/generate_yaml', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(flowData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                const yamlOutput = document.getElementById('yaml-output');
+                yamlOutput.textContent = data.yaml;
+                yamlOutput.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error generating YAML');
+            });
+        }
+
+        function loadYAML() {
+            yamlInputModal.show();
+        }
+
+        function parseYAML() {
+            const yamlContent = document.getElementById('yamlInput').value;
+            
+            fetch('/api/parse_yaml', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ yaml: yamlContent })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                blocks = data.blocks;
+                connections = data.connections;
+                firstBlockId = data.firstBlockId;
+                
+                yamlInputModal.hide();
+                renderBlocks();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error parsing YAML');
+            });
+        }
+
+        function moveBlock(blockId, direction) {
+            const currentIndex = blocks.findIndex(b => b.id === blockId);
+            if (currentIndex === -1) return;
+            
+            let newIndex;
+            if (direction === 'up') {
+                newIndex = currentIndex - 1;
+            } else if (direction === 'down') {
+                newIndex = currentIndex + 1;
+            }
+            
+            // Check if the new index is valid
+            if (newIndex < 0 || newIndex >= blocks.length) {
+                return;
+            }
+            
+            // Swap blocks
+            [blocks[currentIndex], blocks[newIndex]] = [blocks[newIndex], blocks[currentIndex]];
+            renderBlocks();
+        }
+    </script>
+</body>
+</html> 
