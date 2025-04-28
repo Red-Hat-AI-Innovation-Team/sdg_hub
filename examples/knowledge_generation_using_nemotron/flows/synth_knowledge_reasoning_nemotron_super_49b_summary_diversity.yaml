@@ -10,6 +10,7 @@
     temperature: 0.6
     top_p: 0.95
     n: 2
+    seed: 43146
 
 - block_type: PostProcessThinkingBlock
   block_config:
