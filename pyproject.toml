@@ -51,7 +51,10 @@ dependencies = {file = ["requirements.txt"]}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["sdg_hub"]
+include = ["sdg_hub", "sdg_hub.examples"]
+
+[tool.setuptools.package-data]
+sdg_hub = ["examples/**/*"]
 
 [tool.ruff]
 target-version = "py39"
