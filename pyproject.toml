@@ -50,11 +50,11 @@ package-dir = {"" = "src"}
 dependencies = {file = ["requirements.txt"]}
 
 [tool.setuptools.packages.find]
-where = ["src"]
-include = ["sdg_hub"]
+where = ["."]
+include = ["src/sdg_hub"]
 
 [tool.setuptools.package-data]
-sdg_hub = ["../examples/**/*"]
+sdg_hub = ["examples/**/*"]
 
 [tool.ruff]
 target-version = "py39"
