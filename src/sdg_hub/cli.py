@@ -186,7 +186,7 @@ def list():
     default=".",
     help="Target directory where examples will be copied. Defaults to current directory.",
 )
-def init(example: Optional[tuple], dry_run: bool, target_dir: str):
+def init(example: Optional[List[str]], dry_run: bool, target_dir: str):
     """Initialize directory with examples.
 
     By default, copies all examples to the current directory.
