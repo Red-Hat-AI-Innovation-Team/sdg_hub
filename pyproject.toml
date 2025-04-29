@@ -31,6 +31,7 @@ classifiers = [
 dynamic = ["dependencies", "optional-dependencies", "version"]
 
 [project.scripts]
+sdg_hub = "sdg_hub.cli:main"
 
 [project.urls]
 homepage = "https://ai-innovation.team/"
