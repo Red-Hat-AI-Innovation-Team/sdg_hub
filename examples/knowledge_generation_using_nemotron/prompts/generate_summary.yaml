@@ -4,7 +4,9 @@ introduction: |
   Given below document, summarize it using the following instructions:
   {{summary_instruction}}
 
-principles: ""
+principles: 
+  - Include as much of the document as possible to create a comprehensive summary
+  - If there are tables include all the data of the table in the summary
 
 examples: ""
 
