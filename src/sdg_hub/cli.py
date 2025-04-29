@@ -11,6 +11,7 @@ from rich.progress import (
     TaskProgressColumn,
 )
 from rich.console import Console
+from rich.table import Table
 
 console = Console()
 
@@ -55,14 +56,111 @@ def copy_with_progress(src: Path, dest: Path) -> None:
             progress.update(task, completed=True)
 
 
-@click.group()
+@click.group(
+    help="""
+    SDG Hub CLI - A tool for synthetic data generation for customizing Large Language Models.
+
+    This CLI provides commands to work with synthetic data generation examples
+    and tools. Use the 'examples' command to get started with example projects.
+
+    For more information about a specific command, use:
+    sdg_hub COMMAND --help
+    """
+)
 @click.version_option()
 def main():
-    """SDG Hub CLI - A tool for working with synthetic data generation examples."""
     pass
 
 
-@main.command()
+@main.group(
+    help="""
+    Commands for working with SDG Hub examples.
+
+    Use 'list' to see available examples and 'init' to copy examples
+    to your workspace.
+    """
+)
+def examples():
+    pass
+
+
+@examples.command(
+    help="""
+    List all available examples.
+
+    This command displays a table of all available examples that can be
+    initialized using the 'init' command.
+    """
+)
+def list():
+    """List all available examples."""
+    examples_dir = get_examples_dir()
+
+    if not examples_dir.exists():
+        console.print("[red]Error: Examples directory not found.[/red]")
+        console.print("Please ensure the package is installed correctly.")
+        sys.exit(1)
+
+    available_examples = get_available_examples()
+    if not available_examples:
+        console.print("[yellow]No examples found in the examples directory.[/yellow]")
+        return
+
+    # Create a table to display the examples
+    table = Table(title="Available Examples")
+    table.add_column("Example Name", style="cyan")
+    table.add_column("Description", style="green")
+
+    # Add each example to the table
+    for example in sorted(available_examples):
+        # Try to read the README.md file for description
+        readme_path = examples_dir / example / "README.md"
+        description = "No description available"
+        if readme_path.exists():
+            try:
+                with open(readme_path, "r") as f:
+                    # Get the first non-empty line as description
+                    for line in f:
+                        if line.strip() and not line.startswith("#"):
+                            description = line.strip()
+                            break
+            except Exception:
+                pass
+
+        table.add_row(example, description)
+
+    console.print(table)
+    console.print(
+        "\nTo initialize an example, use: sdg_hub examples init --example <name>"
+    )
+
+
+@examples.command(
+    help="""
+    Initialize a directory with SDG Hub examples.
+
+    This command copies example projects from the SDG Hub package to your
+    specified directory. By default, it copies all available examples to the
+    current directory.
+
+    Examples:
+        \b
+        # Copy all examples to current directory
+        sdg_hub examples init
+
+        \b
+        # Copy specific examples
+        sdg_hub examples init --example instructlab --example knowledge_generation_using_nemotron
+
+        \b
+        # Copy to a specific directory
+        sdg_hub examples init --target-dir /path/to/destination
+
+        \b
+        # Preview what would be copied
+        sdg_hub examples init --dry-run
+    """
+)
 @click.option(
     "--example",
     "-e",
