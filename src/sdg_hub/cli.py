@@ -18,6 +18,13 @@ console = Console()
 
 def get_examples_dir() -> Path:
     """Get the path to the examples directory."""
+    # First try the package root (where setup.py/pyproject.toml is)
+    package_root = Path(__file__).parent.parent.parent.parent
+    examples_dir = package_root / "examples"
+    if examples_dir.exists():
+        return examples_dir
+    
+    # Fallback to the old location
     package_dir = Path(__file__).parent.parent.parent
     return package_dir / "examples"
 
