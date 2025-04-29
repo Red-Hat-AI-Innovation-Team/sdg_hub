@@ -30,30 +30,37 @@ def get_available_examples() -> List[str]:
     return [d.name for d in examples_dir.iterdir() if d.is_dir()]
 
 
+def do_copy(copy_func, src: Path, dest: Path):
+    """Helper function to copy with progress bar.
+
+    Args:
+        copy_func: Function to use for copying
+        src: Source path
+        dest: Destination path
+    """
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task(f"Copying {src.name}...", total=None)
+        copy_func(src, dest)
+        progress.update(task, completed=True)
+
+
 def copy_with_progress(src: Path, dest: Path) -> None:
-    """Copy file or directory with progress bar."""
+    """Copy file or directory with progress bar.
+
+    Args:
+        src: Source path
+        dest: Destination path
+    """
     if src.is_dir():
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            console=console,
-        ) as progress:
-            task = progress.add_task(f"Copying {src.name}...", total=None)
-            shutil.copytree(src, dest, dirs_exist_ok=True)
-            progress.update(task, completed=True)
+        do_copy(lambda s, d: shutil.copytree(s, d, dirs_exist_ok=True), src, dest)
     else:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            console=console,
-        ) as progress:
-            task = progress.add_task(f"Copying {src.name}...", total=None)
-            shutil.copy2(src, dest)
-            progress.update(task, completed=True)
+        do_copy(shutil.copy2, src, dest)
 
 
 @click.group(
