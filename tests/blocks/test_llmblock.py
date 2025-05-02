@@ -95,6 +95,13 @@ def test_extract_matches_multiple_matches(llm_block):
     assert result == ["First text", "Second text"]
 
 
+def test_extract_matches_incomplete_tags(llm_block):
+    """Test extraction with incomplete tag pairs."""
+    text = "START First text END START Second text"
+    result = llm_block._extract_matches(text, "START", "END")
+    assert result == ["First text"]
+
+
 def test_custom_parser_single_match(llm_block_with_custom_parser):
     """Test custom parser with a single match."""
     text = "Question: What is the answer?\nAnswer: This is the answer"
