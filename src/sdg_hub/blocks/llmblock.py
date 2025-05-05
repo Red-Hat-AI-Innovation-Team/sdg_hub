@@ -84,17 +84,24 @@ class LLMBlock(Block):
         # and supports the n parameter to generate n outputs per input
         self.server_supports_batched = server_supports_batched(client, self.model)
 
+
     def _extract_matches(
         self, text: str, start_tag: Optional[str], end_tag: Optional[str]
     ) -> List[str]:
+        if not text:
+            return []
         if not start_tag and not end_tag:
-            return [text.strip()] if text else []
-        elif not start_tag and end_tag:
-            pattern = r"(.*?)" + re.escape(end_tag)
-        elif start_tag and not end_tag:
-            pattern = re.escape(start_tag) + r"(.*?)$"
-        else:
-            pattern = re.escape(start_tag) + r"(.*?)" + re.escape(end_tag)
+            return [text.strip()]
+
+        pattern = ""
+        if start_tag:
+            pattern += re.escape(start_tag)
+        pattern += r"(.*?)"
+        if end_tag:
+            pattern += re.escape(end_tag)
+        elif start_tag:
+            # Enforce matching till end of string when only start_tag is provided.
+            pattern += "$"
 
         return [match.strip() for match in re.findall(pattern, text, re.DOTALL)]
 
