@@ -102,6 +102,16 @@ def test_extract_matches_incomplete_tags(llm_block):
     assert result == ["First text"]
 
 
+def test_extract_matches_cascading_tags(llm_block):
+    """Test extraction with cascading start and end tags."""
+    text = "START1 START2 Nested text END2 END1"
+    result = llm_block._extract_matches(text, "START1", "END1")
+    assert result == ["START2 Nested text END2"]
+
+    result = llm_block._extract_matches(text, "START2", "END2")
+    assert result == ["Nested text"]
+
+
 def test_custom_parser_single_match(llm_block_with_custom_parser):
     """Test custom parser with a single match."""
     text = "Question: What is the answer?\nAnswer: This is the answer"
