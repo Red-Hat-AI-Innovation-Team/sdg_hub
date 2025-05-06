@@ -102,12 +102,19 @@ jobs:
 
       - name: Run unit tests with tox
         run: |
-          tox -e py3-unit
+          tox -e py3-unitcov
 
       - name: Remove llama-cpp-python from cache
         if: always()
         run: |
           pip cache remove llama_cpp_python
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.xml
+          fail_ci_if_error: true 
 
   test-workflow-complete:
     needs: ["test"]
