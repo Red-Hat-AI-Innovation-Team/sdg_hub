@@ -1,12 +1,25 @@
 # sdg_hub: Synthetic Data Generation Toolkit for LLMs
 
+![Build](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/pypi.yaml/badge.svg?branch=main)
+![Release](https://img.shields.io/github/v/release/Red-Hat-AI-Innovation-Team/sdg_hub)
+![License](https://img.shields.io/github/license/Red-Hat-AI-Innovation-Team/sdg_hub)
+[![Tests](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml/badge.svg)](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub/graph/badge.svg?token=SP75BCXWO2)](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub)
+
 sdg_hub is a modular, scalable, and efficient solution for creating synthetic data generation workflows in a "no-code" manner. At its core, this framework is designed to simplify data creation for LLMs, allowing users to chain computational units and build powerful pipelines for generating data and processing tasks.
 
 
 ## Installation
 
-```bash
+Latest release from PyPI
+
+```sh
 pip install sdg-hub
+```
+
+Latest main branch
+```sh
+pip install git+https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
 ```
 
 ## Core Design Principles
