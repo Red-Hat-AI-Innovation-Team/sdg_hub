@@ -13,25 +13,6 @@ principles: |
   [END]
 
 examples: ""
-# examples: |
-#   Here are some examples of answers for given questions for a document:
-
-#   [Document]
-#   {{icl_document}}
-
-#   [QUESTION]
-#   {{icl_query_1}}
-
-#   [ANSWER]
-#   {{icl_response_1}}
-#   [END]
-
-#   [QUESTION]
-#   {{icl_query_2}}
-
-#   [ANSWER]
-#   {{icl_response_2}}
-#   [END]
 
 
 generation: |
