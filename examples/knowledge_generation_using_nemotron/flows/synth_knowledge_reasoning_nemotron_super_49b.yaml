@@ -7,7 +7,7 @@
 - block_type: LLMBlock
   block_config:
     block_name: gen_detailed_summary
-    config_path: flows/detailed_summary.yaml
+    config_path: prompts/detailed_summary.yaml
     model_id: nvidia/Llama-3_3-Nemotron-Super-49B-v1
     output_cols:
       - summary_detailed
