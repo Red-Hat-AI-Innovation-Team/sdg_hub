@@ -9,8 +9,6 @@ from datasets import Dataset
 import re
 from typing import List
 
-# tokenizer = AutoTokenizer.from_pretrained("nvidia/Llama-3_3-Nemotron-Super-49B-v1")
-
 def _conv_pretrain(rec, tokenizer):
     if tokenizer is not None:
         rec['unmask'] = True
