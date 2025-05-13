@@ -14,7 +14,7 @@
 
 - block_type: PostProcessThinkingBlock
   block_config:
-    block_name: post_process_thinking
+    block_name: post_process_thinking_instruction
     column_name: summary_instruction
 
 - block_type: RegexParserBlock
@@ -42,7 +42,7 @@
 
 - block_type: PostProcessThinkingBlock
   block_config:
-    block_name: post_process_thinking
+    block_name: post_process_thinking_summary
     column_name: document_summary
 
 - block_type: RenameColumns
