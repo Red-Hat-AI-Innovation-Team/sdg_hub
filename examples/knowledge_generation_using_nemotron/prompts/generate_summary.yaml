@@ -16,5 +16,5 @@ generation: |
   {{document}}
   
 
-start_tags: ["</think>"]
+start_tags: [""]
 end_tags: [""]

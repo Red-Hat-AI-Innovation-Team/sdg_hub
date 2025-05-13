@@ -20,5 +20,5 @@ generation: |
   
   Now given above document, generate 10 more diverse instructions for summarizing it.
 
-start_tags: ["</think>"]
+start_tags: [""]
 end_tags: [""]
