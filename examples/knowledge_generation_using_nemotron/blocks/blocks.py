@@ -52,8 +52,6 @@ class RegexParserBlock(Block):
             for match in all_matches:
                 for column_name, value in zip(self.output_cols, match):
                     value = value.strip()
-                    # for clean_tag in self.parser_cleanup_tags:
-                    #     value = value.replace(clean_tag, "")
                     matches[column_name].append(value)
         else:
             matches[self.output_cols[0]] = (
