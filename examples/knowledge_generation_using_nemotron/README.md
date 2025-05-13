@@ -23,7 +23,7 @@ The workflow includes:
 - Mixing synthetic QA data with instruction-tuned examples to form a training dataset
 - Training a Nvidia Nemotron nano model on the the training dataset using our [training library](https://github.com/instructlab/training).
 
-## Reasoning Pipeline Overivew
+## Reasoning Pipeline Overview
 
 ```mermaid
 graph LR
