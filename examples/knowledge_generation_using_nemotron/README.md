@@ -4,7 +4,7 @@ This notebook demonstrates how to use the `sdg` package to generate synthetic qu
 
 ## Table of Contents
 - [Overview](#overview)
-- [Pipeline Overview](#pipeline-overview)
+- [Reasoning Pipeline Overview](#reasoning-pipeline-overview)
 - [Notebook Structure](#notebook-structure)
   - [Creating ICLs](#creating-icls)
   - [Generating Data and training](#generating-data-and-training)
@@ -12,8 +12,6 @@ This notebook demonstrates how to use the `sdg` package to generate synthetic qu
   - [Model Response Examples](#how-does-the-models-response-look)
 - [Key Takeaways](#key-takeaways)
 - [Changing backends](#changing-backends)
-- [Update 1](#update-1)
-  - [New Pipeline Output](#how-does-the-new-pipelines-output-look-like)
 
 ## Overview
 
