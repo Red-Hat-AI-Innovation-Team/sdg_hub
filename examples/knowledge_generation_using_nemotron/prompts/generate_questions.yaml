@@ -43,5 +43,5 @@ generation: |
   {{document_outline}}
   {{document}}
 
-start_tags: [""]
+start_tags: ["</think>"]
 end_tags: [""]
