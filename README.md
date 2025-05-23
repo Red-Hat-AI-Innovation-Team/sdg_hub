@@ -100,7 +100,7 @@ The YAML configuration file, known as the **Flow**, is central to defining data 
    - Each block performs a specific task, such as generating, filtering, or transforming data.
 
 2. **Reusability**:
-   - Blocks and configurations defined in a Flow can be reused across different workflows
+   - Blocks and configurations defined in a Flow can be reused across different flows
    - YAML makes it easy to tweak or extend flows without significant changes
 
 3. **Ease of Configuration**:
