@@ -8,71 +8,103 @@ Provides a drag-and-drop interface for creating and configuring flow blocks.
 from flask import Flask, render_template, jsonify, request
 import yaml
 import os
+from sdg_hub.registry import BlockRegistry
+import inspect
+from typing import get_type_hints, get_origin, get_args, Any
+from sdg_hub.blocks import *  # Ensure all blocks are registered
 
 # Initialize Flask application
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)  # Generate a random secret key
 
-# Define available block types and their configuration schemas
-# Each block type has a name, configuration options, and connection rules
-BLOCK_TYPES = {
-    'llm': {
-        'name': 'LLM Block',
-        'config': {
-            'block_name': {'type': 'string', 'required': True},
-            'config_path': {'type': 'string', 'required': True},
-            'model_id': {'type': 'string', 'required': True},
-            'output_cols': {'type': 'array', 'required': True},
-            'gen_kwargs': {
+def get_block_types_from_registry():
+    """
+    Dynamically populate BLOCK_TYPES dictionary from the block registry.
+    Each block type will have a configuration schema based on its class's __init__ parameters.
+    """
+    block_types = {}
+    registry = BlockRegistry.get_registry()
+    
+    for block_name, block_class in registry.items():
+        if block_name.lower() == 'block':
+            continue  # Skip the base 'Block' type
+        # Get the __init__ method and its parameters
+        init_method = block_class.__init__
+        signature = inspect.signature(init_method)
+        type_hints = get_type_hints(init_method)
+        param_names = list(signature.parameters.keys())
+        # Start with base schema
+        config_schema = {
+            'block_name': {'type': 'string', 'required': True}
+        }
+        # Add parameters from __init__
+        for param_name, param in signature.parameters.items():
+            # Skip self and block_name (already added)
+            if param_name in ['self', 'block_name']:
+                continue
+            # Get parameter type and default
+            param_type = type_hints.get(param_name, Any)
+            param_default = param.default if param.default is not inspect.Parameter.empty else None
+            # Determine if parameter is required
+            is_required = param.default is inspect.Parameter.empty and param.kind not in [
+                inspect.Parameter.VAR_POSITIONAL,
+                inspect.Parameter.VAR_KEYWORD
+            ]
+            # Map Python types to schema types
+            type_mapping = {
+                str: 'string',
+                int: 'integer',
+                float: 'number',
+                bool: 'boolean',
+                list: 'array',
+                dict: 'object',
+                Any: 'string'  # Default to string for unknown types
+            }
+            # Handle special cases
+            if get_origin(param_type) is list:
+                schema_type = 'array'
+                items_type = get_args(param_type)[0] if get_args(param_type) else Any
+                schema = {
+                    'type': schema_type,
+                    'required': is_required,
+                    'items': {'type': type_mapping.get(items_type, 'string')}
+                }
+            elif get_origin(param_type) is dict:
+                schema_type = 'object'
+                schema = {
+                    'type': schema_type,
+                    'required': is_required,
+                    'properties': {}  # Could be expanded with specific dict properties
+                }
+            else:
+                schema_type = type_mapping.get(param_type, 'string')
+                schema = {
+                    'type': schema_type,
+                    'required': is_required
+                }
+            # Add default value if present
+            if param_default is not None:
+                schema['default'] = param_default
+            config_schema[param_name] = schema
+        # Only add gen_kwargs if it is present in __init__
+        if 'gen_kwargs' in param_names:
+            config_schema['gen_kwargs'] = {
                 'type': 'object',
                 'required': False,
                 'properties': {
-                    'temperature': {'type': 'number', 'default': 0.7},
-                    'max_tokens': {'type': 'number', 'default': 2048}
+                    'temperature': {'type': 'number', 'required': False, 'default': 0.7},
+                    'max_tokens': {'type': 'integer', 'required': False, 'default': 2048},
+                    'top_p': {'type': 'number', 'required': False, 'default': 1.0}
                 }
-            },
-            'drop_duplicates': {'type': 'array', 'required': False},
-            'batch_kwargs': {'type': 'object', 'required': False}
+            }
+        block_types[block_name.lower()] = {
+            'name': block_name,
+            'config': config_schema
         }
-    },
-    'filter': {
-        'name': 'Filter Block',
-        'config': {
-            'block_name': {'type': 'string', 'required': True},
-            'filter_column': {'type': 'string', 'required': True},
-            'filter_value': {'type': 'string', 'required': True},
-            'operation': {'type': 'string', 'required': True},
-            'convert_dtype': {'type': 'string', 'required': False},
-            'batch_kwargs': {'type': 'object', 'required': False},
-            'drop_columns': {'type': 'array', 'required': False}
-        }
-    },
-    'iter': {
-        'name': 'Iteration Block',
-        'config': {
-            'block_name': {'type': 'string', 'required': True},
-            'iterations': {'type': 'number', 'required': True},
-            'input_field': {'type': 'string', 'required': True}
-        }
-    },
-    'rm': {
-        'name': 'Retrieval Model Block',
-        'config': {
-            'block_name': {'type': 'string', 'required': True},
-            'model': {'type': 'string', 'required': True},
-            'query_field': {'type': 'string', 'required': True},
-            'top_k': {'type': 'number', 'required': False, 'default': 5}
-        }
-    },
-    'util': {
-        'name': 'Utility Block',
-        'config': {
-            'block_name': {'type': 'string', 'required': True},
-            'operation': {'type': 'string', 'required': True, 'enum': ['map', 'reduce', 'filter']},
-            'input_field': {'type': 'string', 'required': True}
-        }
-    }
-}
+    return block_types
+
+# Initialize BLOCK_TYPES from registry
+BLOCK_TYPES = get_block_types_from_registry()
 
 @app.route('/')
 def index():
