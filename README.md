@@ -6,8 +6,14 @@
 [![Tests](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml/badge.svg)](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub/graph/badge.svg?token=SP75BCXWO2)](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub)
 
-sdg_hub is a modular, scalable, and efficient solution for creating synthetic data generation workflows in a "no-code" manner. At its core, this framework is designed to simplify data creation for LLMs, allowing users to chain computational units and build powerful pipelines for generating data and processing tasks.
+sdg_hub is a modular, scalable, and efficient solution for creating synthetic data generation flows in a "no-code" manner.
+At its core, this framework is designed to simplify data creation for LLMs, allowing users to chain computational units and build powerful flows for generating data and processing tasks.
 
+## 📺 Video Tutorial
+
+For a comprehensive walkthrough of sdg_hub, check out our video tutorial:
+
+[![SDG Hub Tutorial](https://img.youtube.com/vi/aGKCViWjAmA/0.jpg)](https://www.youtube.com/watch?v=aGKCViWjAmA)
 
 ## Installation
 
@@ -26,15 +32,21 @@ pip install git+https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
 
 The framework is built around the following principles:
 
-1. **Modular Design**: Highly composable blocks form the building units of the framework, allowing users to build workflows effortlessly.
-2. **No-Code Workflow Creation**: Specify workflows using simple YAML configuration files.
-3. **Scalability and Performance**: Optimized for handling large-scale workflows with millions of records.
+1. **Modular Design**: Highly composable blocks form the building units of the framework, allowing users to build flows effortlessly.
+2. **No-Code Flow Creation**: Specify flows using simple YAML configuration files.
+3. **Scalability and Performance**: Optimized for handling large-scale flows with millions of records.
 
 ---
 
 ## Framework Architecture
 
-![overview](assets/imgs/overview.png)
+![overview](assets/imgs/fig-workflow.png)
+
+### Key Concepts
+
+1. **Blocks**: The fundamental computational units that perform specific tasks
+2. **Flows**: A sequence of blocks that work together to process data
+3. **Prompts**: YAML-based configurations that define how LLMs should behave
 
 ### Blocks: The Fundamental Unit
 
@@ -45,8 +57,8 @@ At the heart of the framework is the **Block**. Each block is a self-contained c
 - Applying filters
 
 Blocks are designed to be:
-- **Modular**: Reusable across multiple pipelines.
-- **Composable**: Easily chained together to create workflows.
+- **Modular**: Reusable across multiple flows.
+- **Composable**: Easily chained together to create flows.
 
 These blocks are implemented in the [src/sdg_hub/blocks](src/sdg_hub/blocks) directory.
 
@@ -77,28 +89,26 @@ generation: Here is the document to summarize: {{document}}
 * `examples`: Few-shot examples (optional) to guide output format or tone.
 * `generation`: The actual template used to generate the model input. This supports variable injection using {{variable_name}}.
 
-### YAML-Based Workflow: The Flow
+### YAML-Based Flow
 
-The YAML configuration file, known as the **Flow**, is central to defining data generation workflows in the SDG Framework. A Flow describes how blocks and pipelines are orchestrated to process and generate data efficiently. By leveraging YAML, users can create highly customizable and modular workflows without writing any code.
+The YAML configuration file, known as the **Flow**, is central to defining data generation workflows in the SDG Framework. A Flow describes how blocks are orchestrated to process and generate data efficiently. By leveraging YAML, users can create highly customizable and modular flows without writing any code.
 
 #### Key Features of a Flow
 
 1. **Modular Design**:
-   - Flows are composed of blocks, which can be chained together into pipelines.
+   - Flows are composed of blocks, which can be chained together
    - Each block performs a specific task, such as generating, filtering, or transforming data.
 
 2. **Reusability**:
-   - Blocks and configurations defined in a Flow can be reused across different workflows.
-   - YAML makes it easy to tweak or extend workflows without significant changes.
+   - Blocks and configurations defined in a Flow can be reused across different flows
+   - YAML makes it easy to tweak or extend flows without significant changes
 
 3. **Ease of Configuration**:
-   - Users can specify block types, configurations, and data processing details in a simple and intuitive manner.
-
-
+   - Users can specify block types, configurations, and data processing details in a simple and intuitive manner
 
 ## Hello World Example
 
-Let’s say you have a document and want to generate a concise summary using an LLM. Here’s how simple that is in sdg\_hub:
+Let's say you have a document and want to generate a concise summary using an LLM. Here's how simple that is in sdg_hub:
 
 ```yaml
 - block_type: LLMBlock
@@ -126,7 +136,7 @@ Want to go further? Add another block to extract keywords from the summary:
     max_tokens: 64
 ```
 
-Just like that, you’ve built a multi-step LLM workflow using nothing but YAML.
+Just like that, you've built a multi-step LLM workflow using nothing but YAML.
 
 ## Available Blocks
 
@@ -210,8 +220,6 @@ All blocks inherit from this base class, ensuring consistent behavior and interf
      - Configurable number of iterations
      - Nested block execution
 
-
-
 ### Utility Blocks
 
 1. **SamplePopulatorBlock**
@@ -259,15 +267,20 @@ All blocks inherit from this base class, ensuring consistent behavior and interf
 ---
 ### Dataflow and Storage
 
-- **Data Representation**: Dataflow between blocks and pipelines is handled using **Hugging Face Datasets**, which are based on Arrow tables. This provides:
+- **Data Representation**: Dataflow between blocks and flows is handled using **Hugging Face Datasets**, which are based on Arrow tables. This provides:
   - Native parallelization capabilities (e.g., maps, filters).
   - Support for efficient data transformations.
 
 - **Data Checkpoints**: Intermediate caches of generated data. Checkpoints allow users to:
-  - Resume workflows from the last successful state if interrupted.
-  - Improve reliability for long-running workflows.
-
+  - Resume flows from the last successful state if interrupted.
+  - Improve reliability for long-running flows.
 
 ## Examples
 
-For sample use cases and implementation examples, please refer to the [examples](examples) directory. This directory contains various examples demonstrating different workflows and use cases of the SDG Framework.
+For sample use cases and implementation examples, please refer to the [examples](examples) directory. This directory contains various examples demonstrating different flows and use cases of the SDG Framework.
+
+## Additional Resources
+
+- [Video Tutorial](https://www.youtube.com/watch?v=aGKCViWjAmA): A comprehensive walkthrough of sdg_hub
+- [Examples Directory](examples/): Sample flows and use cases
+- [GitHub Repository](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub): Source code and issue tracking
