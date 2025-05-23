@@ -6,7 +6,8 @@
 [![Tests](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml/badge.svg)](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub/graph/badge.svg?token=SP75BCXWO2)](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub)
 
-sdg_hub is a modular, scalable, and efficient solution for creating synthetic data generation workflows in a "no-code" manner. At its core, this framework is designed to simplify data creation for LLMs, allowing users to chain computational units and build powerful flows for generating data and processing tasks.
+sdg_hub is a modular, scalable, and efficient solution for creating synthetic data generation flows in a "no-code" manner.
+At its core, this framework is designed to simplify data creation for LLMs, allowing users to chain computational units and build powerful flows for generating data and processing tasks.
 
 ## 📺 Video Tutorial
 
@@ -32,7 +33,7 @@ pip install git+https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
 The framework is built around the following principles:
 
 1. **Modular Design**: Highly composable blocks form the building units of the framework, allowing users to build flows effortlessly.
-2. **No-Code Workflow Creation**: Specify flows using simple YAML configuration files.
+2. **No-Code Flow Creation**: Specify flows using simple YAML configuration files.
 3. **Scalability and Performance**: Optimized for handling large-scale flows with millions of records.
 
 ---
