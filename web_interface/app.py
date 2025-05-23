@@ -33,10 +33,6 @@ BLOCK_TYPES = {
             },
             'drop_duplicates': {'type': 'array', 'required': False},
             'batch_kwargs': {'type': 'object', 'required': False}
-        },
-        'connections': {
-            'input': ['llm', 'filter', 'iter', 'rm', 'util'],
-            'output': ['llm', 'filter', 'iter', 'util']
         }
     },
     'filter': {
@@ -49,10 +45,6 @@ BLOCK_TYPES = {
             'convert_dtype': {'type': 'string', 'required': False},
             'batch_kwargs': {'type': 'object', 'required': False},
             'drop_columns': {'type': 'array', 'required': False}
-        },
-        'connections': {
-            'input': ['llm', 'filter', 'iter', 'rm', 'util'],
-            'output': ['llm', 'filter', 'iter', 'util']
         }
     },
     'iter': {
@@ -61,10 +53,6 @@ BLOCK_TYPES = {
             'block_name': {'type': 'string', 'required': True},
             'iterations': {'type': 'number', 'required': True},
             'input_field': {'type': 'string', 'required': True}
-        },
-        'connections': {
-            'input': ['llm', 'filter', 'iter', 'rm', 'util'],
-            'output': ['llm', 'filter', 'iter', 'util']
         }
     },
     'rm': {
@@ -74,10 +62,6 @@ BLOCK_TYPES = {
             'model': {'type': 'string', 'required': True},
             'query_field': {'type': 'string', 'required': True},
             'top_k': {'type': 'number', 'required': False, 'default': 5}
-        },
-        'connections': {
-            'input': ['llm', 'filter', 'iter', 'rm', 'util'],
-            'output': ['llm', 'filter', 'iter', 'util']
         }
     },
     'util': {
@@ -86,10 +70,6 @@ BLOCK_TYPES = {
             'block_name': {'type': 'string', 'required': True},
             'operation': {'type': 'string', 'required': True, 'enum': ['map', 'reduce', 'filter']},
             'input_field': {'type': 'string', 'required': True}
-        },
-        'connections': {
-            'input': ['llm', 'filter', 'iter', 'rm', 'util'],
-            'output': ['llm', 'filter', 'iter', 'util']
         }
     }
 }
