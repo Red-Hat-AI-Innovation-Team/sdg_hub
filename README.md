@@ -39,7 +39,7 @@ The framework is built around the following principles:
 
 ## Framework Architecture
 
-![overview](assets/imgs/overview.png)
+![overview](assets/imgs/fig-workflow.png)
 
 ### Key Concepts
 
