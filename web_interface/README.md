@@ -73,113 +73,61 @@ The interface is built using:
 
 ## Contributing: Modifying Block Types
 
-The web interface uses a block-based system where each block type is defined in `app.py` within the `BLOCK_TYPES` dictionary. This guide explains how to add, modify, or remove block types.
+The web interface now discovers block types **dynamically** from the Python block registry (`BlockRegistry`) and infers their configuration schemas from the `__init__` parameters of each block class. You **do not** need to manually edit a `BLOCK_TYPES` dictionary.
 
-### Block Type Structure
-
-Each block type in `BLOCK_TYPES` follows this structure:
-```python
-'block_id': {  # Unique identifier for the block type
-    'name': 'Display Name',  # Human-readable name
-    'config': {  # Configuration schema
-        'parameter_name': {
-            'type': 'string|number|array|object',  # Data type
-            'required': True|False,  # Whether parameter is required
-            'default': value,  # Optional default value
-            'enum': ['value1', 'value2'],  # Optional enum of allowed values
-            'properties': {  # For object type, define nested properties
-                'nested_param': {'type': 'string', ...}
-            }
-        }
-    }
-}
-```
+### How Block Types Are Discovered
+- All block classes registered with `BlockRegistry` are automatically available in the web interface.
+- The configuration schema for each block is generated from the parameters of its `__init__` method (excluding `self` and `block_name`).
+- The parameter type hints and default values are used to build the schema shown in the UI.
+- The special parameter `gen_kwargs` is only included if it is present in the block's `__init__`.
 
 ### Adding a New Block Type
-
-1. Add a new entry to the `BLOCK_TYPES` dictionary in `app.py`:
+1. **Create a new block class** in Python, and decorate it with `@BlockRegistry.register()`:
 ```python
-'new_block': {
-    'name': 'New Block Type',
-    'config': {
-        'block_name': {'type': 'string', 'required': True},
-        # Add your custom parameters here
-        'custom_param': {'type': 'string', 'required': True},
-        'optional_param': {'type': 'number', 'required': False, 'default': 0}
-    }
-}
+from sdg_hub.registry import BlockRegistry
+
+@BlockRegistry.register()
+class MyCustomBlock(Block):
+    def __init__(self, block_name: str, custom_param: str, optional_param: int = 0, gen_kwargs: dict = None):
+        super().__init__(block_name)
+        self.custom_param = custom_param
+        self.optional_param = optional_param
+        self.gen_kwargs = gen_kwargs or {}
+    # ... implement block logic ...
 ```
+2. **Restart the Flask server**. Your new block will appear in the web interface, and its configuration form will be generated from the constructor signature.
 
 ### Modifying an Existing Block Type
-
-1. To add a new parameter:
-```python
-'config': {
-    'existing_param': {...},
-    'new_param': {'type': 'string', 'required': False, 'default': 'value'}
-}
-```
-
-2. To modify an existing parameter:
-```python
-'config': {
-    'existing_param': {
-        'type': 'string',
-        'required': True,  # Changed from False
-        'default': 'new_default'  # Added default value
-    }
-}
-```
+- To add, remove, or change parameters, simply update the `__init__` method of the block class.
+- The web interface will automatically reflect these changes after a server restart.
+- To add `gen_kwargs` support, add it as a parameter to the constructor.
 
 ### Removing a Block Type
-
-1. Delete the block type entry from `BLOCK_TYPES`
-2. Update any documentation referencing the removed block type
+- Remove or comment out the block class, or unregister it from `BlockRegistry`.
+- The block will no longer appear in the web interface after a server restart.
 
 ### Best Practices
-
-1. **Backward Compatibility**:
-   - When modifying existing blocks, maintain backward compatibility
-   - Use optional parameters with defaults for new features
-   - Consider versioning if making breaking changes
-
-2. **Validation**:
-   - Always include required/optional status for parameters
-   - Use enums for parameters with fixed values
-   - Provide meaningful default values
-
-3. **Documentation**:
-   - Update this README when adding new block types
-   - Document all parameters and their purposes
-   - Include examples of common configurations
-
-4. **Testing**:
-   - Test the block with various configurations
-   - Verify YAML generation and parsing
-   - Test with different parameter combinations
+- Use type hints for all constructor parameters to ensure correct schema generation.
+- Provide default values for optional parameters.
+- Document your block classes and parameters in code.
+- Test your block in the web interface and with YAML generation/parsing.
 
 ### Example: Adding a Data Transform Block
-
 ```python
-'transform': {
-    'name': 'Data Transform Block',
-    'config': {
-        'block_name': {'type': 'string', 'required': True},
-        'transform_type': {
-            'type': 'string',
-            'required': True,
-            'enum': ['normalize', 'standardize', 'encode']
-        },
-        'input_columns': {'type': 'array', 'required': True},
-        'output_columns': {'type': 'array', 'required': True},
-        'transform_params': {'type': 'object', 'required': False},
-        'batch_kwargs': {'type': 'object', 'required': False}
-    }
-}
+from sdg_hub.registry import BlockRegistry
+
+@BlockRegistry.register()
+class TransformBlock(Block):
+    def __init__(self, block_name: str, transform_type: str, input_columns: list, output_columns: list, transform_params: dict = None):
+        super().__init__(block_name)
+        self.transform_type = transform_type
+        self.input_columns = input_columns
+        self.output_columns = output_columns
+        self.transform_params = transform_params or {}
+    # ... implement block logic ...
 ```
 
 ### After Making Changes
-
 1. Restart the Flask server to apply changes
 2. Test the new/modified block in the web interface
 3. Verify YAML generation and parsing
