@@ -1,8 +1,26 @@
-# Synthetic Data Generation for LLMs
+# sdg_hub: Synthetic Data Generation Toolkit for LLMs
 
-The SDG Framework is a modular, scalable, and efficient solution for creating synthetic data generation workflows in a "no-code" manner. At its core, this framework is designed to simplify data creation for LLMs, allowing users to chain computational units and build powerful pipelines for generating data and processing tasks.
+![Build](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/pypi.yaml/badge.svg?branch=main)
+![Release](https://img.shields.io/github/v/release/Red-Hat-AI-Innovation-Team/sdg_hub)
+![License](https://img.shields.io/github/license/Red-Hat-AI-Innovation-Team/sdg_hub)
+[![Tests](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml/badge.svg)](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub/graph/badge.svg?token=SP75BCXWO2)](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub)
+
+sdg_hub is a modular, scalable, and efficient solution for creating synthetic data generation workflows in a "no-code" manner. At its core, this framework is designed to simplify data creation for LLMs, allowing users to chain computational units and build powerful pipelines for generating data and processing tasks.
 
 
+## Installation
+
+Latest release from PyPI
+
+```sh
+pip install sdg-hub
+```
+
+Latest main branch
+```sh
+pip install git+https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
+```
 
 ## Core Design Principles
 
@@ -32,17 +50,32 @@ Blocks are designed to be:
 
 These blocks are implemented in the [src/sdg_hub/blocks](src/sdg_hub/blocks) directory.
 
-### Pipelines: Higher-Level Abstraction
+### Prompts
 
-Blocks can be chained together to form a **Pipeline**. Pipelines enable:
-- Linear or recursive chaining of blocks.
-- Execution of complex workflows by chaining multiple pipelines together.
+Prompts are at the core of how LLMs are instructed within SDG Hub. Each `LLMBlock` is associated with a prompt configuration file written in YAML, allowing users to define the exact behavior of the language model — including system instructions, generation principles, and output formatting.
 
-### SDG Workflow: Full Workflow Automation
+#### Prompt YAML Structure
 
-Pipelines are further orchestrated into **SDG Workflows**, enabling seamless end-to-end processing. When invoking `sdg_hub.generate`, it triggers a pipeline/ or multiple pipelines that processes data through all the configured blocks.
+A typical prompt YAML file looks like this:
 
----
+```yaml
+system: You are a helpful assistant that can summarize text.
+introduction: Give me a short summary of the text.
+principles:
+  - Do not add any new information.
+  - Do not miss any key points from the provided text.
+examples:
+  - input: Red Hat announced the acquisition of Neural Magic...
+    output: Red Hat acquired Neural Magic to enhance its AI optimization capabilities.
+generation: Here is the document to summarize: {{document}}
+```
+
+#### Key Fields
+* `system`: A high-level instruction that sets the persona or behavior of the model.
+* `introduction`: Optional introduction to set context for the user.
+* `principles`: A list of guiding constraints or rules the model should follow during generation.
+* `examples`: Few-shot examples (optional) to guide output format or tone.
+* `generation`: The actual template used to generate the model input. This supports variable injection using {{variable_name}}.
 
 ### YAML-Based Workflow: The Flow
 
@@ -61,46 +94,169 @@ The YAML configuration file, known as the **Flow**, is central to defining data 
 3. **Ease of Configuration**:
    - Users can specify block types, configurations, and data processing details in a simple and intuitive manner.
 
----
 
-### Sample Flow
 
-Here is an example of a Flow configuration:
+## Hello World Example
+
+Let’s say you have a document and want to generate a concise summary using an LLM. Here’s how simple that is in sdg\_hub:
 
 ```yaml
 - block_type: LLMBlock
   block_config:
-    block_name: gen_questions
-    config_path: configs/skills/freeform_questions.yaml
-    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    block_name: gen_summary
+    config_path: prompts/summarization.yaml
+    model_id: meta-llama/Llama-3.3-70B-Instruct
     output_cols:
-      - question
-    batch_kwargs:
-      num_samples: 30
-  drop_duplicates:
-    - question
-- block_type: FilterByValueBlock
-  block_config:
-    block_name: filter_questions
-    filter_column: score
-    filter_value: 1.0
-    operation: operator.eq
-    convert_dtype: float
-    batch_kwargs:
-      num_procs: 8
-  drop_columns:
-    - evaluation
-    - score
-    - num_samples
-- block_type: LLMBlock
-  block_config:
-    block_name: gen_responses
-    config_path: configs/skills/freeform_responses.yaml
-    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
-    output_cols:
-      - response
+      - summary
+  gen_kwargs:
+    max_tokens: 512
 ```
 
+Want to go further? Add another block to extract keywords from the summary:
+
+```yaml
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_keywords
+    config_path: prompts/keywords.yaml
+    model_id: meta-llama/Llama-3.3-70B-Instruct
+    output_cols:
+      - keywords
+  gen_kwargs:
+    max_tokens: 64
+```
+
+Just like that, you’ve built a multi-step LLM workflow using nothing but YAML.
+
+## Available Blocks
+
+The SDG Framework provides a rich set of blocks for different data processing needs. Here's a comprehensive overview of the available blocks and when to use them:
+
+### Base Block Class
+
+The framework is built around the abstract `Block` class, which serves as the foundation for all other blocks:
+
+- **Purpose**: Provides core functionality and interface for all blocks
+- **Key Features**:
+  - Template validation for input data
+  - Configuration loading from YAML files
+  - Standardized block initialization
+  - Common interface for all blocks
+- **Core Methods**:
+  - `_validate`: Validates input data against templates
+  - `_load_config`: Loads configuration from YAML files
+  - `generate`: Abstract method for block execution
+
+All blocks inherit from this base class, ensuring consistent behavior and interface across the framework.
+
+### LLM Blocks
+
+1. **LLMBlock**
+   - **Purpose**: Generate text using language models
+   - **Use Cases**: 
+     - Generating questions, responses, or any text content
+     - Single-prompt generation with structured outputs
+   - **Features**: 
+     - Supports batched processing
+     - Configurable output parsing
+     - Template-based prompt generation
+
+2. **ConditionalLLMBlock**
+   - **Purpose**: Generate text based on conditional logic
+   - **Use Cases**:
+     - Different prompt templates based on input conditions
+     - Multi-path text generation workflows
+   - **Features**:
+     - Multiple config paths for different conditions
+     - Dynamic prompt selection
+
+3. **LLMLogProbBlock**
+   - **Purpose**: Generate text with log probabilities
+   - **Use Cases**:
+     - Analyzing model confidence
+     - Quality scoring of generations
+   - **Features**:
+     - Returns top-k log probabilities
+     - JSON-formatted output
+
+4. **LLMMessagesBlock**
+   - **Purpose**: Chat-based text generation
+   - **Use Cases**:
+     - Multi-turn conversations
+     - Chat-based interactions
+   - **Features**:
+     - Supports message history
+     - Chat completion API
+
+### Filtering and Processing Blocks
+
+1. **FilterByValueBlock**
+   - **Purpose**: Filter datasets based on column values
+   - **Use Cases**:
+     - Removing unwanted samples
+     - Data cleaning
+     - Quality filtering
+   - **Features**:
+     - Multiple filter operations
+     - Type conversion support
+     - Parallel processing
+
+2. **IterBlock**
+   - **Purpose**: Iterative processing of data
+   - **Use Cases**:
+     - Multiple generation attempts
+     - Iterative refinement
+   - **Features**:
+     - Configurable number of iterations
+     - Nested block execution
+
+
+
+### Utility Blocks
+
+1. **SamplePopulatorBlock**
+   - **Purpose**: Populate samples with configuration data
+   - **Use Cases**:
+     - Adding metadata
+     - Configuration injection
+
+2. **SelectorBlock**
+   - **Purpose**: Select data based on mapping
+   - **Use Cases**:
+     - Conditional data selection
+     - Data routing
+
+3. **CombineColumnsBlock**
+   - **Purpose**: Merge multiple columns
+   - **Use Cases**:
+     - Text concatenation
+     - Feature combination
+
+4. **FlattenColumnsBlock**
+   - **Purpose**: Convert wide to long format
+   - **Use Cases**:
+     - Data reshaping
+     - Variable-value pairs
+
+5. **DuplicateColumns**
+   - **Purpose**: Create column copies
+   - **Use Cases**:
+     - Data preservation
+     - Multiple processing paths
+
+6. **RenameColumns**
+   - **Purpose**: Rename dataset columns
+   - **Use Cases**:
+     - Standardizing column names
+     - Data reorganization
+
+7. **SetToMajorityValue**
+   - **Purpose**: Replace values with majority
+   - **Use Cases**:
+     - Data normalization
+     - Outlier handling
+
+---
 ### Dataflow and Storage
 
 - **Data Representation**: Dataflow between blocks and pipelines is handled using **Hugging Face Datasets**, which are based on Arrow tables. This provides:
@@ -111,7 +267,6 @@ Here is an example of a Flow configuration:
   - Resume workflows from the last successful state if interrupted.
   - Improve reliability for long-running workflows.
 
----
 
 ## Examples
 

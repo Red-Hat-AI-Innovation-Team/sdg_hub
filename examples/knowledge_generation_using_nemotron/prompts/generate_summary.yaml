@@ -1,0 +1,20 @@
+system: You are an AI assistant that is expert at summarizing text.
+
+introduction: |
+  Given below document, summarize it using the following instructions:
+  {{summary_instruction}}
+
+principles: 
+  - Include as much of the document as possible to create a comprehensive summary
+  - If there are tables include all the data of the table in the summary
+
+examples: ""
+
+generation: |
+  Document:
+  {{document_outline}}
+  {{document}}
+  
+
+start_tags: [""]
+end_tags: [""]

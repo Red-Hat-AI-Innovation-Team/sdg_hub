@@ -1,0 +1,59 @@
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_questions
+    config_path: configs/skills/freeform_questions.yaml
+    model_id: meta-llama/Llama-3.3-70B-Instruct
+    output_cols:
+      - question
+    batch_kwargs:
+      num_samples: 30
+  drop_duplicates:
+    - question
+- block_type: LLMBlock
+  block_config:
+    block_name: eval_questions
+    config_path: configs/skills/evaluate_freeform_questions.yaml
+    model_id: meta-llama/Llama-3.3-70B-Instruct
+    output_cols:
+      - evaluation
+      - score
+- block_type: FilterByValueBlock
+  block_config:
+    block_name: filter_questions
+    filter_column: score
+    filter_value: 1.0
+    operation: operator.eq
+    convert_dtype: float
+    batch_kwargs:
+      num_procs: 8
+  drop_columns:
+    - evaluation
+    - score
+    - num_samples
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_responses
+    config_path: configs/skills/freeform_responses.yaml
+    model_id: meta-llama/Llama-3.3-70B-Instruct
+    output_cols:
+      - response
+- block_type: LLMBlock
+  block_config:
+    block_name: evaluate_qa_pair
+    config_path: configs/skills/evaluate_freeform_pair.yaml
+    model_id: meta-llama/Llama-3.3-70B-Instruct
+    output_cols:
+      - evaluation
+      - score
+- block_type: FilterByValueBlock
+  block_config:
+    block_name: filter_qa_pair
+    filter_column: score
+    filter_value: 2.0
+    operation: operator.ge
+    convert_dtype: float
+    batch_kwargs:
+      num_procs: 8
+  drop_columns:
+    - evaluation
+    - score

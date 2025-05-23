@@ -7,32 +7,20 @@
 - block_type: LLMBlock
   block_config:
     block_name: gen_detailed_summary
-    config_path: configs/knowledge/detailed_summary.yaml
+    config_path: prompts/detailed_summary.yaml
     model_id: nvidia/Llama-3_3-Nemotron-Super-49B-v1
     output_cols:
       - summary_detailed
   gen_kwargs:
     max_tokens: 4096
+    temperature: 0.6
+    top_p: 0.95
+    n: 50
 
 - block_type: PostProcessThinkingBlock
   block_config:
     block_name: post_process_thinking
     column_name: summary_detailed
-
-- block_type: LLMBlock
-  block_config:
-    block_name: gen_atomic_facts
-    config_path: configs/knowledge/atomic_facts.yaml
-    model_id: nvidia/Llama-3_3-Nemotron-Super-49B-v1
-    output_cols:
-      - summary_atomic_facts
-  gen_kwargs:
-    max_tokens: 4096
-
-- block_type: PostProcessThinkingBlock
-  block_config:
-    block_name: post_process_thinking
-    column_name: summary_atomic_facts
 
 - block_type: LLMBlock
   block_config:
@@ -43,6 +31,9 @@
       - summary_extractive
   gen_kwargs:
     max_tokens: 4096
+    temperature: 0.6
+    top_p: 0.95
+    n: 1
 
 - block_type: PostProcessThinkingBlock
   block_config:
@@ -55,7 +46,6 @@
     var_cols:
       - summary_detailed
       - summary_extractive
-      - summary_atomic_facts
       - base_document
     value_name: summary
     var_name: dataset_type
@@ -76,9 +66,9 @@
       - question
   gen_kwargs:
     temperature: 0.6
-    max_tokens: 4096
+    max_tokens: 1024
     top_p: 0.95
-    n: 5
+    n: 1
 
 - block_type: PostProcessThinkingBlock
   block_config:

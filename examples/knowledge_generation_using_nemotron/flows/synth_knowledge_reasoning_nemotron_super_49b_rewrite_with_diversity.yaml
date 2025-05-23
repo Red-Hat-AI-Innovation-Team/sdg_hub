@@ -1,0 +1,118 @@
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_summary_instructions
+    config_path: prompts/generate_doc_rewrite_inst.yaml
+    model_id: nvidia/Llama-3_3-Nemotron-Super-49B-v1
+    output_cols:
+      - summary_instruction
+  gen_kwargs:
+    max_tokens: 4096
+    temperature: 0.6
+    top_p: 0.95
+    n: 2
+    seed: 43146
+
+- block_type: PostProcessThinkingBlock
+  block_config:
+    block_name: post_process_thinking_instruction
+    column_name: summary_instruction
+
+- block_type: RegexParserBlock
+  block_config:
+    block_name: regex_parser
+    column_name: summary_instruction
+    parsing_pattern: "(?:^|\\n)\\s*\\d+[\\.\\)]\\s*([^\\n]+)"
+    parser_cleanup_tags:
+      - "[END]"
+    output_cols:
+      - summary_instruction
+
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_document_rewrite
+    config_path: prompts/generate_document_rewrite.yaml
+    model_id: nvidia/Llama-3_3-Nemotron-Super-49B-v1
+    output_cols:
+      - document_rewrite
+  gen_kwargs:
+    max_tokens: 7000
+    temperature: 0.6
+    top_p: 0.95
+    n: 1
+
+- block_type: PostProcessThinkingBlock
+  block_config:
+    block_name: post_process_thinking_document_rewrite
+    column_name: document_rewrite
+
+- block_type: RenameColumns
+  block_config:
+    block_name: rename_to_document_column
+    columns_map:
+      document: raw_document
+      document_rewrite: document
+
+- block_type: LLMBlock
+  block_config:
+    block_name: knowledge question generation
+    config_path: prompts/generate_questions.yaml
+    model_id: nvidia/Llama-3_3-Nemotron-Super-49B-v1
+    output_cols:
+      - question
+  gen_kwargs:
+    temperature: 0.6
+    max_tokens: 1024
+    top_p: 0.95
+    n: 1
+
+- block_type: PostProcessThinkingBlock
+  block_config:
+    block_name: post_process_thinking
+    column_name: question
+
+
+- block_type: RegexParserBlock
+  block_config:
+    block_name: regex_parser
+    column_name: question
+    parsing_pattern: "\\[(?:Question|QUESTION)\\]\\s*(.*?)\\s*(?=\\[(?:Question|QUESTION)\\]|$)"
+    parser_cleanup_tags:
+      - "[END]"
+    output_cols:
+      - question
+
+
+- block_type: LLMBlock
+  block_config:
+    block_name: knowledge answer generation
+    config_path: prompts/generate_answers.yaml
+    model_id: nvidia/Llama-3_3-Nemotron-Super-49B-v1
+    output_cols:
+      - response
+  gen_kwargs:
+    temperature: 0.6
+    max_tokens: 4096
+    top_p: 0.95
+    n: 1
+
+- block_type: RegexParserBlock
+  block_config:
+    block_name: regex_parser
+    column_name: response
+    parser_cleanup_tags:
+      - "[END]"
+      - "[ANSWER]"
+      - "assistant"
+    output_cols:
+      - response
+
+# - block_type: LLMBlock
+#   block_config:
+#     block_name: eval_faithfulness_qa_pair
+#     config_path: configs/knowledge/evaluate_faithfulness.yaml
+#     model_id: nvidia/Llama-3_3-Nemotron-Super-49B-v1
+#     output_cols:
+#       - explanation
+#       - judgment
+#   gen_kwargs:
+#     max_tokens: 2048

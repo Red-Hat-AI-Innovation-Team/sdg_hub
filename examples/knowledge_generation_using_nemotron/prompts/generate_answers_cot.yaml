@@ -1,0 +1,31 @@
+system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: Answer the question based on provided document using chain of thought reasoning. When creating chain of thought you can summarize your thinking process into steps.
+
+principles: |
+  The answers should:
+  * The answer is grounded in the provided document.
+  * Summarize your thinking process into chain of thought reasoning steps and then provide the answer.
+  Strictly follow this format for each question your generate while responding
+
+  [ANSWER]
+  <Insert answer here>
+  [END]
+
+examples: ""
+
+
+generation: |
+  Here is the document:
+  
+  [DOCUMENT]
+  {{document_outline}}
+  {{document}}
+
+  [QUESTION]
+  {{question}}
+
+  [ANSWER]
+
+start_tags: [""]
+end_tags: [""]

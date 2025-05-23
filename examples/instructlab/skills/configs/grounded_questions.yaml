@@ -1,0 +1,38 @@
+system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: |
+  You are asked to come up with a set of {{ num_samples }} diverse questions - {{ task_description }}.
+
+principles: |
+  Please follow these guiding principles when generating responses:
+  * Use proper grammar and punctuation.
+  * Always generate safe and respectful content. Do not generate content that is harmful, abusive, or offensive.
+  * Always generate content that is factually accurate and relevant to the prompt.
+  * The questions should be clear and human-like.
+  * The questions should be diverse and cover a wide range of topics.
+  * The questions should not be template-based or generic, it should be very diverse.
+  * Simply return the questions, do not return any answers or explanations.
+  * Strictly adhere to the prompt and generate responses in the same style and format as the example.
+  * Most importantly all the questions should be grounded in the context provided and should be answerable solely based on the provided context.
+  * The question should address the task described in the prompt.
+  * Return each question between [Start of Question] and [End of Question] tags.
+
+examples: |
+  To better assist you with this task, here is an example:
+  
+  [Start of Context]
+  {{ seed_context }}
+  [End of Context]
+  [Start of Question]
+  {{ seed_question }}
+  [End of Question]
+
+generation: |
+  Now generate {{num_samples}} such questions, remember to follow the principles mentioned above and use the same format as the examples. Remember to use the same style and format as the example above. Do not return any contexts or answers, only the questions. Return each question between [Start of Question] and [End of Question] tags.
+
+  [Start of Context]
+  {{ context }}
+  [End of Context]
+
+start_tags: ["[Start of Question]"]
+end_tags: ["[End of Question]"]

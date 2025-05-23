@@ -170,7 +170,7 @@ def create_auxiliary_dataset(generated_dataset: Dataset):
 
 
 def generate_knowledge_qa_dataset(
-    generated_dataset: Dataset, keep_context_separate=False
+    generated_dataset: Dataset, keep_context_separate=False, keep_document_outline=False
 ):
     def __create_qa_row(rec):
         context = rec["document"]
@@ -201,11 +201,16 @@ def generate_knowledge_qa_dataset(
                 "context": context,
             }
         else:
-            messages = [
-                {"role": "user", "content": f"{context}\n\n{instruction}"},
-                {"role": "assistant", "content": response},
-            ]
-
+            if keep_document_outline:
+                messages = [
+                    {"role": "user", "content": f"{rec['document_outline']}\n{context}\n\n{instruction}"},
+                    {"role": "assistant", "content": response},
+                ]
+            else:
+                messages = [
+                    {"role": "user", "content": f"{context}\n\n{instruction}"},
+                    {"role": "assistant", "content": response},
+                ]
             return {"messages": messages, "metadata": metadata, "id": str(uuid.uuid4())}
 
     knowledge_ds = generated_dataset.map(

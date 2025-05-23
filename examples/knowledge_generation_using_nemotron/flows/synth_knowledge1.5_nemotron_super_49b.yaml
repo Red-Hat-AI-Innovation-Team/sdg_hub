@@ -70,7 +70,7 @@
 - block_type: LLMBlock
   block_config:
     block_name: knowledge generation
-    config_path: generate_questions_responses.yaml
+    config_path: prompts/generate_questions_responses.yaml
     model_id: nvidia/Llama-3_3-Nemotron-Super-49B-v1
     output_cols:
       - qa_pairs
@@ -78,7 +78,7 @@
     temperature: 0.6
     max_tokens: 4096
     top_p: 0.95
-    n: 5
+    n: 1
 
 - block_type: PostProcessThinkingBlock
   block_config:

@@ -1,0 +1,7 @@
+system: "Test system prompt"
+introduction: "Test introduction"
+principles: "Test principles"
+examples: "Test examples"
+generation: "Test generation"
+start_tags: ["<output>"]
+end_tags: ["</output>"]
