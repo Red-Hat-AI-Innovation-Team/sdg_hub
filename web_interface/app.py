@@ -97,7 +97,8 @@ def get_block_types_from_registry():
                     'top_p': {'type': 'number', 'required': False, 'default': 1.0}
                 }
             }
-        block_types[block_name.lower()] = {
+        # Store the original block name as the key
+        block_types[block_name] = {
             'name': block_name,
             'config': config_schema
         }
@@ -142,7 +143,7 @@ def generate_yaml():
             
             # Create the block entry in the correct format
             yaml_block = {
-                'block_type': f"{block_type.upper()}Block",
+                'block_type': block_type,
                 'block_config': {
                     'block_name': block_config.get('block_name', f"{block_type}_{len(yaml_blocks)}"),
                     **{k: v for k, v in block_config.items() if k != 'block_name'}
@@ -185,8 +186,13 @@ def parse_yaml():
         
         # First pass: create blocks
         for i, yaml_block in enumerate(yaml_blocks):
-            block_type = yaml_block.get('block_type', '').lower().replace('block', '')
-            if block_type not in BLOCK_TYPES:
+            block_type = yaml_block.get('block_type', '')
+            # Find the matching block type in BLOCK_TYPES (case-insensitive)
+            matching_block_type = next(
+                (bt for bt in BLOCK_TYPES.keys() if bt.lower() == block_type.lower()),
+                None
+            )
+            if not matching_block_type:
                 return jsonify({'error': f'Unknown block type: {block_type}'}), 400
             
             block_config = yaml_block.get('block_config', {})
@@ -194,8 +200,8 @@ def parse_yaml():
             # Create block with position
             block = {
                 'id': i + 1,  # Use index as ID
-                'type': block_type,
-                'name': block_config.get('block_name', f"{block_type}_{i}"),
+                'type': matching_block_type,  # Use the original case from BLOCK_TYPES
+                'name': block_config.get('block_name', f"{matching_block_type}_{i}"),
                 'config': block_config,
                 'position': {
                     'x': i * 250,  # Position blocks horizontally
