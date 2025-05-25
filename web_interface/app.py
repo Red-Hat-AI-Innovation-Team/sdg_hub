@@ -39,8 +39,8 @@ def get_block_types_from_registry():
         }
         # Add parameters from __init__
         for param_name, param in signature.parameters.items():
-            # Skip self and block_name (already added)
-            if param_name in ['self', 'block_name']:
+            # Skip self, block_name, and client (already added or handled internally)
+            if param_name in ['self', 'block_name', 'client']:
                 continue
             # Get parameter type and default
             param_type = type_hints.get(param_name, Any)
