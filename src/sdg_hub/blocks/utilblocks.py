@@ -1,4 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
+"""Utility blocks for dataset manipulation and transformation.
+
+This module provides various utility blocks for operations like column manipulation,
+data population, selection, and transformation of datasets.
+"""
+
+# Standard
+from typing import Any, Dict, List
+
 # Third Party
 from datasets import Dataset
 
@@ -12,10 +21,35 @@ logger = setup_logger(__name__)
 
 @BlockRegistry.register("SamplePopulatorBlock")
 class SamplePopulatorBlock(Block):
-    def __init__(self, config_paths, column_name, post_fix="", **batch_kwargs) -> None:
-        super().__init__(
-            block_name=self.__class__.__name__
-        )  # Call the base class's __init__
+    """Block for populating dataset with data from configuration files.
+
+    This block reads data from one or more configuration files and populates a
+    dataset with the data. The data is stored in a dictionary, with the keys
+    being the names of the configuration files.
+
+    Parameters
+    ----------
+    block_name : str
+        Name of the block.
+    config_paths : List[str]
+        List of paths to configuration files to load.
+    column_name : str
+        Name of the column to use as key for populating data.
+    post_fix : str, optional
+        Suffix to append to configuration filenames, by default "".
+    **batch_kwargs : Dict[str, Any]
+        Additional keyword arguments for batch processing.
+    """
+
+    def __init__(
+        self,
+        block_name: str,
+        config_paths: List[str],
+        column_name: str,
+        post_fix: str = "",
+        **batch_kwargs: Dict[str, Any],
+    ) -> None:
+        super().__init__(block_name=block_name)
         self.configs = {}
         for config in config_paths:
             if post_fix:
@@ -27,114 +61,353 @@ class SamplePopulatorBlock(Block):
         self.column_name = column_name
         self.num_procs = batch_kwargs.get("num_procs", 8)
 
-    def _generate(self, sample) -> dict:
+    def _generate(self, sample: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate a new sample by populating it with configuration data.
+
+        Parameters
+        ----------
+        sample : Dict[str, Any]
+            Input sample to populate with configuration data.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Sample populated with configuration data.
+        """
         sample = {**sample, **self.configs[sample[self.column_name]]}
         return sample
 
-    def generate(self, samples) -> Dataset:
+    def generate(self, samples: Dataset) -> Dataset:
+        """Generate a new dataset with populated configuration data.
+
+        Parameters
+        ----------
+        samples : Dataset
+            Input dataset to populate with configuration data.
+
+        Returns
+        -------
+        Dataset
+            Dataset populated with configuration data.
+        """
         samples = samples.map(self._generate, num_proc=self.num_procs)
         return samples
 
 
 @BlockRegistry.register("SelectorBlock")
 class SelectorBlock(Block):
-    def __init__(self, choice_map, choice_col, output_col, **batch_kwargs) -> None:
-        super().__init__(block_name=self.__class__.__name__)
+    """Block for selecting and mapping values from one column to another.
+
+    This block uses a mapping dictionary to select values from one column and
+    store them in a new output column based on a choice column's value.
+
+    Parameters
+    ----------
+    block_name : str
+        Name of the block.
+    choice_map : Dict[str, str]
+        Dictionary mapping choice values to column names.
+    choice_col : str
+        Name of the column containing choice values.
+    output_col : str
+        Name of the column to store selected values.
+    **batch_kwargs : Dict[str, Any]
+        Additional keyword arguments for batch processing.
+    """
+
+    def __init__(
+        self,
+        block_name: str,
+        choice_map: Dict[str, str],
+        choice_col: str,
+        output_col: str,
+        **batch_kwargs: Dict[str, Any],
+    ) -> None:
+        super().__init__(block_name=block_name)
         self.choice_map = choice_map
         self.choice_col = choice_col
         self.output_col = output_col
         self.num_procs = batch_kwargs.get("num_procs", 8)
 
-    def _generate(self, sample) -> dict:
+    def _generate(self, sample: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate a new sample by selecting values based on choice mapping.
+
+        Parameters
+        ----------
+        sample : Dict[str, Any]
+            Input sample to process.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Sample with selected values stored in output column.
+        """
         sample[self.output_col] = sample[self.choice_map[sample[self.choice_col]]]
         return sample
 
     def generate(self, samples: Dataset) -> Dataset:
+        """Generate a new dataset with selected values.
+
+        Parameters
+        ----------
+        samples : Dataset
+            Input dataset to process.
+
+        Returns
+        -------
+        Dataset
+            Dataset with selected values stored in output column.
+        """
         samples = samples.map(self._generate, num_proc=self.num_procs)
         return samples
 
 
 @BlockRegistry.register("CombineColumnsBlock")
 class CombineColumnsBlock(Block):
-    def __init__(self, columns, output_col, separator="\n\n", **batch_kwargs) -> None:
-        super().__init__(block_name=self.__class__.__name__)
+    r"""Block for combining multiple columns into a single column.
+
+    This block concatenates values from multiple columns into a single output column,
+    using a specified separator between values.
+
+    Parameters
+    ----------
+    block_name : str
+        Name of the block.
+    columns : List[str]
+        List of column names to combine.
+    output_col : str
+        Name of the column to store combined values.
+    separator : str, optional
+        String to use as separator between combined values, by default "\n\n".
+    **batch_kwargs : Dict[str, Any]
+        Additional keyword arguments for batch processing.
+    """
+
+    def __init__(
+        self,
+        block_name: str,
+        columns: List[str],
+        output_col: str,
+        separator: str = "\n\n",
+        **batch_kwargs: Dict[str, Any],
+    ) -> None:
+        super().__init__(block_name=block_name)
         self.columns = columns
         self.output_col = output_col
         self.separator = separator
         self.num_procs = batch_kwargs.get("num_procs", 8)
 
-    def _generate(self, sample) -> dict:
+    def _generate(self, sample: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate a new sample by combining multiple columns.
+
+        Parameters
+        ----------
+        sample : Dict[str, Any]
+            Input sample to process.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Sample with combined values stored in output column.
+        """
         sample[self.output_col] = self.separator.join(
             [sample[col] for col in self.columns]
         )
         return sample
 
     def generate(self, samples: Dataset) -> Dataset:
+        """Generate a new dataset with combined columns.
+
+        Parameters
+        ----------
+        samples : Dataset
+            Input dataset to process.
+
+        Returns
+        -------
+        Dataset
+            Dataset with combined values stored in output column.
+        """
         samples = samples.map(self._generate, num_proc=self.num_procs)
         return samples
 
 
 @BlockRegistry.register("FlattenColumnsBlock")
 class FlattenColumnsBlock(Block):
-    def __init__(self, block_name: str, var_cols: list, value_name: str, var_name: str) -> None:
+    """Block for flattening multiple columns into a long format.
+
+    This block transforms a wide dataset format into a long format by melting
+    specified columns into rows, creating new variable and value columns.
+
+    Parameters
+    ----------
+    block_name : str
+        Name of the block.
+    var_cols : List[str]
+        List of column names to be melted into rows.
+    value_name : str
+        Name of the new column that will contain the values.
+    var_name : str
+        Name of the new column that will contain the variable names.
+    """
+
+    def __init__(
+        self,
+        block_name: str,
+        var_cols: List[str],
+        value_name: str,
+        var_name: str,
+    ) -> None:
         super().__init__(block_name=block_name)
         self.var_cols = var_cols
         self.value_name = value_name
         self.var_name = var_name
 
     def generate(self, samples: Dataset) -> Dataset:
+        """Generate a flattened dataset in long format.
+
+        Parameters
+        ----------
+        samples : Dataset
+            Input dataset to flatten.
+
+        Returns
+        -------
+        Dataset
+            Flattened dataset in long format with new variable and value columns.
+        """
         df = samples.to_pandas()
         id_cols = [col for col in samples.column_names if col not in self.var_cols]
-        flatten_df = df.melt(id_vars=id_cols, 
-                             value_vars=self.var_cols, 
-                             value_name=self.value_name,
-                             var_name=self.var_name)
-        
+        flatten_df = df.melt(
+            id_vars=id_cols,
+            value_vars=self.var_cols,
+            value_name=self.value_name,
+            var_name=self.var_name,
+        )
         return Dataset.from_pandas(flatten_df)
 
 
 @BlockRegistry.register("DuplicateColumns")
 class DuplicateColumns(Block):
-    def __init__(self, block_name: str, columns_map: dict) -> None:
-        """Create duplicate of columns specified in column map.
+    """Block for duplicating existing columns with new names.
 
-        Args:
-            columns_map (dict): mapping of existing column to new column names
-        """
+    This block creates copies of existing columns with new names as specified
+    in the columns mapping dictionary.
+
+    Parameters
+    ----------
+    block_name : str
+        Name of the block.
+    columns_map : Dict[str, str]
+        Dictionary mapping existing column names to new column names.
+        Keys are existing column names, values are new column names.
+    """
+
+    def __init__(
+        self,
+        block_name: str,
+        columns_map: Dict[str, str],
+    ) -> None:
         super().__init__(block_name=block_name)
-        self.columns_map = columns_map    
-    
-    
-    def generate(self, samples: Dataset):
+        self.columns_map = columns_map
+
+    def generate(self, samples: Dataset) -> Dataset:
+        """Generate a dataset with duplicated columns.
+
+        Parameters
+        ----------
+        samples : Dataset
+            Input dataset to duplicate columns from.
+
+        Returns
+        -------
+        Dataset
+            Dataset with additional duplicated columns.
+        """
         for col_to_dup in self.columns_map:
-            samples = samples.add_column(self.columns_map[col_to_dup], samples[col_to_dup])
+            samples = samples.add_column(
+                self.columns_map[col_to_dup], samples[col_to_dup]
+            )
         return samples
 
 
 @BlockRegistry.register("RenameColumns")
 class RenameColumns(Block):
-    def __init__(self, block_name: str, columns_map: dict) -> None:
-        """Rename dataset columns.
+    """Block for renaming columns in a dataset.
 
-        Args:
-            columns_map (dict): mapping of existing column to new column names
-        """
-        self.columns_map = columns_map
+    This block renames columns in a dataset according to a mapping dictionary,
+    where keys are existing column names and values are new column names.
+
+    Parameters
+    ----------
+    block_name : str
+        Name of the block.
+    columns_map : Dict[str, str]
+        Dictionary mapping existing column names to new column names.
+        Keys are existing column names, values are new column names.
+    """
+
+    def __init__(
+        self,
+        block_name: str,
+        columns_map: Dict[str, str],
+    ) -> None:
         super().__init__(block_name=block_name)
-    
-    
-    def generate(self, samples: Dataset):
+        self.columns_map = columns_map
+
+    def generate(self, samples: Dataset) -> Dataset:
+        """Generate a dataset with renamed columns.
+
+        Parameters
+        ----------
+        samples : Dataset
+            Input dataset to rename columns in.
+
+        Returns
+        -------
+        Dataset
+            Dataset with renamed columns.
+        """
         samples = samples.rename_columns(self.columns_map)
         return samples
 
 
 @BlockRegistry.register("SetToMajorityValue")
 class SetToMajorityValue(Block):
-    def __init__(self, block_name: str, col_name) -> None:
+    """Block for setting all values in a column to the most frequent value.
+
+    This block finds the most common value (mode) in a specified column and
+    replaces all values in that column with this majority value.
+
+    Parameters
+    ----------
+    block_name : str
+        Name of the block.
+    col_name : str
+        Name of the column to set to majority value.
+    """
+
+    def __init__(
+        self,
+        block_name: str,
+        col_name: str,
+    ) -> None:
+        super().__init__(block_name=block_name)
         self.col_name = col_name
-        super().__init__(block_name)
-    
-    def generate(self, samples: Dataset):
+
+    def generate(self, samples: Dataset) -> Dataset:
+        """Generate a dataset with column set to majority value.
+
+        Parameters
+        ----------
+        samples : Dataset
+            Input dataset to process.
+
+        Returns
+        -------
+        Dataset
+            Dataset with specified column set to its majority value.
+        """
         samples = samples.to_pandas()
         samples[self.col_name] = samples[self.col_name].mode()[0]
         return Dataset.from_pandas(samples)
