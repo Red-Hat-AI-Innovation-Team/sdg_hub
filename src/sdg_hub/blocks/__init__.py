@@ -5,9 +5,8 @@ This package provides various block implementations for data generation, process
 
 # Local
 from .block import Block
-from .filterblock import FilterByValueBlock
 from .iterblock import IterBlock
-from .llmblock import LLMBlock, ConditionalLLMBlock, LLMLogProbBlock, LLMMessagesBlock
+from .llmblock import LLMBlock, ConditionalLLMBlock
 from .utilblocks import (
     SamplePopulatorBlock,
     SelectorBlock,
@@ -16,6 +15,7 @@ from .utilblocks import (
     DuplicateColumns,
     RenameColumns,
     SetToMajorityValue,
+    FilterByValueBlock,
 )
 
 __all__ = [
@@ -24,8 +24,6 @@ __all__ = [
     "IterBlock",
     "LLMBlock",
     "ConditionalLLMBlock",
-    "LLMLogProbBlock",
-    "LLMMessagesBlock",
     "SamplePopulatorBlock",
     "SelectorBlock",
     "CombineColumnsBlock",
