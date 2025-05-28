@@ -1,7 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
+"""LLM-based blocks for text generation and processing.
+
+This module provides blocks for interacting with language models.
+"""
+
 # Standard
-from typing import Any, Dict, List
-from typing import Optional
+from typing import Any, Dict, List, Optional, Union
 import json
 import re
 
@@ -18,7 +22,18 @@ from ..registry import BlockRegistry, PromptRegistry
 logger = setup_logger(__name__)
 
 
-def server_supports_batched(client, model_id: str) -> bool:
+def server_supports_batched(client: openai.OpenAI, model_id: str) -> bool:
+    """Check if the server supports batched inputs.
+
+    This function checks if the server supports batched inputs by making a test call to the server.
+
+    Parameters
+    ----------
+    client : openai.OpenAI
+        The client to use to make the test call.
+    model_id : str
+        The model ID to use for the test call.
+    """
     supported = getattr(client, "server_supports_batched", None)
     if supported is not None:
         return supported
@@ -38,19 +53,43 @@ def server_supports_batched(client, model_id: str) -> bool:
 
 
 @BlockRegistry.register("LLMBlock")
-# pylint: disable=dangerous-default-value
 class LLMBlock(Block):
+    """Block for generating text using language models.
+
+    This block handles text generation, prompt formatting, and output parsing
+    for language model interactions.
+
+    Parameters
+    ----------
+    block_name : str
+        Name of the block.
+    config_path : str
+        Path to the configuration file.
+    client : openai.OpenAI
+        OpenAI client instance.
+    output_cols : List[str]
+        List of output column names.
+    parser_kwargs : Dict[str, Any], optional
+        Keyword arguments for the parser, by default {}.
+    model_prompt : str, optional
+        Template string for model prompt, by default "{prompt}".
+    model_id : Optional[str], optional
+        Model ID to use, by default None.
+    **batch_kwargs : Dict[str, Any]
+        Additional keyword arguments for batch processing.
+    """
+
     # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
-        block_name,
-        config_path,
-        client,
-        output_cols,
-        parser_kwargs={},
-        model_prompt="{prompt}",
-        model_id=None,
-        **batch_kwargs,
+        block_name: str,
+        config_path: str,
+        client: openai.OpenAI,
+        output_cols: List[str],
+        parser_kwargs: Dict[str, Any] = {},
+        model_prompt: str = "{prompt}",
+        model_id: Optional[str] = None,
+        **batch_kwargs: Dict[str, Any],
     ) -> None:
         super().__init__(block_name)
         self.block_config = self._load_config(config_path)
@@ -84,7 +123,6 @@ class LLMBlock(Block):
         # and supports the n parameter to generate n outputs per input
         self.server_supports_batched = server_supports_batched(client, self.model)
 
-
     def _extract_matches(
         self, text: str, start_tag: Optional[str], end_tag: Optional[str]
     ) -> List[str]:
@@ -105,7 +143,7 @@ class LLMBlock(Block):
 
         return [match.strip() for match in re.findall(pattern, text, re.DOTALL)]
 
-    def _parse(self, generated_string) -> dict:
+    def _parse(self, generated_string: str) -> dict:
         matches = {}
 
         if self.parser_name is not None and self.parser_name == "custom":
@@ -141,7 +179,7 @@ class LLMBlock(Block):
             self.model_prompt, prompt_templated_str, add_generation_prompt=True
         ).strip()
 
-    def _generate(self, samples, **gen_kwargs) -> list:
+    def _generate(self, samples: Dataset, **gen_kwargs: Dict[str, Any]) -> list:
         prompts = [self._format_prompt(sample) for sample in samples]
         logger.debug("Prompt: %s", prompts[0])
         generate_args = {**self.defaults, **gen_kwargs}
@@ -173,12 +211,16 @@ class LLMBlock(Block):
                 results.append(response.choices[0].text.strip())
         return results
 
-    def generate(self, samples: Dataset, **gen_kwargs) -> Dataset:
-        """
-        Generate the output from the block. This method should first validate the input data,
+    def generate(self, samples: Dataset, **gen_kwargs: Dict[str, Any]) -> Dataset:
+        """Generate the output from the block.
+
+        This method should first validate the input data,
         then generate the output, and finally parse the generated output before returning it.
 
-        :return: The parsed output after generation.
+        Returns
+        -------
+        Dataset
+            The parsed output after generation.
         """
         num_samples = self.block_config.get("num_samples", None)
         logger.debug("Generating outputs for {} samples".format(len(samples)))
@@ -233,16 +275,40 @@ class LLMBlock(Block):
 
 @BlockRegistry.register("ConditionalLLMBlock")
 class ConditionalLLMBlock(LLMBlock):
+    """Block for conditional text generation using language models.
+
+    This block selects different prompt templates based on a selector column value.
+
+    Parameters
+    ----------
+    block_name : str
+        Name of the block.
+    config_paths : Dict[str, str]
+        Dictionary mapping selector values to their config file paths.
+    client : openai.OpenAI
+        OpenAI client instance.
+    model_id : str
+        Model ID to use.
+    output_cols : List[str]
+        List of output column names.
+    selector_column_name : str
+        Name of the column used to select the prompt template.
+    model_prompt : str, optional
+        Template string for model prompt, by default "{prompt}".
+    **batch_kwargs : Dict[str, Any]
+        Additional keyword arguments for batch processing.
+    """
+
     def __init__(
         self,
-        block_name,
-        config_paths,
-        client,
-        model_id,
-        output_cols,
-        selector_column_name,
-        model_prompt="{prompt}",
-        **batch_kwargs,
+        block_name: str,
+        config_paths: Dict[str, str],
+        client: openai.OpenAI,
+        model_id: str,
+        output_cols: List[str],
+        selector_column_name: str,
+        model_prompt: str = "{prompt}",
+        **batch_kwargs: Dict[str, Any],
     ) -> None:
         super().__init__(
             block_name=block_name,
@@ -259,7 +325,6 @@ class ConditionalLLMBlock(LLMBlock):
             self.prompt_template = self.prompt_struct.format(**self.block_config)
         else:
             for config_key, config in config_paths.items():
-                # Template(self.prompt_struct.format(**filtered_config))
                 filtered_config = {
                     k: (v if v is not None else "")
                     for k, v in self.block_config.items()
@@ -268,7 +333,19 @@ class ConditionalLLMBlock(LLMBlock):
                     self.prompt_struct.format(**self._load_config(config))
                 )
 
-    def _format_prompt(self, sample: Dict) -> str:
+    def _format_prompt(self, sample: Dict[str, Any]) -> str:
+        """Format the prompt based on the selector column value.
+
+        Parameters
+        ----------
+        sample : Dict[str, Any]
+            Input sample containing the selector column.
+
+        Returns
+        -------
+        str
+            Formatted prompt string.
+        """
         if isinstance(self.prompt_template, dict):
             return (
                 self.prompt_template[sample[self.selector_column_name]]
@@ -278,7 +355,21 @@ class ConditionalLLMBlock(LLMBlock):
 
         return self.prompt_template.render(**sample).strip()
 
-    def _validate(self, prompt_template: str, input_dict: Dict[str, Any]) -> bool:
+    def _validate(self, prompt_template: Union[str, Template], input_dict: Dict[str, Any]) -> bool:
+        """Validate the input data for this block.
+
+        Parameters
+        ----------
+        prompt_template : Union[str, Template]
+            The template to validate against.
+        input_dict : Dict[str, Any]
+            Input data to validate.
+
+        Returns
+        -------
+        bool
+            True if the input data is valid, False otherwise.
+        """
         if isinstance(prompt_template, dict):
             prompt_template = prompt_template[input_dict[self.selector_column_name]]
         return super()._validate(prompt_template, input_dict)
