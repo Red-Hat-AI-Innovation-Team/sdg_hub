@@ -5,7 +5,6 @@ This package provides various block implementations for data generation, process
 
 # Local
 from .block import Block
-from .iterblock import IterBlock
 from .llmblock import LLMBlock, ConditionalLLMBlock
 from .utilblocks import (
     SamplePopulatorBlock,
@@ -16,6 +15,7 @@ from .utilblocks import (
     RenameColumns,
     SetToMajorityValue,
     FilterByValueBlock,
+    IterBlock,
 )
 
 __all__ = [
