@@ -7,7 +7,7 @@ data population, selection, and transformation of datasets.
 
 # Standard
 import operator
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 # Third Party
 from datasets import Dataset
@@ -30,9 +30,10 @@ class FilterByValueBlock(Block):
 
     def __init__(
         self,
+        block_name: str,
         filter_column: str,
         filter_value: Union[Any, List[Any]],
-        operation: operator.BinaryOperator,
+        operation: Callable[[Any, Any], bool],
         convert_dtype: Optional[Union[Type[float], Type[int]]] = None,
         **batch_kwargs: Dict[str, Any],
     ) -> None:
@@ -40,11 +41,13 @@ class FilterByValueBlock(Block):
 
         Parameters
         ----------
+        block_name : str
+            Name of the block.
         filter_column : str
             The name of the column in the dataset to apply the filter on.
         filter_value : Union[Any, List[Any]]
             The value(s) to filter by.
-        operation : operator.BinaryOperator
+        operation : Callable[[Any, Any], bool]
             A binary operator from the operator module (e.g., operator.eq, operator.contains)
             that takes two arguments and returns a boolean.
         convert_dtype : Optional[Union[Type[float], Type[int]]], optional
@@ -56,8 +59,18 @@ class FilterByValueBlock(Block):
         Returns
         -------
         None
+
+        Raises
+        ------
+        ValueError
+            If the operation is not from the operator module.
         """
-        super().__init__(block_name=self.__class__.__name__)
+        super().__init__(block_name=block_name)
+        # Validate that operation is from operator module
+        if operation.__module__ != "_operator":
+            logger.error("Invalid operation: %s", operation)
+            raise ValueError("Operation must be from operator module")
+            
         self.value = filter_value if isinstance(filter_value, list) else [filter_value]
         self.column_name = filter_column
         self.operation = operation
