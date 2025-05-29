@@ -17,6 +17,7 @@ from .utilblocks import (
     FilterByValueBlock,
     IterBlock,
 )
+from ..registry import BlockRegistry
 
 __all__ = [
     "Block",
@@ -31,4 +32,5 @@ __all__ = [
     "DuplicateColumns",
     "RenameColumns",
     "SetToMajorityValue",
+    "BlockRegistry",
 ]
