@@ -5,7 +5,7 @@ from sdg_hub.blocks.llmblock import LLMBlock
 
 # Get the absolute path to the test config file
 TEST_CONFIG_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "testdata", "test_config.yaml"
+    os.path.dirname(__file__), "testdata", "test_config.yaml"
 )
 
 
