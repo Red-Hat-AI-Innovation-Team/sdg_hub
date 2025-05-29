@@ -1,0 +1,7 @@
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_skill_freeform
+    config_path: ./test_config_1.yaml
+    model_id: blank/model
+    output_cols:
+      - output

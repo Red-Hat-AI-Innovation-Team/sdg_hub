@@ -1,0 +1,10 @@
+- block_type: ConditionalLLMBlock
+  block_config:
+    block_name: gen_skill_freeform
+    config_paths:
+      k1: ./test_config_1.yaml
+      k2: configs/skills/simple_generate_qa_freeform.yaml
+    model_id: blank/model
+    output_cols:
+      - output
+    selector_column_name: route
