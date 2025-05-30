@@ -16,13 +16,9 @@ from tabulate import tabulate
 from transformers import AutoTokenizer
 from langchain_text_splitters import Language, RecursiveCharacterTextSplitter
 
-
-# First Party
-# pylint: disable=ungrouped-imports
-from sdg_hub.logger_config import setup_logger
-from sdg_hub.utils.datautils import safe_concatenate_datasets
-
 # Local
+import sdg_hub
+from sdg_hub.logger_config import setup_logger
 from sdg_hub.utils.datautils import safe_concatenate_datasets
 
 logger = setup_logger(__name__)
@@ -33,11 +29,12 @@ def create_auxiliary_dataset(generated_dataset: Dataset):
     if "dataset_type" not in generated_dataset.column_names:
         return None
 
-    # get module path of the current file
-    module_dir = os.path.dirname(os.path.abspath(__file__))
     aux_inst_path = os.path.join(
-        module_dir, "../configs/knowledge/auxilary_instructions.yaml"
+        os.path.dirname(sdg_hub.__file__),
+        "configs/knowledge/auxilary_instructions.yaml",
     )
+    print(aux_inst_path)
+
     if os.path.isfile(aux_inst_path):
         with open(aux_inst_path, "r", encoding="utf-8") as fp:
             auxiliary_inst = yaml.safe_load(fp)
