@@ -102,3 +102,7 @@ exclude = [
 ]
 # honor excludes by not following there through imports
 follow_imports = "silent"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
