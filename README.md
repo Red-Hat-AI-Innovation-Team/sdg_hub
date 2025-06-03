@@ -180,23 +180,6 @@ All blocks inherit from this base class, ensuring consistent behavior and interf
      - Multiple config paths for different conditions
      - Dynamic prompt selection
 
-3. **LLMLogProbBlock**
-   - **Purpose**: Generate text with log probabilities
-   - **Use Cases**:
-     - Analyzing model confidence
-     - Quality scoring of generations
-   - **Features**:
-     - Returns top-k log probabilities
-     - JSON-formatted output
-
-4. **LLMMessagesBlock**
-   - **Purpose**: Chat-based text generation
-   - **Use Cases**:
-     - Multi-turn conversations
-     - Chat-based interactions
-   - **Features**:
-     - Supports message history
-     - Chat completion API
 
 ### Filtering and Processing Blocks
 
