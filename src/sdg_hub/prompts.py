@@ -1,33 +1,124 @@
+# SPDX-License-Identifier: Apache-2.0
+"""
+Prompt templates module for various language models.
+
+This module contains chat templates for different language models, registered through
+the PromptRegistry. Each template defines how conversations should be formatted
+for specific models, including system messages, user inputs, and assistant responses.
+"""
+
 # Local
 from .registry import PromptRegistry
 
 
 @PromptRegistry.register("blank")
 def blank_chat_template():
+    """
+    A minimal chat template that simply returns the messages without any formatting.
+    
+    Returns:
+        str: Template string that outputs messages without any additional formatting
+    """
     return """{{ messages }}"""
 
 
 @PromptRegistry.register("instructlab")
 def instructlab_chat_template():
+    """
+    Chat template for InstructLab model format.
+    
+    This template formats messages with specific tokens for different roles:
+    - pretraining: <|pretrain|>content<|endoftext|><|/pretrain|>
+    - system: <|system|>\ncontent\n
+    - user: <|user|>\ncontent\n
+    - assistant: <|assistant|>\ncontent<|endoftext|>\n
+    
+    Returns:
+        str: Template string that formats messages according to InstructLab specifications
+    """
     return """{% for message in messages %}{% if message['role'] == 'pretraining' %}{{ '<|pretrain|>' + message['content'] + '<|endoftext|>' + '<|/pretrain|>' }}{% elif message['role'] == 'system' %}{{ '<|system|>' + '\n' + message['content'] + '\n' }}{% elif message['role'] == 'user' %}{{ '<|user|>' + '\n' + message['content'] + '\n' }}{% elif message['role'] == 'assistant' %}{{ '<|assistant|>' + '\n' + message['content'] + '<|endoftext|>' + ('' if loop.last else '\n') }}{% endif %}{% if loop.last and add_generation_prompt %}{{ '<|assistant|>' + '\n' }}{% endif %}{% endfor %}"""
 
 
 @PromptRegistry.register("mistralai")
 def mistral_chat_template():
+    """
+    Chat template for Mistral AI model format.
+    
+    This template enforces alternating user/assistant messages and handles system messages.
+    Format:
+    - System message (optional): Included at the start
+    - User messages: [INST] content [/INST]
+    - Assistant messages: content</s>
+    
+    Returns:
+        str: Template string that formats messages according to Mistral AI specifications
+        
+    Raises:
+        Exception: If conversation roles don't alternate properly or if unsupported roles are used
+    """
     return """{%- if messages[0]['role'] == 'system' %}\n    {%- set system_message = messages[0]['content'] %}\n    {%- set loop_messages = messages[1:] %}\n{%- else %}\n    {%- set loop_messages = messages %}\n{%- endif %}\n\n<s>\n{%- for message in loop_messages %}\n    {%- if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}\n        {{- raise_exception('After the optional system message, conversation roles must alternate user/assistant/user/assistant/...') }}\n    {%- endif %}\n    {%- if message['role'] == 'user' %}\n        {%- if loop.first and system_message is defined %}\n            {{- ' [INST] ' + system_message + '\\n\\n' + message['content'] + ' [/INST]' }}\n        {%- else %}\n            {{- ' [INST] ' + message['content'] + ' [/INST]' }}\n        {%- endif %}\n    {%- elif message['role'] == 'assistant' %}\n        {{- ' ' + message['content'] + '</s>'}}\n    {%- else %}\n        {{- raise_exception('Only user and assistant roles are supported, with the exception of an initial optional system message!') }}\n    {%- endif %}\n{%- endfor %}\n"""
 
 
 @PromptRegistry.register("meta-llama/Llama-3.3")
 def meta_llama_chat_template():
+    """
+    Chat template for Meta's Llama 3.3 model format.
+    
+    This template handles:
+    - System messages with built-in tools
+    - Custom tools integration
+    - Date information
+    - Tool calls and responses
+    - IPython integration
+    
+    Format:
+    - System header with tools and date information
+    - User/Assistant messages with proper headers
+    - Tool calls in JSON format
+    - IPython outputs
+    
+    Returns:
+        str: Template string that formats messages according to Llama 3.3 specifications
+        
+    Raises:
+        Exception: If tool calls are not properly formatted or if tools are requested without user messages
+    """
     return """{{- bos_token }}\n{%- if custom_tools is defined %}\n    {%- set tools = custom_tools %}\n{%- endif %}\n{%- if not tools_in_user_message is defined %}\n    {%- set tools_in_user_message = true %}\n{%- endif %}\n{%- if not date_string is defined %}\n    {%- set date_string = \"26 Jul 2024\" %}\n{%- endif %}\n{%- if not tools is defined %}\n    {%- set tools = none %}\n{%- endif %}\n\n{#- This block extracts the system message, so we can slot it into the right place. #}\n{%- if messages[0]['role'] == 'system' %}\n    {%- set system_message = messages[0]['content']|trim %}\n    {%- set messages = messages[1:] %}\n{%- else %}\n    {%- set system_message = \"\" %}\n{%- endif %}\n\n{#- System message + builtin tools #}\n{{- \"<|start_header_id|>system<|end_header_id|>\\n\\n\" }}\n{%- if builtin_tools is defined or tools is not none %}\n    {{- \"Environment: ipython\\n\" }}\n{%- endif %}\n{%- if builtin_tools is defined %}\n    {{- \"Tools: \" + builtin_tools | reject('equalto', 'code_interpreter') | join(\", \") + \"\\n\\n\"}}\n{%- endif %}\n{{- \"Cutting Knowledge Date: December 2023\\n\" }}\n{{- \"Today Date: \" + date_string + \"\\n\\n\" }}\n{%- if tools is not none and not tools_in_user_message %}\n    {{- \"You have access to the following functions. To call a function, please respond with JSON for a function call.\" }}\n    {{- 'Respond in the format {\"name\": function name, \"parameters\": dictionary of argument name and its value}.' }}\n    {{- \"Do not use variables.\\n\\n\" }}\n    {%- for t in tools %}\n        {{- t | tojson(indent=4) }}\n        {{- \"\\n\\n\" }}\n    {%- endfor %}\n{%- endif %}\n{{- system_message }}\n{{- \"<|eot_id|>\" }}\n\n{#- Custom tools are passed in a user message with some extra guidance #}\n{%- if tools_in_user_message and not tools is none %}\n    {#- Extract the first user message so we can plug it in here #}\n    {%- if messages | length != 0 %}\n        {%- set first_user_message = messages[0]['content']|trim %}\n        {%- set messages = messages[1:] %}\n    {%- else %}\n        {{- raise_exception(\"Cannot put tools in the first user message when there's no first user message!\") }}\n{%- endif %}\n    {{- '<|start_header_id|>user<|end_header_id|>\\n\\n' -}}\n    {{- \"Given the following functions, please respond with a JSON for a function call \" }}\n    {{- \"with its proper arguments that best answers the given prompt.\\n\\n\" }}\n    {{- 'Respond in the format {\"name\": function name, \"parameters\": dictionary of argument name and its value}.' }}\n    {{- \"Do not use variables.\\n\\n\" }}\n    {%- for t in tools %}\n        {{- t | tojson(indent=4) }}\n        {{- \"\\n\\n\" }}\n    {%- endfor %}\n    {{- first_user_message + \"<|eot_id|>\"}}\n{%- endif %}\n\n{%- for message in messages %}\n    {%- if not (message.role == 'ipython' or message.role == 'tool' or 'tool_calls' in message) %}\n        {{- '<|start_header_id|>' + message['role'] + '<|end_header_id|>\\n\\n'+ message['content'] | trim + '<|eot_id|>' }}\n    {%- elif 'tool_calls' in message %}\n        {%- if not message.tool_calls|length == 1 %}\n            {{- raise_exception(\"This model only supports single tool-calls at once!\") }}\n        {%- endif %}\n        {%- set tool_call = message.tool_calls[0].function %}\n        {%- if builtin_tools is defined and tool_call.name in builtin_tools %}\n            {{- '<|start_header_id|>assistant<|end_header_id|>\\n\\n' -}}\n            {{- \"<|python_tag|>\" + tool_call.name + \".call(\" }}\n            {%- for arg_name, arg_val in tool_call.arguments | items %}\n                {{- arg_name + '=\"' + arg_val + '\"' }}\n                {%- if not loop.last %}\n                    {{- \", \" }}\n                {%- endif %}\n                {%- endfor %}\n            {{- \")\" }}\n        {%- else  %}\n            {{- '<|start_header_id|>assistant<|end_header_id|>\\n\\n' -}}\n            {{- '{\"name\": \"' + tool_call.name + '\", ' }}\n            {{- '\"parameters\": ' }}\n            {{- tool_call.arguments | tojson }}\n            {{- \"}\" }}\n        {%- endif %}\n        {%- if builtin_tools is defined %}\n            {#- This means we're in ipython mode #}\n            {{- \"<|eom_id|>\" }}\n        {%- else %}\n            {{- \"<|eot_id|>\" }}\n        {%- endif %}\n    {%- elif message.role == \"tool\" or message.role == \"ipython\" %}\n        {{- \"<|start_header_id|>ipython<|end_header_id|>\\n\\n\" }}\n        {%- if message.content is mapping or message.content is iterable %}\n            {{- message.content | tojson }}\n        {%- else %}\n            {{- message.content }}\n        {%- endif %}\n        {{- \"<|eot_id|>\" }}\n    {%- endif %}\n{%- endfor %}\n{%- if add_generation_prompt %}\n    {{- '<|start_header_id|>assistant<|end_header_id|>\\n\\n' }}\n{%- endif %}\n"""
 
 
 @PromptRegistry.register("microsoft/phi-4")
 def microsoft_phi_chat_template():
+    """
+    Chat template for Microsoft's Phi-4 model format.
+    
+    This template formats messages with specific tokens for different roles:
+    - system: <|im_start|>system<|im_sep|>content<|im_end|>
+    - user: <|im_start|>user<|im_sep|>content<|im_end|>
+    - assistant: <|im_start|>assistant<|im_sep|>content<|im_end|>
+    
+    Returns:
+        str: Template string that formats messages according to Phi-4 specifications
+    """
     return """{% for message in messages %}{% if (message['role'] == 'system') %}{{'<|im_start|>system<|im_sep|>' + message['content'] + '<|im_end|>'}}{% elif (message['role'] == 'user') %}{{'<|im_start|>user<|im_sep|>' + message['content'] + '<|im_end|>'}}{% elif (message['role'] == 'assistant') %}{{'<|im_start|>assistant<|im_sep|>' + message['content'] + '<|im_end|>'}}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant<|im_sep|>' }}{% endif %}"""
+
 
 @PromptRegistry.register("nvidia/Llama-3_3-Nemotron-Super-49B-v1")
 def nemotron_chat_template():
+    """
+    Chat template for NVIDIA's Llama-3.3-Nemotron-Super-49B model format.
+    
+    This template:
+    - Starts with a system message about detailed thinking
+    - Handles special <think> tags in assistant messages
+    - Formats messages with proper headers and end tokens
+    
+    Format:
+    - System: <|start_header_id|>system<|end_header_id|>\n\ndetailed thinking on<|eot_id|>
+    - User/Assistant: <|start_header_id|>role<|end_header_id|>\n\ncontent<|eot_id|>
+    
+    Returns:
+        str: Template string that formats messages according to Nemotron specifications
+    """
     return """{{- bos_token }}
 {{- "<|start_header_id|>system<|end_header_id|>\n\n" }}detailed thinking on{{- "<|eot_id|>" }}
 {%- for message in messages %}

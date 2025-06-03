@@ -2,6 +2,10 @@
 Deprecated Pipeline class for data generation pipelines.
 
 Use the Flow class directly for new code.
+
+This module provides a flexible pipeline architecture that allows for sequential processing
+of datasets through multiple blocks, with support for data transformation, column dropping,
+and duplicate removal.
 """
 
 # SPDX-License-Identifier: Apache-2.0
@@ -73,7 +77,9 @@ class Pipeline:
 
     def generate(self, dataset: Dataset) -> Dataset:
         """Generate the dataset by running the pipeline steps.
-
+        This method executes each block in sequence, applying transformations and
+        handling intermediate data processing steps like column dropping and
+        duplicate removal.
         Parameters
         ----------
         dataset : Dataset
@@ -90,6 +96,7 @@ class Pipeline:
             If a block produces an empty dataset.
         """
         for block_prop in self.chained_blocks:
+            # Extract block configuration and parameters
             block_type = block_prop["block_type"]
             block_config = block_prop["block_config"]
             drop_columns = block_prop.get("drop_columns", [])
@@ -97,24 +104,30 @@ class Pipeline:
             drop_duplicates_cols = block_prop.get("drop_duplicates", False)
             block = block_type(**block_config)
 
+            # Log block execution details
             logger.debug("------------------------------------\n")
             logger.debug("Running block: %s", block_config["block_name"])
             logger.debug("Input dataset: %s", dataset)
 
+            # Execute the block and process the dataset
             dataset = block.generate(dataset, **gen_kwargs)
 
+            # Validate dataset is not empty after block execution
             if len(dataset) == 0:
                 raise EmptyDatasetError(
                     f"Pipeline stopped: Empty dataset after running block: {block_config['block_name']}"
                 )
 
+            # Remove specified columns if they exist in the dataset
             drop_columns_in_ds = [e for e in drop_columns if e in dataset.column_names]
             if drop_columns:
                 dataset = dataset.remove_columns(drop_columns_in_ds)
 
+            # Remove duplicates if specified
             if drop_duplicates_cols:
                 dataset = self._drop_duplicates(dataset, cols=drop_duplicates_cols)
 
+            # Log output dataset details
             logger.debug("Output dataset: %s", dataset)
             logger.debug("------------------------------------\n\n")
 
