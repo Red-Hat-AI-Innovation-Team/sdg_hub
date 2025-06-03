@@ -331,7 +331,7 @@ class CombineColumnsBlock(Block):
             Sample with combined values stored in output column.
         """
         sample[self.output_col] = self.separator.join(
-            [sample[col] for col in self.columns]
+            [str(sample[col]) for col in self.columns]
         )
         return sample
 
