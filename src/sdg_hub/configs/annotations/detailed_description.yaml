@@ -1,3 +1,29 @@
+# This YAML file defines a prompt template for detailed annotation tasks.
+# The template provides a structured format for generating annotations with
+# comprehensive task descriptions.
+#
+# Structure:
+# - system: Empty field for system role definition
+# - introduction: Detailed task description template
+# - principles: Empty field for principles
+# - examples: Empty field for examples
+# - generation: Query template for annotation
+# - start_tags/end_tags: Empty delimiters
+#
+# Key Features:
+# - Detailed task descriptions
+# - Variable substitution
+# - Flexible configuration
+# - Simple query format
+#
+# Template Variables:
+# - task_description: Detailed description of the annotation task
+# - prompt: The query to be annotated
+#
+# Usage:
+# This template is used for annotation tasks requiring detailed
+# task descriptions while maintaining a simple structure.
+
 system: ~
 introduction: |
   Task Description: {{ task_description }}

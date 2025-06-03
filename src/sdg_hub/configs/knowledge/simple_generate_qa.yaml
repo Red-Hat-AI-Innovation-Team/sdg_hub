@@ -1,3 +1,41 @@
+# This YAML file defines a prompt template for generating simple question-answer pairs
+# from educational content. The prompt is designed to create diverse, clear, and
+# educational Q&A pairs that are grounded in the source material.
+#
+# Structure:
+# - system: Sets the AI's role as a knowledgeable assistant
+# - introduction: Main instruction for creating Q&A pairs from textbook chapters
+# - principles: Guidelines for question generation and language diversity
+# - examples: Example Q&A pairs showing expected format and style
+# - generation: Template for creating a single Q&A pair
+# - start_tags/end_tags: Empty delimiters for content sections
+#
+# Key Features:
+# - Focus on educational Q&A generation
+# - Emphasis on language diversity
+# - Clear and concise questions
+# - Grounding in source material
+# - Appropriate response length
+#
+# Question Guidelines:
+# - 1-2 sentences in length
+# - Can be imperative or interrogative
+# - Must be in English
+# - Should be diverse in language and structure
+# - Must be answerable by a language model
+# - Should be grounded in the document
+#
+# Response Format:
+# - Single question and answer pair
+# - Long, detailed responses preferred
+# - Must be appropriate to the question
+# - Must be grounded in the source material
+#
+# Usage:
+# This prompt is used to generate educational Q&A pairs that effectively teach
+# concepts from textbook chapters while maintaining language diversity and
+# educational value.
+
 system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
 
 introduction: Develop a series of educational question and answer pairs from a chapter in a {{domain}} textbook.

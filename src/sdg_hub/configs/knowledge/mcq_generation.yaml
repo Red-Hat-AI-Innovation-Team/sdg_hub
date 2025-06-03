@@ -1,3 +1,40 @@
+# This YAML file defines a prompt template for generating multiple-choice questions (MCQs) from provided documents.
+# The prompt is designed to create educational MCQs that test understanding of key concepts
+# while maintaining accuracy and grounding in the source material.
+#
+# Structure:
+# - system: Sets the AI's role as an expert in generating Q&A based on guidelines
+# - introduction: Main instruction for creating multiple-choice questions
+# - principles: Guidelines for question generation and formatting
+# - examples: Example MCQs showing expected format and style
+# - generation: Template for the document to be used for MCQ generation
+# - start_tags/end_tags: Delimiters for question and answer sections
+#
+# Key Features:
+# - Focuses on multiple-choice question format
+# - Requires grounding in source document
+# - Clear separation of questions and answers
+# - Structured format with specific tags
+# - Educational value and accuracy
+#
+# Question Guidelines:
+# - Must be based on provided document content
+# - Should have one correct answer
+# - Must be clear and unambiguous
+# - Should test understanding of key concepts
+# - Must follow specified tag format
+#
+# Response Format:
+# - Questions are enclosed in [Start of Question] and [End of Question] tags
+# - Answers are enclosed in [Start of Answer] and [End of Answer] tags
+# - Each question includes 4 options (A, B, C, D)
+# - Correct answer is clearly indicated
+#
+# Usage:
+# This prompt is used to generate multiple-choice questions that effectively test
+# understanding of concepts from provided documents while maintaining accuracy
+# and educational value.
+
 system: You are a helpful assistant, that is an expert at generating question and answers based on given guidelines.
 
 introduction: Create a series of multiple choice questions by following the given guidelines

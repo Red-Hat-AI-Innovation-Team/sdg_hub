@@ -1,3 +1,50 @@
+# This YAML file defines a prompt template for generating diverse grounded
+# questions based on provided context. The prompt is designed to create
+# varied, clear, and contextually relevant questions that can be answered
+# using only the given context.
+#
+# Structure:
+# - system: Sets the AI's role as a knowledgeable assistant
+# - introduction: Main instruction for question generation
+# - principles: Guidelines for question quality and context grounding
+# - examples: Example context and question format
+# - generation: Template for generating multiple questions
+# - start_tags/end_tags: Delimiters for question sections
+#
+# Key Features:
+# - Multiple question generation
+# - Context-based grounding
+# - Diverse topic coverage
+# - Clear and human-like style
+# - Safe and respectful content
+#
+# Question Guidelines:
+# - Proper grammar
+# - Safe and respectful
+# - Factually accurate
+# - Clear and human-like
+# - Topic diversity
+# - Non-template based
+# - Context grounding
+# - Task relevance
+#
+# Context Requirements:
+# - Questions must be answerable from context
+# - No external knowledge needed
+# - Clear context boundaries
+# - Relevant information
+#
+# Response Format:
+# - Multiple questions
+# - Tag-delimited format
+# - No answers/explanations
+# - Consistent style
+#
+# Usage:
+# This prompt is used to generate diverse sets of grounded questions
+# based on provided context, ensuring questions are answerable using
+# only the given information while maintaining variety and clarity.
+
 system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
 
 introduction: |

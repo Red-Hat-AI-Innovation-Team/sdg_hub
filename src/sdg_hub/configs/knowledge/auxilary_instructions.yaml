@@ -1,3 +1,40 @@
+# This YAML file defines a collection of auxiliary instructions for different types
+# of document processing tasks. It provides a variety of phrasings for requesting
+# different types of summaries and fact extractions from documents.
+#
+# Structure:
+# - summary_detailed: Instructions for comprehensive document summaries
+# - summary_extractive: Instructions for extractive summarization
+# - summary_atomic_facts: Instructions for atomic fact extraction
+#
+# Key Features:
+# - Multiple phrasings for each task type
+# - Clear and consistent instruction format
+# - Focus on different summary approaches
+# - Emphasis on document processing
+#
+# Instruction Categories:
+# 1. Detailed Summaries:
+#    - Comprehensive document overviews
+#    - Thorough content breakdowns
+#    - Executive summaries
+#    - Detailed analyses
+#
+# 2. Extractive Summaries:
+#    - Focus on extractive methods
+#    - Direct content extraction
+#    - Source-based summarization
+#
+# 3. Atomic Facts:
+#    - Fact identification
+#    - Key information extraction
+#    - Critical detail highlighting
+#
+# Usage:
+# This file provides a variety of instruction templates that can be used to
+# request different types of document processing tasks, ensuring consistent
+# and clear communication of processing requirements.
+
 summary_detailed:
   - Provide me with a comprehensive summary of the given document.
   - Prepare a detailed breakdown of the contents of the document for me.

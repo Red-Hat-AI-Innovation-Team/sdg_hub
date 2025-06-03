@@ -1,3 +1,42 @@
+# This YAML file defines a prompt template for annotation tasks using Chain of
+# Thought (CoT) reasoning with reflection. The template implements a structured
+# approach to problem-solving with self-evaluation and iterative improvement.
+#
+# Structure:
+# - system: Defines AI role as CoT-based problem solver
+# - introduction: Task description template
+# - principles: Step-by-step reasoning guidelines
+# - examples: Empty field for examples
+# - generation: Template for CoT with reflection
+# - start_tags/end_tags: Delimiters for different sections
+#
+# Key Features:
+# - Chain of Thought reasoning
+# - Self-reflection mechanism
+# - Iterative improvement
+# - Structured output format
+# - Clear section separation
+#
+# Process Steps:
+# 1. Step-by-step thinking (Thinking section)
+# 2. Self-evaluation (Reflection section)
+# 3. Iterative improvement
+# 4. Final concise answer (Output section)
+#
+# Section Delimiters:
+# - [Start/End of Thinking]: Internal reasoning process
+# - [Start/End of Reflection]: Self-evaluation
+# - [Start/End of Output]: Final answer
+#
+# Template Variables:
+# - task_description: Description of the annotation task
+# - prompt: The query to be processed
+#
+# Usage:
+# This template is used for complex annotation tasks requiring
+# structured reasoning, self-evaluation, and iterative improvement
+# before providing the final answer.
+
 system: You are an AI assistant that uses a Chain of Thought (CoT) approach with reflection to answer queries.
 introduction: |
   Task Description: {{ task_description }}

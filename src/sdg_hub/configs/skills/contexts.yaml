@@ -1,3 +1,42 @@
+# This YAML file defines a prompt template for generating diverse context
+# paragraphs based on a task description. The prompt is designed to create
+# informative, accurate, and safe context that can be used for various
+# downstream tasks.
+#
+# Structure:
+# - system: Sets the AI's role as a knowledgeable assistant
+# - introduction: Main instruction for context generation
+# - principles: Guidelines for context quality and format
+# - examples: Example context format
+# - generation: Template for generating new context
+# - start_tags/end_tags: Delimiters for context sections
+#
+# Key Features:
+# - Diverse context generation
+# - Clear and accurate content
+# - Safe and respectful output
+# - Proper formatting
+# - Example-based style
+#
+# Context Guidelines:
+# - Proper grammar
+# - Safe and respectful
+# - Factually accurate
+# - Task relevance
+# - Style consistency
+# - Format compliance
+#
+# Response Format:
+# - Tag-delimited output
+# - Consistent style
+# - Clear structure
+# - No meta-commentary
+#
+# Usage:
+# This prompt is used to generate appropriate context paragraphs
+# based on task descriptions, ensuring the content is informative,
+# accurate, and suitable for various applications.
+
 system: You are a highly capable AI Assistant that specializes in generating high-quality content tailored to specific tasks.
 
 introduction: |

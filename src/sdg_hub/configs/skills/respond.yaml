@@ -1,3 +1,25 @@
+# This YAML file defines a minimal prompt template for response generation.
+# The template serves as a base structure for generating responses to prompts
+#
+# Structure:
+# - system: Empty field for system role definition
+# - introduction: Empty field for task introduction
+# - principles: Empty field for response guidelines
+# - examples: Empty field for example responses
+# - generation: Template for prompt processing
+# - start_tags/end_tags: Empty delimiters for content sections
+#
+# Key Features:
+# - Minimal template structure
+# - Flexible field population
+# - Response generation capability
+# - Customizable tag system
+#
+# Usage:
+# This template is used as a base for implementing response generation
+# functionality, where the empty fields can be populated based on
+# specific response requirements and use cases.
+
 system: 
 introduction: 
 principles: 

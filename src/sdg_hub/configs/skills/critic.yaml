@@ -1,3 +1,49 @@
+# This YAML file defines a prompt template for evaluating AI responses
+# based on domain-specific rubrics. The prompt is designed to provide
+# structured, expert-level critiques that assess response quality
+# against predefined criteria.
+#
+# Structure:
+# - system: Sets the AI's role as a knowledgeable assistant
+# - introduction: Main instruction for response evaluation
+# - principles: Guidelines for rubric-based evaluation
+# - examples: Example of complete evaluation workflow
+# - generation: Template for processing new query-response pairs
+# - start_tags/end_tags: Delimiters for critique section
+#
+# Key Features:
+# - Domain expert perspective
+# - Rubric-based evaluation
+# - Structured feedback
+# - Criteria-specific assessment
+# - Improvement suggestions
+#
+# Evaluation Guidelines:
+# - Adopt domain expertise
+# - Follow rubric strictly
+# - Assess each criterion
+# - Provide specific feedback
+# - Focus on improvements
+# - No additional criteria
+#
+# Input Sections:
+# - Query: Original user question
+# - Response: Model response to evaluate
+# - Analysis: Domain and task context
+# - Rubric: Evaluation criteria
+#
+# Response Format:
+# - Structured critique
+# - Criterion-by-criterion
+# - Specific feedback
+# - Improvement suggestions
+# - Tag-delimited output
+#
+# Usage:
+# This prompt is used to generate expert-level critiques of AI responses
+# based on domain-specific rubrics, ensuring thorough evaluation and
+# actionable feedback for improvement.
+
 system: | 
   You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
 

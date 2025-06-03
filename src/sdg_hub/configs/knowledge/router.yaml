@@ -1,3 +1,26 @@
+# This YAML file defines a minimal prompt template for routing documents.
+# The template serves as a base structure for routing functionality,
+# with empty fields that can be populated as needed.
+#
+# Structure:
+# - system: Empty field for system role definition
+# - introduction: Empty field for task introduction
+# - principles: Empty field for routing guidelines
+# - examples: Empty field for example routing cases
+# - generation: Template for document processing
+# - start_tags/end_tags: Empty delimiters for content sections
+#
+# Key Features:
+# - Minimal template structure
+# - Flexible field population
+# - Document routing capability
+# - Customizable tag system
+#
+# Usage:
+# This template is used as a base for implementing document routing
+# functionality, where the empty fields can be populated based on
+# specific routing requirements and use cases.
+
 system: ""
 
 introduction: ""

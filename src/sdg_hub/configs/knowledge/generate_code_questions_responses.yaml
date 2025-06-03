@@ -1,3 +1,29 @@
+# This YAML file defines a prompt template for generating code-related Q&A pairs using an LLM.
+# The prompt is designed to create questions and answers that explain programming concepts
+# from a provided document, with proper code formatting and grounding.
+#
+# Structure:
+# - system: Sets the AI's role as a knowledgeable assistant
+# - introduction: Main instruction for creating Q&A pairs about basic concepts
+# - principles: Guidelines for creating grounded, well-formatted responses
+# - examples: Example Q&A pairs showing expected format and style
+# - generation: Template for the document to be used for Q&A generation
+#
+# Key Features:
+# - Focuses on code-related concepts and explanations
+# - Requires proper code formatting and snippets
+# - Emphasizes grounding in the source document
+# - Prohibits external references
+#
+# Response Format:
+# - Questions and answers are clearly separated
+# - Code snippets are properly formatted
+# - Each response ends with [End] tag
+#
+# Usage:
+# This prompt is used to generate educational Q&A pairs that explain programming
+# concepts while maintaining proper code formatting and staying grounded in the source material.
+
 system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
 
 introduction: | 

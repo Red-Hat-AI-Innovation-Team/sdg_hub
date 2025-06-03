@@ -1,3 +1,41 @@
+# This YAML file defines a prompt template for generating grounded question-answer pairs
+# to perform a specified task. The prompt is designed to create diverse, clear, and
+# contextually grounded Q&A pairs that are suitable for a variety of tasks, using
+# provided context as a basis for the questions and answers.
+#
+# Structure:
+# - system: Sets the AI's role as a knowledgeable assistant
+# - introduction: Main instruction for generating Q&A pairs for a task
+# - principles: Guidelines for question generation and language diversity
+# - examples: Example Q&A pairs, task description, and context
+# - generation: Template for creating a single Q&A pair
+# - start_tags/end_tags: Empty delimiters for content sections
+#
+# Key Features:
+# - Focus on grounded Q&A generation
+# - Emphasis on language and instruction diversity
+# - Clear and concise questions
+# - Grounding in provided context
+# - Appropriate response length
+#
+# Question Guidelines:
+# - 1-2 sentences in length
+# - Can be imperative or interrogative
+# - Must be in English
+# - Should be diverse in language and structure
+# - Must be answerable by a language model
+# - Should be grounded in the provided context
+#
+# Response Format:
+# - Single question and answer pair
+# - Long, detailed responses preferred
+# - Must be appropriate to the question
+# - Must be grounded in the provided context
+#
+# Usage:
+# This prompt is used to generate grounded Q&A pairs that effectively perform
+# a specified task while maintaining language diversity and contextual grounding.
+
 system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
 
 introduction: Develop a series of question and answer pairs to perform a task.

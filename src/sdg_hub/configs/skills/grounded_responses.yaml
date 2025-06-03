@@ -1,3 +1,54 @@
+# This YAML file defines a prompt template for generating grounded responses
+# based on provided context and questions. The prompt is designed to create
+# clear, accurate, and contextually relevant responses that use only the
+# information from the given context.
+#
+# Structure:
+# - system: Sets the AI's role as a knowledgeable assistant
+# - introduction: Main instruction for response generation
+# - principles: Guidelines for response quality and context grounding
+# - examples: Example context-question-response triples
+# - generation: Template for generating new responses
+# - start_tags/end_tags: Delimiters for response sections
+#
+# Key Features:
+# - Context-based responses
+# - Clear and accurate content
+# - Safe and respectful output
+# - Proper formatting
+# - Example-based style
+#
+# Response Guidelines:
+# - Proper grammar
+# - Safe and respectful
+# - Factually accurate
+# - Context grounding
+# - Prompt adherence
+# - Style consistency
+#
+# Example Handling:
+# - Single example support
+# - Multiple sample support
+# - Consistent formatting
+# - Style preservation
+#
+# Context Requirements:
+# - Responses must use context
+# - No external knowledge
+# - Clear information use
+# - Relevant details
+#
+# Response Format:
+# - Tag-delimited output
+# - Consistent style
+# - Clear structure
+# - No meta-commentary
+#
+# Usage:
+# This prompt is used to generate appropriate responses to questions
+# based on provided context, ensuring responses are grounded in the
+# given information while maintaining clarity and accuracy.
+
 system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
 
 introduction: Your task is to faithfully follow the user's prompt, given context and generate a response. 

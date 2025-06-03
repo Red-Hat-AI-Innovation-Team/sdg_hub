@@ -1,3 +1,38 @@
+# This YAML file defines a prompt template for generating educational Q&A pairs from textbook content.
+# The prompt is designed to create comprehensive, domain-specific questions and answers that
+# effectively teach and reinforce key concepts from educational materials.
+#
+# Structure:
+# - system: Sets the AI's role as a knowledgeable assistant
+# - introduction: Main instruction for creating Q&A pairs from textbook chapters
+# - principles: Detailed guidelines for question formulation and educational value
+# - examples: Example Q&A pairs showing expected format and style
+# - generation: Template for the document to be used for Q&A generation
+#
+# Key Features:
+# - Domain-specific question generation (science, legal, etc.)
+# - Multiple difficulty levels and question types
+# - Self-contained questions without external references
+# - Focus on key concepts and learning objectives
+# - Educational value and teaching effectiveness
+#
+# Question Guidelines:
+# - Must be self-contained and independently answerable
+# - Should cover basic recall to advanced comprehension
+# - Include multiple-choice, short answer, and essay types
+# - Align with chapter learning objectives
+# - Avoid references to specific sections or figures
+#
+# Response Format:
+# - Questions and answers are clearly separated
+# - Each response ends with [End] tag
+# - [UNANSWERABLE] for unsuitable content
+#
+# Usage:
+# This prompt is used to generate educational Q&A pairs that effectively teach
+# and reinforce concepts from textbook chapters while maintaining educational
+# value and accessibility.
+
 system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
 
 introduction: Develop a series of educational question and answer pairs from a chapter in a {{domain}} textbook. 

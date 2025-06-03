@@ -1,3 +1,26 @@
+# This YAML file defines a prompt template for evaluating questions using an LLM.
+# The prompt is structured to assess if a given question meets specific quality criteria.
+#
+# Structure:
+# - system: System message that sets the context and role for the LLM
+# - introduction: Main instruction explaining the task and evaluation criteria
+# - principles: Detailed requirements and guidelines for evaluation
+# - examples: Example responses showing expected format (empty in this case)
+# - generation: Template for the actual question to be evaluated
+# - start_tags/end_tags: Parser tags to extract specific parts of the response
+#
+# The prompt evaluates questions based on two main criteria:
+# 1. Non-Referential Clarity and Contextual Independence
+# 2. Subject-Aware Completeness
+#
+# The response format includes:
+# - An explanation of the evaluation
+# - A binary rating (0 or 1)
+#
+# Usage:
+# This prompt is used to validate if questions are self-contained and answerable
+# without requiring external context or specific documents.
+
 system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
 
 introduction: |

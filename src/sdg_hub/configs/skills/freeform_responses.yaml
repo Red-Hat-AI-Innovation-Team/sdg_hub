@@ -1,3 +1,46 @@
+# This YAML file defines a prompt template for generating freeform responses
+# to user questions. The prompt is designed to create clear, accurate, and
+# safe responses that follow the user's requirements.
+#
+# Structure:
+# - system: Sets the AI's role as a knowledgeable assistant
+# - introduction: Main instruction for response generation
+# - principles: Guidelines for response quality and format
+# - examples: Example Q&A pairs with optional multiple samples
+# - generation: Template for generating new responses
+# - start_tags/end_tags: Delimiters for response sections
+#
+# Key Features:
+# - Faithful response generation
+# - Clear and accurate content
+# - Safe and respectful output
+# - Proper formatting
+# - Example-based style
+#
+# Response Guidelines:
+# - Proper grammar
+# - Safe and respectful
+# - Factually accurate
+# - Prompt adherence
+# - Style consistency
+# - Format compliance
+#
+# Example Handling:
+# - Single example support
+# - Multiple sample support
+# - Consistent formatting
+# - Style preservation
+#
+# Response Format:
+# - Tag-delimited output
+# - Consistent style
+# - Clear structure
+# - No meta-commentary
+#
+# Usage:
+# This prompt is used to generate appropriate responses to freeform
+# questions, ensuring clarity, accuracy, and safety while maintaining
+# consistent style and format based on examples.
 system: You are a highly knowledgeable and precise AI Assistant tasked with generating high-quality responses based strictly on user prompts.
 
 introduction: |

@@ -1,3 +1,50 @@
+# This YAML file defines a prompt template for revising and improving model responses
+# based on a structured analysis and improvement plan. The prompt is designed to
+# enhance response quality while maintaining focus and avoiding meta-commentary.
+#
+# Structure:
+# - system: Sets the AI's role as a knowledgeable assistant
+# - introduction: Main instruction for response revision
+# - principles: Guidelines for revision process and output format
+# - examples: Example of complete revision workflow
+# - generation: Template for processing new query-response pairs
+# - start_tags/end_tags: Delimiters for revised response section
+#
+# Key Features:
+# - Structured revision process
+# - Plan-based improvements
+# - Quality-focused output
+# - No meta-commentary
+# - Clear section separation
+#
+# Revision Guidelines:
+# - Follow provided improvement plan
+# - Enhance original response quality
+# - Remove irrelevant information
+# - Avoid self-referential content
+# - Exclude revision process details
+# - Return original if no improvement needed
+#
+# Input Sections:
+# - Query: Original user question
+# - Response: Initial model response
+# - Analysis: Response evaluation
+# - Rubric: Quality criteria
+# - Critique: Detailed feedback
+# - Plan: Improvement strategy
+#
+# Response Format:
+# - Revised response only
+# - No meta-information
+# - No revision commentary
+# - Clear section tags
+# - High-quality output
+#
+# Usage:
+# This prompt is used to systematically improve model responses based on
+# structured analysis and improvement plans, ensuring high-quality output
+# while maintaining focus and avoiding unnecessary meta-commentary.
+
 system: |
   You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
 

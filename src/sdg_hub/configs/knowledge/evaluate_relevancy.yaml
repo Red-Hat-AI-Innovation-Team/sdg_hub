@@ -1,3 +1,45 @@
+# This YAML file defines a prompt template for evaluating the relevance of responses
+# to specific queries. The prompt is designed to assess responses based on two key
+# criteria: subject matter relevance and focus/perspective alignment.
+#
+# Structure:
+# - system: Sets the AI's role as a knowledgeable assistant
+# - introduction: Main instruction for evaluating response relevance
+# - principles: Guidelines for evaluation criteria and scoring
+# - examples: Example evaluations showing expected format and reasoning
+# - generation: Template for processing new query-response pairs
+# - start_tags/end_tags: Delimiters for feedback and score sections
+#
+# Key Features:
+# - Two-point scoring system
+# - Dual evaluation criteria
+# - Detailed feedback requirements
+# - Structured response format
+# - Objective assessment focus
+#
+# Evaluation Criteria:
+# 1. Subject Matter Relevance (1 point):
+#    - Direct topic matching
+#    - Main subject alignment
+#    - Core concept coverage
+#
+# 2. Focus/Perspective Alignment (1 point):
+#    - Specific angle addressing
+#    - Query focus matching
+#    - Perspective alignment
+#
+# Response Format:
+# - Question section
+# - Response section
+# - Detailed feedback
+# - Numerical score (0-2)
+# - Clear reasoning
+#
+# Usage:
+# This prompt is used to evaluate whether responses are relevant to their
+# corresponding queries, ensuring both subject matter alignment and proper
+# focus addressing while maintaining objectivity in assessment.
+
 system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
 
 introduction: |

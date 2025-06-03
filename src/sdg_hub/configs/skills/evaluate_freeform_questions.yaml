@@ -1,3 +1,58 @@
+# This YAML file defines a prompt template for evaluating freeform questions
+# using a binary scoring system. The prompt is designed to assess question
+# quality based on format, relevance, and safety criteria.
+#
+# Structure:
+# - system: Sets the AI's role as a knowledgeable assistant
+# - introduction: Main instruction for question evaluation
+# - principles: Detailed evaluation criteria and guidelines
+# - examples: Example evaluation with explanation and score
+# - generation: Template for processing new questions
+# - start_tags/end_tags: Delimiters for evaluation and score sections
+#
+# Key Features:
+# - Binary scoring (0/1)
+# - Task-specific relevance
+# - Format requirements
+# - Safety and ethics focus
+# - Structured evaluation
+#
+# Evaluation Criteria:
+# - Text-based answerability
+# - English language
+# - 1-2 sentence length
+# - Proper formatting
+# - Safe and respectful
+# - Task relevance
+#
+# Scoring System:
+# 0: Does not meet requirements
+#    - Non-text requirements
+#    - Non-English
+#    - Wrong length
+#    - Poor formatting
+#    - Unsafe content
+#    - Off-topic
+#
+# 1: Meets all requirements
+#    - Text-based
+#    - English
+#    - Correct length
+#    - Well-formatted
+#    - Safe content
+#    - Task-relevant
+#
+# Response Format:
+# - Evaluation explanation
+# - Binary score (0/1)
+# - Tag-delimited sections
+# - Objective assessment
+#
+# Usage:
+# This prompt is used to evaluate the quality of freeform questions,
+# ensuring they meet standards for format, relevance, and safety
+# while providing structured feedback and scoring.
+
 system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
 
 introduction: |

@@ -1,3 +1,48 @@
+# This YAML file defines a prompt template for analyzing questions and
+# generating domain-specific evaluation rubrics. The prompt is designed
+# to provide structured analysis of user questions and create actionable
+# criteria for response evaluation.
+#
+# Structure:
+# - system: Sets the AI's role as a knowledgeable assistant
+# - introduction: Main instruction for question analysis
+# - principles: Guidelines for analysis and rubric generation
+# - examples: Example analysis and rubric format
+# - generation: Template for processing new questions
+# - start_tags/end_tags: Delimiters for analysis and rubric sections
+#
+# Key Features:
+# - Domain identification
+# - Task description
+# - Rubric generation
+# - Format requirements
+# - Structured output
+#
+# Analysis Guidelines:
+# - Clear task description
+# - Domain identification
+# - Requirement identification
+# - Format specification
+# - Concise output
+#
+# Rubric Guidelines:
+# - 3-5 domain-specific criteria
+# - Clear and unambiguous
+# - Actionable items
+# - Format compliance
+# - Task alignment
+#
+# Response Format:
+# - Analysis section
+# - Rubric section
+# - Tag-delimited output
+# - No explanations
+#
+# Usage:
+# This prompt is used to analyze user questions and generate
+# domain-specific evaluation rubrics, providing structured
+# criteria for assessing response quality and relevance.
+
 system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
 
 introduction: | 

@@ -1,3 +1,24 @@
+# This YAML file defines a prompt template for generating extractive summaries using an LLM.
+# The prompt is designed to create summaries that directly extract and preserve key information
+# from the source document without adding new content.
+#
+# Structure:
+# - system: Sets the AI's role as an expert summarizer
+# - introduction: Main instruction for creating detailed extractive summaries
+# - principles: Guidelines emphasizing preservation of original content
+# - examples: Example responses (empty in this case)
+# - generation: Template for the document to be summarized
+# - start_tags/end_tags: Parser tags (empty in this case as full response is used)
+#
+# Key Features:
+# - Focuses on extractive summarization (using original text)
+# - Emphasizes coverage of all key points
+# - Prohibits addition of new information
+#
+# Usage:
+# This prompt is used to generate summaries that faithfully represent the source
+# document's content without introducing new information or interpretations.
+
 system: You are an AI assistant that is expert at summarizing text.
 
 introduction: |

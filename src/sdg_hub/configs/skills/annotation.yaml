@@ -1,3 +1,49 @@
+# This YAML file defines a flexible prompt template for generating
+# annotated responses to questions. The template is designed to be
+# customizable through variable substitution, allowing for different
+# system roles, task descriptions, and principles.
+#
+# Structure:
+# - system: Customizable system role definition
+# - introduction: Customizable task description
+# - principles: Customizable response guidelines
+# - examples: Example Q&A pairs with optional multiple samples
+# - generation: Template for generating new responses
+# - start_tags/end_tags: Delimiters for response sections
+#
+# Key Features:
+# - Variable substitution
+# - Flexible configuration
+# - Multiple example support
+# - Consistent formatting
+# - Tag-based structure
+#
+# Template Variables:
+# - system: System role definition
+# - task_description: Task instructions
+# - principles: Response guidelines
+# - seed_samples: Multiple examples
+# - seed_question: Single example question
+# - seed_response: Single example response
+# - question: Current question
+#
+# Example Handling:
+# - Single example support
+# - Multiple sample support
+# - Consistent formatting
+# - Style preservation
+#
+# Response Format:
+# - Tag-delimited output
+# - Consistent style
+# - Clear structure
+# - No meta-commentary
+#
+# Usage:
+# This template is used as a base for implementing various annotation
+# tasks, where the system role, task description, and principles can
+# be customized through variable substitution.
+
 system: |
   {{ system }}
 introduction: |

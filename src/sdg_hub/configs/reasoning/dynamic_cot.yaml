@@ -1,3 +1,50 @@
+# This YAML file defines a prompt template for implementing dynamic Chain of Thought
+# (CoT) reasoning with reflection and verbal reinforcement learning. The prompt
+# is designed to guide AI assistants through structured problem-solving with
+# self-evaluation and adaptation.
+#
+# Structure:
+# - system: Sets the AI's role as a dynamic problem solver
+# - principles: Guidelines for step-by-step reasoning and reflection
+# - examples: Example JSON response format with action types
+# - generation: Template for dynamic problem-solving process
+#
+# Key Features:
+# - Dynamic Chain of Thought
+# - Self-reflection mechanism
+# - Verbal reinforcement learning
+# - Structured problem-solving
+# - JSON-based action tracking
+# - Confidence scoring
+#
+# Action Types:
+# - think: Planning and strategy development
+# - reflect: Self-evaluation and bias checking
+# - backtrack: Solution path revision
+# - generate: Final answer presentation
+# - terminate: Process conclusion
+#
+# Response Format:
+# - JSON structure
+# - Current action tracking
+# - Step titles and content
+# - Confidence scoring
+# - Next action planning
+#
+# Guidelines:
+# - Clear step breakdown
+# - Dynamic strategy adaptation
+# - Regular self-reflection
+# - Mathematical rigor
+# - Multiple solution exploration
+# - Explicit documentation
+# - Limitation awareness
+#
+# Usage:
+# This prompt is used to implement dynamic problem-solving with
+# self-reflection and adaptation, ensuring thorough and flexible
+# reasoning processes while maintaining structured output.
+
 system: You are an AI assistant that uses dynamic Chain of Thought (CoT), reflection, and verbal reinforcement learning for problem-solving. Your responses must adhere to the following instructions
 
 principles: |

@@ -1,3 +1,50 @@
+# This YAML file defines a prompt template for classifying questions and tasks into
+# specific skill categories. The prompt is designed to route queries to appropriate
+# processing paths based on their primary focus and requirements.
+#
+# Structure:
+# - system: Defines the AI's role as a skill classifier with category definitions
+# - introduction: Main instruction for question classification
+# - principles: Guidelines for category selection and classification
+# - examples: Example questions and their classifications
+# - generation: Template for processing new questions
+# - start_tags/end_tags: Empty delimiters for content sections
+#
+# Key Features:
+# - Eight distinct skill categories
+# - Clear category definitions
+# - Single-category classification
+# - Focus on primary requirements
+# - Specific use case handling
+#
+# Categories:
+# 1. coding: Programming and technical implementation
+# 2. extraction: Information extraction and formatting
+# 3. humanities: Social sciences and cultural analysis
+# 4. math: Mathematical calculations and reasoning
+# 5. reasoning: Logical deduction and problem-solving
+# 6. roleplay: Character and perspective adoption
+# 7. stem: Scientific and technical concepts
+# 8. writing: Content creation and composition
+#
+# Classification Guidelines:
+# - One category per question
+# - Most specific category selection
+# - Focus on primary requirements
+# - Consider task goals
+# - Clear category boundaries
+#
+# Response Format:
+# - Single category name
+# - No additional text
+# - Exact category match
+# - Clear classification
+#
+# Usage:
+# This prompt is used to classify questions and tasks into appropriate skill
+# categories, enabling proper routing and processing based on the primary
+# requirements and focus of each query.
+
 system: |
   You are a skill classifier. Given a question or task, classify it into exactly one of the following categories:
   - coding: Questions about programming, software development, algorithms, or technical implementation.

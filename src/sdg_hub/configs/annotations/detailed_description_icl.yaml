@@ -1,3 +1,38 @@
+# This YAML file defines a prompt template for detailed annotation tasks with
+# in-context learning (ICL) capabilities. The template supports example-based
+# learning through question-answer pairs.
+#
+# Structure:
+# - system: Empty field for system role definition
+# - introduction: Detailed task description template
+# - principles: Empty field for principles
+# - examples: Template for question-answer examples
+# - generation: Query template with ICL support
+# - start_tags/end_tags: Empty delimiters
+#
+# Key Features:
+# - In-context learning support
+# - Multiple example handling
+# - Fallback to seed examples
+# - Structured Q&A format
+# - Variable substitution
+#
+# Template Variables:
+# - task_description: Detailed description of the annotation task
+# - questions_and_answers: List of example Q&A pairs (optional)
+# - seed_question: Fallback example question
+# - seed_response: Fallback example response
+# - prompt: The query to be annotated
+#
+# Example Format:
+# - Questions and answers are delimited by [Start/End of Question/Output] tags
+# - Multiple examples can be provided through iteration
+# - Fallback to seed examples if no Q&A pairs are defined
+#
+# Usage:
+# This template is used for annotation tasks requiring detailed
+# task descriptions and example-based learning through Q&A pairs.
+
 system: ~
 introduction: |
   Task Description: {{ task_description }}

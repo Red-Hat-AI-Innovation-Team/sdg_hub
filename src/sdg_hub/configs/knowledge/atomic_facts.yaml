@@ -1,3 +1,42 @@
+# This YAML file defines a prompt template for breaking down text into atomic facts.
+# The prompt is designed to decompose complex information into simple, clear,
+# and self-contained factual statements that are grounded in the source material.
+#
+# Structure:
+# - system: Sets the AI's role as a domain-knowledgeable assistant
+# - introduction: Main instruction for breaking down text into atomic facts
+# - principles: Guidelines for fact extraction and formatting
+# - examples: Example of text decomposition into atomic facts
+# - generation: Template for processing new text into atomic facts
+# - start_tags/end_tags: Empty delimiters for content sections
+#
+# Key Features:
+# - Focus on atomic fact extraction
+# - Emphasis on clarity and simplicity
+# - Grounding in source material
+# - Avoidance of pronouns
+# - Focus on key concepts
+#
+# Fact Guidelines:
+# - Must be grounded in the source text
+# - Should be as simple as possible
+# - Should avoid pronouns
+# - Should include necessary context
+# - Should focus on key concepts
+# - Should skip questions/problems
+#
+# Response Format:
+# - Numbered list of atomic facts
+# - Each fact is a simple statement
+# - Facts are self-contained
+# - Clear and unambiguous language
+# - Proper context included
+#
+# Usage:
+# This prompt is used to break down complex text into simple, atomic facts
+# that can be easily understood and processed, while maintaining accuracy
+# and grounding in the source material.
+
 system: You are an AI assistant knowledgeable about {{domain}} domain. Be accurate but concise in response.
 
 introduction: | 
@@ -6,8 +45,8 @@ introduction: |
 principles: |
   1. Makesure each fact is grounded in the given text.
   2. Include any necessary information needed to explain the fact or concept
-  3. The atomic facts should be as simple as possible, if it’s compound sentence, break down one more time
-  4. For clarity, avoid using pronouns like ’it’, ’he’, ’she’, ’this’, ’that’ etc., and instead use the full names or titles.
+  3. The atomic facts should be as simple as possible, if it's compound sentence, break down one more time
+  4. For clarity, avoid using pronouns like 'it', 'he', 'she', 'this', 'that' etc., and instead use the full names or titles.
   5. Focus only on key concepts and facts. Skip any question or problems mentioned in the passage.
 
 examples: |

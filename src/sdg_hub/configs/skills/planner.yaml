@@ -1,3 +1,50 @@
+# This YAML file defines a prompt template for generating improvement plans
+# based on critiques of AI responses. The prompt is designed to create
+# actionable, domain-specific plans that address identified issues and
+# meet rubric criteria.
+#
+# Structure:
+# - system: Sets the AI's role as a knowledgeable assistant
+# - introduction: Main instruction for plan generation
+# - principles: Guidelines for creating actionable plans
+# - examples: Example of complete planning workflow
+# - generation: Template for processing new query-response pairs
+# - start_tags/end_tags: Delimiters for plan section
+#
+# Key Features:
+# - Domain-specific planning
+# - Rubric-based improvements
+# - Step-by-step action items
+# - Critique integration
+# - Actionable recommendations
+#
+# Planning Guidelines:
+# - Use domain knowledge
+# - Follow rubric criteria
+# - Address critique points
+# - Create specific steps
+# - Ensure feasibility
+# - Focus on actions only
+#
+# Input Sections:
+# - Query: Original user question
+# - Response: Initial model response
+# - Analysis: Response evaluation
+# - Rubric: Quality criteria
+# - Critique: Detailed feedback
+#
+# Response Format:
+# - Structured plan only
+# - Step-by-step format
+# - Clear action items
+# - No implementation
+# - Tag-delimited output
+#
+# Usage:
+# This prompt is used to generate actionable improvement plans based on
+# critiques of AI responses, ensuring that the plans are specific,
+# feasible, and aligned with domain-specific requirements.
+
 system: |
   You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
 

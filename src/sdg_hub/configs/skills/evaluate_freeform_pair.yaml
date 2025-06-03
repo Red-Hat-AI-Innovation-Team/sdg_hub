@@ -1,3 +1,52 @@
+# This YAML file defines a prompt template for evaluating freeform question-answer
+# pairs using a 3-point scoring scale. The prompt is designed to assess response
+# quality based on correctness, completeness, and safety criteria.
+#
+# Structure:
+# - system: Sets the AI's role as a knowledgeable assistant
+# - introduction: Main instruction for response evaluation
+# - principles: Detailed scoring criteria and guidelines
+# - examples: Example evaluation with explanation and score
+# - generation: Template for processing new Q&A pairs
+# - start_tags/end_tags: Delimiters for evaluation and score sections
+#
+# Key Features:
+# - 3-point scoring scale
+# - Comprehensive evaluation criteria
+# - Safety and ethics focus
+# - Detailed scoring rationale
+# - Structured output format
+#
+# Scoring Criteria:
+# 1: Incorrect/irrelevant/unsafe/incomplete
+#    - Factual errors
+#    - Off-topic content
+#    - Harmful material
+#    - Incomplete responses
+#
+# 2: Correct but brief
+#    - Accurate information
+#    - Direct answers
+#    - Limited explanation
+#    - Basic context
+#
+# 3: Perfect response
+#    - Comprehensive explanation
+#    - Expert knowledge
+#    - Well-written content
+#    - Safe and ethical
+#    - Engaging and logical
+#
+# Response Format:
+# - Evaluation explanation
+# - Numerical score (1-3)
+# - Tag-delimited sections
+# - Objective assessment
+#
+# Usage:
+# This prompt is used to evaluate the quality of AI responses to freeform
+# questions, ensuring they meet standards for accuracy, completeness,
+# and safety while providing structured feedback and scoring.
 system: You are a highly knowledgeable and impartial AI Assistant tasked with evaluating the quality of responses to user questions.
 
 introduction: |

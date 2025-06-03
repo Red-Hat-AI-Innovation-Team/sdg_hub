@@ -1,3 +1,48 @@
+# This YAML file defines a prompt template for evaluating and comparing the quality
+# of responses from two AI assistants. The prompt is designed to provide an impartial
+# assessment of response quality based on multiple criteria.
+#
+# Structure:
+# - system: Sets the AI's role as a quality assessment assistant
+# - introduction: Main instruction for comparing two responses
+# - principles: Guidelines for impartial evaluation
+# - examples: Example comparison with judgement and verdict
+# - generation: Template for processing new response pairs
+# - start_tags/end_tags: Delimiters for judgement and verdict sections
+#
+# Key Features:
+# - Impartial response comparison
+# - Multiple quality criteria
+# - Structured evaluation format
+# - Clear verdict system
+# - Objective assessment focus
+#
+# Evaluation Criteria:
+# - Helpfulness
+# - Relevance
+# - Accuracy
+# - Depth
+# - Creativity
+# - Level of detail
+#
+# Judgement Guidelines:
+# - Compare responses objectively
+# - Avoid position bias
+# - Ignore response length
+# - Focus on quality factors
+# - Provide clear reasoning
+#
+# Response Format:
+# - Judgement section with comparison
+# - Clear verdict (Assistant A/B)
+# - Structured tag format
+# - Objective assessment
+#
+# Usage:
+# This prompt is used to evaluate and compare the quality of responses from
+# two AI assistants, providing an impartial assessment based on multiple
+# quality criteria while maintaining objectivity and clarity.
+
 system: You are a helpful and precise assistant for checking the quality of the answer.
 
 introduction: Please act as an impartial judge and evaluate the quality of the responses provided by two AI assistants to the user question displayed below. You should choose the assistant that follows the user's instructions and answers the user's question better. Your evaluation should consider factors such as the helpfulness, relevance, accuracy, depth, creativity, and level of detail of their responses. 
@@ -24,7 +69,7 @@ examples: |
   [The End of Assistant B Answer]
 
   [Start of Judgement]
-  Both responses highlight the benefits of regular exercise, including cardiovascular health, muscle strength, mental health, and chronic disease prevention. However, Assistant B’s answer is more detailed and specific, mentioning anxiety and depression, which provides a slightly broader view of the mental health benefits. Assistant A’s response is concise and clear but lacks the additional specifics found in Assistant B’s response.
+  Both responses highlight the benefits of regular exercise, including cardiovascular health, muscle strength, mental health, and chronic disease prevention. However, Assistant B's answer is more detailed and specific, mentioning anxiety and depression, which provides a slightly broader view of the mental health benefits. Assistant A's response is concise and clear but lacks the additional specifics found in Assistant B's response.
   [End of Judgement]
 
   [Start of Verdict]

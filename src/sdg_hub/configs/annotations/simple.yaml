@@ -1,0 +1,36 @@
+# This YAML file defines a minimal prompt template for basic annotation tasks.
+# The template provides a simple structure for generating annotations with
+# minimal configuration requirements.
+#
+# Structure:
+# - system: Empty field for system role definition
+# - introduction: Task description template
+# - principles: Empty field for principles
+# - examples: Empty field for examples
+# - generation: Basic query template
+# - start_tags/end_tags: Empty delimiters
+#
+# Key Features:
+# - Minimal configuration
+# - Variable substitution
+# - Flexible task description
+# - Simple query format
+#
+# Template Variables:
+# - simple_task_description: Description of the annotation task
+# - prompt: The query to be annotated
+#
+# Usage:
+# This template is used for basic annotation tasks where minimal
+# configuration and structure are required.
+
+system: ~
+introduction: |
+  Task Description: {{ simple_task_description }}
+principles: ~
+examples: ~
+generation: |
+  Here is the query for annotation:
+  {{ prompt }}
+start_tags: [""]
+end_tags: [""]

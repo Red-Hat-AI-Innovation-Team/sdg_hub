@@ -1,3 +1,41 @@
+# This YAML file defines a prompt template for generating diverse freeform
+# questions based on a task description. The prompt is designed to create
+# varied, clear, and safe questions that cover a wide range of topics.
+#
+# Structure:
+# - system: Sets the AI's role as a knowledgeable assistant
+# - introduction: Main instruction for question generation
+# - principles: Guidelines for question quality and diversity
+# - examples: Example question format
+# - generation: Template for generating multiple questions
+# - start_tags/end_tags: Delimiters for question sections
+#
+# Key Features:
+# - Multiple question generation
+# - Diverse topic coverage
+# - Clear and human-like style
+# - Safe and respectful content
+# - Proper formatting
+#
+# Question Guidelines:
+# - Proper grammar
+# - Safe and respectful
+# - Factually accurate
+# - Clear and human-like
+# - Topic diversity
+# - Non-template based
+# - Task relevance
+#
+# Response Format:
+# - Multiple questions
+# - Tag-delimited format
+# - No answers/explanations
+# - Consistent style
+#
+# Usage:
+# This prompt is used to generate diverse sets of freeform questions
+# based on a task description, ensuring variety, clarity, and safety
+# while maintaining proper formatting and style.
 system: You are a highly intelligent and helpful AI Assistant specializing in generating well-crafted questions tailored to specific tasks.
 
 introduction: |
