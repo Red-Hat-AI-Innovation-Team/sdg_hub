@@ -139,3 +139,28 @@ def test_sample_populator_custom_num_procs(temp_config_files, sample_dataset):
     assert len(result) == 3
     assert "examples" in result[0]
     assert "type" in result[0]
+
+
+def test_sample_populator_missing_config_keys(temp_config_files):
+    """Test SamplePopulatorBlock with missing keys in config files."""
+    # Create a dataset with a route that exists but config has missing keys
+    dataset = Dataset.from_dict({"route": ["coding"], "other_col": ["value1"]})
+
+    # Modify the config file to have missing keys
+    config_path = temp_config_files[0]  # coding.yaml
+    with open(config_path, "w") as f:
+        yaml.dump({"type": "programming"}, f)  # Removed 'examples' key
+
+    block = SamplePopulatorBlock(
+        block_name="test_populator", config_paths=temp_config_files, column_name="route"
+    )
+
+    result = block.generate(dataset)
+
+    # Verify that existing keys are merged and missing keys don't cause errors
+    assert "type" in result[0]
+    assert result[0]["type"] == "programming"
+    assert "other_col" in result[0]
+    assert result[0]["other_col"] == "value1"
+    assert "route" in result[0]
+    assert result[0]["route"] == "coding"
