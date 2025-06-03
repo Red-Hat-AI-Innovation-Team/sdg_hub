@@ -1,0 +1,57 @@
+# --------------------------------------------
+# SDG Hub - Emotion Labeling with Guided Choice (Non-ICL Prompt)
+# --------------------------------------------
+# This YAML flow defines a single `LLMBlock` used to label textual inputs with
+# an emotional category. It uses a deterministic, **guided choice** setup where
+# the model must choose from a fixed set of labels: joy, sadness, anger, fear, love.
+#
+# Unlike the ICL variant, this version likely uses instruction-style prompting
+# instead of few-shot examples, making it lighter and potentially faster to run.
+#
+# Use Cases:
+# - Generating weak labels for emotion classification datasets
+# - Bootstrapping training data for fine-tuning classifiers
+# - Measuring LLM alignment with affective understanding tasks
+#
+# Mermaid Diagram:
+# ```mermaid
+# graph TD
+#     A[gen_responses] --> B[drop_duplicates]
+# ```
+#
+# ```python
+# from sdg_hub.flow import Flow
+# from sdg_hub.pipeline import Pipeline
+# from sdg_hub.sdg import SDG
+
+# Load YAML into config
+# flow_cfg = Flow().get_flow_from_file("configs/flows/annotation/emotion/detailed_description.yaml")
+
+# Build and run the pipeline
+# sdg = SDG([Pipeline(flow_cfg)], num_workers=4, batch_size=8)
+# result = sdg.generate(my_dataset)
+
+# Save final outputs
+# result.to_json("refined_responses.json", orient="records", lines=True)
+# ```
+#
+# Step: Generate an emotion label for each input using instruction-only prompting
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_responses
+    config_path: configs/annotations/detailed_description.yaml   # Instruction-based prompt (not ICL)
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    output_cols:
+      - output                        # Contains one of: joy, sadness, anger, fear, love
+  gen_kwargs:
+    max_tokens: 5                     # Small cap for label output
+    temperature: 0                    # Deterministic behavior for consistent labeling
+    extra_body:
+      guided_choice:                 # Forces model to pick from valid emotion labels
+        - "joy"
+        - "sadness"
+        - "anger"
+        - "fear"
+        - "love"
+  drop_duplicates:
+    - prompt                         # Ensures no duplicate prompts in output

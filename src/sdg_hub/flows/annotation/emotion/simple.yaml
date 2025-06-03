@@ -1,0 +1,66 @@
+# --------------------------------------------
+# SDG Hub - Simple Emotion Annotation Flow
+# --------------------------------------------
+# This YAML defines an emotion labeling pipeline that leverages the simple.yaml template
+# for basic annotation tasks. It uses a single LLMBlock with minimal configuration to
+# perform efficient emotion classification.
+#
+# Configuration:
+# - Uses simple.yaml template for basic prompt structure
+# - Configures Mixtral-8x7B-Instruct-v0.1 for emotion prediction
+# - Implements guided_choice for emotion label constraints
+# - Zero-temperature sampling for deterministic outputs
+#
+# Use Cases:
+# - Quick emotion classification of text content
+# - Initial data labeling for emotion datasets
+# - Baseline emotion prediction in production pipelines
+#
+# Supported Emotions:
+# - joy
+# - sadness
+# - anger
+# - fear
+# - love
+#
+# Mermaid Diagram:
+# ```mermaid
+# graph TD
+#     A[gen_responses] --> B[drop_duplicates]
+# ```
+# ```python
+# from sdg_hub.flow import Flow
+# from sdg_hub.pipeline import Pipeline
+# from sdg_hub.sdg import SDG
+
+# Load YAML into config
+# flow_cfg = Flow().get_flow_from_file("configs/flows/generation/skills/synth_skills.yaml")
+
+# Build and run the pipeline
+# sdg = SDG([Pipeline(flow_cfg)], num_workers=4, batch_size=8)
+# result = sdg.generate(my_dataset)
+
+# Save final outputs
+# result.to_json("refined_responses.json", orient="records", lines=True)
+# ```
+#
+# Step: Predict an emotion label from a short text using simple instruction prompting
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_responses
+    config_path: configs/annotations/simple.yaml            # Simplified prompt without ICL or rubric
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    output_cols:
+      - output                                               # Final predicted label
+  gen_kwargs:
+    max_tokens: 5                                            # Small max tokens for label
+    temperature: 0                                           # Deterministic prediction
+    extra_body:
+      guided_choice:                                         # Emotion classes to constrain prediction
+        - "joy"
+        - "sadness"
+        - "anger"
+        - "fear"
+        - "love"
+  drop_duplicates:
+    - prompt                                                 # Avoid redundant labeling

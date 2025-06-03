@@ -1,12 +1,46 @@
+# --------------------------------------------
+# SDG Hub - Simple Grounded Skill QA Generation
+# --------------------------------------------
+# This minimal YAML flow generates grounded, skill-oriented question-answer pairs
+# using a single LLMBlock. It relies on a prompt that internally handles context
+# creation and question-answer generation (e.g., through Jinja templates).
+#
+# Ideal for:
+# - Bootstrapping grounded QA datasets
+# - Testing and iterating on prompt design
+# - Generating creative or open-domain training data
+#
+# Mermaid Diagram:
+# ```mermaid
+# graph TD
+#     A[gen_skill_grounded] --> B[drop_duplicates]
+# ```
+#
+# Usage Example (Python):
+# ```python
+# from sdg_hub.flow import Flow
+# from sdg_hub.pipeline import Pipeline
+# from sdg_hub.sdg import SDG
+#
+# # Load and prepare the flow
+# flow_cfg = Flow().get_flow_from_file("configs/flows/generation/skills/simple_grounded_skill.yaml")
+# sdg = SDG([Pipeline(flow_cfg)], num_workers=4, batch_size=8)
+#
+# # Assume `dataset` is a Hugging Face Dataset or list of dicts
+# output = sdg.generate(dataset)
+# output.to_json("grounded_qa_output.json", orient="records", lines=True)
+# ```
+
+# Step: Generate grounded QA-style outputs from skill prompts
 - block_type: LLMBlock
   block_config:
     block_name: gen_skill_grounded
-    config_path: configs/skills/simple_generate_qa_grounded.yaml
-    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    config_path: configs/skills/simple_generate_qa_grounded.yaml  # Template includes context + Q + A
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1                 # Instruction-tuned teacher LLM
     output_cols:
-      - output
+      - output                          # Single output column for full response
   gen_kwargs:
-    temperature: 0.7
+    temperature: 0.7                    # Adds creativity to skill scenario generation
     max_tokens: 2048
   drop_duplicates:
-    - output
+    - output                            # Remove repeated QA generations

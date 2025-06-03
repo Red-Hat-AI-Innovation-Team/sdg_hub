@@ -1,3 +1,108 @@
+# --------------------------------------------
+# SDG Hub - Minimal Knowledge QA Generation Flow
+# --------------------------------------------
+# This YAML defines a streamlined pipeline for generating high-quality question-answer
+# pairs directly from well-formed source documents. Unlike the full knowledge synthesis
+# pipeline (synth_knowledge1.5.yaml), this version skips the preprocessing and
+# summarization stages, making it ideal for documents that are already well-structured.
+#
+# Pipeline Stages:
+# 1. Direct QA Generation
+#    - Uses Mixtral-8x7B-Instruct for question generation
+#    - Custom parser for structured QA extraction
+#    - Duplicate question filtering
+#
+# 2. Multi-Stage Quality Control
+#    - Faithfulness evaluation
+#      * Verifies factual accuracy
+#      * Checks source alignment
+#      * Filters unfaithful pairs
+#
+#    - Relevancy assessment
+#      * Ensures topic relevance
+#      * Maintains focus
+#      * Filters irrelevant content
+#
+#    - Question quality verification
+#      * Evaluates clarity
+#      * Checks answerability
+#      * Ensures educational value
+#
+# Use Cases:
+# - Training a LLM on a new document such that the model can answer questions about the document
+#
+# Mermaid Diagram:
+# ```mermaid
+# graph TD
+#     A[generate_questions_responses] --> B[eval_faithfulness]
+#     B --> C[filter_faithfulness]
+#     C --> D[eval_relevancy]
+#     D --> E[filter_relevancy]
+#     E --> F[eval_verify_question]
+#     F --> G[filter_verify_question]
+# ```
+# ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+# 🔲 BLOCK SYSTEM OVERVIEW
+# --------------------------------------------
+# All steps in this YAML are implemented using subclasses of the `Block` base class.
+# Each block is a modular unit with a standard interface:
+#   - `block_type`: The registered name of the block class
+#   - `block_config`: Runtime configuration such as name, column mappings, or paths
+#   - `gen_kwargs` or other params: Custom generation or filtering options
+#
+# Blocks fall into three main categories:
+#
+# 1. **LLM Blocks (`LLMBlock`, `ConditionalLLMBlock`)**:
+#    - Interact with language models to generate or evaluate content
+#    - Support custom Jinja2 templates, output parsing, and batch execution
+#    - Used for QA generation, summarization, evaluation, etc.
+#
+# 2. **Utility Blocks (`DuplicateColumns`, `RenameColumns`, `FlattenColumnsBlock`, etc.)**:
+#    - Manipulate datasets by duplicating, renaming, or transforming columns
+#    - Operate on Hugging Face Datasets with strong type safety and parallelism
+#
+# 3. **Filtering Blocks (`FilterByValueBlock`)**:
+#    - Remove rows from the dataset based on value thresholds or logic
+#    - Often used after LLM evaluation to keep high-quality samples only
+#
+# ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+# 🧩 EXTENSIBILITY AND SAFETY
+# --------------------------------------------
+# - All Blocks inherit from a common abstract base class and support:
+#   - Jinja2 prompt validation
+#   - YAML config management with strong error handling
+#   - Integrated logging via `setup_logger`
+#   - Robust batching and multiprocessing support
+#   - Custom output parsers via regex or tag-based extractors
+#
+# This ensures that all flows remain composable, auditable, and production-safe.
+#
+# For documentation on writing custom blocks, flows, or templates,
+# refer to the SDG Hub developer guide or API docs.
+#
+# ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+#
+# 🔧 HOW THIS YAML IS EXECUTED
+# --------------------------------------------
+# A typical usage pattern is:
+#
+# ```python
+# from sdg_hub.flow import Flow
+# from sdg_hub.pipeline import Pipeline
+# from sdg_hub.sdg import SDG
+#
+# # Load the YAML flow file and convert to internal config
+# flow_cfg = Flow(client).get_flow_from_file("configs/flows/generation/knowledge/synth_knowledge.yaml")
+#
+# # Create the synthetic data generator from flow
+# sdg = SDG([Pipeline(flow_cfg)], num_workers=4, batch_size=8, save_freq=100)
+#
+# # Run on input dataset and export results
+# generated = sdg.generate(dataset, checkpoint_dir="checkpoints/")
+# generated.to_json("outputs.json", orient="records", lines=True)
+# ```
+# ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+# Step 1: Generate question-answer pairs from input document using a custom prompt format
 - block_type: LLMBlock
   block_config:
     block_name: gen_knowledge
@@ -14,8 +119,9 @@
   gen_kwargs:
     max_tokens: 2048
   drop_duplicates:
-    - question
+    - question  # Ensure questions are unique
 
+# Step 2: Evaluate if generated QA pairs are factually consistent with source content
 - block_type: LLMBlock
   block_config:
     block_name: eval_faithfulness_qa_pair
@@ -27,6 +133,7 @@
   gen_kwargs:
     max_tokens: 2048
 
+# Step 3: Filter to retain only QA pairs marked as faithful ("YES")
 - block_type: FilterByValueBlock
   block_config:
     block_name: filter_faithfulness
@@ -34,11 +141,12 @@
     filter_value: "YES"
     operation: operator.eq
     batch_kwargs:
-      num_procs: 8
+      num_procs: 8  # Run filtering in parallel for speed
   drop_columns:
     - judgment
     - explanation
 
+# Step 4: Evaluate the relevancy of questions to the source context
 - block_type: LLMBlock
   block_config:
     block_name: eval_relevancy_qa_pair
@@ -50,6 +158,7 @@
   gen_kwargs:
     max_tokens: 2048
 
+# Step 5: Keep only questions with highest relevancy score (2.0)
 - block_type: FilterByValueBlock
   block_config:
     block_name: filter_relevancy
@@ -63,6 +172,7 @@
     - feedback
     - score
 
+# Step 6: Evaluate question clarity and verifiability
 - block_type: LLMBlock
   block_config:
     block_name: eval_verify_question
@@ -74,6 +184,7 @@
   gen_kwargs:
     max_tokens: 2048
 
+# Step 7: Final filter to retain only high-quality questions (rating == 1.0)
 - block_type: FilterByValueBlock
   block_config:
     block_name: filter_verify_question
@@ -86,4 +197,4 @@
   drop_columns:
     - explanation
     - rating
-    - __index_level_0__
+    - __index_level_0__  # Cleanup indexing column added by pandas

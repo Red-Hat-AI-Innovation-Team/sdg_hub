@@ -1,9 +1,103 @@
+# --------------------------------------------
+# SDG Hub - Knowledge Tuning Flow
+# --------------------------------------------
+# This YAML defines a multi-stage pipeline for generating high-quality
+# question-answer pairs from source documents. The pipeline employs multiple summary
+# techniques and rigorous quality control to ensure factual accuracy and educational value.
+#
+# Pipeline Stages:
+# 1. Multi-Format Summarization
+#    - Detailed summaries (detailed_summary.yaml)
+#      * Comprehensive coverage of key points
+#      * Maintains source accuracy
+#      * No new information added
+#
+#    - Atomic facts (atomic_facts.yaml)
+#      * Breaks down complex information
+#      * Simple, self-contained statements
+#      * Clear and unambiguous language
+#
+#    - Extractive summaries (extractive_summary.yaml)
+#      * Direct excerpts from source
+#      * Preserves original content
+#      * Complete key point coverage
+#
+# 2. Data Transformation
+#    - Flattens multiple summary formats
+#    - Preserves source document backup
+#    - Standardizes column structure
+#
+# 3. QA Generation (generate_questions_responses.yaml)
+#    - Domain-specific question formulation
+#    - Multiple difficulty levels
+#    - Educational value focus
+#    - Self-contained questions
+#
+# 4. Multi-Stage Quality Control
+#    - Faithfulness evaluation
+#      * Verifies factual accuracy
+#      * Checks source alignment
+#      * Filters unfaithful pairs
+#
+#    - Relevancy assessment
+#      * Ensures topic relevance
+#      * Maintains focus
+#      * Filters irrelevant content
+#
+#    - Question quality verification
+#      * Evaluates clarity
+#      * Checks answerability
+#      * Ensures educational value
+#
+# Use Cases:
+# - Training a LLM on a new document such that the model can answer questions about the document
+# - Unlike simple_knowledge.yaml, this flow creates multiple augmentation of the original document to improve model's understanding of the document.
+#
+# Mermaid Diagram:
+# ```mermaid
+# graph TD
+#     A[DuplicateColumns] --> B[gen_detailed_summary]
+#     A --> C[gen_atomic_facts]
+#     A --> D[gen_extractive_summary]
+#     B --> E[FlattenColumnsBlock]
+#     C --> E
+#     D --> E
+#     E --> F[RenameColumns]
+#     F --> G[generate_QA_pairs]
+#     G --> H[eval_faithfulness]
+#     H --> I[filter_faithful]
+#     I --> J[eval_relevancy]
+#     J --> K[filter_relevant]
+#     K --> L[eval_question_quality]
+#     L --> M[filter_verified_questions]
+# ```
+# 🔧 HOW THIS YAML IS EXECUTED
+# --------------------------------------------
+# A typical usage pattern is:
+#
+# ```python
+# from sdg_hub.flow import Flow
+# from sdg_hub.pipeline import Pipeline
+# from sdg_hub.sdg import SDG
+#
+# # Load the YAML flow file and convert to internal config
+# flow_cfg = Flow(client).get_flow_from_file("configs/flows/generation/knowledge/synth_knowledge1.5.yaml")
+#
+# # Create the synthetic data generator from flow
+# sdg = SDG([Pipeline(flow_cfg)], num_workers=4, batch_size=8, save_freq=100)
+#
+# # Run on input dataset and export results
+# generated = sdg.generate(dataset, checkpoint_dir="checkpoints/")
+# generated.to_json("outputs.json", orient="records", lines=True)
+# ```
+# Step 1: Duplicate the original 'document' column for backup
 - block_type: DuplicateColumns
   block_config:
     block_name: duplicate_document_col
     columns_map:
       document: base_document
 
+# Step 2: Generate a detailed summary of the document
 - block_type: LLMBlock
   block_config:
     block_name: gen_detailed_summary
@@ -17,6 +111,7 @@
     seed: 7452
     n: 50
 
+# Step 3: Extract atomic facts from the document
 - block_type: LLMBlock
   block_config:
     block_name: gen_atomic_facts
@@ -29,6 +124,7 @@
     temperature: 0.7
     seed: 7452
 
+# Step 4: Generate extractive summary using direct excerpts
 - block_type: LLMBlock
   block_config:
     block_name: gen_extractive_summary
@@ -41,6 +137,7 @@
     temperature: 0.7
     seed: 7452
 
+# Step 5: Flatten all summary types into a unified long-format dataset
 - block_type: FlattenColumnsBlock
   block_config:
     block_name: flatten_summary_columns
@@ -52,6 +149,7 @@
     value_name: summary
     var_name: dataset_type
 
+# Step 6: Rename the current summary as the new document input
 - block_type: RenameColumns
   block_config:
     block_name: rename_to_document_column
@@ -59,6 +157,7 @@
       document: raw_document
       summary: document
 
+# Step 7: Generate question-answer pairs from the summary using LLM prompts
 - block_type: LLMBlock
   block_config:
     block_name: knowledge generation
@@ -86,6 +185,7 @@
     max_tokens: 2048
     seed: 7452
 
+# Step 8: Evaluate whether the QA pairs are faithful to the original document
 - block_type: LLMBlock
   block_config:
     block_name: eval_faithfulness_qa_pair
@@ -97,6 +197,7 @@
   gen_kwargs:
     max_tokens: 2048
 
+# Step 9: Filter out unfaithful QA pairs (keep only judgment == "YES")
 - block_type: FilterByValueBlock
   block_config:
     block_name: filter_faithfulness
@@ -107,6 +208,7 @@
     - judgment
     - explanation
 
+# Step 10: Evaluate whether each question is relevant to the document
 - block_type: LLMBlock
   block_config:
     block_name: eval_relevancy_qa_pair
@@ -118,6 +220,7 @@
   gen_kwargs:
     max_tokens: 2048
 
+# Step 11: Filter to keep only the most relevant questions (score == 2.0)
 - block_type: FilterByValueBlock
   block_config:
     block_name: filter_relevancy
@@ -129,6 +232,7 @@
     - feedback
     - score
 
+# Step 12: Evaluate clarity and answerability of the generated questions
 - block_type: LLMBlock
   block_config:
     block_name: eval_verify_question
@@ -140,6 +244,7 @@
   gen_kwargs:
     max_tokens: 2048
 
+# Step 13: Final filter to retain only top-rated questions (rating == 1.0)
 - block_type: FilterByValueBlock
   block_config:
     block_name: filter_verify_question
@@ -150,4 +255,4 @@
   drop_columns:
     - explanation
     - rating
-    - __index_level_0__
+    - __index_level_0__  # Drop index column added by pandas

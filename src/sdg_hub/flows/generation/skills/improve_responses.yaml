@@ -1,3 +1,47 @@
+# --------------------------------------------
+# SDG Hub - Skill Routing and Response Refinement Flow
+# --------------------------------------------
+# This flow implements a multi-stage skill-based pipeline for response analysis,
+# critique, revision, and selection. It:
+# 1. Routes each task to the correct domain (e.g., coding, math)
+# 2. Populates domain-specific ICL examples
+# 3. Runs the input through multiple stages:
+#    → Analyze → Criticize → Plan → Revise
+# 4. Judges the original vs revised response and selects the better one.
+#
+# This is a powerful framework for evaluating and improving LLM outputs through 
+# skill-based reasoning and iterative refinement.
+#
+# Mermaid Diagram:
+# ```mermaid
+# graph TD
+#     A[router] --> B[icl_populator]
+#     B --> C[analyzer]
+#     C --> D[critic]
+#     D --> E[planner]
+#     E --> F[revised_responder]
+#     F --> G[judge]
+#     G --> H[filter_judgement]
+#     H --> I[response_selector]
+# ```
+#
+# ```python
+# from sdg_hub.flow import Flow
+# from sdg_hub.pipeline import Pipeline
+# from sdg_hub.sdg import SDG
+
+# # Load YAML into config
+# flow_cfg = Flow().get_flow_from_file("configs/flows/generation/skills/improve_responses.yaml")
+
+# # Build and run the pipeline
+# sdg = SDG([Pipeline(flow_cfg)], num_workers=4, batch_size=8)
+# result = sdg.generate(my_dataset)
+
+# # Save final outputs
+# result.to_json("refined_responses.json", orient="records", lines=True)
+# ```
+
+# Step 1: Route input to appropriate skill domain
 - block_type: LLMBlock
   block_config:
     block_name: router
@@ -9,7 +53,7 @@
     temperature: 0
     max_tokens: 5
     extra_body:
-      guided_choice:
+      guided_choice:        # Constrain outputs to specific skill domains
         - "coding"
         - "extraction"
         - "humanities"
@@ -18,10 +62,12 @@
         - "roleplay"
         - "STEM"
         - "writing"
+
+# Step 2: Inject skill-specific ICL examples based on routing decision
 - block_type: SamplePopulatorBlock
   block_config:
     block_name: icl_populator
-    config_paths: 
+    config_paths:           # Each YAML has domain-specific few-shot examples
       - configs/skills/icl_examples/coding.yaml
       - configs/skills/icl_examples/extraction.yaml
       - configs/skills/icl_examples/humanities.yaml
@@ -33,6 +79,8 @@
     column_name: route
     batch_kwargs:
       num_procs: 8
+
+# Step 3: Analyze the assistant's response using a domain-aware rubric
 - block_type: LLMBlock
   block_config:
     block_name: analyzer
@@ -41,6 +89,8 @@
     output_cols:
       - analysis
       - rubric
+
+# Step 4: Generate critique of the assistant’s response
 - block_type: LLMBlock
   block_config:
     block_name: critic
@@ -48,6 +98,8 @@
     model_id: meta-llama/Llama-3.3-70B-Instruct
     output_cols: 
       - critique
+
+# Step 5: Generate a plan for improving the assistant’s response
 - block_type: LLMBlock
   block_config:
     block_name: planner
@@ -55,6 +107,8 @@
     model_id: meta-llama/Llama-3.3-70B-Instruct
     output_cols: 
       - plan
+
+# Step 6: Produce a revised response based on the plan and critique
 - block_type: LLMBlock
   block_config:
     block_name: revised_responder
@@ -70,14 +124,18 @@
     - icl_critique
     - icl_plan
     - icl_revised_response
+
+# Step 7: Compare original vs revised response using an impartial judge
 - block_type: LLMBlock
   block_config:
     block_name: judge
     config_path: configs/skills/judge.yaml
     model_id: meta-llama/Llama-3.3-70B-Instruct
     output_cols:
-      - judgement
-      - verdict
+      - judgement         # e.g., explanation
+      - verdict           # e.g., "Assistant A" or "Assistant B"
+
+# Step 8: Filter to keep samples with valid verdicts (A or B)
 - block_type: FilterByValueBlock
   block_config:
     block_name: filter_judgement
@@ -88,10 +146,12 @@
     operation: operator.contains
     batch_kwargs:
       num_procs: 8
+
+# Step 9: Select final response based on judge’s verdict
 - block_type: SelectorBlock
   block_config:
     block_name: response_selector
-    choice_map:
+    choice_map:             # Verdict maps to the chosen response column
        Assistant A: "response"
        Assistant B: "revised_response"
     choice_col: verdict
@@ -99,5 +159,5 @@
     batch_kwargs:
       num_procs: 8
   drop_columns:
-    - judgemnent
+    - judgemnent            # Typo: should be "judgement" if correct in column
     - verdict

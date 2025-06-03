@@ -1,12 +1,87 @@
+# --------------------------------------------
+# SDG Hub - Simple QA Generation Flow
+# --------------------------------------------
+# This minimal flow uses a single LLMBlock to generate synthetic question-answer
+# outputs from documents using a simplified QA generation prompt. It is intended
+# for rapid prototyping or fine-tuning use cases where full evaluation and filtering
+# are not necessary.
+#
+# Mermaid Diagram:
+# ```mermaid
+# graph TD
+#     A[generate_simple_qa] --> B[dropped_duplicates]
+# ```
+# ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+# 🔲 BLOCK SYSTEM OVERVIEW
+# --------------------------------------------
+# All steps in this YAML are implemented using subclasses of the `Block` base class.
+# Each block is a modular unit with a standard interface:
+#   - `block_type`: The registered name of the block class
+#   - `block_config`: Runtime configuration such as name, column mappings, or paths
+#   - `gen_kwargs` or other params: Custom generation or filtering options
+#
+# Blocks fall into three main categories:
+#
+# 1. **LLM Blocks (`LLMBlock`, `ConditionalLLMBlock`)**:
+#    - Interact with language models to generate or evaluate content
+#    - Support custom Jinja2 templates, output parsing, and batch execution
+#    - Used for QA generation, summarization, evaluation, etc.
+#
+# 2. **Utility Blocks (`DuplicateColumns`, `RenameColumns`, `FlattenColumnsBlock`, etc.)**:
+#    - Manipulate datasets by duplicating, renaming, or transforming columns
+#    - Operate on Hugging Face Datasets with strong type safety and parallelism
+#
+# 3. **Filtering Blocks (`FilterByValueBlock`)**:
+#    - Remove rows from the dataset based on value thresholds or logic
+#    - Often used after LLM evaluation to keep high-quality samples only
+#
+# ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+# 🧩 EXTENSIBILITY AND SAFETY
+# --------------------------------------------
+# - All Blocks inherit from a common abstract base class and support:
+#   - Jinja2 prompt validation
+#   - YAML config management with strong error handling
+#   - Integrated logging via `setup_logger`
+#   - Robust batching and multiprocessing support
+#   - Custom output parsers via regex or tag-based extractors
+#
+# This ensures that all flows remain composable, auditable, and production-safe.
+#
+# For documentation on writing custom blocks, flows, or templates,
+# refer to the SDG Hub developer guide or API docs.
+#
+# ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+#
+# 🔧 HOW THIS YAML IS EXECUTED
+# --------------------------------------------
+# A typical usage pattern is:
+#
+# ```python
+# from sdg_hub.flow import Flow
+# from sdg_hub.pipeline import Pipeline
+# from sdg_hub.sdg import SDG
+#
+# # Load the YAML flow file and convert to internal config
+# flow_cfg = Flow(client).get_flow_from_file("simple_knowledge.yaml")
+#
+# # Create the synthetic data generator from flow
+# sdg = SDG([Pipeline(flow_cfg)], num_workers=4, batch_size=8, save_freq=100)
+#
+# # Run on input dataset and export results
+# generated = sdg.generate(dataset, checkpoint_dir="checkpoints/")
+# generated.to_json("outputs.json", orient="records", lines=True)
+# ```
+# ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+# Step: Generate QA content from input documents using a simplified config
 - block_type: LLMBlock
   block_config:
     block_name: gen_knowledge
-    config_path: configs/knowledge/simple_generate_qa.yaml
-    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    config_path: configs/knowledge/simple_generate_qa.yaml  # Simplified prompting template
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1          # Teacher model
     output_cols:
-      - output
+      - output            # Entire generated QA content in a single column
   gen_kwargs:
-    temperature: 0.7
+    temperature: 0.7      # Allows some diversity in generated QAs
     max_tokens: 2048
   drop_duplicates:
-    - output
+    - output              # Remove duplicate QA generations to avoid redundancy

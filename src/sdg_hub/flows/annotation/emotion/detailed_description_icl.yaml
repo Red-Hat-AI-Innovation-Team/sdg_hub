@@ -1,0 +1,73 @@
+# --------------------------------------------
+# SDG Hub - Emotion Annotation via Guided Choice
+# --------------------------------------------
+# This YAML flow defines a single-step generation block for annotating text
+# (e.g., descriptions, narratives, prompts) with one of several emotion categories.
+#
+# The prompt used (from `detailed_description_icl.yaml`) contains in-context
+# examples and uses **guided choice** to constrain the model's output to a
+# fixed set of emotional labels.
+#
+# This flow is ideal for:
+# - Weak supervision or annotation of emotional labels
+# - Fine-tuning emotion classifiers or sentiment models
+# - Producing gold/weak labels from an LLM in controlled conditions
+#
+# Mermaid Diagram:
+# ```mermaid
+# graph TD
+#     A[gen_responses] --> B[drop_duplicates]
+# ```
+#
+# ```python
+# from sdg_hub.flow import Flow
+# from sdg_hub.pipeline import Pipeline
+# from sdg_hub.sdg import SDG
+
+# Load YAML into config
+# flow_cfg = Flow().get_flow_from_file("configs/flows/annotation/emotion/detailed_description_icl.yaml")
+
+# Build and run the pipeline
+# sdg = SDG([Pipeline(flow_cfg)], num_workers=4, batch_size=8)
+# result = sdg.generate(my_dataset)
+
+# Save final outputs
+# result.to_json("refined_responses.json", orient="records", lines=True)
+# ```
+#
+# ```python
+# from sdg_hub.flow import Flow
+# from sdg_hub.pipeline import Pipeline
+# from sdg_hub.sdg import SDG
+
+# Load YAML into config
+# flow_cfg = Flow().get_flow_from_file("configs/flows/annotation/emotion/detailed_description_icl.yaml")
+
+# Build and run the pipeline
+# sdg = SDG([Pipeline(flow_cfg)], num_workers=4, batch_size=8)
+# result = sdg.generate(my_dataset)
+
+# Save final outputs
+# result.to_json("refined_responses.json", orient="records", lines=True)
+# ```
+#
+# Step: Generate emotion label for each input using guided label choices
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_responses
+    config_path: configs/annotations/detailed_description_icl.yaml  # Includes ICL examples for emotion labeling
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    output_cols:
+      - output                        # The chosen emotion label
+  gen_kwargs:
+    max_tokens: 5                     # Very short label; 5 tokens more than sufficient
+    temperature: 0                    # Deterministic output for annotation consistency
+    extra_body:
+      guided_choice:                 # Constrain output to predefined emotion labels
+        - "joy"
+        - "sadness"
+        - "anger"
+        - "fear"
+        - "love"
+  drop_duplicates:
+    - prompt                         # Avoid duplicating annotations for same input

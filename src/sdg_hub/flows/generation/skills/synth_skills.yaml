@@ -1,22 +1,99 @@
+# --------------------------------------------
+# SDG Hub - Freeform Skill Tuning Flow
+# --------------------------------------------
+# This YAML defines a comprehensive pipeline for generating and evaluating
+# high-quality question-answer pairs that demonstrate advanced reasoning
+# and domain expertise. The pipeline implements a multi-stage quality control
+# system using LLaMA-3.3-70B-Instruct to ensure both questions and answers
+# meet rigorous standards.
+#
+# Pipeline Stages:
+# 1. Question Generation (freeform_questions.yaml)
+#    - Generates diverse, open-ended questions
+#    - Supports multiple samples per input
+#    - Ensures proper formatting and safety
+#
+# 2. Question Evaluation (evaluate_freeform_questions.yaml)
+#    - Binary scoring (0/1) for question quality
+#    - Checks format, relevance, and safety
+#    - Provides evaluation rationale
+#
+# 3. Question Filtering
+#    - Retains only high-quality questions (score == 1.0)
+#    - Parallel processing for efficiency
+#    - Removes duplicates and auxiliary data
+#
+# 4. Response Generation (freeform_responses.yaml)
+#    - Creates detailed, accurate responses
+#    - Maintains consistent style and format
+#    - Follows example-based guidelines
+#
+# 5. QA Pair Evaluation (evaluate_freeform_pair.yaml)
+#    - 3-point scoring for response quality
+#    - Assesses correctness, completeness, depth
+#    - Ensures safety and ethical standards
+#
+# 6. Final Filtering
+#    - Keeps only high-quality pairs (score >= 2.0)
+#    - Removes evaluation metadata
+#    - Produces clean, production-ready output
+#
+# Use Cases:
+# - Training data generation for LLM fine-tuning
+# - Quality assessment of model responses
+# - Creation of educational content
+# - Development of reasoning benchmarks
+#
+# Mermaid Diagram:
+# ```mermaid
+# graph TD
+#     A[gen_questions] --> B[eval_questions]
+#     B --> C[filter_questions]
+#     C --> D[gen_responses]
+#     D --> E[evaluate_qa_pair]
+#     E --> F[filter_qa_pair]
+# ```
+#
+# ```python
+# from sdg_hub.flow import Flow
+# from sdg_hub.pipeline import Pipeline
+# from sdg_hub.sdg import SDG
+
+# Load YAML into config
+# flow_cfg = Flow().get_flow_from_file("configs/flows/generation/skills/synth_skills.yaml")
+
+# Build and run the pipeline
+# sdg = SDG([Pipeline(flow_cfg)], num_workers=4, batch_size=8)
+# result = sdg.generate(my_dataset)
+
+# Save final outputs
+# result.to_json("refined_responses.json", orient="records", lines=True)
+# ```
+#
+# Step 1: Generate freeform, open-ended questions using LLaMA-3
 - block_type: LLMBlock
   block_config:
     block_name: gen_questions
-    config_path: configs/skills/freeform_questions.yaml
-    model_id: meta-llama/Llama-3.3-70B-Instruct
+    config_path: configs/skills/freeform_questions.yaml   # Prompt template for question generation
+    model_id: meta-llama/Llama-3.3-70B-Instruct            # Instruction-tuned LLM
     output_cols:
       - question
     batch_kwargs:
-      num_samples: 30
+      num_samples: 30  # Generate multiple questions per sample
   drop_duplicates:
-    - question
+    - question          # Deduplicate generated questions
+
+# Step 2: Evaluate quality of generated questions using LLM
 - block_type: LLMBlock
   block_config:
     block_name: eval_questions
     config_path: configs/skills/evaluate_freeform_questions.yaml
     model_id: meta-llama/Llama-3.3-70B-Instruct
     output_cols:
-      - evaluation
-      - score
+      - evaluation      # Optional explanation/justification
+      - score           # Numeric rating (e.g., 1.0 for pass)
+
+# Step 3: Filter out low-scoring questions (keep only score == 1.0)
 - block_type: FilterByValueBlock
   block_config:
     block_name: filter_questions
@@ -25,18 +102,22 @@
     operation: operator.eq
     convert_dtype: float
     batch_kwargs:
-      num_procs: 8
+      num_procs: 8       # Parallel filtering for performance
   drop_columns:
     - evaluation
     - score
-    - num_samples
+    - num_samples        # Drop auxiliary column from earlier batch_kwargs
+
+# Step 4: Generate responses to high-quality questions
 - block_type: LLMBlock
   block_config:
     block_name: gen_responses
-    config_path: configs/skills/freeform_responses.yaml
+    config_path: configs/skills/freeform_responses.yaml   # Prompt template for response generation
     model_id: meta-llama/Llama-3.3-70B-Instruct
     output_cols:
       - response
+
+# Step 5: Evaluate the full question-response pairs
 - block_type: LLMBlock
   block_config:
     block_name: evaluate_qa_pair
@@ -44,7 +125,9 @@
     model_id: meta-llama/Llama-3.3-70B-Instruct
     output_cols:
       - evaluation
-      - score
+      - score            # Score indicating correctness, depth, clarity, etc.
+
+# Step 6: Keep only top-scoring QA pairs (score >= 2.0)
 - block_type: FilterByValueBlock
   block_config:
     block_name: filter_qa_pair

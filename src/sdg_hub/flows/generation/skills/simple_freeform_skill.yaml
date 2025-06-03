@@ -1,12 +1,49 @@
+# --------------------------------------------
+# SDG Hub - Simple Freeform Skill QA Generation
+# --------------------------------------------
+# This YAML flow uses a single `LLMBlock` to generate *freeform question-answer*
+# outputs based on a skill-oriented prompt template. Unlike grounded flows,
+# this version allows more creative, open-ended QA generation without relying
+# on an external context.
+#
+# 💡 Use cases:
+# - Skill-based instruction tuning
+# - Data generation for open-domain QA tasks
+# - Prompt prototyping and diversity testing
+#
+# Mermaid Diagram:
+# ```mermaid
+# graph TD
+#     A[gen_skill_freeform] --> B[drop_duplicates]
+# ```
+#
+# 🧪 How to run (Python):
+# ```python
+# from sdg_hub.flow import Flow
+# from sdg_hub.pipeline import Pipeline
+# from sdg_hub.sdg import SDG
+#
+# # Load the flow from YAML file
+# flow_cfg = Flow().get_flow_from_file("simple_freeform_qa.yaml")
+#
+# # Create SDG instance with this pipeline
+# sdg = SDG([Pipeline(flow_cfg)], num_workers=4, batch_size=8)
+#
+# # Run generation on input dataset
+# result = sdg.generate(input_dataset)
+# result.to_json("freeform_qa_output.json", orient="records", lines=True)
+# ```
+
+# Step: Generate freeform skill-oriented QA from prompt
 - block_type: LLMBlock
   block_config:
     block_name: gen_skill_freeform
-    config_path: configs/skills/simple_generate_qa_freeform.yaml
+    config_path: configs/skills/simple_generate_qa_freeform.yaml  # Prompt includes question + answer logic
     model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
     output_cols:
-      - output
+      - output                            # Output will contain question and answer together
   gen_kwargs:
-    temperature: 0.7
+    temperature: 0.7                      # Encourages creative and varied QA generation
     max_tokens: 2048
   drop_duplicates:
-    - output
+    - output                              # Avoid repeating similar QA pairs
