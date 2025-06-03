@@ -1,3 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+"""
+Registry module for managing blocks and prompt templates.
+
+This module provides two registry classes:
+1. BlockRegistry: Manages registration and retrieval of block classes
+2. PromptRegistry: Handles Jinja2 template registration and rendering for prompts
+
+These registries provide a centralized way to manage and access different types
+of blocks and prompt templates used in the SDG pipeline.
+"""
+
 # Standard
 from typing import Union, List, Dict
 
@@ -11,7 +23,17 @@ logger = setup_logger(__name__)
 
 
 class BlockRegistry:
-    """Registry for block classes to avoid manual additions to block type map."""
+    """
+    Registry for block classes to avoid manual additions to block type map.
+    
+    This class provides a centralized registry for block classes, allowing them
+    to be registered and retrieved by name. It uses a class-level dictionary to
+    store the mapping between block names and their corresponding classes.
+    
+    Attributes:
+        _registry (Dict[str, type]): Class-level dictionary storing registered
+            block names and their corresponding classes.
+    """
 
     _registry: Dict[str, type] = {}
 
@@ -19,8 +41,22 @@ class BlockRegistry:
     def register(cls, block_name: str):
         """
         Decorator to register a block class under a specified name.
-
-        :param block_name: Name under which to register the block.
+        
+        This decorator adds a block class to the registry with the specified name.
+        It can be used to register block classes without modifying the registry
+        directly.
+        
+        Args:
+            block_name (str): Name under which to register the block.
+                This name will be used to retrieve the block class later.
+        
+        Returns:
+            callable: A decorator function that registers the block class.
+        
+        Example:
+            @BlockRegistry.register("my_block")
+            class MyBlock:
+                pass
         """
 
         def decorator(block_class):
@@ -36,24 +72,50 @@ class BlockRegistry:
     def get_registry(cls):
         """
         Retrieve the current registry map of block types.
-
-        :return: Dictionary of registered block names and classes.
+        
+        Returns:
+            Dict[str, type]: Dictionary mapping block names to their corresponding
+                classes.
         """
         logger.debug("Fetching the block registry map.")
         return cls._registry
 
 
 class PromptRegistry:
-    """Registry for managing Jinja2 prompt templates."""
+    """
+    Registry for managing Jinja2 prompt templates.
+    
+    This class provides functionality for registering, retrieving, and rendering
+    Jinja2 templates used for generating prompts. It supports both single query
+    strings and structured message lists.
+    
+    Attributes:
+        _registry (Dict[str, Template]): Class-level dictionary storing registered
+            template names and their corresponding Jinja2 Template instances.
+    """
 
     _registry: Dict[str, Template] = {}
 
     @classmethod
     def register(cls, name: str):
-        """Decorator to register a Jinja2 template function by name.
-
-        :param name: Name of the template to register.
-        :return: A decorator that registers the Jinja2 template function.
+        """
+        Decorator to register a Jinja2 template function by name.
+        
+        This decorator takes a function that returns a template string and
+        registers it in the registry. The function should return a string
+        containing the Jinja2 template.
+        
+        Args:
+            name (str): Name of the template to register.
+                This name will be used to retrieve the template later.
+        
+        Returns:
+            callable: A decorator function that registers the template.
+        
+        Example:
+            @PromptRegistry.register("my_template")
+            def my_template():
+                return "Hello {{ name }}!"
         """
 
         def decorator(func):
@@ -66,10 +128,17 @@ class PromptRegistry:
 
     @classmethod
     def get_template(cls, name: str) -> Template:
-        """Retrieve a Jinja2 template by name.
-
-        :param name: Name of the template to retrieve.
-        :return: The Jinja2 template instance.
+        """
+        Retrieve a Jinja2 template by name.
+        
+        Args:
+            name (str): Name of the template to retrieve.
+        
+        Returns:
+            Template: The Jinja2 template instance.
+        
+        Raises:
+            KeyError: If the template name is not found in the registry.
         """
         if name not in cls._registry:
             raise KeyError(f"Template '{name}' not found.")
@@ -79,9 +148,11 @@ class PromptRegistry:
     @classmethod
     def get_registry(cls):
         """
-        Retrieve the current registry map of block types.
-
-        :return: Dictionary of registered block names and classes.
+        Retrieve the current registry map of templates.
+        
+        Returns:
+            Dict[str, Template]: Dictionary mapping template names to their
+                corresponding Jinja2 Template instances.
         """
         logger.debug("Fetching the block registry map.")
         return cls._registry
@@ -93,14 +164,30 @@ class PromptRegistry:
         messages: Union[str, List[Dict[str, str]]],
         add_generation_prompt: bool = True,
     ) -> str:
-        """Render the template with the provided messages or query.
-
-        :param name: Name of the template to render.
-        :param messages: Either a single query string or a list of messages (each as a dict with 'role' and 'content').
-        :param add_generation_prompt: Whether to add a generation prompt at the end.
-        :return: The rendered prompt as a string.
         """
-
+        Render the template with the provided messages or query.
+        
+        This method handles both single query strings and structured message lists.
+        For the "blank" template, it returns the query string as-is without any
+        templating. For other templates, it renders the template with the provided
+        messages.
+        
+        Args:
+            name (str): Name of the template to render.
+            messages (Union[str, List[Dict[str, str]]]): Either a single query
+                string or a list of messages (each as a dict with 'role' and
+                'content').
+            add_generation_prompt (bool, optional): Whether to add a generation
+                prompt at the end. Defaults to True.
+        
+        Returns:
+            str: The rendered prompt as a string.
+        
+        Raises:
+            ValueError: If the "blank" template is used with a list of messages
+                instead of a single query string.
+            KeyError: If the template name is not found in the registry.
+        """
         # Special handling for "blank" template
         if name == "blank":
             if not isinstance(messages, str):
