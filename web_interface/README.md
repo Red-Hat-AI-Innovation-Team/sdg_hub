@@ -69,7 +69,6 @@ The interface is built using:
 - `app.py`: Main Flask application
 - `templates/index.html`: Main interface template
 - `static/`: Static assets (CSS, JS)
-- `requirements.txt`: Python dependencies
 
 ## Contributing: Modifying Block Types
 
