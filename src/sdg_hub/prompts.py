@@ -1,10 +1,31 @@
 # SPDX-License-Identifier: Apache-2.0
 """
-Prompt templates module for various language models.
+Prompt Templates Module for Language Model Interactions
 
-This module contains chat templates for different language models, registered through
-the PromptRegistry. Each template defines how conversations should be formatted
-for specific models, including system messages, user inputs, and assistant responses.
+This module provides a comprehensive system for managing and rendering prompt templates
+for various language models. It leverages the PromptRegistry to handle template registration,
+retrieval, and rendering with support for both simple queries and structured conversations.
+
+Key Features:
+1. Template Registration
+   - Decorator-based registration system (@PromptRegistry.register) (see src/sdg_hub/registry.py)
+   - Support for multiple model-specific templates
+   - Centralized template management through PromptRegistry
+
+2. Template Rendering
+   - Support for both single queries and structured message lists
+   - Role-based message formatting (system, user, assistant)
+   - Optional generation prompt addition
+   - Special handling for blank templates
+
+3. Message Structure
+   - Standardized message format with 'role' and 'content'
+   - Support for system messages and conversation history
+   - Flexible message list handling
+   - Role validation and formatting
+
+Each template is designed to match the specific requirements and formatting needs
+of its target language model, ensuring optimal interaction and response quality.
 """
 
 # Local

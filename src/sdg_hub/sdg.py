@@ -1,15 +1,55 @@
 # SPDX-License-Identifier: Apache-2.0
+"""
+SDG (Synthetic Data Generation) Hub - A Framework for Parallel Data Processing and Generation
 
-"""SDG (Synthetic Data Generation) module for parallel data processing.
+This module provides a comprehensive framework for synthetic data generation using
+multiple pipelines. The system is designed to handle large-scale data processing
+with support for parallel execution, checkpointing, and flexible pipeline configuration.
 
-This module provides the SDG class which manages parallel data generation using
-multiple pipelines. It supports batch processing, checkpointing, and multi-threaded
-execution for efficient data generation.
-For details on individual components see:
-- pipelines: src/sdg_hub/pipeline.py
-- flows: src/sdg_hub/flow.py
-- prompts: src/sdg_hub/prompts.py
-- registry: src/sdg_hub/registry.py"""
+Key Components:
+1. SDG (Synthetic Data Generation)
+   - Main orchestrator for parallel data generation
+   - Manages multiple pipelines and worker threads
+   - Handles batch processing and checkpointing
+   - Provides progress tracking and error handling
+
+2. Pipeline System
+   - Flexible pipeline architecture for sequential data processing
+   - Configurable blocks with independent parameters
+   - Support for data transformation, column management, and duplicate removal
+   - Error handling and validation at each processing stage
+
+3. Flow Management
+   - YAML-based configuration for pipeline definitions
+   - OpenAI LLM client integration for language model blocks
+   - Dynamic block registration and configuration resolution
+   - Support for custom tools and prompt templates
+
+4. Prompt Templates
+   - Jinja2-based template system for LLM interactions
+   - Support for multiple model formats (Mistral, Llama, Phi, etc.)
+   - Structured message handling with role-based formatting
+   - Customizable generation prompts and system messages
+
+5. Registry System
+   - Centralized management of blocks and prompt templates
+   - Decorator-based registration for easy extension
+   - Template rendering with support for structured messages
+   - Dynamic block type resolution
+
+6. Checkpointing
+   - Intermediate result saving and loading
+   - Resumable processing for large datasets
+   - Efficient handling of missing data
+   - Configurable save frequency
+
+For detailed implementation of individual components, see:
+- Pipeline System: src/sdg_hub/pipeline.py
+- Flow Management: src/sdg_hub/flow.py
+- Prompt Templates: src/sdg_hub/prompts.py
+- Registry System: src/sdg_hub/registry.py
+- Checkpointing: src/sdg_hub/checkpointer.py
+"""
 
 # Standard
 from concurrent.futures import ThreadPoolExecutor, as_completed

@@ -18,11 +18,40 @@ Note:
 
 # SPDX-License-Identifier: Apache-2.0
 """
-Flow module for managing and executing data processing pipelines.
+Flow Management Module for Data Processing Pipelines
 
-This module provides the Flow class which handles the configuration and execution
-of data processing pipelines defined in YAML files. It manages LLM clients,
-block registration, and configuration file resolution.
+This module provides the Flow class which manages the configuration and execution
+of data processing pipelines defined in YAML files. It integrates with the registry
+system to handle block registration, prompt templates, and LLM client configuration.
+
+Key Features:
+1. Pipeline Configuration
+   - YAML-based pipeline definition and configuration
+   - Dynamic block type resolution through BlockRegistry (see src/sdg_hub/registry.py)
+   - Support for custom block parameters and configurations
+   - Flexible pipeline chaining and data flow
+
+2. LLM Integration
+   - Language model OpenAI client management
+   - Prompt template resolution through PromptRegistry (see src/sdg_hub/prompts.py)
+   - Support for multiple model formats and templates
+   - Configurable sample generation
+
+3. Resource Management
+   - Configuration file path resolution
+   - Support for absolute and relative paths
+   - Resource file discovery in package directories
+   - Flexible file path handling
+
+4. Block Processing
+   - Dynamic block instantiation from registry
+   - Configuration parameter processing
+   - Support for operation and data type conversions
+   - Error handling and validation
+
+The Flow class serves as the main orchestrator for pipeline execution, leveraging
+the registry system to provide a flexible and extensible framework for data
+processing and generation.
 """
 
 # Standard
