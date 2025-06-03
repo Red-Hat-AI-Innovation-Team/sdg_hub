@@ -2,7 +2,19 @@
 """Utility blocks for dataset manipulation and transformation.
 
 This module provides various utility blocks for operations like column manipulation,
-data population, selection, and transformation of datasets.
+data population, selection, and transformation of datasets. These blocks are designed
+to work with the Hugging Face datasets library and provide common data processing
+functionality.
+
+The module includes blocks for:
+- Filtering datasets based on column values
+- Populating datasets with configuration data
+- Selecting and mapping values between columns
+- Combining multiple columns into a single column
+- Flattening datasets from wide to long format
+- Duplicating and renaming columns
+- Setting column values to majority values
+- Iterative block application
 """
 
 # Standard
@@ -25,7 +37,25 @@ class FilterByValueBlock(Block):
     """A block for filtering datasets based on column values.
 
     This block allows filtering of datasets using various operations (e.g., equals, contains)
-    on specified column values, with optional data type conversion
+    on specified column values, with optional data type conversion. It supports both
+    single value and list of values for filtering.
+
+    Parameters
+    ----------
+    block_name : str
+        Name of the block.
+    filter_column : str
+        The name of the column in the dataset to apply the filter on.
+    filter_value : Union[Any, List[Any]]
+        The value(s) to filter by. Can be a single value or a list of values.
+    operation : Callable[[Any, Any], bool]
+        A binary operator from the operator module (e.g., operator.eq, operator.contains)
+        that takes two arguments and returns a boolean.
+    convert_dtype : Optional[Union[Type[float], Type[int]]], optional
+        Type to convert the filter column to. Can be either float or int.
+        If None, no conversion is performed.
+    **batch_kwargs : Dict[str, Any]
+        Additional kwargs for batch processing.
     """
 
     def __init__(
@@ -46,7 +76,7 @@ class FilterByValueBlock(Block):
         filter_column : str
             The name of the column in the dataset to apply the filter on.
         filter_value : Union[Any, List[Any]]
-            The value(s) to filter by.
+            The value(s) to filter by. Can be a single value or a list of values.
         operation : Callable[[Any, Any], bool]
             A binary operator from the operator module (e.g., operator.eq, operator.contains)
             that takes two arguments and returns a boolean.
@@ -169,6 +199,21 @@ class SamplePopulatorBlock(Block):
         post_fix: str = "",
         **batch_kwargs: Dict[str, Any],
     ) -> None:
+        """Initialize a new SamplePopulatorBlock instance.
+
+        Parameters
+        ----------
+        block_name : str
+            Name of the block.
+        config_paths : List[str]
+            List of paths to configuration files to load.
+        column_name : str
+            Name of the column to use as key for populating data.
+        post_fix : str, optional
+            Suffix to append to configuration filenames, by default "".
+        **batch_kwargs : Dict[str, Any]
+            Additional keyword arguments for batch processing.
+        """
         super().__init__(block_name=block_name)
         self.configs = {}
         for config in config_paths:
@@ -243,6 +288,21 @@ class SelectorBlock(Block):
         output_col: str,
         **batch_kwargs: Dict[str, Any],
     ) -> None:
+        """Initialize a new SelectorBlock instance.
+
+        Parameters
+        ----------
+        block_name : str
+            Name of the block.
+        choice_map : Dict[str, str]
+            Dictionary mapping choice values to column names.
+        choice_col : str
+            Name of the column containing choice values.
+        output_col : str
+            Name of the column to store selected values.
+        **batch_kwargs : Dict[str, Any]
+            Additional keyword arguments for batch processing.
+        """
         super().__init__(block_name=block_name)
         self.choice_map = choice_map
         self.choice_col = choice_col
@@ -311,6 +371,21 @@ class CombineColumnsBlock(Block):
         separator: str = "\n\n",
         **batch_kwargs: Dict[str, Any],
     ) -> None:
+        """Initialize a new CombineColumnsBlock instance.
+
+        Parameters
+        ----------
+        block_name : str
+            Name of the block.
+        columns : List[str]
+            List of column names to combine.
+        output_col : str
+            Name of the column to store combined values.
+        separator : str, optional
+            String to use as separator between combined values, by default "\n\n".
+        **batch_kwargs : Dict[str, Any]
+            Additional keyword arguments for batch processing.
+        """
         super().__init__(block_name=block_name)
         self.columns = columns
         self.output_col = output_col
@@ -378,6 +453,19 @@ class FlattenColumnsBlock(Block):
         value_name: str,
         var_name: str,
     ) -> None:
+        """Initialize a new FlattenColumnsBlock instance.
+
+        Parameters
+        ----------
+        block_name : str
+            Name of the block.
+        var_cols : List[str]
+            List of column names to be melted into rows.
+        value_name : str
+            Name of the new column that will contain the values.
+        var_name : str
+            Name of the new column that will contain the variable names.
+        """
         super().__init__(block_name=block_name)
         self.var_cols = var_cols
         self.value_name = value_name
@@ -428,6 +516,16 @@ class DuplicateColumns(Block):
         block_name: str,
         columns_map: Dict[str, str],
     ) -> None:
+        """Initialize a new DuplicateColumns instance.
+
+        Parameters
+        ----------
+        block_name : str
+            Name of the block.
+        columns_map : Dict[str, str]
+            Dictionary mapping existing column names to new column names.
+            Keys are existing column names, values are new column names.
+        """
         super().__init__(block_name=block_name)
         self.columns_map = columns_map
 
@@ -472,6 +570,16 @@ class RenameColumns(Block):
         block_name: str,
         columns_map: Dict[str, str],
     ) -> None:
+        """Initialize a new RenameColumns instance.
+
+        Parameters
+        ----------
+        block_name : str
+            Name of the block.
+        columns_map : Dict[str, str]
+            Dictionary mapping existing column names to new column names.
+            Keys are existing column names, values are new column names.
+        """
         super().__init__(block_name=block_name)
         self.columns_map = columns_map
 
@@ -512,6 +620,15 @@ class SetToMajorityValue(Block):
         block_name: str,
         col_name: str,
     ) -> None:
+        """Initialize a new SetToMajorityValue instance.
+
+        Parameters
+        ----------
+        block_name : str
+            Name of the block.
+        col_name : str
+            Name of the column to set to majority value.
+        """
         super().__init__(block_name=block_name)
         self.col_name = col_name
 
@@ -564,6 +681,23 @@ class IterBlock(Block):
         block_kwargs: Dict[str, Any],
         **kwargs: Dict[str, Any],
     ) -> None:
+        """Initialize a new IterBlock instance.
+
+        Parameters
+        ----------
+        block_name : str
+            Name of the block.
+        num_iters : int
+            Number of times to apply the block.
+        block_type : Type[Block]
+            The block class to instantiate and apply.
+        block_kwargs : Dict[str, Any]
+            Keyword arguments to pass to the block constructor.
+        **kwargs : Dict[str, Any]
+            Additional keyword arguments. Supports:
+            - gen_kwargs: Dict[str, Any]
+                Arguments to pass to the block's generate method.
+        """
         super().__init__(block_name)
         self.num_iters = num_iters
         self.block = block_type(**block_kwargs)

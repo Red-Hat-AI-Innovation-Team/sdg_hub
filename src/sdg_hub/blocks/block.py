@@ -3,6 +3,13 @@
 
 This module provides the abstract base class for all blocks in the system,
 including functionality for template validation and configuration management.
+Blocks are the fundamental building blocks of the SDG Hub pipeline, each
+responsible for a specific data processing or transformation task.
+
+The Block class provides common functionality for:
+- Template validation using Jinja2
+- Configuration loading from YAML files
+- Basic block registration and identification
 """
 
 # Standard
@@ -27,21 +34,41 @@ class Block(ABC):
 
     This class provides common functionality for block validation and configuration loading.
     All specific block implementations should inherit from this class.
+
+    The Block class serves as the foundation for all data processing components in the
+    SDG Hub system. It provides standardized methods for:
+    - Template validation to ensure all required variables are present
+    - Configuration loading from YAML files
+    - Basic block identification and registration
+
+    Parameters
+    ----------
+    block_name : str
+        A unique identifier for this block instance.
     """
-    
+
     def __init__(self, block_name: str) -> None:
+        """Initialize a new Block instance.
+
+        Parameters
+        ----------
+        block_name : str
+            A unique identifier for this block instance.
+        """
         self.block_name = block_name
 
     @staticmethod
     def _validate(prompt_template: Template, input_dict: Dict[str, Any]) -> bool:
         """Validate the input data for this block.
 
-        This method validates whether all required variables in the Jinja template are provided in the input_dict.
+        This method validates whether all required variables in the Jinja template
+        are provided in the input_dict. It uses a custom dictionary class to raise
+        KeyError for missing variables, which is then caught to determine validity.
 
         Parameters
         ----------
         prompt_template : Template
-            The Jinja2 template object.
+            The Jinja2 template object to validate against.
         input_dict : Dict[str, Any]
             A dictionary of input values to check against the template.
 
@@ -52,11 +79,16 @@ class Block(ABC):
         """
 
         class Default(dict):
+            """Custom dictionary that raises KeyError for missing keys.
+            
+            This is used to detect missing template variables during validation.
+            """
             def __missing__(self, key: str) -> None:
                 raise KeyError(key)
 
         try:
             # Try rendering the template with the input_dict
+            # ChainMap ensures input_dict values take precedence over Default
             prompt_template.render(ChainMap(input_dict, Default()))
             return True
         except UndefinedError as e:
@@ -66,20 +98,23 @@ class Block(ABC):
     def _load_config(self, config_path: str) -> Optional[Dict[str, Any]]:
         """Load the configuration file for this block.
 
+        This method reads and parses a YAML configuration file, handling various
+        potential errors that might occur during the process.
+
         Parameters
         ----------
         config_path : str
-            The path to the configuration file.
+            The path to the configuration file to load.
 
         Returns
         -------
         Optional[Dict[str, Any]]
-            The loaded configuration. Returns None if file cannot be read or parsed.
+            The loaded configuration as a dictionary, or None if loading fails.
 
         Raises
         ------
         FileNotFoundError
-            If the configuration file does not exist.
+            If the configuration file does not exist at the specified path.
         """
         try:
             with open(config_path, "r", encoding="utf-8") as config_file:

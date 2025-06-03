@@ -1,7 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """LLM-based blocks for text generation and processing.
 
-This module provides blocks for interacting with language models.
+This module provides specialized blocks for interacting with language models,
+including functionality for text generation, prompt formatting, and output parsing.
+The blocks support various LLM operations such as:
+- Text completion and generation
+- Log probability calculation
+- Message-based chat completions
+- Conditional text generation based on templates
 """
 
 # Standard
@@ -25,14 +31,22 @@ logger = setup_logger(__name__)
 def server_supports_batched(client: openai.OpenAI, model_id: str) -> bool:
     """Check if the server supports batched inputs.
 
-    This function checks if the server supports batched inputs by making a test call to the server.
+    This function determines whether the LLM server supports processing multiple
+    input prompts in a single request and generating multiple outputs per input.
+    It performs a test call to verify these capabilities.
 
     Parameters
     ----------
     client : openai.OpenAI
-        The client to use to make the test call.
+        The OpenAI client instance to test with.
     model_id : str
-        The model ID to use for the test call.
+        The model ID to test batched input support for.
+
+    Returns
+    -------
+    bool
+        True if the server supports both batched inputs and multiple outputs per input,
+        False otherwise.
     """
     supported = getattr(client, "server_supports_batched", None)
     if supported is not None:
@@ -57,29 +71,29 @@ class LLMBlock(Block):
     """Block for generating text using language models.
 
     This block handles text generation, prompt formatting, and output parsing
-    for language model interactions.
+    for language model interactions. It supports both batched and non-batched
+    processing, with configurable output parsing and template handling.
 
     Parameters
     ----------
     block_name : str
         Name of the block.
     config_path : str
-        Path to the configuration file.
+        Path to the configuration file containing prompt templates and settings.
     client : openai.OpenAI
-        OpenAI client instance.
+        OpenAI client instance for making API calls.
     output_cols : List[str]
-        List of output column names.
+        List of output column names for storing generated text.
     parser_kwargs : Dict[str, Any], optional
-        Keyword arguments for the parser, by default {}.
+        Keyword arguments for configuring the output parser, by default {}.
     model_prompt : str, optional
         Template string for model prompt, by default "{prompt}".
     model_id : Optional[str], optional
-        Model ID to use, by default None.
+        Model ID to use, by default None (uses client's default model).
     **batch_kwargs : Dict[str, Any]
-        Additional keyword arguments for batch processing.
+        Additional keyword arguments for batch processing configuration.
     """
 
-    # pylint: disable=too-many-instance-attributes
     def __init__(
         self,
         block_name: str,
@@ -91,6 +105,27 @@ class LLMBlock(Block):
         model_id: Optional[str] = None,
         **batch_kwargs: Dict[str, Any],
     ) -> None:
+        """Initialize a new LLMBlock instance.
+
+        Parameters
+        ----------
+        block_name : str
+            Name of the block.
+        config_path : str
+            Path to the configuration file.
+        client : openai.OpenAI
+            OpenAI client instance.
+        output_cols : List[str]
+            List of output column names.
+        parser_kwargs : Dict[str, Any], optional
+            Keyword arguments for the parser, by default {}.
+        model_prompt : str, optional
+            Template string for model prompt, by default "{prompt}".
+        model_id : Optional[str], optional
+            Model ID to use, by default None.
+        **batch_kwargs : Dict[str, Any]
+            Additional keyword arguments for batch processing.
+        """
         super().__init__(block_name)
         self.block_config = self._load_config(config_path)
         self.prompt_struct = (
@@ -126,6 +161,22 @@ class LLMBlock(Block):
     def _extract_matches(
         self, text: str, start_tag: Optional[str], end_tag: Optional[str]
     ) -> List[str]:
+        """Extract text matches based on start and end tags.
+
+        Parameters
+        ----------
+        text : str
+            The text to extract matches from.
+        start_tag : Optional[str]
+            The starting tag to look for.
+        end_tag : Optional[str]
+            The ending tag to look for.
+
+        Returns
+        -------
+        List[str]
+            List of extracted text matches.
+        """
         if not text:
             return []
         if not start_tag and not end_tag:
@@ -144,6 +195,18 @@ class LLMBlock(Block):
         return [match.strip() for match in re.findall(pattern, text, re.DOTALL)]
 
     def _parse(self, generated_string: str) -> dict:
+        """Parse the generated text into structured output.
+
+        Parameters
+        ----------
+        generated_string : str
+            The text generated by the language model.
+
+        Returns
+        -------
+        dict
+            Dictionary mapping output column names to extracted values.
+        """
         matches = {}
 
         if self.parser_name is not None and self.parser_name == "custom":
@@ -174,12 +237,38 @@ class LLMBlock(Block):
         return matches
 
     def _format_prompt(self, sample: Dict) -> str:
+        """Format the prompt using the sample data and template.
+
+        Parameters
+        ----------
+        sample : Dict
+            The input sample containing data for prompt formatting.
+
+        Returns
+        -------
+        str
+            The formatted prompt string.
+        """
         prompt_templated_str = self.prompt_template.render(sample).strip()
         return PromptRegistry.render_template(
             self.model_prompt, prompt_templated_str, add_generation_prompt=True
         ).strip()
 
     def _generate(self, samples: Dataset, **gen_kwargs: Dict[str, Any]) -> list:
+        """Generate text using the language model.
+
+        Parameters
+        ----------
+        samples : Dataset
+            The input dataset containing samples to generate from.
+        **gen_kwargs : Dict[str, Any]
+            Additional keyword arguments for text generation.
+
+        Returns
+        -------
+        list
+            List of generated text strings.
+        """
         prompts = [self._format_prompt(sample) for sample in samples]
         logger.debug("Prompt: %s", prompts[0])
         generate_args = {**self.defaults, **gen_kwargs}
@@ -212,15 +301,22 @@ class LLMBlock(Block):
         return results
 
     def generate(self, samples: Dataset, **gen_kwargs: Dict[str, Any]) -> Dataset:
-        """Generate the output from the block.
+        """Generate text and create a new dataset with the results.
 
-        This method should first validate the input data,
-        then generate the output, and finally parse the generated output before returning it.
+        This method processes the input samples, generates text using the language model,
+        and returns a new dataset containing both the original samples and the generated text.
+
+        Parameters
+        ----------
+        samples : Dataset
+            The input dataset to process.
+        **gen_kwargs : Dict[str, Any]
+            Additional keyword arguments for text generation.
 
         Returns
         -------
         Dataset
-            The parsed output after generation.
+            A new dataset containing the original samples and generated text.
         """
         num_samples = self.block_config.get("num_samples", None)
         logger.debug("Generating outputs for {} samples".format(len(samples)))
@@ -249,9 +345,7 @@ class LLMBlock(Block):
             return Dataset.from_list([])
 
         # generate the output
-
         outputs = self._generate(samples, **gen_kwargs)
-
         logger.debug("Generated outputs: %s", outputs)
 
         num_parallel_samples = gen_kwargs.get("n", 1)
@@ -277,7 +371,9 @@ class LLMBlock(Block):
 class ConditionalLLMBlock(LLMBlock):
     """Block for conditional text generation using language models.
 
-    This block selects different prompt templates based on a selector column value.
+    This block extends LLMBlock to support different prompt templates based on
+    a selector column value. It allows for dynamic template selection and
+    validation based on the input data.
 
     Parameters
     ----------
@@ -310,6 +406,27 @@ class ConditionalLLMBlock(LLMBlock):
         model_prompt: str = "{prompt}",
         **batch_kwargs: Dict[str, Any],
     ) -> None:
+        """Initialize a new ConditionalLLMBlock instance.
+
+        Parameters
+        ----------
+        block_name : str
+            Name of the block.
+        config_paths : Dict[str, str]
+            Dictionary mapping selector values to their config file paths.
+        client : openai.OpenAI
+            OpenAI client instance.
+        model_id : str
+            Model ID to use.
+        output_cols : List[str]
+            List of output column names.
+        selector_column_name : str
+            Name of the column used to select the prompt template.
+        model_prompt : str, optional
+            Template string for model prompt, by default "{prompt}".
+        **batch_kwargs : Dict[str, Any]
+            Additional keyword arguments for batch processing.
+        """
         super().__init__(
             block_name=block_name,
             config_path=list(config_paths.values())[0],
