@@ -20,13 +20,13 @@ logger = setup_logger(__name__)
 
 def run_flow(
     ds_path: str,
-    batch_size: int,
-    num_workers: int,
     save_path: str,
     endpoint: str,
     flow_path: str,
     checkpoint_dir: str,
-    save_freq: int,
+    batch_size: int = 8,
+    num_workers: int = 32,
+    save_freq: int = 2,
     debug: bool = False,
 ) -> None:
     """Process the dataset using the specified configuration.
@@ -35,10 +35,6 @@ def run_flow(
     ----------
     ds_path : str
         Path to the dataset file.
-    batch_size : int
-        Batch size for processing.
-    num_workers : int
-        Number of worker processes to use.
     save_path : str
         Path where the output will be saved.
     endpoint : str
@@ -47,8 +43,12 @@ def run_flow(
         Path to the flow configuration file.
     checkpoint_dir : str
         Directory path for saving checkpoints.
-    save_freq : int
-        Frequency (in batches) at which to save checkpoints.
+    batch_size : int, optional
+        Batch size for processing, by default 8.
+    num_workers : int, optional
+        Number of worker processes to use, by default 32.
+    save_freq : int, optional
+        Frequency (in batches) at which to save checkpoints, by default 2.
     debug : bool, optional
         If True, enables debug mode with a smaller dataset subset, by default False.
 
@@ -104,14 +104,14 @@ def run_flow(
     type=int,
     default=8,
     show_default=True,
-    help="Batch size.",
+    help="Batch size for processing.",
 )
 @click.option(
     "--num_workers",
     type=int,
     default=32,
     show_default=True,
-    help="Number of workers.",
+    help="Number of worker processes to use.",
 )
 @click.option(
     "--save_path",
@@ -123,7 +123,7 @@ def run_flow(
     "--endpoint",
     type=str,
     required=True,
-    help="Endpoint for data processing.",
+    help="API endpoint for data processing.",
 )
 @click.option(
     "--flow",
@@ -147,7 +147,7 @@ def run_flow(
 @click.option(
     "--debug",
     is_flag=True,
-    help="Enable debug mode.",
+    help="Enable debug mode with a smaller dataset subset.",
 )
 def main(
     ds_path: str,
