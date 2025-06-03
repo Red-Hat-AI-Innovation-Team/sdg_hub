@@ -4,7 +4,14 @@ This is a guide for getting started on contributing to SDG Hub.
 
 ## Dev Requirements
 
-Ensure you have installed the necessary dev dependencies by running `pip install -r requirements-dev.txt` in your dev environment.
+Install the development dependencies using the optional `dev` group:
+
+```bash
+pip install .[dev]
+```
+
+If you’re using a fresh virtual environment, this will install both the core and development requirements declared in `pyproject.toml`.
+
 
 ## Linting
 
