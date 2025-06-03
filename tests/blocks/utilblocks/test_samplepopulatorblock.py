@@ -31,7 +31,7 @@ def temp_config_files():
 
     for name, content in configs.items():
         file_path = os.path.join(temp_dir, f"{name}.yaml")
-        with open(file_path, "w") as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             yaml.dump(content, f)
         config_paths.append(file_path)
 
@@ -41,7 +41,6 @@ def temp_config_files():
     for path in config_paths:
         os.remove(path)
     os.rmdir(temp_dir)
-
 
 @pytest.fixture
 def sample_dataset():
