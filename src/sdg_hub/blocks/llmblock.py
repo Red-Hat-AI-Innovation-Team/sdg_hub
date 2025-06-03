@@ -4,10 +4,30 @@
 This module provides specialized blocks for interacting with language models,
 including functionality for text generation, prompt formatting, and output parsing.
 The blocks support various LLM operations such as:
-- Text completion and generation
-- Log probability calculation
-- Message-based chat completions
-- Conditional text generation based on templates
+- Text completion and generation with configurable parameters (temperature, max_tokens, etc.)
+- Message-based chat completions with support for system prompts and examples
+- Conditional text generation based on templates and selector columns
+- Batched processing of multiple inputs for improved efficiency
+- Customizable output parsing with support for:
+  * Tag-based extraction using start/end tags
+  * Custom regex patterns for structured output
+  * Multiple output columns per generation
+- Template-based prompt formatting with Jinja2 support
+- Validation of input data against template requirements
+- Support for multiple parallel outputs per input (n parameter)
+
+The module includes two main block classes:
+1. LLMBlock: Base block for text generation with support for:
+   - Configurable prompt templates
+   - Output parsing and formatting
+   - Batch processing capabilities
+   - Custom parser configurations
+
+2. ConditionalLLMBlock: Extended block that supports:
+   - Multiple prompt templates based on selector column
+   - Dynamic template selection
+   - Template-specific validation
+   - Inherits all capabilities from LLMBlock
 """
 
 # Standard

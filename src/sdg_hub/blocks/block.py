@@ -6,10 +6,25 @@ including functionality for template validation and configuration management.
 Blocks are the fundamental building blocks of the SDG Hub pipeline, each
 responsible for a specific data processing or transformation task.
 
+Registered Block Name: "Block"
+
 The Block class provides common functionality for:
-- Template validation using Jinja2
-- Configuration loading from YAML files
+- Template validation using Jinja2 with detailed error reporting
+- Configuration loading from YAML files with error handling
 - Basic block registration and identification
+- Standardized interface for block operations
+- Common utilities for data processing and transformation
+
+Key Features:
+- Abstract base class that enforces a consistent interface across all blocks
+- Built-in support for Jinja2 template validation with custom error handling
+- YAML configuration management with robust error handling
+- Integration with the BlockRegistry for block discovery and management
+- Logging support for debugging and monitoring
+- Type hints and comprehensive documentation
+
+The Block class serves as the foundation for all data processing components in the
+SDG Hub system, ensuring consistent behavior and interface across different block types.
 """
 
 # Standard

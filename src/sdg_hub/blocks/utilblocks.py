@@ -7,14 +7,42 @@ to work with the Hugging Face datasets library and provide common data processin
 functionality.
 
 The module includes blocks for:
-- Filtering datasets based on column values
-- Populating datasets with configuration data
-- Selecting and mapping values between columns
-- Combining multiple columns into a single column
-- Flattening datasets from wide to long format
-- Duplicating and renaming columns
-- Setting column values to majority values
-- Iterative block application
+
+Data Filtering and Selection:
+- "FilterByValueBlock": Filter datasets based on column values with support for:
+  * Multiple comparison operations (equals, contains, etc.)
+  * Data type conversion
+  * Batch processing
+  * Custom filtering conditions
+
+Data Population and Configuration:
+- "SamplePopulatorBlock": Populate datasets with configuration data:
+  * Load data from multiple YAML configuration files
+  * Map configuration data to dataset columns
+  * Support for post-fix naming
+  * Batch processing capabilities
+
+Column Operations:
+- "SelectorBlock": Map values between columns based on choice mapping
+- "CombineColumnsBlock": Concatenate multiple columns with custom separators
+- "FlattenColumnsBlock": Transform wide format to long format datasets
+- "DuplicateColumns": Create copies of existing columns with new names
+- "RenameColumns": Rename columns using a mapping dictionary
+- "SetToMajorityValue": Set column values to the most frequent value
+
+Advanced Processing:
+- "IterBlock": Apply blocks iteratively for multiple generations:
+  * Support for any block type
+  * Configurable number of iterations
+  * Custom generation parameters
+  * Batch processing support
+
+All blocks support:
+- Batch processing for improved performance
+- Error handling and logging
+- Type hints and comprehensive documentation
+- Integration with the BlockRegistry
+- Standardized interface through the Block base class
 """
 
 # Standard
