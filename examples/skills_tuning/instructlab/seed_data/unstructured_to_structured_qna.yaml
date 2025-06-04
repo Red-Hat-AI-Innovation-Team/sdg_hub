@@ -1,0 +1,49 @@
+created_by: Red Hat AI Innovation Team
+domain: Information Extraction
+task_description: Convert the following unstructured user feedback into a structured markdown table.
+seed_examples:
+  - context: "Been using the new dashboard for a few days. It's way faster than the previous one, really appreciate the snappy filters. But export to CSV seems broken — nothing happens when I click it. Also, dark mode resets every time I log in."
+    question: Convert the above feedback into a markdown table with columns for Feature, Feedback, and Sentiment?
+    answer: |
+      | Feature        | Feedback                                                           | Sentiment |
+      |----------------|--------------------------------------------------------------------|-----------|
+      | Dashboard      | Much faster than previous version, filters are responsive.         | Positive  |
+      | Export to CSV  | Clicking the export button doesn't trigger a download.             | Negative  |
+      | Dark Mode      | Resets to light mode on login.                                     | Negative  |
+
+  - context: "Really love the new calendar UI. The drag-and-drop is intuitive. One issue: reminders don't always sync between desktop and mobile. Also noticed tooltips sometimes cover buttons."
+    question: Convert the above feedback into a markdown table with columns for Feature, Feedback, and Sentiment?
+    answer: |
+      | Feature         | Feedback                                                           | Sentiment |
+      |-----------------|--------------------------------------------------------------------|-----------|
+      | Calendar UI     | Drag-and-drop is intuitive and easy to use.                        | Positive  |
+      | Reminders Sync  | Inconsistent between desktop and mobile devices.                   | Negative  |
+      | Tooltips        | Occasionally block button access.                                  | Negative  |
+
+  - context: "Love the app in general, especially how smooth the onboarding was. However, support chat is too hidden — took me forever to find. Also, app crashed once while editing a task."
+    question: Convert the above feedback into a markdown table with columns for Feature, Feedback, and Sentiment?
+    answer: |
+      | Feature       | Feedback                                                 | Sentiment |
+      |---------------|----------------------------------------------------------|-----------|
+      | Onboarding    | Smooth experience, user was impressed.                   | Positive  |
+      | Support Chat  | Difficult to locate, not visible enough.                 | Negative  |
+      | Task Editor   | App crashed while editing a task.                        | Negative  |
+
+  - context: "Notifications are timely and helpful. One small bug: sometimes the same notification pops up twice. Also, is there a way to snooze them? Didn't find the option."
+    question: Convert the above feedback into a markdown table with columns for Feature, Feedback, and Sentiment?
+    answer: |
+      | Feature           | Feedback                                               | Sentiment |
+      |-------------------|--------------------------------------------------------|-----------|
+      | Notifications     | Arrive on time and are useful.                         | Positive  |
+      | Notification Bug  | Duplicate notifications appear occasionally.           | Negative  |
+      | Snooze Option     | Snooze feature not found or not available.             | Neutral   |
+
+  - context: "The analytics view is very informative. Would love to see breakdown by team as well. Charts sometimes take a few seconds to load though. Mobile layout is clean."
+    question: Convert the above feedback into a markdown table with columns for Feature, Feedback, and Sentiment?
+    answer: |
+      | Feature         | Feedback                                              | Sentiment |
+      |-----------------|-------------------------------------------------------|-----------|
+      | Analytics View  | Provides useful insights.                             | Positive  |
+      | Team Breakdown  | Requested feature not currently available.            | Neutral   |
+      | Charts          | Load slowly on occasion.                              | Negative  |
+      | Mobile Layout   | Clean and well-designed.                              | Positive  |

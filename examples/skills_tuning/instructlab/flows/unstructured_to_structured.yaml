@@ -1,0 +1,47 @@
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_contexts
+    config_path: configs/skills/contexts.yaml
+    model_id: meta-llama/Llama-3.3-70B-Instruct
+    output_cols:
+      - context
+  gen_kwargs:
+    temperature: 0.7
+    max_tokens: 4096
+    n: 10
+    seed: 42
+  drop_duplicates:
+    - context
+
+- block_type: AddStaticValue
+  block_config:
+    block_name: add_question
+    column_name: question
+    static_value: Convert the above feedback into a markdown table with columns for Feature, Feedback, and Sentiment?
+
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_grounded_responses
+    config_path: configs/skills/grounded_responses.yaml
+    model_id: meta-llama/Llama-3.3-70B-Instruct
+    output_cols:
+      - response
+
+- block_type: LLMBlock
+  block_config:
+    block_name: evaluate_grounded_qa_pair
+    config_path: configs/skills/evaluate_grounded_pair.yaml
+    model_id: meta-llama/Llama-3.3-70B-Instruct
+    output_cols:
+      - evaluation
+      - score
+
+- block_type: FilterByValueBlock
+  block_config:
+    block_name: filter_grounded_qa_pair
+    filter_column: score
+    filter_value: 2.0
+    operation: operator.ge
+    convert_dtype: float
+    batch_kwargs:
+      num_procs: 8
