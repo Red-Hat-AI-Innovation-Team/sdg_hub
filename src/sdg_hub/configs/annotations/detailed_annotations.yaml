@@ -1,0 +1,28 @@
+system: You are an expert text classifier trained to label questions from online forums. 
+introduction: "Task Description: You will be given a text and you need to annotate it with one of the following categories: World, Sports, Business, Sci/Tech, Economy"
+principles: |
+  Please follow these rules when performing the classification:
+  - Focus on the main topic, not peripheral mentions
+  - Choose the most specific applicable category
+  - Only choose category label per question
+examples: |
+  Text: Bangladesh paralysed by strikes Opposition activists have brought many towns and cities in Bangladesh to a halt, the day after 18 people died in explosions at a political rally.
+  Category: World
+
+  Text: Desiring Stability Redskins coach Joe Gibbs expects few major personnel changes in the offseason and wants to instill a culture of stability in Washington.
+  Category: Sports
+
+  Text: A Cosmic Storm: When Galaxy Clusters Collide Astronomers have found what they are calling the perfect cosmic storm, a galaxy cluster pile-up so powerful its energy output is second only to the Big Bang.
+  Category: Sci/Tech
+
+  Text: Economy builds steam in KC Fed district The economy continued to strengthen in September and early October in the Great Plains and Rocky Mountain regions covered by the Tenth Federal Reserve District, the Federal Reserve Bank of Kansas City said Wednesday.
+  Category: Economy
+
+generation: |
+  Here is the query for annotation:
+  
+  Text: {{text}}
+  Category: 
+  
+start_tags: [""]
+end_tags: [""]

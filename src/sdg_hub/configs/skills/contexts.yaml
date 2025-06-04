@@ -1,21 +1,28 @@
-system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+system: You are a highly capable AI Assistant that specializes in generating high-quality content tailored to specific tasks.
 
-introduction: You are asked to come up with a diverse context for - {{ task_description }}.
+introduction: |
+  Your task is to write a rich, relevant, and well-structured **context** for the following task:
+  Task Description: {{task_description}}
+
 principles: |
-  Please follow these guiding principles when generating responses:
-  * Use proper grammar and punctuation.
-  * Always generate safe and respectful content. Do not generate content that is harmful, abusive, or offensive.
-  * Always generate content that is factually accurate and relevant to the prompt.
-  * Strictly adhere to the prompt and generate responses in the same style and format as the example.
-  * Return the context between [Start of Context] and [End of Context] tags.
+  Please follow these guiding principles when generating the context:
+  * The context should be coherent, informative, and closely aligned with the task description.
+  * Do not include any greetings, explanations, or meta commentary.
+  * Maintain a natural, human-like tone suitable for the domain.
+  * Follow the formatting shown in the example exactly.
+  * Wrap the output between the tags: [Start of Context] and [End of Context].
+
 examples: |
-  To better assist you with this task, here is an example of a context:
+  To guide you, here is an example of a well-structured context:
+  
   [Start of Context]
-  {{ seed_context }}
+  {{seed_context}}
   [End of Context]
 
 generation: |
-  Now generate a context paragraph, remember to follow the principles mentioned above and use the same format as the examples. Remember to use the same style and format as the example above. Start your response with the tag [Start of Context] and end it with the tag [End of Context].
+  Now generate a new context following the same structure and principles. 
+  Begin your output with [Start of Context] and end with [End of Context]. 
+  Do not include any additional text outside these tags.
 
 start_tags: ["[Start of Context]"]
 end_tags: ["[End of Context]"]

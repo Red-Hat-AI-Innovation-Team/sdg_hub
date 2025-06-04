@@ -1,46 +1,78 @@
 system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
 
 introduction: |
-   Please act as an impartial judge and evaluate the synthetic questions. Evaluate whether or not the question is a good question based on the requirements provided below. Please assign a score using a binary 0/1 scale.
+  Please act as an impartial and detail-oriented evaluator of synthetic questions. Your job is to assess whether the given question meets the defined quality and formatting standards for the task described. Assign a score using a strict binary 0/1 scale.
 
 principles: |
-   Here are the requirements:
-   * The questions should be answerable through text. It should not require any visual or audio output. 
-   * The questions should be in English.
-   * The questions should be 1 to 2 sentences long and should be properly formatted.
-   * The question should not be offensive, abusive, or harmful. It should be safe and respectful.
-   * The question should be relevant to the task given - {{ task_description }}.
+  A valid question must satisfy **all** of the following requirements:
+  * The question should be answerable via text (not require visual/audio input).
+  * It must be **clearly relevant to the task description** ({{task_description}}).
+  * It should **not contain placeholder text**, incomplete sentences, or formatting artifacts.
 
-   If the question meets the above requirements, please rate it 1. If not, please rate it 0.
+  If the question satisfies **all** of the above, assign a score of `1`. Otherwise, assign `0`.
 
 examples: |
-   Task Description: Understanding the benefits of renewable energy
+  Example 1 - Valid question:
 
-   [Start of Question]
-   What are the long-term economic benefits of investing in solar energy infrastructure?
-   [End of Question]
+  Task Description: Extract the main idea of a paragraph.
 
-   [Start of Evaluation]
-   This question is properly formatted, respectful, and relevant to the task of understanding the benefits of renewable energy. It is grounded in the context of renewable energy benefits and focuses on the economic aspect.
-   [End of Evaluation]
-   
-   [Start of Score]
-   1
-   [End of Score]
+  [Start of Question]
+  What is the central message conveyed by the paragraph?
+  [End of Question]
 
+  [Start of Evaluation]
+  The question is clear, concise, grammatically correct, and directly related to the task. It follows formatting rules and is appropriate in tone.
+  [End of Evaluation]
 
-generation: |   
-   Here's the question you need to evaluate:
+  [Start of Score]
+  1
+  [End of Score]
 
-   Task Description: {{ task_description }}
+  Example 2 - Invalid question (bad formatting):
 
-   [Start of Question]
-   {{ question }}
-   [End of Question]
+  Task Description: Extract the main idea of a paragraph.
 
-   Begin your evaluation by providing a short explanation. Be as objective as possible. After providing your explanation, you must rate the question on a scale of 0 or 1 as mentioned above. Strictly follow the format below:
-   * Return the evaluation between [Start of Evaluation] and [End of Evaluation] tags.
-   * Return the score using a binary 0/1 scale between [Start of Score] and [End of Score] tags.
+  [Start of Question]
+  main idea??
+  [End of Question]
+
+  [Start of Evaluation]
+  The question lacks proper capitalization, punctuation, and complete sentence structure. It does not meet the formatting standards.
+  [End of Evaluation]
+
+  [Start of Score]
+  0
+  [End of Score]
+
+  Example 3 - Invalid question (off-topic):
+
+  Task Description: Extract the main idea of a paragraph.
+
+  [Start of Question]
+  What's your favorite type of movie and why?
+  [End of Question]
+
+  [Start of Evaluation]
+  The question is unrelated to the given task description. It fails the relevance requirement.
+  [End of Evaluation]
+
+  [Start of Score]
+  0
+  [End of Score]
+
+generation: |
+  Here's the question you need to evaluate:
+
+  Task Description: {{task_description}}
+
+  [Start of Question]
+  {{question}}
+  [End of Question]
+
+  Now begin your evaluation:
+  * First, provide a brief explanation between [Start of Evaluation] and [End of Evaluation] tags.
+  * Then return a binary score (0 or 1) between [Start of Score] and [End of Score] tags.
+  * Do not include any content outside these tags.
 
 start_tags: ["[Start of Evaluation]", "[Start of Score]"]
 end_tags: ["[End of Evaluation]", "[End of Score]"]

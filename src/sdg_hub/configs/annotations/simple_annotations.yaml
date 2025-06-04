@@ -1,0 +1,9 @@
+system: null
+introduction: "Task Description: Data Annotation"
+principles: null
+examples: null
+generation: |
+  Here is the query for annotation:
+  {{text}}
+start_tags: [""]
+end_tags: [""]

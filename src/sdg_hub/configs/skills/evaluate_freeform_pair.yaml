@@ -1,25 +1,89 @@
-system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+system: You are a highly knowledgeable and impartial AI Assistant tasked with evaluating the quality of responses to user questions.
 
 introduction: |
-  Please act as an impartial judge and evaluate the quality of the answer provided by an AI assistant to the questions displayed below. Evaluate whether or not the answer is a good example of how AI Assistant should respond to the user's instruction. Please assign a score using the following 3-point scale.
+  Please act as an objective evaluator and assess whether the AI Assistant's answer correctly follows formatting requirements and answers the user's question. Use the scoring rubric below and assign a score from 1 to 3.
+
 principles: |
-  1: It means the answer is incorrect, irrelevant, unsafe or provides incomplete and garbage information. For instance, the answer may be factually wrong, off-topic, or filled with irrelevant content that doesn't address the user's question or it could be incomplete and hanging. It may also include any harmful, unethical, racist, sexist, explicit, offensive, toxic, dangerous, or illegal content.  
+  Use the following 3-point scale to score the answer:
 
-  2: It means the answer provides the correct answer, but it is brief and to the point without explanations. While it directly answers the user's question, it lacks additional context or in-depth explanations.
+  **1 — Poor Quality**
+  - The output is incorrectly formatted, contains hallucinations, or ignores required tags/structure.
+  - The answer may be off-topic, incomplete, or inconsistent with the task.
+  - The output introduces unsafe or inappropriate content, or violates structural instructions.
 
-  3: It means the answer is a perfect answer from an AI Assistant. It intentionally addresses the user's question with a comprehensive and detailed explanation. It demonstrates expert knowledge in the area, is very well written, logical, easy to follow, engaging, and insightful. And the answer is safe and does not include any harmful content.
+  **2 — Acceptable but Minimal**
+  - The answer is structurally valid and safe, but lacks polish, clarity, or minor formatting correctness.
+  - It meets the task minimally, but may show inconsistencies or lack proper use of spacing, tags, or conventions.
+  - It's not harmful, but also not ready for use without revision.
+
+  **3 — Excellent Answer**
+  - The answer is fully correct, clearly written, and **strictly adheres to formatting instructions**.
+  - It uses all required tags, markdown syntax, or structure accurately and consistently.
+  - It directly fulfills the task with precision, professionalism, and completeness.
 
 examples: |
+  Example 1 — Score: 1 (Poor Formatting, Unsafe)
+
+  Task Description: Generate a markdown table of 3 planets with columns: Name, Gravity, and Moons.
+
   [Start of Question]
-  Take the role of the joker. Now answer this question: What is the name of the largest spider in the world?
+  Create a markdown table with 3 planets and their gravity/moons.
   [End of Question]
 
-  [Start of Evaluation]
-  This question is properly formatted, respectful, and relevant to the task of understanding the benefits of renewable energy. It is grounded in the context of renewable energy benefits and focuses on the economic aspect.
-  [End of Evaluation]
+  [Start of Answer]
+  Mars - 3.7 - 2; Earth - 9.8 - 1; Jupiter - 24.8 - 79
+  [End of Answer]
 
   [Start of Evaluation]
-  The answer provided is correct and relevant. It accurately identifies the Goliath birdeater spider as the largest spider in the world by size, with a leg span of up to 12 inches. The response is engaging, humorous, and provides additional context about the spider's diet and nature, enhancing the reader's understanding. It avoids any harmful or inappropriate content, aligning well with the rubric's criteria for a comprehensive and detailed explanation.
+  The answer is improperly formatted (not a markdown table) and unstructured. It violates task instructions both structurally and in tone.
+  [End of Evaluation]
+
+  [Start of Score]
+  1
+  [End of Score]
+
+  Example 2 — Score: 2 (Correct but Sloppy Formatting)
+
+  Task Description: Generate a markdown table of 3 planets with columns: Name, Gravity, and Moons.
+
+  [Start of Question]
+  Create a markdown table with 3 planets and their gravity/moons.
+  [End of Question]
+
+  [Start of Answer]
+  | Name  | Gravity | Moons |
+  |-------|---------|-------|
+  | Mars | 3.7 | 2 |
+  | Earth| 9.8| 1 |
+  | Jupiter |24.8 |79|
+  [End of Answer]
+
+  [Start of Evaluation]
+  The table has correct content but inconsistent spacing and pipe alignment. It fulfills the task but lacks polish and readability. It's usable, but not clean or well-structured.
+  [End of Evaluation]
+
+  [Start of Score]
+  2
+  [End of Score]
+
+  Example 3 — Score: 3 (Flawless Markdown Table)
+
+  Task Description: Generate a markdown table of 3 planets with columns: Name, Gravity, and Moons.
+
+  [Start of Question]
+  Create a markdown table with 3 planets and their gravity/moons.
+  [End of Question]
+
+  [Start of Answer]
+  | Name     | Gravity (m/s²) | Moons |
+  |----------|----------------|-------|
+  | Mars     | 3.7            | 2     |
+  | Earth    | 9.8            | 1     |
+  | Jupiter  | 24.8           | 79    |
+  [End of Answer]
+
+  [Start of Evaluation]
+  The answer uses proper markdown syntax, alignment, and column headers. The formatting is clean, readable, and consistent with markdown table standards. It meets the task precisely.
   [End of Evaluation]
 
   [Start of Score]
@@ -27,7 +91,10 @@ examples: |
   [End of Score]
 
 generation: |
-  Here's the question and the answer you need to evaluate:
+  Now begin your evaluation of the following QA pair. Use the rubric above and be objective and concise in your reasoning.
+
+  Task Description: {{task_description}}
+
   [Start of Question]
   {{ question }}
   [End of Question]
@@ -36,9 +103,9 @@ generation: |
   {{ response }}
   [End of Answer]
 
-  Begin your evaluation by providing a short explanation. Be as objective as possible. After providing your explanation, you must rate the answer on a scale of 1 to 3 as mentioned above. 
-  * Return the evaluation between [Start of Evaluation] and [End of Evaluation] tags.
-  * Return the score between [Start of Score] and [End of Score] tags.
+  * Provide your evaluation between [Start of Evaluation] and [End of Evaluation] tags.
+  * Provide the score between [Start of Score] and [End of Score] tags.
+  * Do not include any content outside these tags.
 
 start_tags: ["[Start of Evaluation]", "[Start of Score]"]
 end_tags: ["[End of Evaluation]", "[End of Score]"]
