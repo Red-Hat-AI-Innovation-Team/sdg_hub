@@ -74,30 +74,11 @@ seed_examples:
       | Carlos Pena  | Data Specialist             | Mid       |
       | Tessa Morgan | Principal Product Manager   | Senior    |
 
-  - question: |
-      **Sales Table**
-      | Rep        | Region ID | Revenue |
-      |------------|-----------|---------|
-      | Alice      | R1        | 85000   |
-      | Bob        | R2        | 105000  |
-      | Carla      | R3        | 92000   |
-      | David      | R4        | 65000   |
-
-      **Region Metadata**
-      | Region ID | Country | Multiplier |
-      |-----------|---------|------------|
-      | R1        | US      | 1.3        |
-      | R2        | EU      | 1.0        |
-      | R3        | APAC    | 1.2        |
-      | R4        | LATAM   | 1.5        |
-
-      Join the tables and compute Adjusted Revenue = Revenue × Multiplier. Show only rows where Adjusted Revenue > 100000.
-    answer: |
       | Rep    | Region ID | Country | Revenue | Multiplier | Adjusted Revenue |
       |--------|-----------|---------|---------|------------|------------------|
       | Alice  | R1        | US      | 85000   | 1.3        | 110500           |
+      | Bob    | R2        | EU      | 105000  | 1.0        | 105000           |
       | Carla  | R3        | APAC    | 92000   | 1.2        | 110400           |
-
   - question: |
       | Name        | Department | Salary  |
       |-------------|------------|---------|
