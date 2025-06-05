@@ -1,0 +1,53 @@
+- block_type: DoclingParsePDF
+  block_config:
+    block_name: parse_transcript
+    pdf_path_column: pdf_path
+    output_column: conversation
+
+- block_type: AddStaticValue
+  block_config:
+    block_name: add_question
+    column_name: question
+    static_value: Extract summary, keywords, named entities, and sentiment from the transcript and return in JSON format.
+
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_summary
+    model_id: meta-llama/Llama-3.3-70B-Instruct
+    config_path: ../prompts/summary.yaml
+    output_cols:
+      - summary
+
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_keywords
+    model_id: meta-llama/Llama-3.3-70B-Instruct
+    config_path: ../prompts/keywords.yaml
+    output_cols:
+      - keywords
+
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_named_entities
+    model_id: meta-llama/Llama-3.3-70B-Instruct
+    config_path: ../prompts/named_entities.yaml
+    output_cols:
+      - named_entities
+
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_sentiment
+    model_id: meta-llama/Llama-3.3-70B-Instruct
+    config_path: ../prompts/sentiment.yaml
+    output_cols:
+      - sentiment
+
+- block_type: JSONFormat
+  block_config:
+    block_name: format_json
+    output_column: json_output
+  drop_columns:
+    - summary
+    - keywords
+    - named_entities
+    - sentiment
