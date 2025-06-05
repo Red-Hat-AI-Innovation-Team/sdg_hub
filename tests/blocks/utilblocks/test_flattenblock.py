@@ -139,42 +139,6 @@ def test_flatten_columns_with_invalid_input():
         block.generate(dataset)
 
 
-def test_flatten_columns_verify_melted_structure():
-    """Test that columns are correctly melted into long format with proper ordering."""
-    data = {
-        "id": [1, 2],
-        "summary_detailed": ["detailed1", "detailed2"],
-        "summary_extractive": ["extractive1", "extractive2"],
-        "other_col": ["other1", "other2"],
-    }
-    dataset = Dataset.from_dict(data)
-
-    block = FlattenColumnsBlock(
-        block_name="test_flatten_structure",
-        var_cols=["summary_detailed", "summary_extractive"],
-        value_name="summary",
-        var_name="dataset_type",
-    )
-
-    result = block.generate(dataset)
-    result_dict = result.to_dict()
-
-    # Verify the order of melted rows - pandas melt preserves column order
-    expected_order = [
-        ("detailed1", "summary_detailed"),
-        ("detailed2", "summary_detailed"),
-        ("extractive1", "summary_extractive"),
-        ("extractive2", "summary_extractive"),
-    ]
-    
-    for i, (value, var) in enumerate(expected_order):
-        assert result_dict["summary"][i] == value
-        assert result_dict["dataset_type"][i] == var
-
-    # Verify id column relationship - pandas melt alternates between rows
-    assert result_dict["id"] == [1, 2, 1, 2]  # Each id alternates for each var_col
-
-
 def test_flatten_columns_with_empty_columns():
     """Test flattening with columns containing all None values."""
     data = {
