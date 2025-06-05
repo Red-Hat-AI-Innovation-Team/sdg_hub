@@ -54,7 +54,7 @@ gui = [
     "pyyaml>=6.0.1",
 ]
 vllm = [
-    "vllm>=0.3.0,<0.8.4",
+    "vllm>=0.8.0,<0.8.4",
     "torch>=2.0.0",
     "transformers>=4.37.0",
     "accelerate>=0.21.0",
@@ -64,6 +64,7 @@ examples = [
     "tabulate>=0.9.0",
     "transformers>=4.37.0",
     "langchain-text-splitters",
+    "docling>=2.3.0",
 ]
 dev = [
     "pre-commit>=3.0.4,<4.0",
