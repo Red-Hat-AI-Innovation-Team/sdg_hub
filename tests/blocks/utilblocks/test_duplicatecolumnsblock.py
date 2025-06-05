@@ -50,6 +50,8 @@ def test_duplicate_multiple_columns(sample_dataset):
     # Check values are correctly duplicated
     assert result["document"] == result["base_document"]
     assert result["other_col"] == result["duplicate_other_col"]
+    # Check that the mapping is exact (no extra columns)
+    assert len(result.column_names) == len(sample_dataset.column_names) + len(block.columns_map)
 
 
 def test_empty_columns_map(sample_dataset):
@@ -108,46 +110,3 @@ def test_duplicate_with_complex_data():
     assert result["numbers"] == result["duplicate_numbers"]
     assert result["lists"] == result["duplicate_lists"]
     assert result["dicts"] == result["duplicate_dicts"]
-
-
-def test_validate_column_mapping_and_values():
-    """Test that columns are duplicated exactly as specified in columns_map and contain identical values."""
-    # Create a dataset with consistent data types
-    dataset = Dataset.from_dict(
-        {
-            "text": ["hello", "world", "test"],
-            "number": ["1", "2", "3"],  # Using strings instead of integers
-            "boolean": ["True", "False", "True"],  # Using strings instead of booleans
-            "mixed": ["text", "42", "True"],  # All values as strings
-        }
-    )
-    
-    # Define the mapping
-    columns_map = {
-        "text": "duplicated_text",
-        "number": "duplicated_number",
-        "boolean": "duplicated_boolean",
-        "mixed": "duplicated_mixed",
-    }
-    
-    block = DuplicateColumns(block_name="test_mapping", columns_map=columns_map)
-    
-    result = block.generate(dataset)
-    
-    # Validate column mapping
-    for original_col, new_col in columns_map.items():
-        # Check that both original and new columns exist
-        assert original_col in result.column_names, (
-            f"Original column {original_col} not found"
-        )
-        assert new_col in result.column_names, f"New column {new_col} not found"
-        
-        # Check that values are identical
-        original_values = result[original_col]
-        new_values = result[new_col]
-        assert original_values == new_values, (
-            f"Values in {original_col} and {new_col} are not identical"
-        )
-        
-        # Check that the mapping is exact (no extra columns)
-        assert len(result.column_names) == len(dataset.column_names) + len(columns_map)
