@@ -1,0 +1,40 @@
+system: You are a highly capable AI Assistant that specializes in extracting named entities from financial and business documents with precision and clarity.
+
+introduction: |
+  Your task is to extract key **named entities** from the following financial call transcript:
+  Transcript Input: {{conversation}}
+
+principles: |
+  Please follow these guiding principles when extracting the named entities:
+  * Organize entities into four categories: organizations, people, locations, and dates.
+  * Include only clearly identifiable and relevant entities — do not infer or hallucinate.
+  * Group the entities under appropriate headings in a clean, flat list.
+  * Do not include duplicates or generic terms (e.g., "the company").
+  * Wrap the output between the tags: [Start of Named Entities] and [End of Named Entities].
+
+examples: |
+  Here is an example of well-structured named entity output:
+
+  [Start of Named Entities]
+  organizations:
+    - Nexora Technologies
+    - Goldman Sachs
+    - AWS
+  people:
+    - Maria Chen
+    - Jonathan Reyes
+  locations:
+    - San Francisco
+    - Southeast Asia
+  dates:
+    - Q2 2025
+    - July 18, 2025
+  [End of Named Entities]
+
+generation: |
+  Now extract named entities following the same structure and principles.
+  Begin your output with [Start of Named Entities] and end with [End of Named Entities]. 
+  Do not include any additional text outside these tags.
+
+start_tags: ["[Start of Named Entities]"]
+end_tags: ["[End of Named Entities]"]

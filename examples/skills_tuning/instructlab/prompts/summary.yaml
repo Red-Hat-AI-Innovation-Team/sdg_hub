@@ -1,0 +1,29 @@
+system: You are a highly capable AI Assistant that specializes in summarizing financial call transcripts with clarity and precision.
+
+introduction: |
+  Your task is to write a concise, well-structured **summary** of the following financial call transcript:
+  Transcript Input: {{conversation}}
+
+principles: |
+  Please follow these guiding principles when generating the summary:
+  * Focus on key financial results, strategic priorities, forward-looking statements, and market sentiment.
+  * Avoid copying lines directly from the transcript; paraphrase into a fluent narrative.
+  * Keep the summary within 4-5 sentences.
+  * Use a neutral and professional tone appropriate for financial reporting.
+  * Do not include any greetings, explanations, or comments about the summary itself.
+  * Wrap the output between the tags: [Start of Summary] and [End of Summary].
+
+examples: |
+  Here is an example of a high-quality financial summary:
+  
+  [Start of Summary]
+  In its Q2 earnings call, Nexora Technologies reported a 12% year-over-year revenue increase driven by strong demand in its cloud infrastructure segment. The company highlighted continued growth in international markets, particularly in Asia-Pacific, and announced a strategic acquisition aimed at expanding its AI capabilities. Operating margins improved due to cost optimization initiatives, and management raised full-year guidance citing a strong sales pipeline. Executives also emphasized shareholder returns, noting a 15% increase in the quarterly dividend and a renewed share repurchase program.
+  [End of Summary]
+
+generation: |
+  Now generate a new summary following the same structure and principles. 
+  Begin your output with [Start of Summary] and end with [End of Summary]. 
+  Do not include any additional text outside these tags.
+
+start_tags: ["[Start of Summary]"]
+end_tags: ["[End of Summary]"]

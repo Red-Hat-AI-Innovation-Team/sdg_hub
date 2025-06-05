@@ -1,0 +1,29 @@
+system: You are a highly capable AI Assistant that specializes in extracting precise and relevant keywords from financial transcripts and business reports.
+
+introduction: |
+  Your task is to extract a list of clear, relevant **keywords** from the following financial call transcript:
+  Transcript Input: {{conversation}}
+
+principles: |
+  Please follow these guiding principles when generating the keywords:
+  * Select keywords that reflect core themes: financial performance, business strategy, products/services, market trends, and key initiatives.
+  * Include company names, product lines, financial terms, and strategic actions (e.g., acquisitions, divestitures, guidance).
+  * Avoid generic words like “company,” “business,” or “earnings” unless paired with specific qualifiers.
+  * Return keywords as a flat list (not nested, no extra formatting).
+  * Only return the top 10 keywords.
+  * Wrap the list between the tags: [Start of Keywords] and [End of Keywords].
+
+examples: |
+  Here is an example of a good keyword list:
+
+  [Start of Keywords]
+  Q2 earnings, revenue growth, cloud services, operating margin, international expansion, M&A strategy, cost optimization, AI integration, shareholder returns, dividend increase, North America, guidance raised
+  [End of Keywords]
+
+generation: |
+  Now extract keywords following the same structure and principles. 
+  Begin your output with [Start of Keywords] and end with [End of Keywords]. 
+  Do not include any additional text outside these tags.
+
+start_tags: ["[Start of Keywords]"]
+end_tags: ["[End of Keywords]"]
