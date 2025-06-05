@@ -1,5 +1,52 @@
 # SPDX-License-Identifier: Apache-2.0
 
+"""
+Knowledge Tuning Utilities Module
+
+This module provides utilities for processing and preparing datasets for knowledge tuning tasks.
+It includes functionality for:
+- Processing docling JSON files and markdown documents
+- Creating QA datasets with various formats (regular, pretraining, RAFT)
+- Handling document chunking and text processing
+- Managing auxiliary datasets and in-context learning examples
+
+Key Components:
+- DocProcessor: Main class for processing documents and creating datasets
+- Dataset Generation Functions:
+  * create_knowledge_qa_dataset: Creates QA pairs from documents
+  * create_knowledge_regular_ds: Creates regular knowledge datasets
+  * create_knowledge_pretraining_ds: Creates pretraining format datasets
+  * build_raft_dataset: Creates RAFT-style datasets with multiple documents
+- Text Processing Utilities:
+  * chunk_document: Splits documents into manageable chunks
+  * fuse_texts: Combines short texts for better context
+  * add_heading_formatting: Formats document headings
+
+Usage:
+    from sdg_hub.examples.knowledge_tuning.knowledge_utils import DocProcessor
+
+    # Initialize processor
+    processor = DocProcessor(
+        parsed_doc_dir="path/to/docs",
+        tokenizer="instructlab/granite-7b-lab",
+        user_config_path="path/to/config.yaml"
+    )
+
+    # Process documents
+    dataset = processor.get_processed_dataset()
+
+Dependencies:
+    - datasets: For dataset manipulation
+    - transformers: For tokenization
+    - langchain_text_splitters: For text chunking
+    - tabulate: For table formatting
+    - yaml: For configuration file handling
+
+Note:
+    This module is designed to work with the Granite-7b-lab model and follows
+    specific formatting requirements for knowledge tuning tasks.
+"""
+
 # Standard
 import json
 import random
@@ -26,6 +73,21 @@ _DEFAULT_CHUNK_OVERLAP = 100
 
 
 def create_auxiliary_dataset(generated_dataset: Dataset):
+    """
+    Creates an auxiliary dataset from the generated dataset by filtering out base documents
+    and applying auxiliary instructions.
+
+    Args:
+        generated_dataset (Dataset): The input dataset containing various document types.
+
+    Returns:
+        Dataset or None: Returns a new dataset with auxiliary instructions applied if auxiliary
+        instructions file exists, otherwise returns None.
+
+    Note:
+        The function reads auxiliary instructions from a YAML file and applies them to non-base
+        documents in the dataset.
+    """
     if "dataset_type" not in generated_dataset.column_names:
         return None
 
@@ -89,6 +151,15 @@ def create_auxiliary_dataset(generated_dataset: Dataset):
 
 
 def _conv_pretrain(rec):
+    """
+    Converts a record into a pretraining format by combining user and assistant messages.
+
+    Args:
+        rec (dict): A dictionary containing messages with user and assistant roles.
+
+    Returns:
+        dict: The modified record with messages in pretraining format.
+    """
     rec["messages"] = [
         {
             "role": "pretraining",
@@ -101,6 +172,19 @@ def _conv_pretrain(rec):
 def generate_knowledge_qa_dataset(
     generated_dataset: Dataset, keep_context_separate=False, keep_document_outline=False
 ):
+    """
+    Generates a knowledge QA dataset from the input dataset.
+
+    Args:
+        generated_dataset (Dataset): The input dataset containing documents and questions.
+        keep_context_separate (bool, optional): If True, keeps context separate from the question.
+            Defaults to False.
+        keep_document_outline (bool, optional): If True, includes document outline in the context.
+            Defaults to False.
+
+    Returns:
+        Dataset: A new dataset containing QA pairs in the specified format.
+    """
     def __create_qa_row(rec):
         context = rec["document"]
         instruction = rec["question"]
@@ -152,6 +236,19 @@ def generate_knowledge_qa_dataset(
 
 
 def build_raft_dataset(ds: Dataset, p, num_doc_in_context=4):
+    """
+    Builds a RAFT (Retrieval-Augmented Fine-Tuning) dataset by combining multiple documents
+    in the context.
+
+    Args:
+        ds (Dataset): Input dataset containing documents and questions.
+        p (float): Probability threshold for including the answer document in the context.
+        num_doc_in_context (int, optional): Number of documents to include in the context.
+            Defaults to 4.
+
+    Returns:
+        Dataset: A new dataset with multiple documents in the context for each question.
+    """
     all_context = list(set(ds["context"]))
 
     def _pick_documents(rec, p):
@@ -202,6 +299,15 @@ def build_raft_dataset(ds: Dataset, p, num_doc_in_context=4):
 
 
 def create_knowledge_regular_ds(generated_dataset: Dataset):
+    """
+    Creates a regular knowledge dataset by combining QA pairs and auxiliary data.
+
+    Args:
+        generated_dataset (Dataset): The input dataset containing documents and questions.
+
+    Returns:
+        Dataset: A combined dataset containing both QA pairs and auxiliary data.
+    """
     # Phase 1.0
     knowledge_ds = generate_knowledge_qa_dataset(
         generated_dataset, keep_context_separate=True
@@ -217,6 +323,15 @@ def create_knowledge_regular_ds(generated_dataset: Dataset):
 
 
 def create_knowledge_pretraining_ds(generated_dataset: Dataset):
+    """
+    Creates a pretraining dataset by converting regular QA pairs into pretraining format.
+
+    Args:
+        generated_dataset (Dataset): The input dataset containing documents and questions.
+
+    Returns:
+        Dataset: A dataset formatted for pretraining with combined user and assistant messages.
+    """
     # Phase 0.7
     knowledge_ds = generate_knowledge_qa_dataset(
         generated_dataset, keep_context_separate=False
@@ -233,6 +348,17 @@ def create_knowledge_pretraining_ds(generated_dataset: Dataset):
 
 
 def fuse_texts(text_list, short_length_threshold=100):
+    """
+    Fuses short texts with previous longer texts to create more meaningful chunks.
+
+    Args:
+        text_list (list): List of text strings to be fused.
+        short_length_threshold (int, optional): Maximum word count for a text to be considered short.
+            Defaults to 100.
+
+    Returns:
+        list: List of fused text strings.
+    """
     fused_texts = []
     previous_long_text = ""
 
@@ -251,18 +377,49 @@ def fuse_texts(text_list, short_length_threshold=100):
 
 
 def handle_footnote(book_element):
+    """
+    Handles footnote elements in the document. Currently a placeholder function.
+
+    Args:
+        book_element (dict): The footnote element to be processed.
+    """
     pass
 
 
 def create_tokenizer():
+    """
+    Creates and returns a tokenizer instance for the Granite-7b-lab model.
+
+    Returns:
+        AutoTokenizer: A tokenizer instance configured for the Granite-7b-lab model.
+    """
     return AutoTokenizer.from_pretrained("instructlab/granite-7b-lab")
 
 
 def get_token_count(text, tokenizer):
+    """
+    Calculates the number of tokens in a given text using the provided tokenizer.
+
+    Args:
+        text (str): The input text to tokenize.
+        tokenizer: The tokenizer instance to use.
+
+    Returns:
+        int: The number of tokens in the text.
+    """
     return len(tokenizer.tokenize(text))
 
 
 def add_heading_formatting(text):
+    """
+    Adds markdown formatting to headings in the text.
+
+    Args:
+        text (str): The input text containing potential headings.
+
+    Returns:
+        str: The text with formatted headings.
+    """
     text = text.split(".")
     # TODO: Change this from hardcoded to something that makes sense
     if len(text) > 1 and len(text[0].split(" ")) < 3:
@@ -274,7 +431,13 @@ def add_heading_formatting(text):
 
 def generate_table_from_parsed_rep(item):
     """
-    Generate the table from the parsed representation and return
+    Generates a markdown table from a parsed representation.
+
+    Args:
+        item (dict): Dictionary containing table data and optional caption.
+
+    Returns:
+        str: A markdown-formatted table string with optional caption.
     """
     caption = ""
     if "text" in item:
@@ -300,12 +463,32 @@ def generate_table_from_parsed_rep(item):
 
 
 def get_table(json_book, table_ref):
+    """
+    Retrieves a table from the JSON book using a table reference.
+
+    Args:
+        json_book (dict): The JSON book containing tables.
+        table_ref (str): Reference to the table in the format "type/index".
+
+    Returns:
+        str: The generated table in markdown format.
+    """
     parts = table_ref.split("/")
     table_text = generate_table_from_parsed_rep(json_book[parts[1]][int(parts[2])])
     return table_text
 
 
 def get_table_page_number(json_book, idx):
+    """
+    Gets the page number for a table by looking at surrounding elements.
+
+    Args:
+        json_book (dict): The JSON book containing the table.
+        idx (int): Index of the table in the book.
+
+    Returns:
+        int or None: The page number of the table, or None if not found.
+    """
     # Get previous page number
     prev_page_num, next_page_num = None, None
     for book_element in json_book["main-text"][idx - 1 :: -1]:
@@ -334,6 +517,21 @@ def build_chunks_from_docling_json(
     keep_same_page_thing_together=False,
     chunking_criteria=None,
 ):
+    """
+    Builds document chunks from a docling JSON file.
+
+    Args:
+        json_book (dict): The JSON book to be chunked.
+        max_token_per_chunk (int): Maximum number of tokens per chunk.
+        tokenizer: The tokenizer to use for counting tokens.
+        keep_same_page_thing_together (bool, optional): If True, keeps elements from the same page together.
+            Defaults to False.
+        chunking_criteria (callable, optional): Custom function to determine chunk boundaries.
+            Defaults to None.
+
+    Returns:
+        list: List of document chunks.
+    """
     current_buffer = []
     document_chunks = []
     prev_page_number = None
@@ -427,22 +625,46 @@ def build_chunks_from_docling_json(
 
 
 def _num_tokens_from_words(num_words) -> int:
+    """
+    Estimates the number of tokens from a given number of words.
+
+    Args:
+        num_words (int): Number of words.
+
+    Returns:
+        int: Estimated number of tokens (words * 1.3).
+    """
     return int(num_words * 1.3)  # 1 word ~ 1.3 token
 
 
 def _num_chars_from_tokens(num_tokens) -> int:
+    """
+    Estimates the number of characters from a given number of tokens.
+
+    Args:
+        num_tokens (int): Number of tokens.
+
+    Returns:
+        int: Estimated number of characters (tokens * 4).
+    """
     return int(num_tokens * 4)  # 1 token ~ 4 English character
 
 
 def chunk_document(documents: List, server_ctx_size, chunk_word_count) -> List[str]:
     """
-    Iterates over the documents and splits them into chunks based on the word count provided by the user.
+    Chunks documents into smaller pieces based on word count and server context size.
+
     Args:
-        documents (list): List of documents retrieved from git (can also consist of a single document).
-        server_ctx_size (int): Context window size of server.
-        chunk_word_count (int): Maximum number of words to chunk a document.
+        documents (List): List of documents to be chunked.
+        server_ctx_size (int): Maximum context size of the server.
+        chunk_word_count (int): Maximum number of words per chunk.
+
     Returns:
-         List[str]: List of chunked documents.
+        List[str]: List of chunked documents.
+
+    Raises:
+        TypeError: If documents is not a list or string.
+        ValueError: If chunk_word_count would exceed server context size.
     """
 
     # Checks for input type error
@@ -487,12 +709,36 @@ def chunk_document(documents: List, server_ctx_size, chunk_word_count) -> List[s
 
 
 class DocProcessor:
+    """
+    A class for processing documents and creating datasets for knowledge tuning.
+
+    This class handles the processing of parsed docling JSON files and markdown files,
+    creating datasets suitable for knowledge tuning tasks.
+
+    Attributes:
+        parsed_doc_dir (Path): Directory containing parsed docling JSON files.
+        user_config (dict): User configuration loaded from YAML file.
+        docling_jsons (list): List of JSON file paths.
+        tokenizer: Tokenizer instance for text processing.
+    """
+
     def __init__(
         self,
         parsed_doc_dir: Path,
         tokenizer: str = "instructlab/granite-7b-lab",
         user_config_path: Path = None,
     ):
+        """
+        Initialize the DocProcessor.
+
+        Args:
+            parsed_doc_dir (Path): Directory containing parsed docling JSON files.
+            tokenizer (str, optional): Name of the tokenizer to use. Defaults to "instructlab/granite-7b-lab".
+            user_config_path (Path, optional): Path to user configuration file. Defaults to None.
+
+        Raises:
+            FileNotFoundError: If parsed_doc_dir or user_config_path does not exist.
+        """
         self.parsed_doc_dir = self._path_validator(parsed_doc_dir)
         self.user_config = self._load_user_config(
             self._path_validator(user_config_path)
@@ -502,13 +748,16 @@ class DocProcessor:
 
     def _path_validator(self, path) -> Path:
         """
-        Validate the path and return a Path object.
-        Args:
-            path (str): Path to be validated.
+        Validates and converts a path string to a Path object.
 
-        Returns
-        -------
-            Path`: Path object.
+        Args:
+            path (str or Path): Path to validate.
+
+        Returns:
+            Path: Validated Path object.
+
+        Raises:
+            FileNotFoundError: If path does not exist.
         """
         if isinstance(path, str):
             path = Path(path)
@@ -518,13 +767,13 @@ class DocProcessor:
 
     def _load_user_config(self, user_config_path: Path) -> dict:
         """
-        Load the user config file.
-        Args:
-            user_config_path (Path): Path to the user config file.
+        Loads user configuration from a YAML file.
 
-        Returns
-        -------
-            dict: User config dictionary.
+        Args:
+            user_config_path (Path): Path to the user configuration file.
+
+        Returns:
+            dict: Loaded configuration dictionary.
         """
         # load user config as yaml
         with open(user_config_path, "r", encoding="utf-8") as f:
@@ -532,13 +781,13 @@ class DocProcessor:
 
     def _process_parsed_docling_json(self, json_fp: Path) -> Dataset:
         """
-        Process the parsed docling json file and return a dataset.
-        Args:
-            json_fp (str): Path to the parsed docling json file.
+        Processes a parsed docling JSON file into a dataset.
 
-        Returns
-        -------
-            Dataset: Dataset object.
+        Args:
+            json_fp (Path): Path to the JSON file.
+
+        Returns:
+            Dataset: Processed dataset containing document chunks and metadata.
         """
         logger.info(f"Processing parsed docling json file: {json_fp}")
         with open(json_fp, "r", encoding="utf-8") as f:
@@ -563,13 +812,13 @@ class DocProcessor:
 
     def _add_icls(self, chunked_document: Dataset) -> Dataset:
         """
-        Add the ICLS label to the dataset.
-        Args:
-            dataset (Dataset): Dataset object.
+        Adds in-context learning examples to the dataset.
 
-        Returns
-        -------
-            Dataset: Dataset object with ICLS label.
+        Args:
+            chunked_document (Dataset): Input dataset to add ICLs to.
+
+        Returns:
+            Dataset: Dataset with added in-context learning examples.
         """
         icl = self.user_config["seed_examples"]
         chunked_document_all_icl = []
@@ -612,11 +861,10 @@ class DocProcessor:
 
     def get_processed_dataset(self) -> Dataset:
         """
-        Process all the parsed docling json files and return a dataset.
+        Processes all parsed docling JSON files into a combined dataset.
 
-        Returns
-        -------
-            Dataset: Dataset object.
+        Returns:
+            Dataset: Combined dataset containing all processed documents.
         """
         datasets = []
         for json_fp in self.docling_jsons:
@@ -626,6 +874,15 @@ class DocProcessor:
         return safe_concatenate_datasets(datasets)
 
     def get_processed_markdown_dataset(self, list_md_files: list[Path]) -> Dataset:
+        """
+        Processes markdown files into a dataset.
+
+        Args:
+            list_md_files (list[Path]): List of markdown file paths.
+
+        Returns:
+            Dataset: Processed dataset containing markdown content and metadata.
+        """
         chunks_mds = []
         for md_file in list_md_files:
             with open(md_file, "r", encoding="utf-8") as f:
