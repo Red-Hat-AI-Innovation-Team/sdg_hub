@@ -18,13 +18,13 @@ Compositional skills are tasks that combine different abilities to handle comple
 
 This directory contains four example notebooks that demonstrate different skills you can teach to language models:
 
-1. **Unstructured to Structured** (`unstructured_to_structured.ipynb`): Shows how to convert unstructured text data into structured formats, making it easier to process and analyze.
+1. [**Unstructured to Structured**](unstructured_to_structured.ipynb): Shows how to convert unstructured text data into structured formats, making it easier to process and analyze.
 
-2. **Table Manipulation** (`table_manipulation.ipynb`): Teaches models to understand and manipulate tabular data, including operations like filtering, sorting, and data transformation.
+2. [**Table Manipulation**](table_manipulation.ipynb): Teaches models to understand and manipulate tabular data, including operations like filtering, sorting, and data transformation.
 
-3. **Structured Summary** (`structured_summary.ipynb`): Demonstrates how to generate structured summaries from text, converting free-form content into organized, formatted outputs.
+3. [**Structured Summary**](structured_summary.ipynb): Demonstrates how to generate structured summaries from text, converting free-form content into organized, formatted outputs.
 
-4. **Annotation Classification** (`annotation_classification.ipynb`): Shows how to train a model to classify and categorize text annotations, useful for data labeling and organization tasks.
+4. [**Annotation Classification**](annotation_classification.ipynb): Shows how to train a model to classify and categorize text annotations, useful for data labeling and organization tasks.
 
 
 
