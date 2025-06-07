@@ -1,0 +1,1778 @@
+Chunk - 0
+-----
+
+Page 1
+
+Strictly for
+internal use
+only.
+DO NOT
+SHARE
+
+The Big Picture
+
+  - What is InstructLab
+  - End-to-end PoC Overview
+
+AI
+Innovation
+Team
+
+-----
+
+Page 2
+
+Strictly for
+internal use
+only.
+DO NOT
+SHARE
+
+InstructLab: Taxonomy of Knowledge and Skills
+
+document\_outline: Towards High-Quality 3D Motion Transfer with Realistic Apparel Animation
+domain: 3D Motion Transfer
+seed\_examples:
+
+  - context: "\# 1. Nucleon-nucleon interactions and three-body forces "\\n"At densities  
+    n \\u223c2/3 10 - 2 n0, neutron matter cannot be described by s-wave interactions  
+    n only, and higher partial waves have to be included in the interaction, see Fig.  
+    n2. From the figure, we see that the inclusion of these of neutron matter composed  
+    npartial-wave contributions (as well as other contributions) is crucial for pinning down the properties of neutron matter at these densities. Different partial  
+    n start to differ at higher densities.\\n\\nTo describe nucleon-nucleon scattering  
+    n in various partial waves, nucleon-nucleon interactions are usually dependent  
+    n on the relative spin and isospin state of the nucleons. A large amount of empirical  
+    n information about the nucleon-nucleon scattering problem has been accumulated  
+    n1.In 1993, the Nijmegen group analyzed all nucleon-nucleon scattering data below  
+    n 350 MeV published in physics journals between 1955 and 1992 (Stoks et al., 1993).  
+    n Older nucleon-nucleon interaction models that fit the Nijmegen database with  
+    n \\u03c72/Ndata \\u223c1 are called 'phenomenological' and fit experimental  
+    n data very accurately. Examples of these interactions are the Nijmegen models  
+    n (Stoks et al., 1994) (Nijm93, Nijm I, Nijm II and Reid-93), Argonne models (Wiringa  
+    n and Pieper, 2002; Wiringa et al., 1995) and the CD-Bonn potential (Machleidt  
+    n,2001).\\n"
+
+question\_and\_answers:
+
+  - question: The authors proposed using the iterative improved time-dilated convolutional
+    network (ITDCN++) for separating mixtures with known numbers of sound sources.
+    question: What technique did the authors propose for separating mixtures with
+    known numbers of sound sources in the USS task?
+  - answer: The conditional information about which sound classes are present helps
+    to improve the accuracy and performance of universal sound separation.
+    question: How does the conditional information about sound classes improve universal
+    sound separation performance?
+  - answer: The MixIT approach aims to reduce the cost of annotating data for sound
+    separation models by using a purely unsupervised training paradigm with unlabeled,
+    in-the-wild data.
+    question: What problem does the mixture invariant training (MixIT) approach aim
+    to solve, and how does it address this problem?
+
+The visual element on the far right of the slide appears to be a complex, dense, horizontally oriented bar chart or timeline-like structure. It is composed of numerous thin, dark horizontal lines of varying lengths, which are arranged in vertical stacks or groups across the width of the element. The overall impression is one of an intricate data representation, possibly showing distributions or a high volume of individual data points or events over a common axis. However, specific labels, values, or axes are not discernible in the provided image, making a precise interpretation of the data it represents challenging. It suggests a complex dataset or output from a process.
+
+AI
+Innovation
+Team
+
+-----
+
+Page 3
+
+Knowledge vs Skill
+
+-----
+
+Skills
+Patterns, to be
+generalized\!
+
+1.  1 + x = 3
+2.  2 + x = 4
+3.  3 + x = 5
+
+What is 4+x then?
+
+Knowledge
+Facts, to be
+memorized\!
+
+1.  George Washington (1789-1797)
+2.  John Adams (1797-1801)
+3.  Thomas Jefferson (1801-1809)
+
+Name the fourth president?
+
+AI
+Innovation
+Team
+
+-----
+
+Page 4
+
+Strictly for
+internal use
+only.
+DO NOT
+SHARE
+
+InstructLab Workflow
+
+The slide displays a workflow diagram for "InstructLab."
+On the left side, three precursor elements are shown vertically:
+
+  - **Taxonomy**: Represented by a hierarchical diagram icon.
+  - **Synthetic Data Generation**: Represented by binary code "1010 11011" and a lightbulb/flask icon.
+  - **Multi-Phase Training**: Represented by a gear icon.
+
+These elements conceptually feed into the main workflow, which is enclosed in a large rectangle labeled at the bottom with a red banner: "**RHEL-AI Node**".
+The workflow proceeds as follows:
+
+1.  **User Provided Taxonomy** (icon: a person with a list) serves as an input.
+2.  This feeds into **SDG** (Synthetic Data Generation), represented by a database cylinder icon.
+3.  Output from SDG goes to **Data Mixing**, represented by a funnel icon.
+4.  Data Mixing splits into two parallel tuning paths:
+      * **Knowledge Tuning**: Represented by an icon of a brain with a book.
+      * **Skills Tuning**: Represented by a gears icon.
+5.  Both tuning paths then proceed to an **Evaluation** step, each represented by a checklist icon.
+6.  Following Evaluation, both paths lead to a **CKPT Selection** (Checkpoint Selection) step, each represented by a checkmark inside a box icon.
+7.  The outputs from both CKPT Selection stages feed into a **Custom Model**, represented by a robot icon.
+8.  The Custom Model also shows an arrow pointing back to it from the User Provided Taxonomy, suggesting an iterative or feedback loop influencing the model or the taxonomy itself.
+
+AI
+Innovation
+Team
+
+-----
+
+Page 5
+
+Strictly for
+internal use
+only.
+DO NOT
+SHARE
+
+The PoC Loop
+
+The slide features a circular diagram illustrating "The PoC Loop," divided into three numbered steps, each with accompanying text:
+
+**01 Process PDF and write QnA.yaml**
+Located at the top-right of the circular flow.
+Text: "Study the client document and understand their end use-case. Based on this information, draft a QnA.yaml that captures the type of questions and answers that are expected in the use case."
+
+**02 Generate data and train the model**
+Located at the bottom-right of the circular flow.
+Text: "Use either the cloud service or your own 8xH100/A100 based RHEL-AI instance to generate the data using your QnA.yaml and then train the model."
+
+**03 Setup RAG and evaluate the model**
+Located on the left side of the circular flow.
+Text: "Use AnythingLLM or your favorite RAG pattern, and benchmark the performance of your model against a proprietary model of your choice. Understand what types of questions the model failed to answer and repeat the process by including them in the new QnA.yaml"
+
+Arrows indicate the flow from step 01 to 02, from 02 to 03, and from 03 back to 01, completing the loop.
+
+AI
+Innovation
+Team
+
+-----
+
+Chunk - 1
+
+# Slide 1
+
+Example PoC [cite: 1]
+SEC Football Trivia [cite: 1]
+1 [cite: 1]
+
+→ Which dynamic wide receiver duo from the same team combined for the most receiving yards in 2023, making them the deadliest pairing in the SEC? [cite: 1]
+
+→ Who was the special-teams standout in 2023, with the most kickoff return yards, electrifying the crowd every time he touched the ball? [cite: 1]
+
+# Slide 2
+
+Does GPT-4 know: NO [cite: 2]
+
+Which dynamic wide receiver duo from the same team combined for the most receiving yards in 2023, making them the deadliest pairing in the SEC? [cite: 2]
+
+As of my last update, I don’t have the specific statistics for the 2023 season. To find out which dynamic wide receiver duo from the same team combined for the most receiving yards in the SEC in 2023, I recommend checking the latest stats on sports news websites like ESPN, CBS Sports, or the official SEC website. They provide up-to-date statistics and analysis that would help identify the top-performing wide receiver duo in the SEC for the year 2023. [cite: 2]
+
+Who was the special-teams standout in 2023, with the most kickoff return yards, electrifying the crowd every time he touched the ball? [cite: 2]
+
+I don’t have the specific details for the 2023 season. To find out who the special-teams standout with the most kickoff return yards in 2023 is, you should check the latest statistics on sports news websites like ESPN, CBS Sports, or the official NCAA website. These sources update regularly and will provide the most current and accurate information on standout players in college football for the 2023 season. [cite: 2]
+
+Send a message [cite: 2]
+
+# Slide 3
+
+Does GPT-4 w/ RAG know: NO [cite: 3]
+
+Who was the special-teams standout in 2023, with the most kickoff return yards, electrifying the crowd every time he touched the ball? [cite: 3]
+
+The special-teams standout in 2023 with the most kickoff return yards was Jaylen Wright from Tennessee. [cite: 3]
+Show Citations \> [cite: 3]
+
+Which dynamic wide receiver duo from the same team combined for the most receiving yards in 2023, making them the deadliest pairing in the SEC? [cite: 3]
+
+The documents provided do not contain information about receiving yards or details on wide receiver performances, therefore, I cannot determine which wide receiver duo from the same team combined for the most receiving yards in 2023. [cite: 3]
+Show Citations \> [cite: 3]
+
+Send a message [cite: 3]
+
+# Slide 4
+
+→ Which dynamic wide receiver duo from the same team combined for the most receiving yards in 2023, making them the deadliest pairing in the SEC? [cite: 4]
+→ Who was the special-teams standout in 2023, with the most kickoff return yards, electrifying the crowd every time he touched the ball? [cite: 5]
+Does Granite-7B know: [cite: 6]
+
+# Slide 5
+
+Does Granite-7B know: YES [cite: 7, 8]
+
+Who was the special-teams standout in 2023, with the most kickoff return yards, electrifying the crowd every time he touched the ball? [cite: 8]
+
+Barion Brown from Kentucky was the special-teams standout in 2023, with the most kickoff return yards (576), electrifying the crowd every time he touches the ball. [cite: 8]
+Show Citations \> [cite: 8]
+
+Which dynamic wide receiver duo from the same team combined for the most receiving yards in 2023, making them the deadliest pairing in the SEC? [cite: 8]
+
+Malik Nabers and Brian Thomas Jr. from LSU combined for the most receiving yards in 2023, with 1,569 and 1,238 yards, respectively. [cite: 8]
+Show Citations \> [cite: 8]
+
+Send a message [cite: 8]
+
+This slide contains two bar charts.
+The first chart is titled "45% More accurate than GPT-4". It shows a single light red bar with a small dog icon at its base, representing a lower accuracy for GPT-4 compared to an implied higher accuracy for Granite-7B.
+The second chart is titled "50x Cheaper than GPT-4". It shows a tall blue bar with a small dog icon at its base, representing a significantly lower cost for Granite-7B compared to GPT-4. An SEC logo is in the top right corner of this chart area.
+
+# Slide 6
+
+The value of enterprise data can be seen in how they make smaller, targeted, optimized models provide state-of-the-art performance at considerably lower cost. [cite: 9]
+
+This slide features a bar chart comparing the performance and cost-effectiveness of different AI models across various enterprise use cases. The chart displays five pairs of bars. In each pair, the left bar (pink) represents a GPT-4 Turbo or Llama model, and the right bar (blue) represents a Granite 7B Lab model. The height of the bars indicates performance (though not explicitly scaled, implied by the "Performance" label on the y-axis which ranges from 50% to 90%). Text above the blue bars indicates the percentage cheaper the Granite 7B Lab model is compared to the alternative.
+
+Use Cases and Cost Savings:
+
+  * **Enterprise: Large financial company** - Q\&A over standard operating procedures for reconciliation process: Granite 7B Lab is 95.7% cheaper. [cite: 9] GPT-4 Turbo performance is \~69%, Granite 7B Lab is \~73%. [cite: 9]
+  * **Enterprise: IBM** - Q\&A over standard operating procedures for Quote-to-Cash (Q2C): Granite 7B Lab is 66.7% cheaper. [cite: 9] Llama-3 70B performance is \~61%, Granite 7B Lab is \~66%. [cite: 9]
+  * **Enterprise: IBM** - Q\&A over HR policies: Granite 7B Lab is 91.7% cheaper. [cite: 9] Llama 3.1 405B performance is \~59%, Granite 7B Lab is \~60%. [cite: 9]
+  * **Enterprise: IBM** - Q\&A over IT software customer support: Granite 7B Lab is 85% cheaper. [cite: 9] GPT-4o performance is \~68%, Granite 7B Lab is \~76%. [cite: 9]
+  * **Enterprise: Large telecommunications company** - Analysis of customer call transcripts: Granite 7B Lab is 93.6% cheaper. [cite: 9] Previous approach performance is \~88%, Granite 7B Lab is \~90%. [cite: 9]
+
+Text below the chart states: "\*Results are based on client’s existing prompt format for GPT-4 Turbo, Llama3 70B, Llama3.1 405B, and GPT-4o. Granite 7B Lab model was fine-tuned for the specific use case using InstructLab." [cite: 9]
+
+GOAL: Add your client use-case to this plot\! [cite: 9]
+
+# Slide 7
+
+Approach | [cite: 10]
+We evaluated the fine-tuning experience using a single use case to try to achieve an apples-to-apples comparison¹ [cite: 10]
+
+# Slide 8
+
+| InstructLab End to end fine tuning solution [cite: 10] | Google Vertex Manual SDG + Vertex AI fine tuning [cite: 11] | OpenAI Manual SDG + OpenAI fine tuning [cite: 12] | Open Source² Manual SDG + manual fine tuning [cite: 17] |
+|---|---|---|---|
+| **Generate Training Data** | Use InstructLab automated pipeline to create synthetic test/train dataset [cite: 15] | Manually develop pipeline to generate synthetic test/train dataset [cite: 15] | Manually develop pipeline to generate synthetic test/train dataset [cite: 15] | Manually develop pipeline to generate synthetic test/train dataset using open source models [cite: 15] |
+| **Run Fine Tuning Pipeline** | Use MixTral 8x7B as Teacher model and Granite 7B as Student model [cite: 15] \<br\> Fine tune all the 7B weights that constitute the weight matrix of the student model [cite: 15] | Use Gemini 1.5 Pro as Teacher model and Gemini 1.5 Flash as Student model [cite: 15] \<br\> Fine tune a smaller subset [cite: 16] of added parameters using platform tuning pipeline [cite: 15, 16] | Use GPT-4o as Teacher model and GPT-4o-mini as Student model [cite: 16] \<br\> Fine tune a smaller subset of added parameters using platform tuning pipeline [cite: 16] | Use Llama 3.1 as Teacher model and Llama 8b as student model [cite: 16] \<br\> Fine tune a smaller subset of added parameters using open source Lora/Qlora tuning e.g. [cite: 16] Axolotl [cite: 17] |
+| **Deploy Model** | Deploy to/host in IBM cloud [cite: 17] | Deploy to/host in Vertex AI [cite: 17] | Deploy to/host in OpenAI [cite: 17] | Self host the model [cite: 17] |
+| Image |  |  |  |  |
+| | 3 [cite: 15] | 2 [cite: 15] | 1 [cite: 15] | Open Source² [cite: 17] |
+
+¹Vertex and Openai use supervised fine tuning. [https://cloud.google.com/vertex-ai/generative-ai/docs/models/tune-models](https://cloud.google.com/vertex-ai/generative-ai/docs/models/tune-models) [cite: 13]
+Experience based on BCG client case. [cite: 13]
+Fine tuning of Open Source model is not part of the current experiments [cite: 14]
+Note: Model performance will not be considered, due to differences in model performance and platform offering. [cite: 14]
+Based on current research, Gemini 1.5Pro and GPT-4o are among the top models, while MixTral 8x7B lagging behind [cite: 15]
+
+# Slide 9
+
+Results | InstructLab could potentially reduce end-to-end model customization timeline by \~50% [cite: 18]
+
+This slide presents a horizontal bar chart illustrating the time spent in LLM fine-tuning in days, comparing three approaches: Open Source4, Vertex/OpenAI, and InstructLab. Each bar is segmented into three parts representing different stages: 'Generate training data1' (light green), 'Run fine tuning pipeline2' (medium green), and 'Deploy model3' (dark green).
+
+  * **Open Source4**: The bar shows 10 days for 'Generate training data', 10 days for 'Run fine tuning pipeline', and 5 days for 'Deploy model', totaling 25 days. [cite: 18, 19]
+  * **Vertex/OpenAI**: The bar shows 10 days for 'Generate training data', 1 day for 'Run fine tuning pipeline', and 1 day for 'Deploy model', totaling 12 days. [cite: 18, 19]
+  * **InstructLab**: The bar shows 5 days for 'Generate training data', 2 days for 'Run fine tuning pipeline', and 1 day for 'Deploy model', totaling 8 days. [cite: 18, 19]
+
+**Key Takeaways** [cite: 19]
+
+InstructLab could enable companies to generate value faster by reducing GenAI model fine tuning time (\~50%) [cite: 19]
+
+Reduction is driven by introduction of synthetic data pipeline and streamlined model fine tuning process [cite: 19]
+
+InstructLab deployment timeline could be reduced from 5 days to 1 day if model is deployed to IBM cloud [cite: 19]
+
+Time spent in LLM fine tuning (days) [cite: 19]
+Note: For an apples-to-apples comparison, we will need to test on the same/comparable tasks, with same model, and GPU power [cite: 19]
+
+1.  Generating training data includes time spent coding data and inspecting quality; [cite: 19, 20]
+2.  Fine tuning includes time spent training and debugging; 3. Deploying model includes time spent self hosting; [cite: 20]
+3.  Based on BCG case experience [cite: 21]
+
+<!-- end list -->
+
+```
+Time to solution
+}
+LoRA Supervised fine tuning
+QLoRa fine tuning
+Full weight training
+```
+
+[cite: 21]
+1 [cite: 21]
+
+
+Chunk - 2
+
+Page 2
+
+Process PDF and write QnA.yaml
+
+01
+03
+02
+Part 1: Data Preparation
+From raw documents to data that LLMs can learn from
+Data Preparation
+
+-----
+
+Page 3
+
+Data Preparation
+3
+
+3
+3
+
+-----
+
+Page 4
+
+Data Preparation
+
+Seed Data
+User Document
+
+User QNA
+yaml
+Generate Seed data
+
+Chunks
+Docling Chunking
+Step 1
+Step 2
+
+-----
+
+Page 5
+
+Data Preparation: Step 1
+Document Pre-processing
+Docling Parsing
+
+Docling will parse the input document into document elements with metadata. [cite: 2]
+This includes : [cite: 2]
+the type of element
+(paragraph, title, table, subtitle, page-footer, figure etc.) [cite: 2]
+Page number [cite: 2]
+Text, actual value of the element [cite: 2]
+Bounding box to locate element in the original document [cite: 2]
+Tables parsed into markdown format [cite: 2]
+Pointer to image any detected images [cite: 2]
+
+-----
+
+Page 6
+
+Docling Parsing
+
+## User Document Docling Parsing Title Paragraph 1 Table 1
+
+  - 
+## Fuse small elements Format each element Chunk Large element Chunk 1 Chunk 2
+
+Chunk n
+
+Docling = PDF-\>Markdown conversion + structure info
+
+'text': '1.a APPLICABLE ACCOUNTING STANDARDS', [cite: 3]
+'type': 'subtitle-level-1', [cite: 3]
+'name': 'Section-header', [cite: 3]
+'prov': [{'bbox': [42.28779220581055,
+657.3610229492188,
+306.18310546875,
+677.46630859375],
+'page': 10,
+'span': [0, 41]}] [cite: 3]
+'text': 'The consolidated financial statements of the BNP Paribas Group have been prepared in accordance with international accounting standards (International Financial Reporting Standards - IFRS), as adopted for use in the European Union 1 . [cite: 4] Accordingly, certain provisions of IAS 39 on hedge accounting have been excluded.', [cite: 4]
+'type': 'paragraph', [cite: 4]
+'name': 'text', [cite: 4]
+'prov': [{'bbox': [41.78318405151367,
+598.3151245117188,
+558.8807373046875,
+634.8384399414062],
+'page': 10,
+'span': [0, 316]}] [cite: 4]
+
+-----
+
+Page 7
+
+Docling Parsing
+
+## User Document Docling Parsing Title Paragraph 1 Table 1
+
+  - 
+## Fuse small elements Format each element Chunk Large element Chunk 1 Chunk 2
+
+Chunk n
+
+The parsed list of elements from Docling will be used to create context-aware chunks with the following approach:
+Each chunk will consist of a list of document elements, ensuring it stays under 500 tokens. [cite: 5]
+Elements exceeding 500 tokens are placed into individual chunks. [cite: 5]
+Metadata, such as element-type, is utilized to apply additional formatting during the construction of the final chunks. [cite: 6]
+
+-----
+
+Page 8
+
+Input Text
+Critical Accounting Estimates [cite: 7]
+The application of GAAP requires IBM to make estimates and assumptions about certain items and future events that directly affect its reported financial condition. [cite: 7]
+The accounting estimates and assumptions discussed in this section are those that we consider to be the most critical to our financial statements. [cite: 8]
+An accounting estimate is considered critical if both (a) the nature of the estimate or assumption is material due to the levels of subjectivity and judgment involved, and (b) the impact within a reasonable range of outcomes of the estimate and assumption is material to IBM's financial condition. [cite: 9]
+Senior management has discussed the development, selection and disclosure of these estimates with the Audit Committee of IBM's Board of Directors. [cite: 10]
+Our significant accounting policies are described in note A, "Significant Accounting Policies." [cite: 11]
+A quantitative sensitivity analysis is provided where that information is reasonably available, can be reliably estimated and provides material information to investors. [cite: 12]
+The amounts used to assess sensitivity (e.g., 1 percent, 10 percent, etc.) are included to allow users of the financial statements to understand a general direction cause and effect of changes in the estimates and do not represent management's predictions of variability. [cite: 13]
+For all of these estimates, it should be noted that future events rarely develop exactly as forecasted, and estimates require regular review and adjustment. [cite: 14]
+Pension Assumptions [cite: 15]
+For our defined benefit pension plans, the measurement of the benefit obligation to plan participants and net periodic pension (income)/cost requires the use of certain assumptions, including, among others, estimates of discount rates, interest crediting rates and expected return on plan assets. [cite: 15]
+Beginning in 2024, as a result of changes to the Qualified PPP as discussed in "Looking Forward" the interest crediting rate and expected return on plan assets will be based on their relationship to the plan's discount rate. [cite: 16]
+Changes in the discount rate and the interest crediting rate assumptions would impact the service cost, (gain)/loss amortization and interest cost components of the net periodic pension (income)/cost calculation and the projected benefit obligation (PBO). [cite: 17]
+Changes in the expected long-term return on plan assets assumption impacts the net periodic pension (income)/cost. [cite: 18]
+Expected returns on plan assets are calculated based on the market-related value of plan assets, which recognizes changes in the fair value of plan assets systematically over a five-year period in the expected return on plan assets line in net periodic pension (income)/cost. [cite: 19]
+The differences between the actual return on plan assets and the expected long-term return on plan assets are recognized over five years in the expected return on plan assets line in net periodic pension (income)/cost and also as a component of actuarial (gains)/ losses, which are recognized over the service lives or life expectancy of the participants, depending on the plan, provided such
+
+-----
+
+Page 9
+
+Naive Chunking
+these estimates, it should be noted that future events rarely develop exactly as forecasted, and estimates require regular review and adjustment. [cite: 20]
+Pension Assumptions [cite: 21]
+For our defined benefit pension plans, the measurement of the benefit obligation to plan participants and net periodic pension (income)/cost requires the use of certain assumptions, including, among others, estimates of discount rates, interest crediting rates and expected return on plan assets. [cite: 21]
+Beginning in 2024, as a result of changes to the Qualified PPP as discussed in "Looking Forward" the interest crediting rate and expected return on plan assets will be based on their relationship to the plan's discount rate. [cite: 22]
+Changes in the discount rate and the interest crediting rate assumptions would impact the service cost, (gain)/loss amortization and interest cost components of the net periodic pension (income)/cost calculation and the projected benefit obligation (PBO). [cite: 23]
+Changes in the expected long-term return on plan assets assumption impacts the net periodic pension (income)/cost. [cite: 24]
+Expected returns on plan assets are calculated
+based on the market-related value of plan assets, which recognizes changes in the fair value of plan assets systematically over a five-year period in the expected return on plan assets line in net periodic pension (income)/cost. [cite: 25]
+The differences between the actual return on plan assets and the expected long-term return on plan assets are recognized over five years in the expected return on plan assets line in net periodic pension (income)/cost and also as a component of actuarial (gains)/ losses, which are recognized over the service lives or life expectancy of the participants, depending on the plan. [cite: 26]
+Critical Accounting Estimates [cite: 27]
+The application of GAAP requires IBM to make estimates and assumptions about certain items and future events that directly affect its reported financial condition. [cite: 27]
+The accounting estimates and assumptions discussed in this section are those that we consider to be the most critical to our financial statements. [cite: 28]
+An accounting estimate is considered critical if both (a) the nature of the estimate or assumption is material due to the levels of subjectivity and judgment involved, and (b) the impact within a reasonable range of outcomes of the estimate and assumption is material to IBM's financial condition. [cite: 29]
+Senior management has discussed the development, selection and disclosure of these estimates with the Audit Committee of IBM's Board of Directors. [cite: 30]
+Our significant accounting policies are described in note A, "Significant Accounting Policies." [cite: 31]
+A quantitative sensitivity analysis is provided where that information is reasonably available, can be reliably estimated and provides material information to investors. [cite: 32]
+The amounts used to assess sensitivity (e.g., 1 percent, 10 percent, etc.) are included to allow users of the financial statements to understand a general direction cause and effect of changes in the estimates and do not represent management's predictions of variability. [cite: 33]
+For all of
+
+-----
+
+Page 10
+
+What we want…
+Pension Assumptions [cite: 34]
+For our defined benefit pension plans, the measurement of the benefit obligation to plan participants and net periodic pension (income)/cost requires the use of certain assumptions, including, among others, estimates of discount rates, interest crediting rates and expected return on plan assets. [cite: 34]
+Beginning in 2024, as a result of changes to the Qualified PPP as discussed in "Looking Forward" the interest crediting rate and expected return on plan assets will be based on their relationship to the plan's discount rate. [cite: 35]
+Changes in the discount rate and the interest crediting rate assumptions would impact the service cost, (gain)/loss amortization and interest cost components of the net periodic pension (income)/cost calculation and the projected benefit obligation (PBO). [cite: 36]
+Changes in the expected long-term return on plan assets assumption impacts the net periodic pension (income)/cost. [cite: 37]
+Expected returns on plan assets are calculated based on the market-related value of plan assets, which recognizes changes in the fair value of plan assets systematically over a five-year period in the expected return on plan assets line in net periodic pension (income)/cost. [cite: 38]
+The differences between the actual return on plan assets and the expected long-term return on plan assets are recognized over five years in the expected return on plan assets line in net periodic pension (income)/cost and also as a component of actuarial (gains)/ losses, which are recognized over the service lives or life expectancy of the participants, depending on the plan. [cite: 39]
+Critical Accounting Estimates [cite: 40]
+The application of GAAP requires IBM to make estimates and assumptions about certain items and future events that directly affect its reported financial condition. [cite: 40]
+The accounting estimates and assumptions discussed in this section are those that we consider to be the most critical to our financial statements. [cite: 41]
+An accounting estimate is considered critical if both (a) the nature of the estimate or assumption is material due to the levels of subjectivity and judgment involved, and (b) the impact within a reasonable range of outcomes of the estimate and assumption is material to IBM's financial condition. [cite: 42]
+Senior management has discussed the development, selection and disclosure of these estimates with the Audit Committee of IBM's Board of Directors. [cite: 43]
+Our significant accounting policies are described in note A, "Significant Accounting Policies." [cite: 44]
+A quantitative sensitivity analysis is provided where that information is reasonably available, can be reliably estimated and provides material information to investors. [cite: 45]
+The amounts used to assess sensitivity (e.g., 1 percent, 10 percent, etc.) are included to allow users of the financial statements to understand a general direction cause and effect of changes in the estimates and do not represent management's predictions of variability. [cite: 46]
+For all of these estimates, it should be noted that future events rarely develop exactly as forecasted, and estimates require regular review and adjustment.
+
+
+
+Chunk - 3
+
+Page 1
+
+Docling Parsing
+
+Potential Issues:
+Parsing Errors:
+Docling may occasionally fail to parse text correctly, leading to inaccurate element detection. [cite: 1]
+Example: A single paragraph might be erroneously identified as multiple separate elements. [cite: 2]
+Incorrect Table Parsing:
+Errors in parsing tables can result in tables being split or misinterpreted, potentially altering the represented information. [cite: 3]
+
+ [cite: 4]
+
+-----
+
+Page 2
+
+Docling Parsing
+
+Example of Complex table parsing errors [cite: 5]
+
+Input Table [cite: 5]
+| GL Number    | GL Name                 | Category                             | Account Sets                                  |
+|--------------|-------------------------|--------------------------------------|-----------------------------------------------|
+| 991-680-0    | PROOF SUSPENSE          | DB-SUSP-ADJUSTMENTS-SERIALIZED       | • PROOF-SUSP-E • PROOF-SUSP-C • PROOF-SUSP-W  |
+| 900-387-2    | USD PROOF SUSPENSE      | DB-SUSP-ADJUSTMENTS-SERIALIZED       |                                               |
+| 991-867-3    | ADJUSTMENT SUSPENSE \# 3 | DB-SUSP-ADJUSTMENTS-SERIALIZED       | • ADJ-SUSP-3-E • ADJ-SUSP-3-C • ADJ-SUSP-3-   |
+| 900-367-4    | USD ADJUSTMENT SUSPENSE \# 3 | DB-SUSP-ADJUSTMENTS-SERIALIZED       |                                               |
+
+Docling Parsed Table [cite: 5]
+| GL Number | GL Name          | Category                             | Account Sets                               |
+|-----------|------------------|--------------------------------------|--------------------------------------------|
+| 991-680-0 | PROOF SUSPENSE   | DB-SUSP-ADJUSTMENTS-SERIALIZED       | •PROOF-SUSP-E•PROOF-SUSP-C • PROOF-SUSP-W  |
+| 900-387-2 | USD PROOF SUSPENSE | DB-SUSP-ADJUSTMENTS-SERIALIZED       | •ADJ-SUSP-3-E                              |
+
+-----
+
+Page 3
+
+Docling Parsing
+
+Best Practices:
+Users should carefully review the generated chunks to ensure there is no parsing or conversion error. [cite: 6]
+Verify that:
+No sentences are partially cut off in the chunks. [cite: 7]
+Tables and other structured data are complete and correctly included. [cite: 7]
+This step ensures the integrity of the chunks and prevents errors from affecting downstream processes. [cite: 8]
+
+ [cite: 4]
+
+-----
+
+Page 4
+
+Context Aware Chunking
+
+Once the docking parsing is done we take a list of elements and: [cite: 9]
+Format the elements: [cite: 9]
+Highlight: titles, subtitles, page-header/footers [cite: 9]
+Stitch elements that are separated by page numbers [cite: 9]
+Fuse elements that are within max token limit [cite: 9]
+Keep elements larger than max token limit intact in individual chunk [cite: 9]
+Final list of chunks is now passed through a naive chunker to chunk elements that are over the max token limit. [cite: 9]
+
+ [cite: 4]
+
+
+ Chunk - 4
+
+-----
+
+## page: 1
+
+Data Preparation: Step 2
+\<br\>
+Seed Data Creation
+
+-----
+
+## page: 2
+
+Create Seed-data
+\<br\>
+After parsing with Docling, integrate chunks with user Q\&A in two steps:
+\<br\>
+Step 1:
+\<br\>
+Contextual Enrichment:
+\<br\>
+For each document chunk, it is combined with the document outline to add additional context. [cite: 1]
+\<br\>
+E.g. If the chunk represents a table, it is paired with an outline that provides background information about the table’s origin. [cite: 2]
+\<br\>
+For instance, a table on company performance would be paired with an outline like “IBM performance in 2024”. [cite: 3]
+\<br\>
+This added context enables the teacher model to generate more accurate Q\&A pairs that align closely with the document's content. [cite: 4]
+\<br\>
+output from step 1
+\<br\>
+ [cite: 5]
+
+-----
+
+## page: 3
+
+Basic Structure of User QNA Yaml
+\<br\>
+
+```yaml
+domain: <domain>
+document_outline: <A one to two line description of the document>
+seed_examples:
+  - context: <context 1 goes here>
+    question_and_answers:
+      - question: <question 1.1 goes here>
+        answer: <answer 1.1 goes here>
+      - question: <question 1.2 goes here>
+        answer: <answer 1.2 goes here> [cite: 6]
+      - question: <question 1.3 goes here>
+        answer: <answer 1.3 goes here>
+  - context: <context 2 goes here>
+    question_and_answers:
+      - question: <question 2.1 goes here>
+        answer: <answer 2.1 goes here>
+      - question: <question 2.2 goes here>
+        answer: <answer 2.2 goes here>
+      - question: <question 2.3 goes here>
+        answer: <answer 2.3 goes here> [cite: 7]
+...
+```
+
+-----
+
+## page: 4
+
+Create Seed-data
+\<br\>
+Step 2:
+\<br\>
+Combination Generation:
+\<br\>
+All user-provided outlines are combined with all the document chunks to generate every possible combination of user context and document data.
+\<br\>
+Each unique combination results in a distinct set of Q\&A pairs. [cite: 8]
+\<br\>
+This method ensures that:
+\<br\>
+the Q\&A pairs are contextually accurate
+\<br\>
+reflective of the true information in the document,
+\<br\>
+while leveraging user-provided input to enhance relevance and precision. [cite: 9]
+\<br\>
+ [cite: 10]
+
+-----
+
+## page: 5
+
+Seed Example x Chunks
+\<br\>
+
+```yaml
+domain: <domain>
+document_outline: <A one to two line description of the document>
+seed_examples:
+  - context: <context 1 goes here>
+    question_and_answers:
+      - question: <question 1.1 goes here>
+        answer: <answer 1.1 goes here>
+      - question: <question 1.2 goes here>
+        answer: <answer 1.2 goes here>
+      - question: <question 1.3 goes here> [cite: 11]
+        answer: <answer 1.3 goes here>
+  - context: <context 2 goes here>
+    question_and_answers:
+      - question: <question 2.1 goes here>
+        answer: <answer 2.1 goes here>
+      - question: <question 2.2 goes here>
+        answer: <answer 2.2 goes here>
+      - question: <question 2.3 goes here>
+        answer: <answer 2.3 goes here> [cite: 12]
+...
+```
+
+\<br\>
+
+-----
+
+## page: 6
+
+Anatomy of Knowledge QNA yaml
+\<br\>
+\![An image displaying an example of a Knowledge QNA yaml file.
+The top section shows `document_outline: Towards High-Quality 3D Motion Transfer with Realistic Apparel Animation`. [cite: 13]
+Below it, `domain: 3D Motion Transfer` is highlighted. [cite: 14]
+Further down, a `seed_examples:` section contains a `context:` field. This field includes a text block of approximately 500 tokens describing nucleon-nucleon interactions, starting with "\#\# 1. Nucleon-nucleon interactions and three-body forces\*\*\\n\\nAt densities\\n\\u2273 10 2 - n0, neutron matter cannot be described by s-wave interactions\\nonly, and higher partial waves have to be included in the interaction, see Fig.\\n2. From this figure, we see the the equation of state of neutron matter obtained\\nwith s-wave interactions only and when perturbatively including p-wave contributions\\nstart to differ at higher densities.\\n\\nTo describe nucleon-nucleon scattering\\nin various partial waves, nucleon-nucleon interactions are usually dependent\\non the relative spin and isospin state of the nucleons. A large amount of empirical\\ninformation about the nucleon-nucleon scattering problem has been accumulated.\\nIn 1993, the Nijmegen group analyzed all nucleon-nucleon scattering data below\\n350 MeV published in physics journals between 1955 and 1992 (Stoks et al., 1993).\\nOlder nucleon-nucleon interaction models that fit the Nijmegen database with\\na \\u03c72C/N\\ndata \\u223c1 are called ‘phenomenological’ and fit experimental\\ndata very accurately. Examples of these interactions are the Nijmegen models\\n(Stoks et al., 1994) (Nijm93, Nijm I, Nijm II and Reid-93), Argonne models (Wiringa\\nand Pieper, 2002; Wiringa et al., 1995) and the CD-Bonn potential (Machleidt,\\n2001).\\n". [cite: 15]
+Below the context, a `question_and_answers:` section lists three pairs. [cite: 16]
+
+1.  question: What technique did the authors propose for separating mixtures with known numbers of sound sources in the USS task?
+    answer: The authors proposed using the iterative improved time-dilated convolutional network (ITDCN++) for separating mixtures with known numbers of sound sources.
+2.  question: How does the conditional information about sound classes improve universal sound separation performance?
+    answer: The conditional information about which sound classes are present helps to improve the accuracy and performance of universal sound separation.
+3.  question: What problem does the mixture invariant training (MixIT) approach aim to solve, and how does it address this problem?
+    answer: The MixIT approach aims to reduce the cost of annotating data for sound separation models by using a purely unsupervised training paradigm with unlabeled, in-the-wild data.
+    Annotations on the image explain:
+
+<!-- end list -->
+
+  - `document_outline`: "The document outline enhances synthetic data generation by providing contextual specificity for each document chunk, ensuring relevance and alignment during knowledge tuning." [cite: 13]
+  - `domain`: "Domains guide the teacher model to create subject-specific Q\&A pairs." [cite: 14]
+  - `context`: "A ≤500-token chunk from the user document, showcasing unique elements to guide the teacher model in handling varied text types present in user document." [cite: 15]
+  - `question_and_answers`: "Three Q\&A pairs grounded in the context, demonstrating to the teacher model the style and structure of questions and answers to generate for the given text type." [cite: 16]
+    ](https://www.google.com/search?q=image-placeholder.jpg)
+
+-----
+
+## page: 7
+
+## Cash Flow and Liquidity Trends
+
+\<br\>
+
+|                                                                                 | ($ in billions)   | ($ in billions)   | ($ in billions)   |
+|---------------------------------------------------------------------------------|-------------------|-------------------|-------------------|
+|                                                                                 | 2023              | 2022              | 2021              |
+| Net cash from operating activities [cite: 21]                                              | $ 13.9 [cite: 22]           |$  10.4 [cite: 23]           | $  12.8 [cite: 24]           |
+| Cash and cash equivalents, restricted cash and short-term marketable securities [cite: 25] | $ 13.5 [cite: 26]           |$  8.8 [cite: 27]            | $  7.6 [cite: 28]            |
+| Committed global credit facilities  (1) [cite: 29]                                         | $ 10.0 [cite: 30]           |$  10.0 [cite: 31]           | $  10.0 [cite: 32]           |
+\<br\>
+Snippets without Document outline [cite: 33]
+
+*Note: The first row indicating "($ in billions)" for each year column header has citations [cite: 17, 18] but the markdown table format does not allow for easy individual citation of repeating headers. The years themselves have citations: 2023, 2022[cite: 19], 2021[cite: 20]. The first header ($ in billions) appears in [cite: 17] and[cite: 18].*
+
+-----
+
+## page: 8
+
+## Cash Flow and Liquidity Trends
+
+\<br\>
+
+|                                                                                 | ($ in billions)   | ($ in billions)   | ($ in billions)   |
+|---------------------------------------------------------------------------------|-------------------|-------------------|-------------------|
+|                                                                                 | 2023 [cite: 35]              | 2022 [cite: 36]              | 2021 [cite: 37]              |
+| Net cash from operating activities [cite: 38]                                              | $ 13.9 [cite: 39]           |$  10.4 [cite: 40]           | $  12.8 [cite: 41]           |
+| Cash and cash equivalents, restricted cash and short-term marketable securities [cite: 42] | $ 13.5 [cite: 43]           |$  8.8 [cite: 44]            | $  7.6 [cite: 45]            |
+| Committed global credit facilities  (1) [cite: 46]                                         | $ 10.0 [cite: 47]           |$  10.0 [cite: 48]           | $  10.0 [cite: 49]           |
+\<br\>
+IBM Annual Report 2023: Financial Insights and Strategic Overview [cite: 50]
+\<br\>
+Snippets with Document outline
+
+*Note: The first row indicating "($ in billions)" for each year column header has citation [cite: 34] but the markdown table format does not allow for easy individual citation of repeating headers.*
+
+
+Chunk - 5
+
+Page 1
+
+# Anatomy of Knowledge QNA yaml [cite: 1]
+
+ [cite: 1]
+
+**document\_outline:** Towards High-Quality 3D Motion Transfer with Realistic Apparel Animation [cite: 1]
+**domain:** 3D Motion Transfer [cite: 1]
+**seed\_examples:** [cite: 1]
+
+  - **context:** "\#\# 1. Nucleon-nucleon interactions and three-body forces""\\n\\nAt densities\\ \\n u2273 10 - 2 n0, neutron matter cannot be described by s-wave interactions\\ \\nonly, and higher partial waves have to be included in the interaction, see Fig.\\ \\n2. From this figure, we see the the equation of state of neutron matter obtained\\ \\nwith s-wave interactions only and when perturbatively including p-wave contributions\\ \\nstart to differ at higher densities.\\n\\nTo describe nucleon-nucleon scattering\\ \\nin various partial waves, nucleon-nucleon interactions are usually dependent\\ \\non the relative spin and isospin state of the nucleons. A large amount of empirical\\ \\ninformation about the nucleon-nucleon scattering problem has been accumulated.\\ \\nIn 1993, the Nijmegen group analyzed all nucleon-nucleon scattering data below\\ \\n350 MeV published in physics journals between 1955 and 1992 (Stoks et al., 1993).\\ \\nOlder nucleon-nucleon interaction models that fit the Nijmegen database with\\ \\na \\u03C72 /N\\u223C1 are called 'phenomenological' and fit experimental\\ \\ndata very accurately. Examples of these interactions are the Nijmegen models\\ \\n(Stoks et al., 1994) (Nijm93, Nijm I, Nijm II and Reid-93), Argonne models (Wiringa\\ \\nand Pieper, 2002; Wiringa et al., 1995) and the CD-Bonn potential (Machleidt,\\ \\n2001).\\n" [cite: 1]
+
+**question\_and\_answers:** [cite: 1]
+\- **answer:** The authors proposed using the iterative improved time-dilated convolutional network (ITDCN++) for separating mixtures with known numbers of sound sources. [cite: 1]
+**question:** What technique did the authors propose for separating mixtures with known numbers of sound sources in the USS task? [cite: 1]
+\- **answer:** The conditional information about which sound classes are present helps to improve the accuracy and performance of universal sound separation. [cite: 1]
+**question:** How does the conditional information about sound classes improve universal sound separation performance? [cite: 1]
+\- **answer:** The MixIT approach aims to reduce the cost of annotating data for sound separation models by using a purely unsupervised training paradigm with unlabeled, in-the-wild data. [cite: 1]
+**question:** What problem does the mixture invariant training (MixIT) approach aim to solve, and how does it address this problem? [cite: 1]
+
+Page 2
+
+The “context” blocks for “seed\_examples” should strive for variability and diversity of what the system will find in the provided docs. [cite: 2]
+The goal is to cover all possible ways the information is presented in the docs (e.g. paragraphs, different kind of tables, lists of rules, processes, definitions, etc). [cite: 3]
+Each new section can use the same context text but feature its own set of Q\&A pairs if you need to: [cite: 4]
+● Include different types of questions for that context, [cite: 4]
+or
+● Provide three question-and-answer pairs for a single context. [cite: 4]
+This allows for greater flexibility in organizing and presenting information related to a specific topic or scenario. [cite: 5]
+When providing an answer, use complete sentences and avoid single-word responses. [cite: 6]
+The answer should begin by referencing the question being addressed. [cite: 7]
+For instance, if asked "Why is the sky blue?", start your response with "The sky is blue because..." and then continue with the explanation. [cite: 8]
+
+General Guidelines [cite: 9]
+If you are trying to add multiple documents, add one qna.yaml file per domain and add a minimum of one piece context + 3 Q\&A pairs. [cite: 9]
+This should fall under the best practice of including 750 total tokens. [cite: 10]
+Each context can represent knowledge from different reference documents to cover the variety of documents best. [cite: 11]
+However, if there is a document that is more important, feel free to use more content from it. [cite: 12]
+
+Page 3
+
+# Creating Effective Document Outlines for Synthetic Data Generation
+
+**Purpose of Document Outlines**
+Provides additional context to each chunk of the knowledge document. [cite: 13]
+Ensures generated synthetic data has necessary background information [cite: 14]
+
+**Benefits of Effective Document Outlines**
+Enables precise and relevant synthetic data generation. [cite: 15]
+Improves contextual understanding for downstream tasks. [cite: 15]
+Facilitates alignment with specific sections of the document. [cite: 15]
+
+**Key Considerations**
+Be Specific: Provide as much detail as possible without overloading the title. [cite: 16]
+Avoid Ambiguity: Expand any acronyms or vague references. [cite: 17]
+Contextual Alignment: Ensure the outline aligns with the document's structure and focus areas. [cite: 17]
+Differentiate Editions: Include publication dates, volumes, or any identifiers to distinguish between versions. [cite: 18]
+
+Page 4
+
+# Document Outline: Datasheet (Bad design)
+
+```yaml
+created_by: abhi1092
+version: 3
+domain: College Football
+document_outline: SEC: Overall Statistics
+seed_examples:
+  - context: |
+      ## Leaders / Offense
+      ### Rushing
+      | Rank | Player             | Team        | G  | ATT | YDS  | AVG | TD | LONG | AVG/G |
+      |------|--------------------|-------------|----|-----|------|-----|----|------|-------|
+      | 1    | Schrader, Cody     | Missouri    | 13 | 276 | 1627 | 5.9 | 14 | 384  | 125.2 |
+      | 2    | Daniels, Jayden    | LSU         | 12 | 135 | 1134 | 8.4 | 10 | 416  | 94.5  |
+      | 3    | Davis, Ray         | Kentucky    | 12 | 199 | 1129 | 5.7 | 21 | 378  | 94.1  |
+      | 4    | Judkins, Quinshon  | Ole Miss    | 13 | 271 | 1158 | 4.3 | 17 | 269  | 89.1  |
+      | 5    | Wright, Jaylen     | Tennessee   | 12 | 137 | 1013 | 7.4 | 4  | 377  | 84.4  |
+      | 6    | Hunter, Jarquez    | Auburn      | 12 | 159 | 909  | 5.7 | 7  | 311  | 75.8  |
+      | 7    | Edwards, Daijun    | Georgia     | 12 | 165 | 880  | 5.3 | 13 | 245  | 73.3  |
+      | 8    | Mcclellan, Jase    | Alabama     | 13 | 180 | 890  | 4.9 | 8  | 250  | 68.5  |
+      | 9    | Etienne, Trevor    | Florida     | 11 | 131 | 753  | 5.7 | 9  | 267  | 68.5  |
+      | 10   | Johnson Jr., Montrell| Florida   | 12 | 152 | 817  | 5.4 | 6  | 253  | 68.1  |
+    questions_and_answers:
+      - question: |
+          Which team did the top rusher Cody Schrader play for in 2023, and what were his overall statistics?
+        answer: |
+          Cody Schrader played for Missouri. He played 13 games, made 276 rushing attempts, gained 1,627 yards, averaged 5.9 yards per attempt, scored 14 touchdowns, had a longest rush of 384 yards, and averaged 125.2 yards per game.
+      - question: |
+          Which team did Jayden Daniels play for in 2023, and what were his overall statistics?
+        answer: |
+          Jayden Daniels played for LSU. He played 12 games, made 135 rushing attempts, gained 1,134 yards, averaged 8.4 yards per attempt, scored 10 touchdowns, had a longest rush of 416 yards, and averaged 94.5 yards per game.
+      - question: |
+          Which team did Ray Davis play for in 2023, and what were his overall statistics?
+        answer: |
+          Ray Davis played for Kentucky. He played 12 games, made 199 rushing attempts, gained 1,129 yards, averaged 5.7 yards per attempt, scored 21 touchdowns, had a longest rush of 378 yards, and averaged 94.1 yards per game.
+```
+
+Page 5
+
+# Document Outline: Datasheet (Good Design) [cite: 19]
+
+ [cite: 19]
+
+```yaml
+created_by: abhi1092
+version: 3
+domain: College Football
+document_outline: Southeastern Conference Football: Overall Statistics 2023
+seed_examples:
+  - context: |
+      ## Leaders / Offense
+      ### Rushing
+      | Rank | Player             | Team        | G  | ATT | YDS  | AVG | TD | LONG | AVG/G |
+      |------|--------------------|-------------|----|-----|------|-----|----|------|-------|
+      | 1    | Schrader, Cody     | Missouri    | 13 | 276 | 1627 | 5.9 | 14 | 384  | 125.2 |
+      | 2    | Daniels, Jayden    | LSU         | 12 | 135 | 1134 | 8.4 | 10 | 416  | 94.5  |
+      | 3    | Davis, Ray         | Kentucky    | 12 | 199 | 1129 | 5.7 | 21 | 378  | 94.1  |
+      | 4    | Judkins, Quinshon  | Ole Miss    | 13 | 271 | 1158 | 4.3 | 17 | 269  | 89.1  |
+      | 5    | Wright, Jaylen     | Tennessee   | 12 | 137 | 1013 | 7.4 | 4  | 377  | 84.4  |
+      | 6    | Hunter, Jarquez    | Auburn      | 12 | 159 | 909  | 5.7 | 7  | 311  | 75.8  |
+      | 7    | Edwards, Daijun    | Georgia     | 12 | 165 | 880  | 5.3 | 13 | 245  | 73.3  |
+      | 8    | Mcclellan, Jase    | Alabama     | 13 | 180 | 890  | 4.9 | 8  | 250  | 68.5  |
+      | 9    | Etienne, Trevor    | Florida     | 11 | 131 | 753  | 5.7 | 9  | 267  | 68.5  |
+      | 10   | Johnson Jr., Montrell| Florida   | 12 | 152 | 817  | 5.4 | 6  | 253  | 68.1  |
+    questions_and_answers:
+      - question: |
+          Which team did the top rusher Cody Schrader play for in 2023, and what were his overall statistics?
+        answer: |
+          Cody Schrader played for Missouri. He played 13 games, made 276 rushing attempts, gained 1,627 yards, averaged 5.9 yards per attempt, scored 14 touchdowns, had a longest rush of 384 yards, and averaged 125.2 yards per game.
+      - question: |
+          Which team did Jayden Daniels play for in 2023, and what were his overall statistics?
+        answer: |
+          Jayden Daniels played for LSU. He played 12 games, made 135 rushing attempts, gained 1,134 yards, averaged 8.4 yards per attempt, scored 10 touchdowns, had a longest rush of 416 yards, and averaged 94.5 yards per game.
+      - question: |
+          Which team did Ray Davis play for in 2023, and what were his overall statistics?
+        answer: |
+          Ray Davis played for Kentucky. He played 12 games, made 199 rushing attempts, gained 1,129 yards, averaged 5.7 yards per attempt, scored 21 touchdowns, had a longest rush of 378 yards, and averaged 94.1 yards per game.
+```
+
+Summarize the essence of the data in the outline. [cite: 20]
+Include key themes or metrics covered in the data. [cite: 20]
+Include any year information [cite: 21]
+Why: Adds additional context when student model learns this data [cite: 21]
+
+Page 6
+
+# Document Outline: Textbook (bad design)
+
+```yaml
+created_by: abhi1092
+version: 3
+domain: University Physics
+document_outline: University Physics Volume 1
+seed_examples:
+  - context: |
+      ## Gravitational Potential Energy beyond Earth
+
+      We defined work and potential energy in Work and Kinetic Energy and Potential Energy and Conservation of Energy. The
+      usefulness of those definitions is the ease with which we can solve many problems using conservation of energy.
+      Potential energy is particularly useful for forces that change with position, as the gravitational force does over
+      large distances. In Potential Energy and Conservation of Energy, we showed that the change in gravitational
+      potential energy near Earth’s surface is. This works very well if gdoes not change significantly between and. We
+      return to the definition of work and potential energy to derive an expression that is correct over larger distances.
+
+      Recall that work (W) is the integral of the dot product between force and distance. Essentially, it is the product
+      of the component of a force along a displacement times that displacement. We define as the negativeof the work done
+      by the force we associate with the potential energy. For clarity, we derive an expression for moving a mass mfrom
+      distance from the center of Earth to distance. However, the result can easily be generalized to any two objects
+      changing their separation from one value to another.
+
+      Consider Figure 13.11, in which we take mfrom a distance from Earth’s center to a distance that is from the center.
+      Gravity is a conservative force (its magnitude and direction are functions of location only), so we can take any
+      path we wish, and the result for the calculation of work is the same. We take the path shown, as it greatly
+      simplifies the integration. We first move radiallyoutward from distance to distance, and then move along the arc of
+      a circle until we reach the final position. During the radial portion, is opposite to the direction we travel along,
+      so Along the arc, is perpendicular to, so. No work is done as we move along the arc. Using the expression for the
+      gravitational force and noting the values for along the two segments of our path, we have
+
+      The work integral, which determines the change in potential energy, can be evaluated along the path shown in red.
+
+      Note two important items with this definition. First, $\omega$. The potential energy is zero when the two masses are
+      infinitely far apart. Only the difference in Uis important, so the choice of $\omega$ is merely one of convenience.
+```
+
+Page 7
+
+# Document Outline: Textbook (good design) [cite: 22]
+
+ [cite: 22]
+
+```yaml
+created_by: abhi1092
+version: 3
+domain: University Physics
+document_outline: University Physics Volume 1: Mechanics, Waves, Thermodynamics, Electromagnetism, Optics, and Modern Physics
+seed_examples:
+  - context: |
+      ## Gravitational Potential Energy beyond Earth
+
+      We defined work and potential energy in Work and Kinetic Energy and Potential Energy and Conservation of Energy. The
+      usefulness of those definitions is the ease with which we can solve many problems using conservation of energy.
+      Potential energy is particularly useful for forces that change with position, as the gravitational force does over
+      large distances. In Potential Energy and Conservation of Energy, we showed that the change in gravitational
+      potential energy near Earth’s surface is. This works very well if gdoes not change significantly between and. We
+      return to the definition of work and potential energy to derive an expression that is correct over larger distances.
+
+      Recall that work (W) is the integral of the dot product between force and distance. Essentially, it is the product
+      of the component of a force along a displacement times that displacement. We define as the negativeof the work done
+      by the force we associate with the potential energy. For clarity, we derive an expression for moving a mass mfrom
+      distance from the center of Earth to distance. However, the result can easily be generalized to any two objects
+      changing their separation from one value to another.
+
+      Consider Figure 13.11, in which we take mfrom a distance from Earth’s center to a distance that is from the center.
+      Gravity is a conservative force (its magnitude and direction are functions of location only), so we can take any
+      path we wish, and the result for the calculation of work is the same. We take the path shown, as it greatly
+      simplifies the integration. We first move radiallyoutward from distance to distance, and then move along the arc of
+      a circle until we reach the final position. During the radial portion, is opposite to the direction we travel along,
+      so Along the arc, is perpendicular to, so. No work is done as we move along the arc. Using the expression for the
+      gravitational force and noting the values for along the two segments of our path, we have
+
+      The work integral, which determines the change in potential energy, can be evaluated along the path shown in red.
+
+      Note two important items with this definition. First, $\omega$. The potential energy is zero when the two masses are
+      infinitely far apart. Only the difference in Uis important, so the choice of $\omega$ is merely one of convenience.
+```
+
+Use the title of the textbook/article as the document outline. [cite: 23]
+Add specific details from the document to make the title more descriptive. [cite: 24]
+Why: A detailed title provides better context, especially when sections focus on specific topics. [cite: 25]
+
+Page 8
+
+# Document Outline: Manual (bad design)
+
+```yaml
+created_by: abhi1092
+version: 3
+domain: Standard Procedure Mannual
+document_outline: RBC (SOP)
+seed_examples:
+  - context: "-\                                                                           -\n\
+    | All Transaction File (ATF)    | Viewing manual entries (GL vouchers, credit\        |\n\
+    \ and debit memos, and Cheques) to do investigation                                   |\n\
+    -\                                                                           -\n\
+    \                               |\n Application Launch Pad      | Performing\        |\n\
+    \ history inquiries in Unit Reference File Inquiry (URFIQ) – Unit Inquiry and\         |\n\
+    \ Demand Deposit Account (DDA) – Deposit Services to obtain details about transactions\ |\n\
+    \ processed to personal and business client’s bank accounts. |\n Chart of Account\    |\n\
+    \                               | Retrieving the general information of the GL numbers. |\n\
+    -\                                                                           -\n\
+    \                               |\n Excel                       | Processing of $50\   |\n\
+    \ and under write-off items through the PeopleSoft bulk upload process. Also\          |\n\
+    \ used for manual reconciliation of the Electronic Bill Payments GL.                  |\n\
+    -\
+```
+
+
+Chunk - 6
+
+
+Here is the faithful Markdown representation of the PowerPoint slide content:
+
+---
+
+# Best Practices for Crafting Question-Answer (QA) Pairs
+
+### Ensure Numerical accuracy and necessary reasoning Steps
+
+### Ensure Questions are Self-Contained and grounded in context
+
+### Ensure completeness of answer
+
+### Ensure detailed and well written answers
+
+### Ensure alignment to downstream task
+
+### When dealing with tables add QA that cover each row
+
+---
+
+## Ensure Questions are Self-Contained and grounded in context
+
+Each question should include all necessary information.
+Use information directly from the provided context.
+**Why** : Avoids teacher model hallucination in generated QA
+
+---
+
+## When dealing with Tables make sure each QA covers each rows
+
+* Ensure coverage on tables
+* Ensure different augmentation on same data row
+  **Why** :
+* Improves knowledge coverage on tables
+* Better knowledge comprehension on tables
+
+---
+
+## Ensure detailed and well written answers
+
+* Provide Detailed Question-Answer Pairs
+* Avoid short, single-word answers.
+  **Why** :
+* Detailed answers set the tone for the teacher model to generate comprehensive responses,
+* Covers more information
+* Results in student model with higher response quality
+
+---
+
+## Ensure detailed and well written answers
+
+Here is the corrected version of the yaml
+
+---
+
+## Ensure alignment to downstream task
+
+* Align QA Style to Downstream Evaluation
+* Match the QA style to the end-use scenario.
+  **Why** : Keeps QA relevant and consistent with the task’s purpose.
+
+The use case is:
+
+* Find correct procedure
+* Recall steps in procedure
+* Clarify a step in procedure
+
+---
+
+## Ensure Numerical accuracy and necessary reasoning Steps
+
+* Ensure Numerical Accuracy
+* Verify cited data, numerical calculation and reasoning steps if needed.
+  **Why** : Ensures accuracy of reasoning steps in generated synthetic data.
+
+![Highlighted area shows wrong calculation and lack of reasoning steps](image-placeholder.jpg)
+
+---
+
+## Ensure Numerical accuracy and necessary reasoning Steps
+
+Here is qna yaml with all the highlighted mistakes corrected
+
+---
+
+## Ensure Answer is complete given the context
+
+* Provide Complete Answers
+* Include all necessary steps or details in the response.
+  **Why** :
+* Step-by-Step reasoning will result in high accuracy teacher model response
+* Helps student model’s reasoning skill
+
+![Highlighted area shows missing or incomplete answer based on provided context](image-placeholder.jpg)
+
+---
+
+## Ensure Answer is complete given the context
+
+Here is qna yaml with all the highlighted mistakes corrected
+
+---
+
+## How to avoid issues in generated data
+
+* Ensure the tables in markdown are converted properly.
+* Wrongly converted tables will results in teacher model inferring wrong information from them leading to inaccuracies in generated data.
+* At the moment, InstructLab does not support code models. However, if your documents contain any code snippets, please enclose them in backticks using the format:
+  `<type>.`
+
+  ```python
+  {code}  
+  ```
+* As mentioned in previous slides make sure reasoning steps are included in qna question-answers, and are correct
+
+---
+
+
+Chunk - 7
+
+Knowledge 1.5 vs Knowledge 1.0 [cite: 1]
+After processing the user’s document and creating seed data, the next step is to execute the Knowledge QA Generation Pipeline. [cite: 1]
+
+1 [cite: 2]
+Knowledge 1.0 (Draft): [cite: 2]
+In this pipeline, the summary generation step is skipped, and Question-Answer pairs are directly generated from the raw document. [cite: 2]
+Currently, this option is available in the open-source or upstream version [cite: 3]
+Knowledge 1.5: [cite: 3]
+This pipeline augments the user document by generating various types of summaries before creating Question-Answer (QA) pairs. [cite: 3]
+The augmentation process improves comprehension and enriches the understanding of the document. [cite: 4]
+This pipeline is exclusive to the downstream RhelAI product. [cite: 5]
+
+Document Summarizing
+For the knowledge 1.5 next step is to generate different types of summaries (document augmentation) from the seed data. [cite: 5]
+This process produces three distinct types of summaries, designed to support question-and-answer generation. [cite: 6]
+The summaries are as follows: [cite: 7]
+Detailed Summary:Provides a comprehensive overview of the entire chunk, covering all its content in detail. [cite: 7]
+Extractive Summary:Focuses on retaining sentences that are as close to the original text as possible. [cite: 8]
+This type compresses the chunk while preserving its original meaning. [cite: 9]
+Key Facts/Atomic Facts:Distills the chunk into a concise list of key facts, capturing the most essential information from the document. [cite: 10]
+Each of the summary types in addition with original chunk are then used to generate a set of questions and answers. [cite: 11]
+This approach allows student model to learn the chunk from multiple perspectives, enhancing their understanding of key concepts contained in it. [cite: 12]
+
+2 [cite: 13]
+Example of Summaries
+
+3
+
+Question Answer Generation [cite: 14]
+Following the generation of chunk summaries we prompt teacher model to synthesize List of Question-Answer pairs such that: [cite: 14]
+They follow same style as user provided QA from qna yaml [cite: 14]
+They are grounded in provided context (document chunk, summarized chunk) [cite: 14]
+In case of Knowledge 1.0 we simply skip to this step and generate list of Question-Answer pairs on raw user chunk. [cite: 14]
+
+4 [cite: 15]
+Question Answer Generation: Dataset Size [cite: 15]
+The size of generated question-answer dataset is controlled by below factors: [cite: 15]
+“max\_tokens” parameter specified in sdg pipeline config (This will be exposed to user in future updates of RhelAI) [cite: 15]
+Number of context in qna.yaml: Each context is paired with every chunk in document to generate a unique list of question and answers [cite: 15]
+Size of chunk: Smaller chunk might result in QA pairs that are under the max\_token\_limit [cite: 15]
+Type of pipeline: knowledge 1.5 will generate 3x more data compared to knowledge 1.0 [cite: 15]
+Filtering: How many of the generated samples get filtered out. [cite: 15]
+High rate of filtering indicates either badly formed chunks or issue with teacher model inferencing (quantized model, issue in hosting etc) [cite: 16]
+
+5 [cite: 16]
+Example of Question Answer Generation
+6 [cite: 16]
+
+Question Answer Filtering [cite: 17]
+Once the Question-Answer (QA) pairs are generated, a Large Language Model (LLM) is used to filter out pairs that do not meet quality criteria. [cite: 17]
+The evaluation is based on the following standards: [cite: 18]
+Relevance: [cite: 18]
+Verifies that the answer directly addresses the question. [cite: 18]
+Filters out cases where: [cite: 19]
+The answer, while grounded in the context, does not effectively answer the question. [cite: 19]
+The question is unrelated to the context, even if the answer itself is accurate within the document. [cite: 20]
+
+7 [cite: 21]
+Examples of Answer Relevance Filtering
+Faithfulness Filtering: Below are examples of Questions that will be filtered out based on question quality filter [cite: 21]
+Context: [cite: 21]
+
+## Liquidity and Capital Resources We have generated strong cash flow from operations allowing us to invest and deploy capital to areas with the most attractive longterm opportunities. [cite: 22]
+
+We provide for additional liquidity through several sources: maintaining an adequate cash balance, access to global funding sources, committed global credit facilities and other committed and uncommitted lines of credit worldwide. [cite: 22]
+The following table provides a summary of the major sources of liquidity for the years ended December 31, 2021 through 2023. [cite: 23]
+Q: What are the primary sources of renewable energy mentioned in the text?A: The text discusses solar and wind energy as key renewable sources. [cite: 23]
+Violation: This answer is unrelated to the subject of liquidity and capital resources discussed in the text. [cite: 24]
+Q: How does the text evaluate the environmental impact of its operations?A: The text mentions a comprehensive strategy to reduce carbon emissions by 50% over the next decade. [cite: 25]
+Violation: The text does not address environmental impacts or sustainability measures, so this response is fabricated and irrelevant. [cite: 26]
+Q: What is the main conclusion of the text about global credit facilities?A: The text concludes that global credit facilities are no longer viable in today’s economic climate due to rising interest rates. [cite: 27]
+Violation: While global credit facilities are mentioned, the text does not make this conclusion. [cite: 28]
+The response adds a false, unrelated focus to the discussion. [cite: 29]
+
+8 [cite: 30]
+Question Answer Filtering [cite: 30]
+Once the Question-Answer (QA) pairs are generated, a Large Language Model (LLM) is used to filter out pairs that do not meet quality criteria. [cite: 30]
+The evaluation is based on the following standards: [cite: 31]
+Faithfulness: [cite: 31]
+Ensures that the answer is derived directly from the given document chunk. [cite: 32]
+Any answer that introduces additional information or infers details not supported by the chunk is filtered. [cite: 32]
+This step eliminates hallucinated or inaccurate content. [cite: 33]
+This step might not capture inaccurate math or inaccurate reasoning [cite: 33]
+
+9 [cite: 33]
+Examples of Faithfulness filtering
+Faithfulness Filtering: Below are examples of QA pairs that will be filtered out based on faithfulness filter [cite: 33]
+Context: [cite: 34]
+
+## 24 Management Discussion International Business Machines Corporation and Subsidiary Companies business. [cite: 34]
+
+Overall interest expense (excluding capitalized interest) in 2023 was $1,940 million, an increase of $379 million year to year primarily driven by higher average interest rates and a higher average debt balance in the current year. [cite: 34]
+
+## Stock-Based Compensation Pre-tax stock-based compensation cost of $1,133 million increased $146 million compared to 2022. This was primarily due to increases from restricted stock units ($84 million), stock options ($32 million) and Employee Stock Purchase Plan (ESPP) ($21 million). [cite: 35]
+
+The increases are driven by stock-based compensation awards granted as part of our annual cycles for executives and other employees, and the ESPP being considered compensatory effective April 1, 2022. Stock-based compensation cost, and the year-to-year change, was reflected in the following categories: Cost: $190 million, up $26 million; [cite: 36]
+SG\&A expense: $616 million, up $50 million; and RD\&E expense: $328 million, up $70 million. [cite: 37]
+Q: Why did IBM's interest expense increase in 2023? [cite: 38]
+A: IBM's interest expense rose to $1,940 million in 2023, driven by higher average interest rates and debt levels. [cite: 38]
+Additionally, the company might have faced challenges managing its financial strategy amid market volatility. [cite: 39]
+Q: What factors contributed to IBM's rising stock-based compensation in 2023? [cite: 40]
+A: IBM's stock-based compensation surged due to expanding employee benefit programs, new executive bonuses, and broader initiatives to align workforce incentives with company growth goals, possibly influenced by market competition and talent retention trends. [cite: 41]
+Q: How much did IBM's pre-tax stock-based compensation cost increase in 2023 compared to 2022, and what were the primary contributors? [cite: 42]
+A: IBM's pre-tax stock-based compensation cost increased by $146 million in 2023, reaching $1,133 million. [cite: 43]
+The rise was primarily due to higher costs from restricted stock units ($84 million), stock options ($32 million), and the Employee Stock Purchase Plan ($21 million). [cite: 44]
+
+10 [cite: 45]
+Question Answer Filtering [cite: 45]
+Once the Question-Answer (QA) pairs are generated, a Large Language Model (LLM) is used to filter out pairs that do not meet quality criteria. [cite: 45]
+The evaluation is based on the following standards: [cite: 46]
+Question Filtering: [cite: 46]
+Ensure that the question is self-explanatory and does not need additional context (figure, table number, page number references) [cite: 46]
+Subject-Aware Completeness: The question should be answerable from given context without need of any specialized external knowledge base or source. [cite: 47]
+
+11 [cite: 47]
+Examples of Question Filtering
+Faithfulness Filtering: Below are examples of Questions that will be filtered out based on question quality filter [cite: 47]
+Context: [cite: 48]
+
+## Dynamics Our balance sheet at December 31, 2023 continues to provide us with flexibility to support and invest in the business. [cite: 48]
+
+Cash and cash equivalents, restricted cash and marketable securities at December 31, 2023 were $13,462 million, an increase of $4,622 million compared to prior-year end. [cite: 48]
+Total debt of $56,547 million increased $5,598 million from prior-year end primarily due to net debt issuances. [cite: 49]
+We were opportunistic in accessing the debt market and issued $9,463 million of debt in the first quarter of 2023 to prudently plan for our debt maturity obligations in 2023 and 2024 as well as capital allocation priorities. [cite: 50]
+We continue to manage our debt levels while being acquisitive and without sacrificing investments in our business. [cite: 51]
+During 2023, we generated $13,931 million in cash from operating activities, an increase of $3,496 million compared to 2022. Our free cash flow for 2023 was $11,210 million, an increase of $1,919 million versus the prior year. [cite: 52]
+Refer to page 31 for additional information on free cash flow. [cite: 53]
+Our strong cash generation has enabled us to be acquisitive and increase our investment in R\&D [cite: 54]
+Q: How does the balance sheet on page 31 further explain the concept of free cash flow as discussed in the text? [cite: 54]
+Violation: Relies on specific external content (page 31) that is not included in the question, making it contextually dependent and unclear without that reference. [cite: 55]
+Q: What specific details in the balance sheet explain the increase in restricted cash as of December 31, 2023? [cite: 56]
+Violation: Assumes access to specific balance sheet details not provided in the question, making it incomprehensible without that external content. [cite: 57]
+Q: What does the text imply about the company's ability to meet its debt maturity obligations in 2024, based on the issuance of $9,463 million of debt in the first quarter of 2023? [cite: 58]
+Violation: Relies heavily on the reader’s ability to interpret implied content in the text without providing adequate detail to form a complete and independent understanding. [cite: 59]
+
+
+Chunk - 8
+
+Here is the faithful Markdown representation of the PowerPoint slide:
+
+---
+
+# SDG: Skill pipelines
+
+```
+qna.yaml  
+gen contexts  
+gen questions  
+filter questions  
+gen answers  
+filter Q&As  
+```
+
+**Skills 1.0**
+grounded
+freeform
+draft
+classify
+analyse
+critique
+plan
+revise
+
+**Skills 1.5**
+Skill pipelines: Freeform v.s. Grounded
+
+```
+qna.yaml  
+gen contexts  
+gen questions  
+filter questions  
+gen answers  
+filter Q&As  
+```
+
+grounded
+freeform
+
+---
+
+## Skill 1.0 (Draft): Gen Contexts
+
+```
+context: |  
+  a) Company X, with CEO Amy Williams, reported $30 billion in revenue and a $3 billion profit in 2021.  
+  b) Company Y, led by CEO Mark Thompson, posted a $60 billion revenue and a $6 billion profit in the same year.  
+  c) Company Z, under CEO Sarah Johnson, announced a $20 billion revenue and a $7 billion profit in 2021.  
+  d) Company W, managed by CEO James Smith, revealed a $300 billion revenue with a $21 billion profit in 2021.  
+  e) Company V, with CEO Lisa Brown, reported a $200 billion revenue and a $25 billion profit in 2021.  
+  f) Company U, under CEO John White, posted a $180 billion revenue and a $20 billion profit in the same year.
+```
+
+```
+qna.yaml  
+gen contexts  
+gen questions  
+filter questions  
+gen answers  
+filter Q&As  
+```
+
+grounded
+freeform
+
+---
+
+## Skill 1.0 (Draft): Gen Questions
+
+```
+question: |  
+  Given the following data, identify the company with the highest profit in 2021 and provide its CEO's name:
+```
+
+```
+qna.yaml  
+gen contexts  
+gen questions  
+filter questions  
+gen answers  
+filter Q&As  
+```
+
+grounded
+freeform
+
+---
+
+## Skill 1.0 (Draft): Gen Answers
+
+```
+answer: The company with the highest profit in 2021 is Company E, led by CEO Lisa Brown, as it reported a profit of $25 billion.
+```
+
+```
+qna.yaml  
+gen contexts  
+gen questions  
+filter questions  
+gen answers  
+filter Q&As  
+```
+
+grounded
+freeform
+
+---
+
+## Skill 1.0 (Draft)
+
+```
+qna.yaml  
+gen contexts  
+gen questions  
+filter questions  
+gen answers  
+filter Q&As  
+```
+
+**Skills 1.0**
+grounded
+freeform
+
+draft
+classify
+analyse
+critique
+plan
+revise
+
+**Skills 1.5**
+
+---
+
+## Skill 1.5: Classify
+
+```
+classify: _B_ (Extraction)
+```
+
+draft
+classify
+analyse
+critique
+plan
+revise
+
+---
+
+## Skill 1.5: Analyse
+
+```
+analysis: |  
+  The task requires identifying the company with the highest profit in 2021 from a given list and then providing the name of its CEO.  
+  This is a quantitative analysis task in the domain of finance and business management.  
+  The user query demands sorting or comparing numerical values (profits) and retrieving related textual information (CEO's name).  
+  The analysis is straightforward and revolves around extracting specific data points from the provided information.
+```
+
+draft
+classify
+analyse
+critique
+plan
+revise
+
+---
+
+## Skill 1.5: Critique
+
+```
+critique: |  
+  1. Highest Profit Identification: The assistant correctly identified the company with the highest profit, which is $25 billion.  
+     However, the mislabeling of the company (referred to as Company E instead of Company V) affects the accuracy of the identification.  
+  2. CEO Identification: The assistant correctly names Lisa Brown as the CEO of the company with the highest profit.  
+  3. Data Accuracy: The profit figure of $25 billion mentioned in the response accurately matches the data provided for Company V.  
+     This shows that the assistant has correctly extracted the relevant profit figure from the data.  
+  4. Clarity and Precision: The response succinctly names the company and its CEO, which aligns well with the task requirements.  
+     However, the incorrect reference to "Company E" instead of "Company V" detracts from the clarity and precision of the response.  
+  5. Relevance: The response focuses directly on the query's requirement—identifying the company with the highest profit and its CEO's name.  
+     There is no extraneous information included, which meets the criterion of relevance effectively.
+```
+
+draft
+classify
+analyse
+critique
+plan
+revise
+
+---
+
+## Skill 1.5: Plan
+
+```
+plan: |  
+  1. Correct Company Labeling: Amend the mislabeling of "Company E" to "Company V" to ensure accuracy in company identification,  
+     satisfying the highest profit identification criterion. This correction directly addresses the first point of critique and is essential for the integrity of the response.  
+  2. Verification of CEO's Name: Although the CEO's name, Lisa Brown, is already correct, re-confirm this detail in the response to ensure the CEO identification criterion is indisputably met.  
+     This step also serves to double-check the data accuracy.  
+  3. Reinforcement of Data Accuracy: Maintain the correctly reported profit figure of $25 billion.  
+     Reinforce this by explicitly stating that this figure is the highest among all companies listed, as part of the response, thus emphasizing the data's accuracy and relevance.  
+  4. Enhance Clarity and Precision: Redraft the response to include a clear mention of "Company V" along with the CEO's name, removing any ambiguity caused by the earlier error.  
+     This step will not only correct the mistake but also enhance clarity and precision as required by the rubric.  
+  5. Maintain Relevance: Continue to focus solely on the task requirements without adding unnecessary information.  
+     The revised response should succinctly state which company had the highest profit and the name of its CEO, fulfilling the relevance criterion.
+```
+
+draft
+classify
+analyse
+critique
+plan
+revise
+
+---
+
+## Skill 1.5: Revise
+
+```
+revised_response: The company with the highest profit in 2021 is Company V, led by CEO Lisa Brown, with a reported profit of $25 billion.
+```
+
+draft
+classify
+analyse
+critique
+plan
+revise
+
+---
+
+chunk - 9
+
+**Slide 1: LLM training 101**
+
+Collect training signal (gradients) from datasets for those parameters
+Define what parameters to update
+Train the model (by minimizing loss)
+
+Q1: There are many parameters in a LLM—what to update?
+Q2: How do I arrange multiple datasets for my need?
+\*Q3: How to update the model?
+
+---
+
+**Slide 2: Key training options**
+
+Training = selection of parameters + schedule of datasets
+
+What parameters to update?
+
+* Full fine-tuning (FFT): all parameters
+* LoRA: selected subset of parameters
+
+How to use multiple datasets update?
+
+* Stacked: all together and single training
+* Phased: training with curriculum
+
+Key differences v.s. Competitors
+
+* FFT >> LoRA for learning knowledge
+* Competitors (e.g. Azure) only supports LoRA
+
+---
+
+**Slide 3: Key training options: selection of parameters**
+
+What parameters to update?
+
+* Full fine-tuning (FFT): all parameters
+* LoRA: selected subset of parameters
+
+---
+
+**Slide 4: Key training options: schedule of datasets**
+
+How to use multiple datasets update?
+
+* Stacked: all together and single training
+* Phased: training with curriculum
+
+Key differences v.s. Competitors
+
+* Quality: phased learns the data with less forgetting
+* Performance: enabling shipping starter model
+* Competitors (e.g. Azure) only supports stacked
+
+---
+
+**Slide 5: Glossary of phased training**
+
+phase00 : where the short foundation knowledge data is used
+
+---
+
+**Slide 6: Glossary of phased training**
+
+phase05 : where the predefined synthetic knowledge data is used.
+
+---
+
+**Slide 7: Glossary of phased training**
+
+Starter model: the model after  phase00  and  phase05
+
+---
+
+**Slide 8: Glossary of phased training**
+
+phase07 : where the user knowledge data is used, optimized for RAG.
+
+---
+
+**Slide 9: Glossary of phased training**
+
+phase10 : where the predefined+user skill data is used.
+
+---
+
+**Slide 10: Glossary of phased training**
+
+Precomputed dataset: the predefined synthetic skill data
+
+---
+
+**Slide 11: Glossary of phased training**
+
+Data mixing: The procedure of selecting the right proportion from various data sources to create a new dataset.
+
+
+
+chunk - 10
+
+Here is a faithful Markdown representation of the PowerPoint content from your uploaded slide deck:
+
+---
+
+## Part 3: Evaluation
+
+Is my SDG, training or RAG app working well?
+Evaluation can be done at different stages. The early the faster to iterate but the early metrics are more of a proxy of the final application performance.
+
+SDG
+Training
+RAG
+
+* Assessing trained model
+* Common benchmarks
+* Red teaming
+* Is my model useful in real world?
+* Setup
+* Common evaluation metrics
+* Checking synthetic data quality
+* Quality check SDG outputs
+* Specific metrics
+
+## Evaluation
+
+### Evaluation: SDG
+
+**Evaluating SDG pipelines as models**
+We can treat the entire SDG pipeline as a model and run common evaluation benchmarks on them.
+For example, when developing the skill-1.5, we use MT-Bench as a development benchmark and run the SDG pipeline on it directly.
+We were satisfied with skill-1.5 after improving it from 8.1 to 8.9 with Mixtral-8x7-0.1.
+
+**Specific metrics**
+Knowledge coverage: Coming soon
+Currently coverage is ensured by filtration
+
+**Q**
+**SDG**
+**A**
+
+---
+
+### Evaluation: Training
+
+Common benchmarks are standard to measure different aspects of models
+
+* **Holistic**: MT-Bench, AlpacaEval, AlpacaEval 2, arena-hard
+* **Instruction following**: IFEval
+* **Knowledge**: MMLU, MMLU-Pro, AGI-Eval
+* **Math, Reasoning**: GSM, MATH, ARC-C, GPQA, BBH, MUSR
+* **Commonsense**: WinoGrande, OBQA, SIQA, PIQA, Hellaswag, TruthfulQA
+* **Coding**: HumanEval, MBPP
+* **Reading Comprehension**: BoolQ, SQuAD 2.0
+* **Customer-specific**: MT-Bench-Branch, MMLU-Branch
+
+**Red teaming**
+It’s always a good idea to have a group people playing with the model to see if they can break it somehow.
+
+---
+
+## RAG: AnythingLLM Setup
+
+Download and install AnythingLLM on your machine. It supports all the platforms
+Click on the spanner to begin setup
+
+![AnythingLLM setup interface with a spanner icon highlighted](image-placeholder.jpg)
+
+---
+
+## RAG: AnythingLLM Setup
+
+Click on **AI Providers** and under **LLM**, choose **AnythingLLM**
+Then click on **Import GGUF file**
+Import the file, give it a few minutes to spin up the model
+
+![Interface showing AI Providers section and GGUF file import options](image-placeholder.jpg)
+
+---
+
+## RAG: AnythingLLM Setup
+
+* AnythingLLM lets you choose your own embedding model
+* It also lets you choose your own vector database
+* It even offers **Milvus**
+* Set all of these to your liking
+* For zero setup - use the default AnythingLLM options
+* There is also a text-to-speech option with **whisper**
+
+![Setup interface with options for embedding model, vector DB, Milvus, and whisper](image-placeholder.jpg)
+
+---
+
+## RAG: AnythingLLM Setup
+
+Create a new workspace
+Then click on the gear icon for setup
+
+![Workspace creation screen with gear icon shown](image-placeholder.jpg)
+
+---
+
+## RAG: AnythingLLM Setup
+
+* Under chat settings, chose **AnythingLLM** and your **GGUF** model will load
+* Set chat history to 1
+* Change prompt to:
+
+  > \[I am a Red Hat® Instruct Model, an AI language model developed by Red Hat and IBM Research based on the granite-3.0-8b-base model. My primary role is to serve as a chat assistant.]
+* Change LLM temperature to zero
+* Leave the vector dataset settings to default
+* Later you can play with the Agent config, it has a RAG agent which is much better than the default RAG
+
+---
+
+## RAG: AnythingLLM Setup
+
+Return back by clicking the gear
+Then click on upload a document to start uploading your documents
+
+![Interface for uploading documents after setup](image-placeholder.jpg)
+
+---
+
+## RAG: AnythingLLM Setup
+
+* Use the interface to upload your documents from your computer
+* Then select and move the uploaded documents to your workspace
+* This will start the chunking and embedding process
+* You are done with the setup!
+* Feel free to check out data connectors in case that is more appropriate for your use case
+
+---
+
+## RAG: Evaluation
+
+* Using your test set, query the model one by one
+* Use a new thread for each of the questions if possible
+* Record the answers
+* **Benchmarking**
+* Repeat the same with a proprietary model. GPT4 setup is super easy to do in AnythingLLM as long as you have an API key
+* Record the results
+
+---
+
+## RAG: Evaluation
+
+Format the evaluation record as shown on the below.
+The **Answer** column contains the model responses (e.g. response from AnythingLLM from previous slides)
+
+Use **LLMAJ** script to score the model responses.
+The script also output reason for score.
+It is important to review these scoring justification to make sure the judge model has parity with human judgement for given use-case
+
+---
+
+
+
