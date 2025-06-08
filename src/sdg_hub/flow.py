@@ -75,8 +75,6 @@ class Flow(ABC):
             The LLM client to use for generation.
         num_samples_to_generate : Optional[int], optional
             Number of samples to generate, by default None
-        chained_blocks : Optional[List[Dict[str, Any]]], optional
-            List of block configurations, by default None
 
         Attributes
         ----------
