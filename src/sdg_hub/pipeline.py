@@ -1,6 +1,17 @@
+"""
+Deprecated Pipeline class for data generation pipelines.
+
+Use the Flow class directly for new code.
+"""
+
 # SPDX-License-Identifier: Apache-2.0
+# Standard
+import warnings
+from typing import List, Dict, Any
+
 # Third Party
 from datasets import Dataset
+from datasets.data_files import EmptyDatasetError
 
 # Local
 from .logger_config import setup_logger
@@ -8,31 +19,75 @@ from .logger_config import setup_logger
 logger = setup_logger(__name__)
 
 
-class EmptyDatasetError(Exception):
-    pass
-
-
 class Pipeline:
-    def __init__(self, chained_blocks: list) -> None:
+    """A class representing a data generation pipeline.
+
+    This class is deprecated and will be removed in a future version.
+    Use the Flow class directly instead.
+
+    Parameters
+    ----------
+    chained_blocks : List[Dict[str, Any]]
+        List of block configurations to execute in sequence.
+
+    Attributes
+    ----------
+    chained_blocks : List[Dict[str, Any]]
+        List of block configurations to execute in sequence.
+    """
+
+    def __init__(self, chained_blocks: List[Dict[str, Any]]) -> None:
         """
         Initialize the Pipeline class with a configuration dictionary.
-        config_dict: the run config py or yaml loaded into a dictionary
+        
+        DEPRECATED: This class is deprecated and will be removed in a future version.
+        Use the Flow class directly instead.
         """
+        warnings.warn(
+            "Pipeline class is deprecated and will be removed in a future version. "
+            "Use Flow class directly instead of wrapping it with Pipeline.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         # pipeline config is the run configuration that consists of the pipeline steps
         self.chained_blocks = chained_blocks
 
-    def _drop_duplicates(self, dataset, cols):
-        """
-        Drop duplicates from the dataset based on the columns provided.
+    def _drop_duplicates(self, dataset: Dataset, cols: List[str]) -> Dataset:
+        """Drop duplicates from the dataset based on the columns provided.
+
+        Parameters
+        ----------
+        dataset : Dataset
+            The input dataset.
+        cols : List[str]
+            Columns to consider for duplicate detection.
+
+        Returns
+        -------
+        Dataset
+            Dataset with duplicates removed.
         """
         df = dataset.to_pandas()
         df = df.drop_duplicates(subset=cols).reset_index(drop=True)
         return Dataset.from_pandas(df)
 
-    def generate(self, dataset) -> Dataset:
-        """
-        Generate the dataset by running the pipeline steps.
-        dataset: the input dataset
+    def generate(self, dataset: Dataset) -> Dataset:
+        """Generate the dataset by running the pipeline steps.
+
+        Parameters
+        ----------
+        dataset : Dataset
+            The input dataset to process.
+
+        Returns
+        -------
+        Dataset
+            The processed dataset.
+
+        Raises
+        ------
+        EmptyDatasetError
+            If a block produces an empty dataset.
         """
         for block_prop in self.chained_blocks:
             block_type = block_prop["block_type"]
