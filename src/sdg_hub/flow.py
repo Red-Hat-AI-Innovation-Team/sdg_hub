@@ -1,58 +1,122 @@
+"""
+Flow module for managing data generation pipelines.
+
+This module provides the core Flow class that handles both configuration loading and execution
+of data generation blocks. The Flow class serves as the main interface for defining and running
+data generation pipelines, supporting both direct usage with SDG and backward compatibility
+through the deprecated Pipeline class.
+
+Example:
+    >>> flow = Flow(llm_client)
+    >>> flow = flow.get_flow_from_file("path/to/flow.yaml")
+    >>> dataset = flow.generate(input_dataset)
+
+Note:
+    This module is part of the SDG Hub package and is designed to work in conjunction
+    with the SDG class for distributed data generation.
+"""
+
 # SPDX-License-Identifier: Apache-2.0
 # Standard
 from abc import ABC
 from importlib import resources
-from typing import Optional
+from typing import Optional, List, Dict, Any, Callable
 import operator
 import os
 
 # Third Party
 import yaml
+from datasets import Dataset
+from datasets.data_files import EmptyDatasetError
 
 # Local
+from .blocks import *  # needed to register blocks
+from .prompts import *  # needed to register prompts
 from .registry import BlockRegistry, PromptRegistry
-from . import prompts
-from . import blocks
+from .logger_config import setup_logger
 
 
-OPERATOR_MAP = {
+logger = setup_logger(__name__)
+
+OPERATOR_MAP: Dict[str, Callable] = {
     "operator.eq": operator.eq,
     "operator.ge": operator.ge,
+    "operator.le": operator.le,
+    "operator.gt": operator.gt,
+    "operator.lt": operator.lt,
+    "operator.ne": operator.ne,
     "operator.contains": operator.contains,
 }
 
-CONVERT_DTYPE_MAP = {
+CONVERT_DTYPE_MAP: Dict[str, Callable] = {
     "float": float,
     "int": int,
 }
 
 
 class Flow(ABC):
+    """A class representing a data generation flow.
+
+    This class handles both configuration loading and execution of data generation
+    blocks. It can be used directly with SDG or through the deprecated Pipeline class.
+    """
+
     def __init__(
         self,
-        llm_client,
+        llm_client: Any,
         num_samples_to_generate: Optional[int] = None,
     ) -> None:
+        """
+        Initialize the Flow class.
+
+        Parameters
+        ----------
+        llm_client : Any
+            The LLM client to use for generation.
+        num_samples_to_generate : Optional[int], optional
+            Number of samples to generate, by default None
+        chained_blocks : Optional[List[Dict[str, Any]]], optional
+            List of block configurations, by default None
+
+        Attributes
+        ----------
+        llm_client : Any
+            The LLM client instance.
+        base_path : str
+            Base path for resource files.
+        registered_blocks : Dict[str, Any]
+            Registry of available blocks.
+        chained_blocks : Optional[List[Dict[str, Any]]]
+            List of block configurations.
+        num_samples_to_generate : Optional[int]
+            Number of samples to generate.
+
+        """
         self.llm_client = llm_client
-        self.num_samples_to_generate = num_samples_to_generate
         self.base_path = str(resources.files(__package__))
         self.registered_blocks = BlockRegistry.get_registry()
+        self.chained_blocks = None  # Will be set by get_flow_from_file
+        self.num_samples_to_generate = num_samples_to_generate
 
-    def _getFilePath(self, dirs, filename):
-        """
-        Find a named configuration file.
+    def _getFilePath(self, dirs: List[str], filename: str) -> str:
+        """Find a named configuration file.
 
-        Files are checked in the following order
-            - absulute path is always used
-            - checked relative to the directories in "dirs"
-            - relative the the current directory
+        Files are checked in the following order:
+            1. Absolute path is always used
+            2. Checked relative to the directories in "dirs"
+            3. Relative to the current directory
 
-        Args:
-            dirs (list): Directories in which to search for "config_path"
-            config_path (str): The path to the configuration file.
+        Parameters
+        ----------
+        dirs : List[str]
+            Directories in which to search for the file.
+        filename : str
+            The path to the configuration file.
 
-        Returns:
-            Selected file path
+        Returns
+        -------
+        str
+            Selected file path.
         """
         if os.path.isabs(filename):
             return filename
@@ -64,7 +128,105 @@ class Flow(ABC):
         # assume the path is relative to the current directory
         return filename
 
-    def get_flow_from_file(self, yaml_path: str) -> list:
+    def _drop_duplicates(self, dataset: Dataset, cols: List[str]) -> Dataset:
+        """Drop duplicates from the dataset based on the columns provided.
+
+        Parameters
+        ----------
+        dataset : Dataset
+            The input dataset.
+        cols : List[str]
+            Columns to consider for duplicate detection.
+
+        Returns
+        -------
+        Dataset
+            Dataset with duplicates removed.
+        """
+        df = dataset.to_pandas()
+        df = df.drop_duplicates(subset=cols).reset_index(drop=True)
+        return Dataset.from_pandas(df)
+
+    def generate(self, dataset: Dataset) -> Dataset:
+        """Generate the dataset by running the pipeline steps.
+
+        Parameters
+        ----------
+        dataset : Dataset
+            The input dataset to process.
+
+        Returns
+        -------
+        Dataset
+            The processed dataset.
+
+        Raises
+        ------
+        ValueError
+            If Flow has not been initialized with blocks.
+        EmptyDatasetError
+            If a block produces an empty dataset.
+        """
+        if self.chained_blocks is None:
+            raise ValueError(
+                "Flow has not been initialized with blocks. "
+                "Call get_flow_from_file() first. "
+                "Or pass a list of blocks to the Flow constructor."
+            )
+
+        for block_prop in self.chained_blocks:
+            block_type = block_prop["block_type"]
+            block_config = block_prop["block_config"]
+            drop_columns = block_prop.get("drop_columns", [])
+            gen_kwargs = block_prop.get("gen_kwargs", {})
+            drop_duplicates_cols = block_prop.get("drop_duplicates", False)
+            block = block_type(**block_config)
+
+            logger.debug("------------------------------------\n")
+            logger.debug("Running block: %s", block_config["block_name"])
+            logger.debug("Input dataset: %s", dataset)
+
+            dataset = block.generate(dataset, **gen_kwargs)
+
+            if len(dataset) == 0:
+                raise EmptyDatasetError(
+                    f"Pipeline stopped: "
+                    f"Empty dataset after running block: "
+                    f"{block_config['block_name']}"
+                )
+
+            drop_columns_in_ds = [e for e in drop_columns if e in dataset.column_names]
+            if drop_columns:
+                dataset = dataset.remove_columns(drop_columns_in_ds)
+
+            if drop_duplicates_cols:
+                dataset = self._drop_duplicates(dataset, cols=drop_duplicates_cols)
+
+            logger.debug("Output dataset: %s", dataset)
+            logger.debug("------------------------------------\n\n")
+
+        return dataset
+
+    def get_flow_from_file(self, yaml_path: str) -> "Flow":
+        """Load and initialize flow configuration from a YAML file.
+
+        Parameters
+        ----------
+        yaml_path : str
+            Path to the YAML configuration file.
+
+        Returns
+        -------
+        Flow
+            Self with initialized chained_blocks.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the YAML file cannot be found.
+        KeyError
+            If a required block or prompt is not found in the registry.
+        """
         yaml_path_relative_to_base = os.path.join(self.base_path, yaml_path)
         if os.path.isfile(yaml_path_relative_to_base):
             yaml_path = yaml_path_relative_to_base
@@ -141,4 +303,6 @@ class Flow(ABC):
                     block["block_config"]["convert_dtype"]
                 ]
 
-        return flow
+        # Store the chained blocks and return self
+        self.chained_blocks = flow
+        return self
