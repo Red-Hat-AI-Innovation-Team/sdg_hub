@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Standard
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List
+from typing import List, Union, Optional, Tuple, Any
 import traceback
 
 # Third Party
@@ -9,25 +9,71 @@ from datasets import Dataset
 from tqdm import tqdm
 
 # Local
+from .checkpointer import Checkpointer
+from .flow import Flow
 from .logger_config import setup_logger
 from .pipeline import Pipeline
 from .utils.datautils import safe_concatenate_datasets
-from .checkpointer import Checkpointer
 
 logger = setup_logger(__name__)
 
 
 class SDG:
+    """Synthetic Data Generator class.
+
+    This class manages the generation of synthetic data using one or more
+    data generation flows or pipelines.
+
+    Parameters
+    ----------
+    pipelines : List[Union[Pipeline, Flow]]
+        List of pipelines or flows to execute.
+    num_workers : int, optional
+        Number of worker threads to use, by default 1
+    batch_size : Optional[int], optional
+        Size of batches to process, by default None
+    save_freq : Optional[int], optional
+        Frequency of checkpoint saves, by default None
+
+    Attributes
+    ----------
+    pipelines : List[Union[Pipeline, Flow]]
+        List of pipelines or flows to execute.
+    num_workers : int
+        Number of worker threads to use.
+    batch_size : Optional[int]
+        Size of batches to process.
+    save_freq : Optional[int]
+        Frequency of checkpoint saves.
+    """
+
     def __init__(
-        self, pipelines: List[Pipeline], num_workers=1, batch_size=None, save_freq=None
+        self,
+        pipelines: List[Union[Pipeline, Flow]],
+        num_workers: int = 1,
+        batch_size: Optional[int] = None,
+        save_freq: Optional[int] = None,
     ) -> None:
         self.pipelines = pipelines
         self.num_workers = num_workers
         self.batch_size = batch_size
         self.save_freq = save_freq
 
-    def _split_dataset(self, dataset: Dataset, batch_size: int) -> List[Dataset]:
-        """Split the dataset into smaller batches."""
+    def _split_dataset(self, dataset: Dataset, batch_size: int) -> List[Tuple[int, int]]:
+        """Split the dataset into smaller batches.
+
+        Parameters
+        ----------
+        dataset : Dataset
+            The dataset to split.
+        batch_size : int
+            Size of each batch.
+
+        Returns
+        -------
+        List[Tuple[int, int]]
+            List of (start, end) indices for each batch.
+        """
         total_size = len(dataset)
         num_batches = (total_size + batch_size - 1) // batch_size
 
@@ -39,7 +85,30 @@ class SDG:
         return batches
 
     @staticmethod
-    def _generate_data(pipelines, input_split, ds, i=None):
+    def _generate_data(
+        pipelines: List[Union[Pipeline, Flow]], 
+        input_split: Tuple[int, int], 
+        ds: Dataset, 
+        i: Optional[int] = None
+    ) -> Optional[Dataset]:
+        """Generate data for a single split using the provided pipelines.
+
+        Parameters
+        ----------
+        pipelines : List[Union[Pipeline, Flow]]
+            List of pipelines or flows to execute.
+        input_split : Tuple[int, int]
+            (start, end) indices for the current split.
+        ds : Dataset
+            The full input dataset.
+        i : Optional[int], optional
+            Split index for logging, by default None
+
+        Returns
+        -------
+        Optional[Dataset]
+            Generated dataset for the split, or None if generation failed.
+        """
         logger.info(f"Processing split {i}")
         input_split = ds.select(range(input_split[0], input_split[1]))
         try:
@@ -51,7 +120,26 @@ class SDG:
             traceback.print_exc()
             return None
 
-    def generate(self, dataset: Dataset, checkpoint_dir=None) -> Dataset:
+    def generate(self, dataset: Dataset, checkpoint_dir: Optional[str] = None) -> Dataset:
+        """Generate synthetic data using the configured pipelines.
+
+        Parameters
+        ----------
+        dataset : Dataset
+            The input dataset to process.
+        checkpoint_dir : Optional[str], optional
+            Directory to save checkpoints, by default None
+
+        Returns
+        -------
+        Dataset
+            The generated dataset.
+
+        Notes
+        -----
+        If checkpoint_dir is provided, the generation process can be resumed
+        from the last checkpoint in case of interruption.
+        """
         # Initialize checkpointer
         checkpointer = Checkpointer(checkpoint_dir, self.save_freq)
         
@@ -102,7 +190,9 @@ class SDG:
                         checkpoint_dataset = safe_concatenate_datasets(new_splits)
                         # check if checkpoint_dataset is not None
                         if checkpoint_dataset:
-                            checkpointer.save_intermediate_checkpoint(checkpoint_dataset)
+                            checkpointer.save_intermediate_checkpoint(
+                                checkpoint_dataset
+                            )
                             last_saved_split_index = i + 1
 
         generated_dataset = safe_concatenate_datasets(generated_data)
