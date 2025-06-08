@@ -1,3 +1,5 @@
+"""Tests for Flow path handling functionality."""
+
 # Standard
 from unittest.mock import MagicMock, patch
 import os
@@ -16,7 +18,7 @@ class TestFlow(unittest.TestCase):
 
     def test_config_relative_to_flow(self):
         flow = self.flow.get_flow_from_file("tests/flows/testdata/test_flow_1.yaml")
-        block = flow[0]["block_type"](**flow[0]["block_config"])
+        block = flow.chained_blocks[0]["block_type"](**flow.chained_blocks[0]["block_config"])
 
         self.assertEqual(block.block_config["introduction"], "intro")
 
@@ -31,7 +33,7 @@ class TestFlow(unittest.TestCase):
         with patch("yaml.safe_load", new_callable=MagicMock) as mock_safe_load:
             mock_safe_load.return_value = y
             flow = self.flow.get_flow_from_file("tests/flows/testdata/test_flow_1.yaml")
-        block = flow[0]["block_type"](**flow[0]["block_config"])
+        block = flow.chained_blocks[0]["block_type"](**flow.chained_blocks[0]["block_config"])
 
         self.assertEqual(
             block.block_config["introduction"],
@@ -49,7 +51,7 @@ class TestFlow(unittest.TestCase):
         with patch("yaml.safe_load", new_callable=MagicMock) as mock_safe_load:
             mock_safe_load.return_value = y
             flow = self.flow.get_flow_from_file("tests/flows/testdata/test_flow_1.yaml")
-        block = flow[0]["block_type"](**flow[0]["block_config"])
+        block = flow.chained_blocks[0]["block_type"](**flow.chained_blocks[0]["block_config"])
 
         self.assertEqual(
             block.block_config["introduction"],
@@ -68,7 +70,7 @@ class TestFlow(unittest.TestCase):
         with patch("yaml.safe_load", new_callable=MagicMock) as mock_safe_load:
             mock_safe_load.return_value = y
             flow = self.flow.get_flow_from_file("tests/flows/testdata/test_flow_2.yaml")
-        block = flow[0]["block_type"](**flow[0]["block_config"])
+        block = flow.chained_blocks[0]["block_type"](**flow.chained_blocks[0]["block_config"])
 
         self.assertEqual(block.block_config["introduction"], "intro")
         self.assertEqual(len(block.prompt_template), 3)
