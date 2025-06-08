@@ -55,7 +55,7 @@ web_interface = [
     "flask-wtf>=1.2.2",
 ]
 vllm = [
-    "vllm>=0.8.0,<0.8.4",
+    "vllm>=0.8.0,<0.9.1",
     "torch>=2.0.0",
     "transformers>=4.37.0",
     "accelerate>=0.21.0",
