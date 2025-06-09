@@ -107,3 +107,40 @@ def test_selector_block_custom_num_procs(sample_dataset):
     assert "revised_response" in result.column_names
     assert "verdict" in result.column_names
     assert "other_col" in result.column_names
+
+
+def test_selector_block_empty_choice_map(sample_dataset):
+    """Test SelectorBlock with an empty choice map.
+
+    Verifies that the block raises a KeyError when trying to use an empty choice map,
+    as there would be no valid mappings to look up.
+    """
+    block = SelectorBlock(
+        block_name="test_selector",
+        choice_map={},  # Empty choice map
+        choice_col="verdict",
+        output_col="chosen_response",
+    )
+
+    with pytest.raises(KeyError):
+        block.generate(sample_dataset)
+
+
+def test_selector_block_nonexistent_choice_map_columns(sample_dataset):
+    """Test SelectorBlock with non-existent column names in choice map.
+
+    Verifies that the block properly handles and raises KeyError when
+    attempting to map to columns that don't exist in the dataset.
+    """
+    block = SelectorBlock(
+        block_name="test_selector",
+        choice_map={
+            "Assistant A": "non_existent_col1",
+            "Assistant B": "non_existent_col2",
+        },
+        choice_col="verdict",
+        output_col="chosen_response",
+    )
+
+    with pytest.raises(KeyError):
+        block.generate(sample_dataset)
