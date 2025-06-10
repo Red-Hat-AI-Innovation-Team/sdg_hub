@@ -161,7 +161,7 @@ class SDG:
             generated_dataset = seed_data
             # generated_data is initialized with seed_data, and it gets updated with each flow
             for flow in self.flows:
-                generated_dataset = flow.generate(seed_data)
+                generated_dataset = flow.generate(generated_dataset)
             return generated_dataset
 
         logger.info("Splitting the dataset into smaller batches")
