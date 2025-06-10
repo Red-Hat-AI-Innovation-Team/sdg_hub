@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
+
+"""Synthetic Data Generator (SDG) module for managing data generation flows."""
+
 # Standard
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Union, Optional, Tuple, Any
+from typing import List, Optional, Tuple
 import traceback
 
 # Third Party
@@ -12,7 +15,6 @@ from tqdm import tqdm
 from .checkpointer import Checkpointer
 from .flow import Flow
 from .logger_config import setup_logger
-from .pipeline import Pipeline
 from .utils.datautils import safe_concatenate_datasets
 
 logger = setup_logger(__name__)
@@ -22,12 +24,12 @@ class SDG:
     """Synthetic Data Generator class.
 
     This class manages the generation of synthetic data using one or more
-    data generation flows or pipelines.
+    data generation flows.
 
     Parameters
     ----------
-    pipelines : List[Union[Pipeline, Flow]]
-        List of pipelines or flows to execute.
+    flows : List[Flow]
+        List of flows to execute.
     num_workers : int, optional
         Number of worker threads to use, by default 1
     batch_size : Optional[int], optional
@@ -37,8 +39,8 @@ class SDG:
 
     Attributes
     ----------
-    pipelines : List[Union[Pipeline, Flow]]
-        List of pipelines or flows to execute.
+    flows : List[Flow]
+        List of flows to execute.
     num_workers : int
         Number of worker threads to use.
     batch_size : Optional[int]
@@ -49,17 +51,19 @@ class SDG:
 
     def __init__(
         self,
-        pipelines: List[Union[Pipeline, Flow]],
+        flows: List[Flow],
         num_workers: int = 1,
         batch_size: Optional[int] = None,
         save_freq: Optional[int] = None,
     ) -> None:
-        self.pipelines = pipelines
+        self.flows = flows
         self.num_workers = num_workers
         self.batch_size = batch_size
         self.save_freq = save_freq
 
-    def _split_dataset(self, dataset: Dataset, batch_size: int) -> List[Tuple[int, int]]:
+    def _split_dataset(
+        self, dataset: Dataset, batch_size: int
+    ) -> List[Tuple[int, int]]:
         """Split the dataset into smaller batches.
 
         Parameters
@@ -86,17 +90,17 @@ class SDG:
 
     @staticmethod
     def _generate_data(
-        pipelines: List[Union[Pipeline, Flow]], 
-        input_split: Tuple[int, int], 
-        ds: Dataset, 
-        i: Optional[int] = None
+        flows: List[Flow],
+        input_split: Tuple[int, int],
+        ds: Dataset,
+        i: Optional[int] = None,
     ) -> Optional[Dataset]:
-        """Generate data for a single split using the provided pipelines.
+        """Generate data for a single split using the provided flows.
 
         Parameters
         ----------
-        pipelines : List[Union[Pipeline, Flow]]
-            List of pipelines or flows to execute.
+        flows : List[Flow]
+            List of flows to execute.
         input_split : Tuple[int, int]
             (start, end) indices for the current split.
         ds : Dataset
@@ -112,16 +116,18 @@ class SDG:
         logger.info(f"Processing split {i}")
         input_split = ds.select(range(input_split[0], input_split[1]))
         try:
-            for pipeline in pipelines:
-                input_split = pipeline.generate(input_split)
+            for flow in flows:
+                input_split = flow.generate(input_split)
             return input_split
         except Exception as e:
             logger.error(f"Error processing split {i}: {e}")
             traceback.print_exc()
             return None
 
-    def generate(self, dataset: Dataset, checkpoint_dir: Optional[str] = None) -> Dataset:
-        """Generate synthetic data using the configured pipelines.
+    def generate(
+        self, dataset: Dataset, checkpoint_dir: Optional[str] = None
+    ) -> Dataset:
+        """Generate synthetic data using the configured flows.
 
         Parameters
         ----------
@@ -142,10 +148,10 @@ class SDG:
         """
         # Initialize checkpointer
         checkpointer = Checkpointer(checkpoint_dir, self.save_freq)
-        
+
         # Load existing checkpoints and determine missing data
         seed_data, pre_generated_data = checkpointer.load_existing_data(dataset)
-        
+
         # If all data has been generated, return the pre-generated data
         if seed_data.num_rows == 0 and pre_generated_data is not None:
             return pre_generated_data
@@ -153,11 +159,11 @@ class SDG:
         if not self.batch_size:
             # If batch size is not provided, generate the dataset in a single pass
             generated_dataset = seed_data
-            # generated_data is initialized with seed_data, and it gets updated with each pipeline
-            for pipeline in self.pipelines:
-                generated_dataset = pipeline.generate(seed_data)
+            # generated_data is initialized with seed_data, and it gets updated with each flow
+            for flow in self.flows:
+                generated_dataset = flow.generate(seed_data)
             return generated_dataset
-        
+
         logger.info("Splitting the dataset into smaller batches")
         input_splits = self._split_dataset(seed_data, self.batch_size)
         logger.info(
@@ -171,7 +177,7 @@ class SDG:
         with ThreadPoolExecutor(max_workers=self.num_workers) as executor:
             futures = [
                 executor.submit(
-                    self._generate_data, self.pipelines, input_split, seed_data, i
+                    self._generate_data, self.flows, input_split, seed_data, i
                 )
                 for i, input_split in enumerate(input_splits)
             ]
@@ -182,7 +188,7 @@ class SDG:
                 if generated_data_split:
                     generated_data.append(generated_data_split)
                     logger.info(f"Finished future processing split {i} \n\n")
-                    
+
                     # Use checkpointer to handle intermediate saves
                     if checkpointer.should_save_checkpoint(i):
                         # Save only the new splits since the last checkpoint
