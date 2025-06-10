@@ -11,7 +11,6 @@ import click
 # First Party
 from sdg_hub.flow import Flow
 from sdg_hub.logger_config import setup_logger
-from sdg_hub.pipeline import Pipeline
 from sdg_hub.sdg import SDG
 
 
@@ -79,9 +78,9 @@ def run_flow(
     if not os.path.exists(flow_path):
         raise FileNotFoundError(f"Flow file not found: {flow_path}")
 
-    flow_cfg = Flow(client).get_flow_from_file(flow_path)
+    flow = Flow(client).get_flow_from_file(flow_path)
     sdg = SDG(
-        [Pipeline(flow_cfg)],
+        flows=[flow],
         num_workers=num_workers,
         batch_size=batch_size,
         save_freq=save_freq,
