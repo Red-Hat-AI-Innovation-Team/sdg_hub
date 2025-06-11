@@ -60,7 +60,43 @@ Explore the full documentation for detailed guides:
 
 ## 🏁 Quick Start
 
+### Generate with an Existing Flow
+You can invoke any built-in flow using run_flow:
+```python
+from sdg_hub.flow_runner import run_flow
 
+run_flow(
+    ds_path="path/to/dataset.json",
+    save_path="path/to/output.json",
+    endpoint="https://api.openai.com/v1",
+    flow_path="path/to/flow.yaml",
+    checkpoint_dir="path/to/checkpoints",
+    batch_size=8,
+    num_workers=32,
+    save_freq=2,
+)
+```
+
+### 📂 Available Built-in Flows
+
+You can start with any of these YAML flows out of the box:
+
+#### 🔎 **Knowledge Flows**
+
+| Flow Name                                            | Description                                                                 |
+| ---------------------------------------------------- | --------------------------------------------------------------------------- |
+| `flows/generation/knowledge/synth_knowledge.yaml`    | Produces document-grounded questions and answers for factual memorization   |
+| `flows/generation/knowledge/synth_knowledge1.5.yaml` | Improved version that builds intermediate representations for better recall |
+
+#### 🧠 **Skills Flows**
+
+| Flow Name                                             | Description                                                                                              |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `flows/generation/skills/synth_skills.yaml`           | Freeform skills QA generation (eg: "Create a new github issue to add type hints")                        |
+| `flows/generation/skills/synth_grounded_skills.yaml`  | Domain-specific skill generation (eg: "From the given conversation create a table for feature requests") |
+| `flows/generation/skills/improve_responses.yaml`      | Uses planning and critique-based refinement to improve generated answers                                 |
+
+All these can be found here: [flows](src/sdg_hub/flows)
 
 ## 📺 Video Tutorial
 
