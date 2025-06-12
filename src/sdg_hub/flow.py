@@ -35,6 +35,8 @@ from .prompts import *  # needed to register prompts
 from .registry import BlockRegistry, PromptRegistry
 from .logger_config import setup_logger
 
+from .utils.validation_result import ValidationResult
+
 
 logger = setup_logger(__name__)
 
@@ -205,6 +207,58 @@ class Flow(ABC):
 
         return dataset
 
+    def validate_config_files(self) -> "ValidationResult":        
+        """
+        Validate all configuration file paths referenced in the flow blocks.
+
+        This method checks that all config files specified via `config_path` or `config_paths`
+        in each block:
+            - Exist on the filesystem
+            - Are readable by the current process
+            - Are valid YAML files (optional format check)
+
+        Returns
+        -------
+        ValidationResult
+            An object indicating whether all config files passed validation, along with a list
+            of error messages for any missing, unreadable, or invalid YAML files.
+
+        Notes
+        -----
+        This method is automatically called at the end of `get_flow_from_file()` to ensure
+        early detection of misconfigured blocks.
+        """
+        errors = []
+
+        def check_file(path: str, context: str):
+            if not os.path.isfile(path):
+                errors.append(f"[{context}] File does not exist: {path}")
+            elif not os.access(path, os.R_OK):
+                errors.append(f"[{context}] File is not readable: {path}")
+            else:
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        yaml.safe_load(f)
+                except Exception as e:
+                    errors.append(f"[{context}] YAML load failed: {path} ({str(e)})")
+
+        for i, block in enumerate(self.chained_blocks or []):
+            block_name = block["block_config"].get("block_name", f"block_{i}")
+
+            config_path = block["block_config"].get("config_path")
+            if config_path:
+                check_file(config_path, f"{block_name}.config_path")
+
+            config_paths = block["block_config"].get("config_paths")
+            if isinstance(config_paths, list):
+                for idx, path in enumerate(config_paths):
+                    check_file(path, f"{block_name}.config_paths[{idx}]")
+            elif isinstance(config_paths, dict):
+                for key, path in config_paths.items():
+                    check_file(path, f"{block_name}.config_paths['{key}']")
+
+        return ValidationResult(valid=(len(errors) == 0), errors=errors)
+
     def get_flow_from_file(self, yaml_path: str) -> "Flow":
         """Load and initialize flow configuration from a YAML file.
 
@@ -303,4 +357,10 @@ class Flow(ABC):
 
         # Store the chained blocks and return self
         self.chained_blocks = flow
+
+        # Validate config files
+        result = self.validate_config_files()
+        if not result.valid:
+            raise ValueError("Invalid config files:\n" + "\n".join(result.errors))
+
         return self
