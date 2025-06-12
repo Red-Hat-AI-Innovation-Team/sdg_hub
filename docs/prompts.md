@@ -161,7 +161,7 @@ end_tags: [""]
 
 ## Variable Templating with Jinja2
 
-SDG Hub uses Jinja2 templating for dynamic prompt generation. Variables are enclosed in double curly braces `{{ variable_name }}`.
+SDG Hub uses Jinja2 templating for dynamic prompt generation. Variables are enclosed in double curly braces `{ { variable_name } }`.
 
 ### Common Variable Patterns
 
@@ -222,13 +222,13 @@ Using Jinja2 conditionals for dynamic content:
 
 ```yaml
 generation: |
-  {% if difficulty_level == "beginner" %}
+  { % if difficulty_level == "beginner" % }
   Please provide a simple explanation suitable for beginners.
-  {% elif difficulty_level == "advanced" %}
+  { % elif difficulty_level == "advanced" % }
   Please provide a detailed technical explanation.
-  {% endif %}
+  { % endif % }
   
-  Topic: {{topic}}
+  Topic: { {topic} }
 ```
 
 ### ICL (In-Context Learning) Patterns
