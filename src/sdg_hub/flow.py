@@ -37,10 +37,11 @@ from .logger_config import setup_logger
 
 from .utils.validation_result import ValidationResult
 
-import re
+from jinja2 import Environment, meta
 
 
 logger = setup_logger(__name__)
+
 
 OPERATOR_MAP: Dict[str, Callable] = {
     "operator.eq": operator.eq,
@@ -327,7 +328,6 @@ class Flow(ABC):
         ValidationResult
             Whether the dataset has all required columns, and which ones are missing.
         """
-        import re
         errors = []
         all_columns = set(dataset.column_names)
 
@@ -337,12 +337,16 @@ class Flow(ABC):
             config = block["block_config"]
 
             # LLM Block: parse Jinja vars
-            if "LLM" in str(block_type):
+            cls_name = block_type.__name__ if isinstance(block_type, type) else block_type.__class__.__name__
+            logger.info(f"Validating block: {name} ({cls_name})")
+            if "LLM" in cls_name:
                 config_path = config.get("config_path")
                 if config_path and os.path.isfile(config_path):
                     with open(config_path, "r", encoding="utf-8") as f:
                         content = f.read()
-                        vars_found = set(re.findall(r"{{\s*([a-zA-Z0-9_]+)\s*}}", content))
+                        env = Environment()
+                        ast = env.parse(content)
+                        vars_found = meta.find_undeclared_variables(ast)
                         for var in vars_found:
                             if var not in all_columns:
                                 errors.append(f"[{name}] Missing column for prompt var: '{var}'")
