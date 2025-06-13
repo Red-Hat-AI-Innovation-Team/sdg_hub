@@ -35,6 +35,10 @@ from .prompts import *  # needed to register prompts
 from .registry import BlockRegistry, PromptRegistry
 from .logger_config import setup_logger
 
+from .utils.validation_result import ValidationResult
+
+import re
+
 
 logger = setup_logger(__name__)
 
@@ -304,3 +308,67 @@ class Flow(ABC):
         # Store the chained blocks and return self
         self.chained_blocks = flow
         return self
+
+    def validate_flow(self, dataset: Dataset) -> "ValidationResult":
+        """
+        Validate that all required dataset columns are present before executing the flow.
+
+        This includes:
+        - Columns referenced in Jinja templates for LLM blocks
+        - Columns required by specific utility blocks (e.g. filter_column, choice_col, etc.)
+
+        Parameters
+        ----------
+        dataset : Dataset
+            The input dataset to validate against.
+
+        Returns
+        -------
+        ValidationResult
+            Whether the dataset has all required columns, and which ones are missing.
+        """
+        import re
+        errors = []
+        all_columns = set(dataset.column_names)
+
+        for i, block in enumerate(self.chained_blocks or []):
+            name = block["block_config"].get("block_name", f"block_{i}")
+            block_type = block["block_type"]
+            config = block["block_config"]
+
+            # LLM Block: parse Jinja vars
+            if "LLM" in str(block_type):
+                config_path = config.get("config_path")
+                if config_path and os.path.isfile(config_path):
+                    with open(config_path, "r", encoding="utf-8") as f:
+                        content = f.read()
+                        vars_found = set(re.findall(r"{{\s*([a-zA-Z0-9_]+)\s*}}", content))
+                        for var in vars_found:
+                            if var not in all_columns:
+                                errors.append(f"[{name}] Missing column for prompt var: '{var}'")
+
+            # FilterByValueBlock
+            if "FilterByValueBlock" in str(block_type):
+                col = config.get("filter_column")
+                if col and col not in all_columns:
+                    errors.append(f"[{name}] Missing filter_column: '{col}'")
+
+            # SelectorBlock
+            if "SelectorBlock" in str(block_type):
+                col = config.get("choice_col")
+                if col and col not in all_columns:
+                    errors.append(f"[{name}] Missing choice_col: '{col}'")
+
+                choice_map = config.get("choice_map", {})
+                for col in choice_map.values():
+                    if col not in all_columns:
+                        errors.append(f"[{name}] choice_map references missing column: '{col}'")
+
+            # CombineColumnsBlock
+            if "CombineColumnsBlock" in str(block_type):
+                cols = config.get("columns", [])
+                for col in cols:
+                    if col not in all_columns:
+                        errors.append(f"[{name}] CombineColumnsBlock requires column: '{col}'")
+
+        return ValidationResult(valid=(len(errors) == 0), errors=errors)
