@@ -33,7 +33,7 @@ def flow_with_blocks():
 
 
 def test_validate_flow_success(tmp_path, flow_with_blocks):
-    # Crea un file YAML con Jinja2 var {{title}} che esiste nel dataset
+    # Create a YAML file with Jinja2 var {{title}} that exists in the dataset
     prompt_path = tmp_path / "test_prompt.yaml"
     prompt_path.write_text("""
 Hello {{ title }} world!
@@ -53,7 +53,7 @@ Hello {{ title }} world!
 
 
 def test_validate_flow_missing_columns(tmp_path, flow_with_blocks):
-    # Crea un file YAML con Jinja2 var {{title}} che NON esiste nel dataset
+    # Create a YAML file with Jinja2 var {{title}} that does not exist in the dataset
     prompt_path = tmp_path / "test_prompt.yaml"
     prompt_path.write_text("""
 Hello {{ title }} world!
