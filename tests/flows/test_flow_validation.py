@@ -38,9 +38,9 @@ def test_validate_config_path_permission_denied(flow_with_invalid_config, tmp_pa
         }
     ]
 
-    result = flow_with_invalid_config.validate_config_files()
-
-    assert not result.valid
-    assert any("not readable" in msg for msg in result.errors)
-
-    config_path.chmod(0o644)  
+    try:
+        result = flow_with_invalid_config.validate_config_files()
+        assert not result.valid
+        assert any("not readable" in msg for msg in result.errors)
+    finally:
+        config_path.chmod(0o644) 

@@ -233,14 +233,14 @@ class Flow(ABC):
         def check_file(path: str, context: str):
             if not os.path.isfile(path):
                 errors.append(f"[{context}] File does not exist: {path}")
-            elif not os.access(path, os.R_OK):
-                errors.append(f"[{context}] File is not readable: {path}")
             else:
                 try:
                     with open(path, "r", encoding="utf-8") as f:
                         yaml.safe_load(f)
-                except Exception as e:
-                    errors.append(f"[{context}] YAML load failed: {path} ({str(e)})")
+                except PermissionError:
+                    errors.append(f"[{context}] File is not readable: {path}")
+                except yaml.YAMLError as e:
+                    errors.append(f"[{context}] YAML load failed: {path} ({e})")
 
         for i, block in enumerate(self.chained_blocks or []):
             block_name = block["block_config"].get("block_name", f"block_{i}")
@@ -361,6 +361,6 @@ class Flow(ABC):
         # Validate config files
         result = self.validate_config_files()
         if not result.valid:
-            raise ValueError("Invalid config files:\n" + "\n".join(result.errors))
+            raise ValueError("Invalid config files:\n"  "\n".join(result.errors))
 
         return self
