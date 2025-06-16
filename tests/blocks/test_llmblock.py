@@ -1,6 +1,11 @@
-import os
-import pytest
+# Standard
 from unittest.mock import MagicMock
+import os
+
+# Third Party
+import pytest
+
+# First Party
 from sdg_hub.blocks.llmblock import LLMBlock
 
 # Get the absolute path to the test config file

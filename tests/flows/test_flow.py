@@ -2,11 +2,11 @@
 
 # Standard
 from unittest.mock import MagicMock, patch
-import pytest
 
 # Third Party
 from datasets import Dataset
 from datasets.data_files import EmptyDatasetError
+import pytest
 
 # First Party
 from sdg_hub.flow import Flow

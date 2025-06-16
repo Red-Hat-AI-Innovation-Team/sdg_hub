@@ -5,13 +5,18 @@ A Flask-based web interface for building and managing SDG flows.
 Provides a drag-and-drop interface for creating and configuring flow blocks.
 """
 
-from flask import Flask, render_template, jsonify, request
-import yaml
-import os
-from sdg_hub.registry import BlockRegistry
+# Standard
+from typing import Any, get_args, get_origin, get_type_hints
 import inspect
-from typing import get_type_hints, get_origin, get_args, Any
+import os
+
+# Third Party
+from flask import Flask, jsonify, render_template, request
+import yaml
+
+# First Party
 from sdg_hub.blocks import *  # Ensure all blocks are registered
+from sdg_hub.registry import BlockRegistry
 
 # Initialize Flask application
 app = Flask(__name__)

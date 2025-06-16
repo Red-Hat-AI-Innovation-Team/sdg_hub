@@ -1,9 +1,9 @@
 # Standard
+from unittest.mock import patch
+import json
 import os
 import tempfile
 import unittest
-import json
-from unittest.mock import patch
 
 # Third Party
 from datasets import Dataset, Features, Value

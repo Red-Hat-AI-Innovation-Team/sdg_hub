@@ -1,14 +1,18 @@
-from datasets import concatenate_datasets
-from sdg_hub.prompts import PromptRegistry
-from sdg_hub.blocks import BlockRegistry, Block
-from datasets import Dataset
-import re
+# Standard
 from typing import List
-
-import sys
 import os
+import re
+import sys
+
+# Third Party
+from datasets import Dataset, concatenate_datasets
+
+# First Party
+from sdg_hub.blocks import Block, BlockRegistry
+from sdg_hub.prompts import PromptRegistry
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# Third Party
 from knowledge_utils import create_auxiliary_dataset, generate_knowledge_qa_dataset
 
 

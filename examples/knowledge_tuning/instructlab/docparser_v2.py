@@ -18,10 +18,9 @@ See README.md for detailed configuration options and examples.
 
 # Standard
 from pathlib import Path
+from typing import Dict, Optional
 import json
 import time
-from typing import Dict, Optional
-import yaml
 
 # Third Party
 from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
@@ -37,6 +36,7 @@ from docling.models.tesseract_ocr_cli_model import TesseractCliOcrOptions
 from docling.models.tesseract_ocr_model import TesseractOcrOptions
 from logger_config import setup_logger
 import click
+import yaml
 
 logger = setup_logger(__name__)
 

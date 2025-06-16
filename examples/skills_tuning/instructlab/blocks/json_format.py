@@ -3,8 +3,8 @@
 """Module for formatting and standardizing JSON output from various text analysis results."""
 
 # Standard
+from typing import Any, Dict, List, Optional
 import json
-from typing import Dict, List, Optional, Any
 
 # Third Party
 from datasets import Dataset

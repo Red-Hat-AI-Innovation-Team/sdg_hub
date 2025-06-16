@@ -2,10 +2,10 @@
 
 # Standard
 import operator
-import pytest
 
 # Third Party
 from datasets import Dataset, Features, Value
+import pytest
 
 # First Party
 from sdg_hub.blocks import FilterByValueBlock

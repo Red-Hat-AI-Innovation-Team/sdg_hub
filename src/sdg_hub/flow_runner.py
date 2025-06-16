@@ -13,7 +13,6 @@ from sdg_hub.flow import Flow
 from sdg_hub.logger_config import setup_logger
 from sdg_hub.sdg import SDG
 
-
 logger = setup_logger(__name__)
 
 

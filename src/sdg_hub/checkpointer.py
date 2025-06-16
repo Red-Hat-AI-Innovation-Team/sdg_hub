@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Standard
-from typing import Optional, List
+from typing import List, Optional
 import uuid
 
 # Third Party

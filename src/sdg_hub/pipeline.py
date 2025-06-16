@@ -6,8 +6,8 @@ Use the Flow class directly for new code.
 
 # SPDX-License-Identifier: Apache-2.0
 # Standard
+from typing import Any, Dict, List
 import warnings
-from typing import List, Dict, Any
 
 # Third Party
 from datasets import Dataset

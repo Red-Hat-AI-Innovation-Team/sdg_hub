@@ -9,8 +9,8 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.sdg import SDG
 from sdg_hub.flow import Flow
+from sdg_hub.sdg import SDG
 
 
 @pytest.fixture

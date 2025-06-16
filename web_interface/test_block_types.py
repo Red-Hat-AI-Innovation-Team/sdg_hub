@@ -5,10 +5,15 @@ to verify that the schema is correctly populated from the block classes.
 It will also check that the config keys match the __init__ parameters of each block class.
 """
 
-from app import get_block_types_from_registry
-from sdg_hub.blocks import BlockRegistry
+# Standard
 import inspect
 import json
+
+# Third Party
+from app import get_block_types_from_registry
+
+# First Party
+from sdg_hub.blocks import BlockRegistry
 
 
 def test_block_types():

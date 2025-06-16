@@ -20,21 +20,20 @@ Note:
 # Standard
 from abc import ABC
 from importlib import resources
-from typing import Optional, List, Dict, Any, Callable
+from typing import Any, Callable, Dict, List, Optional
 import operator
 import os
 
 # Third Party
-import yaml
 from datasets import Dataset
 from datasets.data_files import EmptyDatasetError
+import yaml
 
 # Local
 from .blocks import *  # needed to register blocks
+from .logger_config import setup_logger
 from .prompts import *  # needed to register prompts
 from .registry import BlockRegistry, PromptRegistry
-from .logger_config import setup_logger
-
 
 logger = setup_logger(__name__)
 

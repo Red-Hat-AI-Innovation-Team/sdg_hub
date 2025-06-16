@@ -1,5 +1,5 @@
 # Standard
-from typing import Union, List, Dict
+from typing import Dict, List, Union
 
 # Third Party
 from jinja2 import Template

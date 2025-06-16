@@ -1,7 +1,12 @@
-from sdg_hub.blocks import BlockRegistry, Block
-import re
+# Standard
 from typing import List
+import re
+
+# Third Party
 from datasets import Dataset
+
+# First Party
+from sdg_hub.blocks import Block, BlockRegistry
 
 
 @BlockRegistry.register("PostProcessThinkingBlock")

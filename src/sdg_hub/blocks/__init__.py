@@ -4,20 +4,20 @@ This package provides various block implementations for data generation, process
 """
 
 # Local
+from ..registry import BlockRegistry
 from .block import Block
-from .llmblock import LLMBlock, ConditionalLLMBlock
+from .llmblock import ConditionalLLMBlock, LLMBlock
 from .utilblocks import (
+    CombineColumnsBlock,
+    DuplicateColumns,
+    FilterByValueBlock,
+    FlattenColumnsBlock,
+    IterBlock,
+    RenameColumns,
     SamplePopulatorBlock,
     SelectorBlock,
-    CombineColumnsBlock,
-    FlattenColumnsBlock,
-    DuplicateColumns,
-    RenameColumns,
     SetToMajorityValue,
-    FilterByValueBlock,
-    IterBlock,
 )
-from ..registry import BlockRegistry
 
 __all__ = [
     "Block",

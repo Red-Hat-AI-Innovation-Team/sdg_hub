@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Standard
-import os
 import logging
+import os
 
 # Third Party
 from rich.logging import RichHandler

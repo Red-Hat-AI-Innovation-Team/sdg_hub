@@ -15,9 +15,9 @@ from jinja2 import Template
 import openai
 
 # Local
-from .block import Block
 from ..logger_config import setup_logger
 from ..registry import BlockRegistry, PromptRegistry
+from .block import Block
 
 logger = setup_logger(__name__)
 
