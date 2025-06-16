@@ -1,0 +1,82 @@
+# This YAML file defines a prompt template for generating educational Q&A pairs from textbook content.
+# The prompt is designed to create comprehensive, domain-specific questions and answers that
+# effectively teach and reinforce key concepts from educational materials.
+#
+# Structure:
+# - system: Sets the AI's role as a knowledgeable assistant
+# - introduction: Main instruction for creating Q&A pairs from textbook chapters
+# - principles: Detailed guidelines for question formulation and educational value
+# - examples: Example Q&A pairs showing expected format and style
+# - generation: Template for the document to be used for Q&A generation
+#
+# Key Features:
+# - Domain-specific question generation (science, legal, etc.)
+# - Multiple difficulty levels and question types
+# - Self-contained questions without external references
+# - Focus on key concepts and learning objectives
+# - Educational value and teaching effectiveness
+#
+# Question Guidelines:
+# - Must be self-contained and independently answerable
+# - Should cover basic recall to advanced comprehension
+# - Include multiple-choice, short answer, and essay types
+# - Align with chapter learning objectives
+# - Avoid references to specific sections or figures
+#
+# Response Format:
+# - Questions and answers are clearly separated
+# - Each response ends with [End] tag
+# - [UNANSWERABLE] for unsuitable content
+#
+# Usage:
+# This prompt is used to generate educational Q&A pairs that effectively teach
+# and reinforce concepts from textbook chapters while maintaining educational
+# value and accessibility.
+
+system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: Develop a series of educational questions from a chapter in a {{domain}} textbook. 
+
+principles: |
+  The questions should:
+  * Self-contained – understandable without needing to reference tables, figures, or specific text sections.
+  * Focus on the provided example and follow the format and style of the provided examples.
+  * Relevant to the subject – based on the textbook’s domain (e.g., legal, scientific, etc.).
+  * Independently answerable – avoid direct references to theorems, figures, or text numbers.
+  * Varied in difficulty - Make difficult same as the provided examples.
+  * Use same format as the provided examples.
+
+  Strictly follow this format for each question your generate while responding
+
+  [QUESTION]
+  <Insert question here>
+  [END]
+
+
+examples: |
+  Here are some examples of questions:
+
+  [Document]
+  {{icl_document}}
+
+  [QUESTION]
+  {{icl_query_1}}
+  [END]
+
+  [QUESTION]
+  {{icl_query_2}}
+  [END]
+
+  [QUESTION]
+  {{icl_query_3}}
+  [END]
+
+generation: |
+  Here is the document:
+  
+  [DOCUMENT]
+  {{document_outline}}
+  {{document}}
+
+start_tags: [""]
+end_tags: [""]
