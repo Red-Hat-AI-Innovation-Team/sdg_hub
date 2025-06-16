@@ -28,7 +28,7 @@ class Block(ABC):
     This class provides common functionality for block validation and configuration loading.
     All specific block implementations should inherit from this class.
     """
-    
+
     def __init__(self, block_name: str) -> None:
         self.block_name = block_name
 

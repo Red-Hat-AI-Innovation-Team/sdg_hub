@@ -20,7 +20,7 @@ def mock_dataset():
     return Dataset.from_dict(
         {
             "text": ["sample text " + str(i) for i in range(50)],
-            "metadata": [{"id": i} for i in range(50)]
+            "metadata": [{"id": i} for i in range(50)],
         }
     )
 

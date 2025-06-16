@@ -56,11 +56,11 @@ def test_drop_duplicates(flow):
     dataset = Dataset.from_dict(
         {"text": ["duplicate", "duplicate", "unique"], "label": [0, 0, 1]}
     )
-    
+
     # Test dropping duplicates on single column
     result = flow._drop_duplicates(dataset, ["text"])
     assert len(result) == 2
-    
+
     # Test dropping duplicates on multiple columns
     result = flow._drop_duplicates(dataset, ["text", "label"])
     assert len(result) == 2
@@ -71,7 +71,7 @@ def test_generate_with_empty_dataset(flow, sample_dataset):
     # Mock a block that returns empty dataset
     mock_block = MagicMock()
     mock_block.generate.return_value = Dataset.from_dict({})
-    
+
     flow.chained_blocks = [
         {
             "block_type": mock_block,
@@ -95,7 +95,7 @@ def test_generate_with_drop_columns(flow, sample_dataset):
         {"text": ["new text"], "label": [1], "extra": ["extra"]}
     )
     mock_block_class.return_value = mock_block_instance
-    
+
     flow.chained_blocks = [
         {
             "block_type": mock_block_class,
@@ -121,14 +121,14 @@ def test_generate_with_multiple_blocks(flow, sample_dataset):
         {"text": ["processed text"], "label": [1]}
     )
     mock_block1_class.return_value = mock_block1_instance
-    
+
     mock_block2_class = MagicMock()
     mock_block2_instance = MagicMock()
     mock_block2_instance.generate.return_value = Dataset.from_dict(
         {"text": ["further processed"], "label": [1], "new_col": ["value"]}
     )
     mock_block2_class.return_value = mock_block2_instance
-    
+
     flow.chained_blocks = [
         {
             "block_type": mock_block1_class,
@@ -147,11 +147,11 @@ def test_generate_with_multiple_blocks(flow, sample_dataset):
     ]
 
     result = flow.generate(sample_dataset)
-    
+
     # Verify both blocks were called
     mock_block1_instance.generate.assert_called_once()
     mock_block2_instance.generate.assert_called_once()
-    
+
     # Verify final dataset structure
     assert "text" in result.column_names
     assert "label" in result.column_names

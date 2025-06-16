@@ -51,7 +51,9 @@ def test_duplicate_multiple_columns(sample_dataset):
     assert result["document"] == result["base_document"]
     assert result["other_col"] == result["duplicate_other_col"]
     # Check that the mapping is exact (no extra columns)
-    assert len(result.column_names) == len(sample_dataset.column_names) + len(block.columns_map)
+    assert len(result.column_names) == len(sample_dataset.column_names) + len(
+        block.columns_map
+    )
 
 
 def test_empty_columns_map(sample_dataset):

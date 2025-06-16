@@ -42,6 +42,7 @@ def temp_config_files():
         os.remove(path)
     os.rmdir(temp_dir)
 
+
 @pytest.fixture
 def sample_dataset():
     """Create a sample dataset for testing."""
@@ -180,7 +181,7 @@ def test_sample_populator_invalid_yaml(temp_config_files):
         block = SamplePopulatorBlock(
             block_name="test_populator",
             config_paths=[invalid_path],
-            column_name="route"
+            column_name="route",
         )
 
         # Create a dataset with a route that matches the invalid config
