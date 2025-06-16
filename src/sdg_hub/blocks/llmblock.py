@@ -355,7 +355,9 @@ class ConditionalLLMBlock(LLMBlock):
 
         return self.prompt_template.render(**sample).strip()
 
-    def _validate(self, prompt_template: Union[str, Template], input_dict: Dict[str, Any]) -> bool:
+    def _validate(
+        self, prompt_template: Union[str, Template], input_dict: Dict[str, Any]
+    ) -> bool:
         """Validate the input data for this block.
 
         Parameters

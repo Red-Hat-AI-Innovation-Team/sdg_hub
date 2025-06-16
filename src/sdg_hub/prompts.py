@@ -26,6 +26,7 @@ def meta_llama_chat_template():
 def microsoft_phi_chat_template():
     return """{% for message in messages %}{% if (message['role'] == 'system') %}{{'<|im_start|>system<|im_sep|>' + message['content'] + '<|im_end|>'}}{% elif (message['role'] == 'user') %}{{'<|im_start|>user<|im_sep|>' + message['content'] + '<|im_end|>'}}{% elif (message['role'] == 'assistant') %}{{'<|im_start|>assistant<|im_sep|>' + message['content'] + '<|im_end|>'}}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant<|im_sep|>' }}{% endif %}"""
 
+
 @PromptRegistry.register("nvidia/Llama-3_3-Nemotron-Super-49B-v1")
 def nemotron_chat_template():
     return """{{- bos_token }}

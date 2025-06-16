@@ -39,7 +39,7 @@ class Pipeline:
     def __init__(self, chained_blocks: List[Dict[str, Any]]) -> None:
         """
         Initialize the Pipeline class with a configuration dictionary.
-        
+
         DEPRECATED: This class is deprecated and will be removed in a future version.
         Use the Flow class directly instead.
         """
@@ -47,7 +47,7 @@ class Pipeline:
             "Pipeline class is deprecated and will be removed in a future version. "
             "Use Flow class directly instead of wrapping it with Pipeline.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         # pipeline config is the run configuration that consists of the pipeline steps
         self.chained_blocks = chained_blocks

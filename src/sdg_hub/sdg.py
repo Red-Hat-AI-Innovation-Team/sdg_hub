@@ -59,7 +59,9 @@ class SDG:
         self.batch_size = batch_size
         self.save_freq = save_freq
 
-    def _split_dataset(self, dataset: Dataset, batch_size: int) -> List[Tuple[int, int]]:
+    def _split_dataset(
+        self, dataset: Dataset, batch_size: int
+    ) -> List[Tuple[int, int]]:
         """Split the dataset into smaller batches.
 
         Parameters
@@ -86,10 +88,10 @@ class SDG:
 
     @staticmethod
     def _generate_data(
-        pipelines: List[Union[Pipeline, Flow]], 
-        input_split: Tuple[int, int], 
-        ds: Dataset, 
-        i: Optional[int] = None
+        pipelines: List[Union[Pipeline, Flow]],
+        input_split: Tuple[int, int],
+        ds: Dataset,
+        i: Optional[int] = None,
     ) -> Optional[Dataset]:
         """Generate data for a single split using the provided pipelines.
 
@@ -120,7 +122,9 @@ class SDG:
             traceback.print_exc()
             return None
 
-    def generate(self, dataset: Dataset, checkpoint_dir: Optional[str] = None) -> Dataset:
+    def generate(
+        self, dataset: Dataset, checkpoint_dir: Optional[str] = None
+    ) -> Dataset:
         """Generate synthetic data using the configured pipelines.
 
         Parameters
@@ -142,10 +146,10 @@ class SDG:
         """
         # Initialize checkpointer
         checkpointer = Checkpointer(checkpoint_dir, self.save_freq)
-        
+
         # Load existing checkpoints and determine missing data
         seed_data, pre_generated_data = checkpointer.load_existing_data(dataset)
-        
+
         # If all data has been generated, return the pre-generated data
         if seed_data.num_rows == 0 and pre_generated_data is not None:
             return pre_generated_data
@@ -157,7 +161,7 @@ class SDG:
             for pipeline in self.pipelines:
                 generated_dataset = pipeline.generate(seed_data)
             return generated_dataset
-        
+
         logger.info("Splitting the dataset into smaller batches")
         input_splits = self._split_dataset(seed_data, self.batch_size)
         logger.info(
@@ -182,7 +186,7 @@ class SDG:
                 if generated_data_split:
                     generated_data.append(generated_data_split)
                     logger.info(f"Finished future processing split {i} \n\n")
-                    
+
                     # Use checkpointer to handle intermediate saves
                     if checkpointer.should_save_checkpoint(i):
                         # Save only the new splits since the last checkpoint

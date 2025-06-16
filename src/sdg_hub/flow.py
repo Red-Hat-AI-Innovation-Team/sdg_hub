@@ -34,6 +34,7 @@ from .blocks import *  # needed to register blocks
 from .prompts import *  # needed to register prompts
 from .registry import BlockRegistry, PromptRegistry
 from .logger_config import setup_logger
+from .utils.datautils import assert_valid_file
 
 
 logger = setup_logger(__name__)
@@ -117,6 +118,7 @@ class Flow(ABC):
             Selected file path.
         """
         if os.path.isabs(filename):
+            assert_valid_file(filename)
             return filename
         for d in dirs:
             full_file_path = os.path.join(d, filename)
@@ -124,6 +126,7 @@ class Flow(ABC):
                 return full_file_path
         # If not found above then return the path unchanged i.e.
         # assume the path is relative to the current directory
+        assert_valid_file(filename)
         return filename
 
     def _drop_duplicates(self, dataset: Dataset, cols: List[str]) -> Dataset:
@@ -304,3 +307,24 @@ class Flow(ABC):
         # Store the chained blocks and return self
         self.chained_blocks = flow
         return self
+
+    def validate(self):
+        """Validate the flow configuration.
+
+        This method checks if all blocks in the flow are valid and can be executed.
+        It raises an exception if any block is invalid.
+
+        Raises
+        ------
+        ValueError
+            If any block in the flow is invalid.
+        """
+        if self.chained_blocks is None:
+            raise ValueError(
+                "Flow has not been initialized with blocks. Call get_flow_from_file() first."
+            )
+        for block_prop in self.chained_blocks:
+            block_type = block_prop["block_type"]
+            block_config = block_prop["block_config"]
+            block = block_type(**block_config)
+            block.validate()

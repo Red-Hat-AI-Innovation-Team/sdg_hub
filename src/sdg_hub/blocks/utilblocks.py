@@ -70,7 +70,7 @@ class FilterByValueBlock(Block):
         if operation.__module__ != "_operator":
             logger.error("Invalid operation: %s", operation)
             raise ValueError("Operation must be from operator module")
-            
+
         self.value = filter_value if isinstance(filter_value, list) else [filter_value]
         self.column_name = filter_column
         self.operation = operation

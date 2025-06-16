@@ -10,6 +10,7 @@ from sdg_hub.blocks import BlockRegistry
 import inspect
 import json
 
+
 def test_block_types():
     # Print the registry contents directly
     print("\nDirect Registry Contents (from sdg_hub.blocks):")
@@ -19,7 +20,7 @@ def test_block_types():
     print("\nRegistered blocks:")
     for name, block_class in registry.items():
         print(f"- {name}: {block_class.__name__}")
-    
+
     # Get block types from registry function
     print("\nBlock Types from Registry Function:")
     print("=" * 80)
@@ -30,7 +31,7 @@ def test_block_types():
         print("-" * 40)
         print(f"Name: {block_info['name']}")
         print("\nConfiguration Schema:")
-        print(json.dumps(block_info['config'], indent=2))
+        print(json.dumps(block_info["config"], indent=2))
         print("=" * 80)
 
     # Print the entire BLOCK_TYPES dict as pretty JSON
@@ -44,13 +45,13 @@ def test_block_types():
     print("\n=== Block Properties Consistency Check ===\n")
     all_ok = True
     for block_type, block_info in block_types.items():
-        class_name = block_info['name']
+        class_name = block_info["name"]
         block_class = registry[class_name]
         # Get __init__ parameters (excluding self and block_name)
         sig = inspect.signature(block_class.__init__)
-        param_names = [p for p in sig.parameters if p not in ('self', 'block_name')]
+        param_names = [p for p in sig.parameters if p not in ("self", "block_name")]
         # Get config keys (excluding block_name, always present)
-        config_keys = [k for k in block_info['config'].keys() if k != 'block_name']
+        config_keys = [k for k in block_info["config"].keys() if k != "block_name"]
         # Check for missing or extra keys
         missing_in_config = [p for p in param_names if p not in config_keys]
         extra_in_config = [k for k in config_keys if k not in param_names]
@@ -71,5 +72,6 @@ def test_block_types():
     else:
         print("Some blocks have mismatches between config and __init__ parameters.\n")
 
+
 if __name__ == "__main__":
-    test_block_types() 
+    test_block_types()

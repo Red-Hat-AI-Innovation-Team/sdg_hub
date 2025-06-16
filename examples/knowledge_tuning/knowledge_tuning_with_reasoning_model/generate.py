@@ -4,7 +4,7 @@ from openai import OpenAI
 import click
 
 # First Party
-from sdg_hub.flow import  Flow
+from sdg_hub.flow import Flow
 from sdg_hub.logger_config import setup_logger
 from sdg_hub.pipeline import Pipeline
 from sdg_hub.sdg import SDG
@@ -16,6 +16,7 @@ from typing import List
 from datasets import Dataset
 
 logger = setup_logger(__name__)
+
 
 ### Nemotron Chat Template with detailed thinking on
 @PromptRegistry.register("nvidia/Llama-3_3-Nemotron-Super-49B-v1")
@@ -38,21 +39,29 @@ def nemotron_chat_template():
 @BlockRegistry.register("PostProcessThinkingBlock")
 class PostProcessThinkingBlock(Block):
     def __init__(self, block_name: str, column_name: str) -> None:
-        super().__init__(block_name=block_name)  
+        super().__init__(block_name=block_name)
         self.column_name = column_name
-    
-    
+
     def generate(self, samples: Dataset):
         def post_process_thinking(x):
-            if '</think>' in x[self.column_name]:
-                x[self.column_name] = x[self.column_name].split('</think>')[-1].lstrip()
+            if "</think>" in x[self.column_name]:
+                x[self.column_name] = x[self.column_name].split("</think>")[-1].lstrip()
             return x
+
         samples = samples.map(post_process_thinking)
         return samples
 
+
 @BlockRegistry.register("RegexParserBlock")
 class RegexParserBlock(Block):
-    def __init__(self, block_name: str, column_name: str, parsing_pattern: str="", parser_cleanup_tags: List[str]=[], output_cols: List[str]=[]) -> None:
+    def __init__(
+        self,
+        block_name: str,
+        column_name: str,
+        parsing_pattern: str = "",
+        parser_cleanup_tags: List[str] = [],
+        output_cols: List[str] = [],
+    ) -> None:
         super().__init__(block_name=block_name)
         self.column_name = column_name
         self.parsing_pattern = parsing_pattern
@@ -60,22 +69,30 @@ class RegexParserBlock(Block):
         self.output_cols = output_cols
 
     def generate(self, samples: Dataset):
-        
         if self.parsing_pattern:
             new_data = []
             for sample in samples:
                 parsed_outputs = self._parse(sample[self.column_name])
-                
+
                 max_length = max(len(value) for value in parsed_outputs.values())
-                for values in zip(*(lst[:max_length] for lst in parsed_outputs.values())):
-                    new_data.append({**sample, **dict(zip(parsed_outputs.keys(), values))})
+                for values in zip(
+                    *(lst[:max_length] for lst in parsed_outputs.values())
+                ):
+                    new_data.append(
+                        {**sample, **dict(zip(parsed_outputs.keys(), values))}
+                    )
             samples = Dataset.from_list(new_data)
         if self.parser_cleanup_tags:
             for clean_tag in self.parser_cleanup_tags:
-               samples = samples.map(lambda x: {column_name: x[column_name].replace(clean_tag, "") for column_name in self.output_cols})
+                samples = samples.map(
+                    lambda x: {
+                        column_name: x[column_name].replace(clean_tag, "")
+                        for column_name in self.output_cols
+                    }
+                )
         return samples
 
-    def _parse(self, generated_string):      
+    def _parse(self, generated_string):
         pattern = re.compile(self.parsing_pattern, re.DOTALL)
         all_matches = pattern.findall(generated_string)
         matches = {column_name: [] for column_name in self.output_cols}
@@ -91,6 +108,7 @@ class RegexParserBlock(Block):
                 [match.strip() for match in all_matches] if all_matches else []
             )
         return matches
+
 
 @click.command()
 @click.option(
@@ -126,8 +144,12 @@ class RegexParserBlock(Block):
     help="Frequency to save checkpoints.",
 )
 @click.option("--debug", is_flag=True, help="Enable debug mode.")
-@click.option("--dataset_start_index", type=int, default=0, help="Start index of the dataset.")
-@click.option("--dataset_end_index", type=int, default=None, help="End index of the dataset.")
+@click.option(
+    "--dataset_start_index", type=int, default=0, help="Start index of the dataset."
+)
+@click.option(
+    "--dataset_end_index", type=int, default=None, help="End index of the dataset."
+)
 def main(
     ds_path,
     bs,
@@ -183,8 +205,10 @@ def main(
         save_freq=save_freq,
     )
     generated_data = sdg.generate(ds, checkpoint_dir=checkpoint_dir)
-    
-    save_path = save_path.replace(".jsonl", f"_{dataset_start_index}_{dataset_end_index}.jsonl")
+
+    save_path = save_path.replace(
+        ".jsonl", f"_{dataset_start_index}_{dataset_end_index}.jsonl"
+    )
     generated_data.to_json(save_path, orient="records", lines=True)
     logger.info(f"Data saved to {save_path}")
 

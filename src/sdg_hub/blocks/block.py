@@ -6,7 +6,7 @@ including functionality for template validation and configuration management.
 """
 
 # Standard
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections import ChainMap
 from typing import Any, Dict, Optional
 
@@ -28,9 +28,13 @@ class Block(ABC):
     This class provides common functionality for block validation and configuration loading.
     All specific block implementations should inherit from this class.
     """
-    
+
     def __init__(self, block_name: str) -> None:
         self.block_name = block_name
+
+    @abstractmethod
+    def validate(self) -> list[Exception] | None:
+        pass
 
     @staticmethod
     def _validate(prompt_template: Template, input_dict: Dict[str, Any]) -> bool:
