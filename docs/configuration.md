@@ -55,60 +55,6 @@ flow = Flow(llm_client, log_level="verbose")
 flow = Flow(llm_client, log_level="debug")
 ```
 
-### Output Examples
-
-#### Normal Mode
-Shows basic execution progress:
-
-```
-🔄 Running block 1/3: knowledge_generator
-🔄 Running block 2/3: qa_formatter
-🔄 Running block 3/3: quality_filter
-```
-
-#### Verbose Mode
-Adds rich formatted dataset information:
-
-```
-🔄 Running block 1/3: knowledge_generator
-
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃            Input Block 1/3: knowledge_generator            ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ Metric         │ Value                               │
-├────────────────┼─────────────────────────────────────┤
-│ Rows           │ 100                                 │
-│ Columns        │ document, title, context            │
-└────────────────┴─────────────────────────────────────┘
-
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃           Output Block 1/3: knowledge_generator            ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ Metric         │ Value                               │
-├────────────────┼─────────────────────────────────────┤
-│ Rows           │ 100                                 │
-│ Columns        │ document, title, context, question  │
-└────────────────┴─────────────────────────────────────┘
-```
-
-#### Debug Mode
-Includes verbose output plus dataset content:
-
-```
-🔄 Running block 1/3: knowledge_generator
-
-[Rich table output as above]
-
-Input dataset (truncated): Dataset({
-    features: ['document', 'title', 'context'],
-    num_rows: 100
-})
-
-Output dataset (truncated): Dataset({
-    features: ['document', 'title', 'context', 'question'],
-    num_rows: 100
-})
-```
 
 ## Environment Variables
 
@@ -118,19 +64,6 @@ Output dataset (truncated): Dataset({
 |----------|-------------|---------|---------|
 | `SDG_HUB_LOG_LEVEL` | Logging verbosity level | `normal` | `verbose` |
 
-### LLM Configuration
-
-When using `run_flow`, you can also configure LLM settings via environment variables (depending on your LLM provider):
-
-```bash
-# OpenAI
-export OPENAI_API_KEY=your_api_key
-export OPENAI_BASE_URL=https://api.openai.com/v1
-
-# Other providers may use different variables
-export ANTHROPIC_API_KEY=your_api_key
-export COHERE_API_KEY=your_api_key
-```
 
 ## Flow Runner Configuration
 
