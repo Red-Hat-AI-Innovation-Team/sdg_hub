@@ -252,6 +252,6 @@ def test_generate_verbose_logs_shows_rich_table(flow, sample_dataset):
 
 def test_log_level_from_env(monkeypatch, mock_llm_client):
     """Test log level is set from environment variable."""
-    monkeypatch.setenv("SDG_FLOW_LOG_LEVEL", "debug")
+    monkeypatch.setenv("SDG_HUB_LOG_LEVEL", "debug")
     flow = Flow(mock_llm_client)
     assert flow.log_level == "debug"

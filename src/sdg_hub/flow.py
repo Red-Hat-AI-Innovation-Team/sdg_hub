@@ -102,7 +102,7 @@ class Flow(ABC):
         self.num_samples_to_generate = num_samples_to_generate
 
         # Logging verbosity level
-        self.log_level = log_level or os.getenv("SDG_FLOW_LOG_LEVEL", "normal").lower()
+        self.log_level = log_level or os.getenv("SDG_HUB_LOG_LEVEL", "normal").lower()
         self.console = Console() if self.log_level in ["verbose", "debug"] else None
 
     def _log_block_info(self, index: int, total: int, name: str, ds: Dataset, stage: str) -> None:
