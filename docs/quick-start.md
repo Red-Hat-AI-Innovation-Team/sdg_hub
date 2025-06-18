@@ -95,8 +95,20 @@ The generated Q&A pairs will be saved to `generated_qa.json`:
 ]
 ```
 
+## Monitoring Your Flows
+
+SDG Hub provides configurable logging to help you monitor execution:
+
+```bash
+# Enable verbose logging to see dataset metrics
+SDG_HUB_LOG_LEVEL=verbose python your_script.py
+```
+
+This will show rich tables with dataset information as blocks execute. See the [Configuration Guide](configuration.md#logging-configuration) for all logging options.
+
 ## Next Steps
 
+- Configure [Logging and Environment Variables](configuration.md) for better monitoring
 - Explore the [Architecture](architecture.md) to understand how SDG Hub works
 - Learn about [Blocks](blocks.md) to create custom processing units
 - Check out [Examples](examples.md) for more complex use cases
