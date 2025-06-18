@@ -75,7 +75,7 @@ The `run_flow` function accepts various configuration parameters:
 run_flow(
     ds_path="input.json",           # Input dataset path
     save_path="output.json",        # Output save path  
-    endpoint="https://api.openai.com/v1",  # LLM endpoint
+    endpoint="http://localhost:8000/v1",  # LLM endpoint
     flow_path="flows/my_flow.yaml", # Flow configuration
 )
 ```
