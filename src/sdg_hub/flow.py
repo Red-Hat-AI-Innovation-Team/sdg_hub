@@ -36,6 +36,7 @@ from .blocks import *  # needed to register blocks
 from .logger_config import setup_logger
 from .prompts import *  # needed to register prompts
 from .registry import BlockRegistry, PromptRegistry
+from .utils.config_validation import validate_prompt_config_schema
 from .utils.validation_result import ValidationResult
 
 logger = setup_logger(__name__)
@@ -67,7 +68,7 @@ class Flow(ABC):
         self,
         llm_client: Any,
         num_samples_to_generate: Optional[int] = None,
-        log_level: Optional[str] = None
+        log_level: Optional[str] = None,
     ) -> None:
         """
         Initialize the Flow class.
@@ -105,9 +106,13 @@ class Flow(ABC):
         self.log_level = log_level or os.getenv("SDG_HUB_LOG_LEVEL", "normal").lower()
         self.console = Console() if self.log_level in ["verbose", "debug"] else None
 
-    def _log_block_info(self, index: int, total: int, name: str, ds: Dataset, stage: str) -> None:
+    def _log_block_info(
+        self, index: int, total: int, name: str, ds: Dataset, stage: str
+    ) -> None:
         if self.log_level in ["verbose", "debug"] and self.console:
-            table = Table(title=f"{stage} Block {index+1}/{total}: {name}", show_header=True)
+            table = Table(
+                title=f"{stage} Block {index + 1}/{total}: {name}", show_header=True
+            )
             table.add_column("Metric", style="cyan", no_wrap=True)
             table.add_column("Value", style="magenta")
             table.add_row("Rows", str(len(ds)))
@@ -202,7 +207,9 @@ class Flow(ABC):
 
             # Logging: always show basic progress unless in quiet mode
             if self.log_level in ["normal", "verbose", "debug"]:
-                logger.info(f"🔄 Running block {i+1}/{len(self.chained_blocks)}: {name}")
+                logger.info(
+                    f"🔄 Running block {i + 1}/{len(self.chained_blocks)}: {name}"
+                )
 
             # Log dataset shape before block (verbose/debug)
             self._log_block_info(i, len(self.chained_blocks), name, dataset, "Input")
@@ -234,7 +241,7 @@ class Flow(ABC):
 
         return dataset
 
-    def validate_config_files(self) -> "ValidationResult":        
+    def validate_config_files(self) -> "ValidationResult":
         """
         Validate all configuration file paths referenced in the flow blocks.
 
@@ -263,7 +270,12 @@ class Flow(ABC):
             else:
                 try:
                     with open(path, "r", encoding="utf-8") as f:
-                        yaml.safe_load(f)
+                        config_data = yaml.safe_load(f)
+                        _, validation_errors = validate_prompt_config_schema(config_data, path)
+
+                        if validation_errors:
+                            errors.extend(validation_errors)
+
                 except PermissionError:
                     errors.append(f"[{context}] File is not readable: {path}")
                 except yaml.YAMLError as e:
@@ -388,6 +400,6 @@ class Flow(ABC):
         # Validate config files
         result = self.validate_config_files()
         if not result.valid:
-            raise ValueError("Invalid config files:\n"  "\n".join(result.errors))
+            raise ValueError("Invalid config files:\n\n".join(result.errors))
 
         return self
