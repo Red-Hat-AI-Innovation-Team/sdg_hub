@@ -1,5 +1,8 @@
+from typing import List
+
+
 class ValidationResult:
-    def __init__(self, valid: bool, errors: list[str]):
+    def __init__(self, valid: bool, errors: List[str]):
         self.valid = valid
         self.errors = errors
 

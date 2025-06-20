@@ -98,6 +98,8 @@ def test_run_flow_success(
         checkpoint_dir=mock_checkpoint_dir,
         save_freq=2,
         debug=False,
+        dataset_start_index=0,
+        dataset_end_index=None,
     )
 
     # Verify mocks were called correctly
@@ -154,6 +156,8 @@ def test_run_flow_debug_mode(
         checkpoint_dir=mock_checkpoint_dir,
         save_freq=2,
         debug=True,
+        dataset_start_index=0,
+        dataset_end_index=None,
     )
 
     # Verify debug mode behavior
@@ -177,6 +181,8 @@ def test_run_flow_missing_flow_file(
             flow_path="nonexistent.json",
             checkpoint_dir=mock_checkpoint_dir,
             save_freq=2,
+            dataset_start_index=0,
+            dataset_end_index=None,
         )
 
 
@@ -249,3 +255,201 @@ def test_cli_main_invalid_dataset_path():
     )
     assert result.exit_code != 0
     assert "Invalid value" in result.output
+
+
+@patch("sdg_hub.flow_runner.load_dataset")
+@patch("sdg_hub.flow_runner.OpenAI")
+@patch("sdg_hub.flow_runner.Flow")
+@patch("sdg_hub.flow_runner.SDG")
+def test_run_flow_with_dataset_indices(
+    mock_sdg,
+    mock_flow,
+    mock_openai,
+    mock_load_dataset,
+    mock_dataset,
+    mock_flow_config,
+    mock_output_path,
+    mock_checkpoint_dir,
+    mock_input_dataset,
+):
+    """Test run_flow with dataset start and end indices."""
+    # Setup mocks
+    mock_load_dataset.return_value = mock_dataset
+    mock_openai_instance = MagicMock()
+    mock_openai.return_value = mock_openai_instance
+    mock_flow_instance = MagicMock()
+    mock_flow.return_value = mock_flow_instance
+    mock_flow_instance.get_flow_from_file.return_value = {"test": "config"}
+    mock_sdg_instance = MagicMock()
+    mock_sdg.return_value = mock_sdg_instance
+    mock_sdg_instance.generate.return_value = mock_dataset
+
+    # Mock the select method
+    mock_dataset.select = MagicMock(return_value=mock_dataset)
+
+    # Run the function with dataset indices
+    run_flow(
+        ds_path=mock_input_dataset,
+        batch_size=8,
+        num_workers=4,
+        save_path=mock_output_path,
+        endpoint="http://test.endpoint",
+        flow_path=mock_flow_config,
+        checkpoint_dir=mock_checkpoint_dir,
+        save_freq=2,
+        debug=False,
+        dataset_start_index=10,
+        dataset_end_index=20,
+    )
+
+    # Verify dataset slicing was called
+    mock_dataset.select.assert_called_once_with(range(10, 20))
+
+
+@patch("sdg_hub.flow_runner.load_dataset")
+@patch("sdg_hub.flow_runner.OpenAI")
+@patch("sdg_hub.flow_runner.Flow")
+@patch("sdg_hub.flow_runner.SDG")
+def test_run_flow_with_modified_save_path(
+    mock_sdg,
+    mock_flow,
+    mock_openai,
+    mock_load_dataset,
+    mock_dataset,
+    mock_flow_config,
+    mock_checkpoint_dir,
+    mock_input_dataset,
+    tmp_path,
+):
+    """Test run_flow modifies save path when dataset indices are provided."""
+    # Setup mocks
+    mock_load_dataset.return_value = mock_dataset
+    mock_openai_instance = MagicMock()
+    mock_openai.return_value = mock_openai_instance
+    mock_flow_instance = MagicMock()
+    mock_flow.return_value = mock_flow_instance
+    mock_flow_instance.get_flow_from_file.return_value = {"test": "config"}
+    mock_sdg_instance = MagicMock()
+    mock_sdg.return_value = mock_sdg_instance
+    mock_sdg_instance.generate.return_value = mock_dataset
+
+    # Mock the select method
+    mock_dataset.select = MagicMock(return_value=mock_dataset)
+    # Mock to_json to capture the save path
+    mock_dataset.to_json = MagicMock()
+
+    save_path = str(tmp_path / "output.jsonl")
+
+    # Run the function with dataset indices
+    run_flow(
+        ds_path=mock_input_dataset,
+        batch_size=8,
+        num_workers=4,
+        save_path=save_path,
+        endpoint="http://test.endpoint",
+        flow_path=mock_flow_config,
+        checkpoint_dir=mock_checkpoint_dir,
+        save_freq=2,
+        debug=False,
+        dataset_start_index=5,
+        dataset_end_index=15,
+    )
+
+    # Verify the save path was modified
+    expected_save_path = str(tmp_path / "output_5_15.jsonl")
+    mock_dataset.to_json.assert_called_once_with(
+        expected_save_path, orient="records", lines=True
+    )
+
+
+@patch("sdg_hub.flow_runner.load_dataset")
+@patch("sdg_hub.flow_runner.OpenAI")
+@patch("sdg_hub.flow_runner.Flow")
+@patch("sdg_hub.flow_runner.SDG")
+def test_run_flow_without_dataset_indices(
+    mock_sdg,
+    mock_flow,
+    mock_openai,
+    mock_load_dataset,
+    mock_dataset,
+    mock_flow_config,
+    mock_output_path,
+    mock_checkpoint_dir,
+    mock_input_dataset,
+):
+    """Test run_flow without dataset indices doesn't slice dataset."""
+    # Setup mocks
+    mock_load_dataset.return_value = mock_dataset
+    mock_openai_instance = MagicMock()
+    mock_openai.return_value = mock_openai_instance
+    mock_flow_instance = MagicMock()
+    mock_flow.return_value = mock_flow_instance
+    mock_flow_instance.get_flow_from_file.return_value = {"test": "config"}
+    mock_sdg_instance = MagicMock()
+    mock_sdg.return_value = mock_sdg_instance
+    mock_sdg_instance.generate.return_value = mock_dataset
+
+    # Mock the select method
+    mock_dataset.select = MagicMock(return_value=mock_dataset)
+
+    # Run the function without dataset indices (using defaults)
+    run_flow(
+        ds_path=mock_input_dataset,
+        batch_size=8,
+        num_workers=4,
+        save_path=mock_output_path,
+        endpoint="http://test.endpoint",
+        flow_path=mock_flow_config,
+        checkpoint_dir=mock_checkpoint_dir,
+        save_freq=2,
+        debug=False,
+        dataset_start_index=0,
+        dataset_end_index=None,
+    )
+
+    # Verify dataset slicing was NOT called
+    mock_dataset.select.assert_not_called()
+
+
+@patch("sdg_hub.flow_runner.run_flow")
+def test_cli_main_with_dataset_indices(
+    mock_run_flow,
+    mock_flow_config,
+    mock_output_path,
+    mock_checkpoint_dir,
+    mock_input_dataset,
+):
+    """Test CLI main function with dataset indices."""
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        [
+            "--ds_path",
+            mock_input_dataset,
+            "--bs",
+            "8",
+            "--num_workers",
+            "4",
+            "--save_path",
+            mock_output_path,
+            "--endpoint",
+            "http://test.endpoint",
+            "--flow",
+            mock_flow_config,
+            "--checkpoint_dir",
+            mock_checkpoint_dir,
+            "--save_freq",
+            "2",
+            "--dataset_start_index",
+            "10",
+            "--dataset_end_index",
+            "50",
+        ],
+    )
+    assert result.exit_code == 0
+    
+    # Verify run_flow was called with the correct parameters
+    mock_run_flow.assert_called_once()
+    call_args = mock_run_flow.call_args
+    assert call_args.kwargs["dataset_start_index"] == 10
+    assert call_args.kwargs["dataset_end_index"] == 50

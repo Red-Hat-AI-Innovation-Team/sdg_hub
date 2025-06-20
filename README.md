@@ -11,15 +11,15 @@
       A modular, scalable, and efficient solution for creating synthetic data generation flows in a "low-code" manner.
     </h3>
     <h3 align="center">
-      Important Links:
-      <a href="docs/">Documentation</a>, 
-      <a href="examples/">Examples</a>,
-      <a href="https://www.youtube.com/watch?v=aGKCViWjAmA">Video Tutorial</a> &
-      <a href="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub">GitHub</a>.
+      <a href="http://ai-innovation.team/sdg_hub">Documentation</a> |
+      <a href="examples/">Examples</a> |
+      <a href="https://www.youtube.com/watch?v=aGKCViWjAmA">Video Tutorial</a>
     </h3>
 </html>
 
 SDG Hub is designed to simplify data creation for LLMs, allowing users to chain computational units and build powerful flows for generating data and processing tasks. Define complex workflows using nothing but YAML configuration files.
+
+**📖 Full documentation available at: [https://ai-innovation.team/sdg_hub](https://ai-innovation.team/sdg_hub)**
 
 ---
 
@@ -50,25 +50,39 @@ pip install sdg-hub
 pip install git+https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
 ```
 
-## 📚 Documentation
-
-Explore the full documentation for detailed guides:
-
-* **[Architecture Guide](docs/architecture.md)** - Core concepts and design principles
-* **[Available Blocks](docs/blocks.md)** - Complete reference of all blocks
-* **[Prompt Configuration](docs/prompts.md)** - How to configure LLM prompts
-
 ## 🏁 Quick Start
 
-### Generate with an Existing Flow
+### Prerequisites
+
+Before getting started, make sure you have:
+- Python 3.8 or higher
+- LLM Inference Endpoint exposed through OpenAI API
+
+### Simple Example
+
+Here's the simplest way to get started:
+
+```python
+from sdg_hub.flow_runner import run_flow
+
+# Run a basic knowledge generation flow
+run_flow(
+    ds_path="my_data.jsonl",
+    save_path="output.jsonl", 
+    endpoint="http://0.0.0.0:8000/v1",
+    flow_path="flows/generation/knowledge/synth_knowledge.yaml"
+)
+```
+
+### Advanced Configuration
 You can invoke any built-in flow using run_flow:
 ```python
 from sdg_hub.flow_runner import run_flow
 
 run_flow(
-    ds_path="path/to/dataset.json",
-    save_path="path/to/output.json",
-    endpoint="https://api.openai.com/v1",
+    ds_path="path/to/dataset.jsonl",
+    save_path="path/to/output.jsonl",
+    endpoint="http://0.0.0.0:8000/v1",
     flow_path="path/to/flow.yaml",
     checkpoint_dir="path/to/checkpoints",
     batch_size=8,
@@ -83,18 +97,18 @@ You can start with any of these YAML flows out of the box:
 
 #### 🔎 **Knowledge Flows**
 
-| Flow Name                                            | Description                                                                 |
-| ---------------------------------------------------- | --------------------------------------------------------------------------- |
-| `flows/generation/knowledge/synth_knowledge.yaml`    | Produces document-grounded questions and answers for factual memorization   |
-| `flows/generation/knowledge/synth_knowledge1.5.yaml` | Improved version that builds intermediate representations for better recall |
+| Flow | Description |
+|------|-------------|
+| `synth_knowledge.yaml` | Produces document-grounded questions and answers for factual memorization |
+| `synth_knowledge1.5.yaml` | Improved version that builds intermediate representations for better recall |
 
 #### 🧠 **Skills Flows**
 
-| Flow Name                                             | Description                                                                                              |
-| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `flows/generation/skills/synth_skills.yaml`           | Freeform skills QA generation (eg: "Create a new github issue to add type hints")                        |
-| `flows/generation/skills/synth_grounded_skills.yaml`  | Domain-specific skill generation (eg: "From the given conversation create a table for feature requests") |
-| `flows/generation/skills/improve_responses.yaml`      | Uses planning and critique-based refinement to improve generated answers                                 |
+| Flow | Description |
+|------|-------------|
+| `synth_skills.yaml` | Freeform skills QA generation (eg: "Create a new github issue to add type hints") |
+| `synth_grounded_skills.yaml` | Domain-specific skill generation (eg: "From the given conversation create a table for feature requests") |
+| `improve_responses.yaml` | Uses planning and critique-based refinement to improve generated answers |
 
 All these can be found here: [flows](src/sdg_hub/flows)
 

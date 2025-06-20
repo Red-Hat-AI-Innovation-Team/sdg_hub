@@ -20,25 +20,25 @@ Note:
 # Standard
 from abc import ABC
 from importlib import resources
-from typing import Optional, List, Dict, Any, Callable
+from typing import Any, Callable, Dict, List, Optional
 import operator
 import os
 
 # Third Party
-import yaml
 from datasets import Dataset
 from datasets.data_files import EmptyDatasetError
+from jinja2 import Environment, meta
+from rich.console import Console
+from rich.table import Table
+import yaml
 
 # Local
 from .blocks import *  # needed to register blocks
+from .logger_config import setup_logger
 from .prompts import *  # needed to register prompts
 from .registry import BlockRegistry, PromptRegistry
-from .logger_config import setup_logger
-
+from .utils.config_validation import validate_prompt_config_schema
 from .utils.validation_result import ValidationResult
-
-from jinja2 import Environment, meta
-
 
 logger = setup_logger(__name__)
 
@@ -70,6 +70,7 @@ class Flow(ABC):
         self,
         llm_client: Any,
         num_samples_to_generate: Optional[int] = None,
+        log_level: Optional[str] = None,
     ) -> None:
         """
         Initialize the Flow class.
@@ -80,6 +81,8 @@ class Flow(ABC):
             The LLM client to use for generation.
         num_samples_to_generate : Optional[int], optional
             Number of samples to generate, by default None
+        log_level : Optional[str], optional
+            Logging verbosity level, by default None
 
         Attributes
         ----------
@@ -100,6 +103,23 @@ class Flow(ABC):
         self.registered_blocks = BlockRegistry.get_registry()
         self.chained_blocks = None  # Will be set by get_flow_from_file
         self.num_samples_to_generate = num_samples_to_generate
+
+        # Logging verbosity level
+        self.log_level = log_level or os.getenv("SDG_HUB_LOG_LEVEL", "normal").lower()
+        self.console = Console() if self.log_level in ["verbose", "debug"] else None
+
+    def _log_block_info(
+        self, index: int, total: int, name: str, ds: Dataset, stage: str
+    ) -> None:
+        if self.log_level in ["verbose", "debug"] and self.console:
+            table = Table(
+                title=f"{stage} Block {index + 1}/{total}: {name}", show_header=True
+            )
+            table.add_column("Metric", style="cyan", no_wrap=True)
+            table.add_column("Value", style="magenta")
+            table.add_row("Rows", str(len(ds)))
+            table.add_row("Columns", ", ".join(ds.column_names))
+            self.console.print(table)
 
     def _getFilePath(self, dirs: List[str], filename: str) -> str:
         """Find a named configuration file.
@@ -177,7 +197,7 @@ class Flow(ABC):
                 "Or pass a list of blocks to the Flow constructor."
             )
 
-        for block_prop in self.chained_blocks:
+        for i, block_prop in enumerate(self.chained_blocks):
             block_type = block_prop["block_type"]
             block_config = block_prop["block_config"]
             drop_columns = block_prop.get("drop_columns", [])
@@ -185,9 +205,19 @@ class Flow(ABC):
             drop_duplicates_cols = block_prop.get("drop_duplicates", False)
             block = block_type(**block_config)
 
-            logger.debug("------------------------------------\n")
-            logger.debug("Running block: %s", block_config["block_name"])
-            logger.debug("Input dataset: %s", dataset)
+            name = block_config.get("block_name", f"block_{i}")
+
+            # Logging: always show basic progress unless in quiet mode
+            if self.log_level in ["normal", "verbose", "debug"]:
+                logger.info(
+                    f"🔄 Running block {i + 1}/{len(self.chained_blocks)}: {name}"
+                )
+
+            # Log dataset shape before block (verbose/debug)
+            self._log_block_info(i, len(self.chained_blocks), name, dataset, "Input")
+
+            if self.log_level == "debug":
+                logger.debug(f"Input dataset (truncated): {dataset}")
 
             dataset = block.generate(dataset, **gen_kwargs)
 
@@ -205,10 +235,70 @@ class Flow(ABC):
             if drop_duplicates_cols:
                 dataset = self._drop_duplicates(dataset, cols=drop_duplicates_cols)
 
-            logger.debug("Output dataset: %s", dataset)
-            logger.debug("------------------------------------\n\n")
+            # Log dataset shape after block (verbose/debug)
+            self._log_block_info(i, len(self.chained_blocks), name, dataset, "Output")
+
+            if self.log_level == "debug":
+                logger.debug(f"Output dataset (truncated): {dataset}")
 
         return dataset
+
+    def validate_config_files(self) -> "ValidationResult":
+        """
+        Validate all configuration file paths referenced in the flow blocks.
+
+        This method checks that all config files specified via `config_path` or `config_paths`
+        in each block:
+            - Exist on the filesystem
+            - Are readable by the current process
+            - Are valid YAML files (optional format check)
+
+        Returns
+        -------
+        ValidationResult
+            An object indicating whether all config files passed validation, along with a list
+            of error messages for any missing, unreadable, or invalid YAML files.
+
+        Notes
+        -----
+        This method is automatically called at the end of `get_flow_from_file()` to ensure
+        early detection of misconfigured blocks.
+        """
+        errors = []
+
+        def check_file(path: str, context: str):
+            if not os.path.isfile(path):
+                errors.append(f"[{context}] File does not exist: {path}")
+            else:
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        config_data = yaml.safe_load(f)
+                        _, validation_errors = validate_prompt_config_schema(config_data, path)
+
+                        if validation_errors:
+                            errors.extend(validation_errors)
+
+                except PermissionError:
+                    errors.append(f"[{context}] File is not readable: {path}")
+                except yaml.YAMLError as e:
+                    errors.append(f"[{context}] YAML load failed: {path} ({e})")
+
+        for i, block in enumerate(self.chained_blocks or []):
+            block_name = block["block_config"].get("block_name", f"block_{i}")
+
+            config_path = block["block_config"].get("config_path")
+            if config_path:
+                check_file(config_path, f"{block_name}.config_path")
+
+            config_paths = block["block_config"].get("config_paths")
+            if isinstance(config_paths, list):
+                for idx, path in enumerate(config_paths):
+                    check_file(path, f"{block_name}.config_paths[{idx}]")
+            elif isinstance(config_paths, dict):
+                for key, path in config_paths.items():
+                    check_file(path, f"{block_name}.config_paths['{key}']")
+
+        return ValidationResult(valid=(len(errors) == 0), errors=errors)
 
     def get_flow_from_file(self, yaml_path: str) -> "Flow":
         """Load and initialize flow configuration from a YAML file.
@@ -308,6 +398,12 @@ class Flow(ABC):
 
         # Store the chained blocks and return self
         self.chained_blocks = flow
+
+        # Validate config files
+        result = self.validate_config_files()
+        if not result.valid:
+            raise ValueError("Invalid config files:\n\n".join(result.errors))
+
         return self
 
     def validate_flow(self, dataset: Dataset) -> "ValidationResult":

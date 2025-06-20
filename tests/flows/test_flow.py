@@ -11,6 +11,9 @@ from datasets.data_files import EmptyDatasetError
 # First Party
 from sdg_hub.flow import Flow
 
+from io import StringIO
+from rich.console import Console
+
 
 @pytest.fixture
 def mock_llm_client():
@@ -219,3 +222,36 @@ def test_get_flow_from_file_with_num_samples(mock_llm_client):
     ):
         result = flow.get_flow_from_file("test.yaml")
         assert result.chained_blocks[0]["num_samples"] == 100
+
+def test_generate_verbose_logs_shows_rich_table(flow, sample_dataset):
+    """Test that verbose log level produces rich table output."""
+    flow.log_level = "verbose"
+
+    # Override the console with a custom StringIO to capture output
+    console_output = StringIO()
+    flow.console = Console(file=console_output, force_terminal=False, width=100)
+
+    mock_block = MagicMock()
+    mock_block.generate.return_value = sample_dataset
+    flow.chained_blocks = [
+        {
+            "block_type": lambda **kwargs: mock_block,
+            "block_config": {"block_name": "test_block"},
+            "drop_columns": [],
+            "gen_kwargs": {},
+            "drop_duplicates": False,
+        }
+    ]
+
+    flow.generate(sample_dataset)
+
+    out = console_output.getvalue()
+    assert "Rows" in out
+    assert "Columns" in out
+    assert "test_block" in out
+
+def test_log_level_from_env(monkeypatch, mock_llm_client):
+    """Test log level is set from environment variable."""
+    monkeypatch.setenv("SDG_HUB_LOG_LEVEL", "debug")
+    flow = Flow(mock_llm_client)
+    assert flow.log_level == "debug"
