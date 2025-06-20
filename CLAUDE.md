@@ -8,6 +8,11 @@ SDG Hub is a modular synthetic data generation toolkit for LLMs. The framework i
 
 ## Development Commands
 
+### Code Style
+- Use numpy style docstrings 
+- All functions and methods must include python type hints 
+- Write ruff-compliant code
+
 ### Testing
 - Run all tests: `pytest tests/`
 - Run specific test: `pytest tests/test_filename.py`
@@ -27,6 +32,7 @@ SDG Hub is a modular synthetic data generation toolkit for LLMs. The framework i
 
 ### Git Workflow
 - **IMPORTANT**: Always create a feature branch and never push directly to main
+- **Use git worktrees for local development**: `git worktree add ../feature-branch-name feature-branch-name`
 - Create branch: `git checkout -b feature-branch-name`
 - Push to branch: `git push origin feature-branch-name`
 
@@ -88,3 +94,7 @@ When creating new blocks:
 - Use pytest fixtures for common test setup
 - Test both positive and negative cases
 - Include edge cases and error conditions
+
+## Additional Tips
+- Use `rg` in favor of `grep` whenever it's available
+- Use `uv` for Python environment management: always start with `uv sync --extra dev` to init the env and run stuff with `uv run`
