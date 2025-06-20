@@ -18,7 +18,9 @@ class TestFlow(unittest.TestCase):
 
     def test_config_relative_to_flow(self):
         flow = self.flow.get_flow_from_file("tests/flows/testdata/test_flow_1.yaml")
-        block = flow.chained_blocks[0]["block_type"](**flow.chained_blocks[0]["block_config"])
+        block = flow.chained_blocks[0]["block_type"](
+            **flow.chained_blocks[0]["block_config"]
+        )
 
         self.assertEqual(block.block_config["introduction"], "intro")
 
@@ -32,8 +34,18 @@ class TestFlow(unittest.TestCase):
         )
         with patch("yaml.safe_load", new_callable=MagicMock) as mock_safe_load:
             mock_safe_load.return_value = y
-            flow = self.flow.get_flow_from_file("tests/flows/testdata/test_flow_1.yaml")
-        block = flow.chained_blocks[0]["block_type"](**flow.chained_blocks[0]["block_config"])
+            # Mock the validation to avoid conflicts with yaml.safe_load mock
+            with patch.object(self.flow, "validate_config_files") as mock_validate:
+                # First Party
+                from sdg_hub.flow import ValidationResult
+
+                mock_validate.return_value = ValidationResult(valid=True, errors=[])
+                flow = self.flow.get_flow_from_file(
+                    "tests/flows/testdata/test_flow_1.yaml"
+                )
+        block = flow.chained_blocks[0]["block_type"](
+            **flow.chained_blocks[0]["block_config"]
+        )
 
         self.assertEqual(
             block.block_config["introduction"],
@@ -48,10 +60,21 @@ class TestFlow(unittest.TestCase):
         y[0]["block_config"]["config_path"] = os.path.abspath(
             "src/sdg_hub/configs/skills/simple_generate_qa_freeform.yaml"
         )
+
         with patch("yaml.safe_load", new_callable=MagicMock) as mock_safe_load:
             mock_safe_load.return_value = y
-            flow = self.flow.get_flow_from_file("tests/flows/testdata/test_flow_1.yaml")
-        block = flow.chained_blocks[0]["block_type"](**flow.chained_blocks[0]["block_config"])
+            # Mock the validation to avoid conflicts with yaml.safe_load mock
+            with patch.object(self.flow, "validate_config_files") as mock_validate:
+                # First Party
+                from sdg_hub.flow import ValidationResult
+
+                mock_validate.return_value = ValidationResult(valid=True, errors=[])
+                flow = self.flow.get_flow_from_file(
+                    "tests/flows/testdata/test_flow_1.yaml"
+                )
+        block = flow.chained_blocks[0]["block_type"](
+            **flow.chained_blocks[0]["block_config"]
+        )
 
         self.assertEqual(
             block.block_config["introduction"],
@@ -69,8 +92,18 @@ class TestFlow(unittest.TestCase):
 
         with patch("yaml.safe_load", new_callable=MagicMock) as mock_safe_load:
             mock_safe_load.return_value = y
-            flow = self.flow.get_flow_from_file("tests/flows/testdata/test_flow_2.yaml")
-        block = flow.chained_blocks[0]["block_type"](**flow.chained_blocks[0]["block_config"])
+            # Mock the validation to avoid conflicts with yaml.safe_load mock
+            with patch.object(self.flow, "validate_config_files") as mock_validate:
+                # First Party
+                from sdg_hub.flow import ValidationResult
+
+                mock_validate.return_value = ValidationResult(valid=True, errors=[])
+                flow = self.flow.get_flow_from_file(
+                    "tests/flows/testdata/test_flow_2.yaml"
+                )
+        block = flow.chained_blocks[0]["block_type"](
+            **flow.chained_blocks[0]["block_config"]
+        )
 
         self.assertEqual(block.block_config["introduction"], "intro")
         self.assertEqual(len(block.prompt_template), 3)
