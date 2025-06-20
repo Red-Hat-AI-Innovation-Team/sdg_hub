@@ -27,6 +27,8 @@ def run_flow(
     num_workers: int = 32,
     save_freq: int = 2,
     debug: bool = False,
+    dataset_start_index: int = 0,
+    dataset_end_index: int = None,
 ) -> None:
     """Process the dataset using the specified configuration.
 
@@ -62,7 +64,9 @@ def run_flow(
     """
     logger.info(f"Generation configuration: {locals()}\n\n")
     ds = load_dataset("json", data_files=ds_path, split="train")
-
+    if dataset_start_index is not None and dataset_end_index is not None:
+        ds = ds.select(range(dataset_start_index, dataset_end_index))
+        logger.info(f"Dataset sliced from {dataset_start_index} to {dataset_end_index}")
     if debug:
         ds = ds.shuffle(seed=42).select(range(30))
         logger.info("Debug mode enabled. Using a subset of the dataset.")
@@ -87,6 +91,8 @@ def run_flow(
     )
 
     generated_data = sdg.generate(ds, checkpoint_dir=checkpoint_dir)
+    if dataset_end_index is not None and dataset_start_index is not None:
+        save_path = save_path.replace(".jsonl", f"_{dataset_start_index}_{dataset_end_index}.jsonl")
     generated_data.to_json(save_path, orient="records", lines=True)
     logger.info(f"Data saved to {save_path}")
 
@@ -148,6 +154,8 @@ def run_flow(
     is_flag=True,
     help="Enable debug mode with a smaller dataset subset.",
 )
+@click.option("--dataset_start_index", type=int, default=0, help="Start index of the dataset.")
+@click.option("--dataset_end_index", type=int, default=None, help="End index of the dataset.")
 def main(
     ds_path: str,
     bs: int,
@@ -158,6 +166,8 @@ def main(
     checkpoint_dir: str,
     save_freq: int,
     debug: bool,
+    dataset_start_index: int,
+    dataset_end_index: int,
 ) -> None:
     """CLI entry point for running data generation flows.
 
@@ -196,6 +206,8 @@ def main(
         checkpoint_dir=checkpoint_dir,
         save_freq=save_freq,
         debug=debug,
+        dataset_start_index=dataset_start_index,
+        dataset_end_index=dataset_end_index,
     )
 
 

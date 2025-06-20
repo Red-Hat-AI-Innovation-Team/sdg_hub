@@ -11,6 +11,7 @@ examples: ""
 
 generation: |
   Document:
+  {{document_outline}}
   {{document}}
 
 start_tags: [""]

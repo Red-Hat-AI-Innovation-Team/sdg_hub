@@ -20,23 +20,23 @@ Note:
 # Standard
 from abc import ABC
 from importlib import resources
-from typing import Optional, List, Dict, Any, Callable
+from typing import Any, Callable, Dict, List, Optional
 import operator
 import os
 
 # Third Party
-import yaml
 from datasets import Dataset
 from datasets.data_files import EmptyDatasetError
+from rich.console import Console
+from rich.table import Table
+import yaml
 
 # Local
 from .blocks import *  # needed to register blocks
+from .logger_config import setup_logger
 from .prompts import *  # needed to register prompts
 from .registry import BlockRegistry, PromptRegistry
-from .logger_config import setup_logger
-
 from .utils.validation_result import ValidationResult
-
 
 logger = setup_logger(__name__)
 
@@ -67,6 +67,7 @@ class Flow(ABC):
         self,
         llm_client: Any,
         num_samples_to_generate: Optional[int] = None,
+        log_level: Optional[str] = None
     ) -> None:
         """
         Initialize the Flow class.
@@ -77,6 +78,8 @@ class Flow(ABC):
             The LLM client to use for generation.
         num_samples_to_generate : Optional[int], optional
             Number of samples to generate, by default None
+        log_level : Optional[str], optional
+            Logging verbosity level, by default None
 
         Attributes
         ----------
@@ -97,6 +100,19 @@ class Flow(ABC):
         self.registered_blocks = BlockRegistry.get_registry()
         self.chained_blocks = None  # Will be set by get_flow_from_file
         self.num_samples_to_generate = num_samples_to_generate
+
+        # Logging verbosity level
+        self.log_level = log_level or os.getenv("SDG_HUB_LOG_LEVEL", "normal").lower()
+        self.console = Console() if self.log_level in ["verbose", "debug"] else None
+
+    def _log_block_info(self, index: int, total: int, name: str, ds: Dataset, stage: str) -> None:
+        if self.log_level in ["verbose", "debug"] and self.console:
+            table = Table(title=f"{stage} Block {index+1}/{total}: {name}", show_header=True)
+            table.add_column("Metric", style="cyan", no_wrap=True)
+            table.add_column("Value", style="magenta")
+            table.add_row("Rows", str(len(ds)))
+            table.add_row("Columns", ", ".join(ds.column_names))
+            self.console.print(table)
 
     def _getFilePath(self, dirs: List[str], filename: str) -> str:
         """Find a named configuration file.
@@ -174,7 +190,7 @@ class Flow(ABC):
                 "Or pass a list of blocks to the Flow constructor."
             )
 
-        for block_prop in self.chained_blocks:
+        for i, block_prop in enumerate(self.chained_blocks):
             block_type = block_prop["block_type"]
             block_config = block_prop["block_config"]
             drop_columns = block_prop.get("drop_columns", [])
@@ -182,9 +198,17 @@ class Flow(ABC):
             drop_duplicates_cols = block_prop.get("drop_duplicates", False)
             block = block_type(**block_config)
 
-            logger.debug("------------------------------------\n")
-            logger.debug("Running block: %s", block_config["block_name"])
-            logger.debug("Input dataset: %s", dataset)
+            name = block_config.get("block_name", f"block_{i}")
+
+            # Logging: always show basic progress unless in quiet mode
+            if self.log_level in ["normal", "verbose", "debug"]:
+                logger.info(f"🔄 Running block {i+1}/{len(self.chained_blocks)}: {name}")
+
+            # Log dataset shape before block (verbose/debug)
+            self._log_block_info(i, len(self.chained_blocks), name, dataset, "Input")
+
+            if self.log_level == "debug":
+                logger.debug(f"Input dataset (truncated): {dataset}")
 
             dataset = block.generate(dataset, **gen_kwargs)
 
@@ -202,8 +226,11 @@ class Flow(ABC):
             if drop_duplicates_cols:
                 dataset = self._drop_duplicates(dataset, cols=drop_duplicates_cols)
 
-            logger.debug("Output dataset: %s", dataset)
-            logger.debug("------------------------------------\n\n")
+            # Log dataset shape after block (verbose/debug)
+            self._log_block_info(i, len(self.chained_blocks), name, dataset, "Output")
+
+            if self.log_level == "debug":
+                logger.debug(f"Output dataset (truncated): {dataset}")
 
         return dataset
 

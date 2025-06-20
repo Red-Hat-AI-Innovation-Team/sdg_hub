@@ -12,7 +12,10 @@
     output_cols:
       - summary_detailed
   gen_kwargs:
-    max_tokens: 2048
+    max_tokens: 4096
+    temperature: 0.7
+    seed: 7452
+    n: 50
 
 - block_type: LLMBlock
   block_config:
@@ -22,7 +25,9 @@
     output_cols:
       - summary_atomic_facts
   gen_kwargs:
-    max_tokens: 2048
+    max_tokens: 4096
+    temperature: 0.7
+    seed: 7452
 
 - block_type: LLMBlock
   block_config:
@@ -32,7 +37,9 @@
     output_cols:
       - summary_extractive
   gen_kwargs:
-    max_tokens: 2048
+    max_tokens: 4096
+    temperature: 0.7
+    seed: 7452
 
 - block_type: FlattenColumnsBlock
   block_config:
@@ -55,19 +62,29 @@
 - block_type: LLMBlock
   block_config:
     block_name: knowledge generation
-    config_path: configs/knowledge/generate_questions_responses.yaml
+    config_path: configs/knowledge/generate_questions.yaml
     model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
     output_cols:
       - question
-      - response
     parser_kwargs:
       parser_name: custom
-      parsing_pattern: "\\[(?:Question|QUESTION)\\]\\s*(.*?)\\s*\\[(?:Answer|ANSWER)\\]\\s*(.*?)\\s*(?=\\[(?:Question|QUESTION)\\]|$)"
-      parser_cleanup_tags:
-        - "[END]"
+      parsing_pattern: "\\[(?:Question|QUESTION)\\]\\s*(.*?)\\s*(?=\\[(?:Question|QUESTION)\\]|$)"
   gen_kwargs:
-    temperature: 0.0
+    temperature: 0.7
+    max_tokens: 100
+    seed: 7452
+
+- block_type: LLMBlock
+  block_config:
+    block_name: knowledge generation
+    config_path: configs/knowledge/generate_responses.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    output_cols:
+      - response
+  gen_kwargs:
+    temperature: 0.7
     max_tokens: 2048
+    seed: 7452
 
 - block_type: LLMBlock
   block_config:
