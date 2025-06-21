@@ -146,10 +146,9 @@ def validate_jinja_template_variables(
                             all_missing_vars.add(var)
 
         return list(all_missing_vars)
-    except Exception as e:
+    except (jinja2.exceptions.TemplateSyntaxError, jinja2.exceptions.TemplateError) as e:
         logger.error(f"Failed to parse Jinja template: {e}")
         raise
-
 
 def validate_block_column_requirements(
     block_name: str,
