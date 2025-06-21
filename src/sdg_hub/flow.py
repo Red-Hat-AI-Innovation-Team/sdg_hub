@@ -27,7 +27,6 @@ import os
 # Third Party
 from datasets import Dataset
 from datasets.data_files import EmptyDatasetError
-from jinja2 import Environment, meta
 from rich.console import Console
 from rich.table import Table
 import yaml
@@ -37,7 +36,11 @@ from .blocks import *  # needed to register blocks
 from .logger_config import setup_logger
 from .prompts import *  # needed to register prompts
 from .registry import BlockRegistry, PromptRegistry
-from .utils.config_validation import validate_prompt_config_schema
+from .utils.config_validation import (
+    validate_block_column_requirements,
+    validate_jinja_template_variables,
+    validate_prompt_config_schema,
+)
 from .utils.validation_result import ValidationResult
 
 logger = setup_logger(__name__)
@@ -170,79 +173,6 @@ class Flow(ABC):
         df = df.drop_duplicates(subset=cols).reset_index(drop=True)
         return Dataset.from_pandas(df)
 
-    def generate(self, dataset: Dataset) -> Dataset:
-        """Generate the dataset by running the pipeline steps.
-
-        Parameters
-        ----------
-        dataset : Dataset
-            The input dataset to process.
-
-        Returns
-        -------
-        Dataset
-            The processed dataset.
-
-        Raises
-        ------
-        ValueError
-            If Flow has not been initialized with blocks.
-        EmptyDatasetError
-            If a block produces an empty dataset.
-        """
-        if self.chained_blocks is None:
-            raise ValueError(
-                "Flow has not been initialized with blocks. "
-                "Call get_flow_from_file() first. "
-                "Or pass a list of blocks to the Flow constructor."
-            )
-
-        for i, block_prop in enumerate(self.chained_blocks):
-            block_type = block_prop["block_type"]
-            block_config = block_prop["block_config"]
-            drop_columns = block_prop.get("drop_columns", [])
-            gen_kwargs = block_prop.get("gen_kwargs", {})
-            drop_duplicates_cols = block_prop.get("drop_duplicates", False)
-            block = block_type(**block_config)
-
-            name = block_config.get("block_name", f"block_{i}")
-
-            # Logging: always show basic progress unless in quiet mode
-            if self.log_level in ["normal", "verbose", "debug"]:
-                logger.info(
-                    f"🔄 Running block {i + 1}/{len(self.chained_blocks)}: {name}"
-                )
-
-            # Log dataset shape before block (verbose/debug)
-            self._log_block_info(i, len(self.chained_blocks), name, dataset, "Input")
-
-            if self.log_level == "debug":
-                logger.debug(f"Input dataset (truncated): {dataset}")
-
-            dataset = block.generate(dataset, **gen_kwargs)
-
-            if len(dataset) == 0:
-                raise EmptyDatasetError(
-                    f"Pipeline stopped: "
-                    f"Empty dataset after running block: "
-                    f"{block_config['block_name']}"
-                )
-
-            drop_columns_in_ds = [e for e in drop_columns if e in dataset.column_names]
-            if drop_columns:
-                dataset = dataset.remove_columns(drop_columns_in_ds)
-
-            if drop_duplicates_cols:
-                dataset = self._drop_duplicates(dataset, cols=drop_duplicates_cols)
-
-            # Log dataset shape after block (verbose/debug)
-            self._log_block_info(i, len(self.chained_blocks), name, dataset, "Output")
-
-            if self.log_level == "debug":
-                logger.debug(f"Output dataset (truncated): {dataset}")
-
-        return dataset
-
     def validate_config_files(self) -> "ValidationResult":
         """
         Validate all configuration file paths referenced in the flow blocks.
@@ -273,7 +203,9 @@ class Flow(ABC):
                 try:
                     with open(path, "r", encoding="utf-8") as f:
                         config_data = yaml.safe_load(f)
-                        _, validation_errors = validate_prompt_config_schema(config_data, path)
+                        _, validation_errors = validate_prompt_config_schema(
+                            config_data, path
+                        )
 
                         if validation_errors:
                             errors.extend(validation_errors)
@@ -406,23 +338,25 @@ class Flow(ABC):
 
         return self
 
-    def validate_flow(self, dataset: Dataset) -> "ValidationResult":
+    def validate_dataset_compatibility(self, dataset: Dataset) -> "ValidationResult":
         """
-        Validate that all required dataset columns are present before executing the flow.
+        Validate that the input dataset is compatible with this flow's requirements.
 
-        This includes:
+        Checks that all required dataset columns are present before executing the flow:
         - Columns referenced in Jinja templates for LLM blocks
         - Columns required by specific utility blocks (e.g. filter_column, choice_col, etc.)
+        - Selector columns for conditional blocks
 
         Parameters
         ----------
         dataset : Dataset
-            The input dataset to validate against.
+            The input dataset to validate for compatibility.
 
         Returns
         -------
         ValidationResult
-            Whether the dataset has all required columns, and which ones are missing.
+            Whether the dataset is compatible with the flow requirements.
+            Contains detailed error messages for any missing columns.
         """
         errors = []
         all_columns = set(dataset.column_names)
@@ -432,43 +366,157 @@ class Flow(ABC):
             block_type = block["block_type"]
             config = block["block_config"]
 
-            # LLM Block: parse Jinja vars
-            cls_name = block_type.__name__ if isinstance(block_type, type) else block_type.__class__.__name__
+            # Get block class name for validation
+            cls_name = (
+                block_type.__name__
+                if isinstance(block_type, type)
+                else block_type.__class__.__name__
+            )
             logger.info(f"Validating block: {name} ({cls_name})")
+
+            # LLM Block: parse Jinja vars
             if "LLM" in cls_name:
+                # Standard LLMBlock with single config_path
                 config_path = config.get("config_path")
-                if config_path and os.path.isfile(config_path):
+                if config_path:
                     with open(config_path, "r", encoding="utf-8") as f:
-                        content = f.read()
-                        env = Environment()
-                        ast = env.parse(content)
-                        vars_found = meta.find_undeclared_variables(ast)
-                        for var in vars_found:
-                            if var not in all_columns:
-                                errors.append(f"[{name}] Missing column for prompt var: '{var}'")
+                        config_content = yaml.safe_load(f)
+                    missing_vars = validate_jinja_template_variables(
+                        config_content, all_columns
+                    )
+                    for var in missing_vars:
+                        errors.append(
+                            f"[{name}] Missing column for prompt var: '{var}'"
+                        )
 
-            # FilterByValueBlock
-            if "FilterByValueBlock" in str(block_type):
-                col = config.get("filter_column")
-                if col and col not in all_columns:
-                    errors.append(f"[{name}] Missing filter_column: '{col}'")
+                # ConditionalLLMBlock with config_paths dict and selector_column_name
+                if "ConditionalLLMBlock" in cls_name:
+                    selector_col = config.get("selector_column_name")
+                    if selector_col and selector_col not in all_columns:
+                        errors.append(
+                            f"[{name}] Missing selector_column_name: '{selector_col}'"
+                        )
 
-            # SelectorBlock
-            if "SelectorBlock" in str(block_type):
-                col = config.get("choice_col")
-                if col and col not in all_columns:
-                    errors.append(f"[{name}] Missing choice_col: '{col}'")
+                    config_paths = config.get("config_paths", {})
+                    if isinstance(config_paths, dict):
+                        for key, path in config_paths.items():
+                            with open(path, "r", encoding="utf-8") as f:
+                                config_content = yaml.safe_load(f)
+                            missing_vars = validate_jinja_template_variables(
+                                config_content, all_columns
+                            )
+                            for var in missing_vars:
+                                errors.append(
+                                    f"[{name}] Missing column for template var in config_paths['{key}']: '{var}'"
+                                )
 
-                choice_map = config.get("choice_map", {})
-                for col in choice_map.values():
-                    if col not in all_columns:
-                        errors.append(f"[{name}] choice_map references missing column: '{col}'")
+            # Validate general block column requirements
+            block_errors = validate_block_column_requirements(
+                name, cls_name, config, all_columns
+            )
+            errors.extend(block_errors)
 
-            # CombineColumnsBlock
-            if "CombineColumnsBlock" in str(block_type):
-                cols = config.get("columns", [])
-                for col in cols:
-                    if col not in all_columns:
-                        errors.append(f"[{name}] CombineColumnsBlock requires column: '{col}'")
+            # Update available columns after each block (for blocks that add columns)
+            output_cols = config.get("output_cols", [])
+            if output_cols:
+                all_columns.update(output_cols)
+
+            # Handle blocks that create single output columns
+            output_col = config.get("output_col")
+            if output_col:
+                all_columns.add(output_col)
+
+            # Handle RenameColumns - update column names in the available set
+            if "RenameColumns" in cls_name:
+                columns_map = config.get("columns_map", {})
+                for old_name, new_name in columns_map.items():
+                    if old_name in all_columns:
+                        all_columns.remove(old_name)
+                        all_columns.add(new_name)
 
         return ValidationResult(valid=(len(errors) == 0), errors=errors)
+
+    def generate(self, dataset: Dataset) -> Dataset:
+        """Generate the dataset by running the pipeline steps.
+
+        Validates dataset compatibility before execution to ensure all required
+        columns are present for the flow's blocks and templates.
+
+        Parameters
+        ----------
+        dataset : Dataset
+            The input dataset to process.
+
+        Returns
+        -------
+        Dataset
+            The processed dataset.
+
+        Raises
+        ------
+        ValueError
+            If Flow has not been initialized with blocks, or if the dataset
+            is missing required columns for the flow's execution.
+        EmptyDatasetError
+            If a block produces an empty dataset.
+        """
+        if self.chained_blocks is None:
+            raise ValueError(
+                "Flow has not been initialized with blocks. "
+                "Call get_flow_from_file() first. "
+                "Or pass a list of blocks to the Flow constructor."
+            )
+
+        # Validate dataset compatibility before execution
+        validation_result = self.validate_dataset_compatibility(dataset)
+        if not validation_result.valid:
+            raise ValueError(
+                f"Dataset is not compatible with flow requirements:\n"
+                + "\n".join(validation_result.errors)
+            )
+
+        for i, block_prop in enumerate(self.chained_blocks):
+            block_type = block_prop["block_type"]
+            block_config = block_prop["block_config"]
+            drop_columns = block_prop.get("drop_columns", [])
+            gen_kwargs = block_prop.get("gen_kwargs", {})
+            drop_duplicates_cols = block_prop.get("drop_duplicates", False)
+            block = block_type(**block_config)
+
+            name = block_config.get("block_name", f"block_{i}")
+
+            # Logging: always show basic progress unless in quiet mode
+            if self.log_level in ["normal", "verbose", "debug"]:
+                logger.info(
+                    f"🔄 Running block {i + 1}/{len(self.chained_blocks)}: {name}"
+                )
+
+            # Log dataset shape before block (verbose/debug)
+            self._log_block_info(i, len(self.chained_blocks), name, dataset, "Input")
+
+            if self.log_level == "debug":
+                logger.debug(f"Input dataset (truncated): {dataset}")
+
+            dataset = block.generate(dataset, **gen_kwargs)
+
+            if len(dataset) == 0:
+                raise EmptyDatasetError(
+                    f"Pipeline stopped: "
+                    f"Empty dataset after running block: "
+                    f"{block_config['block_name']}"
+                )
+
+            drop_columns_in_ds = [e for e in drop_columns if e in dataset.column_names]
+            if drop_columns:
+                dataset = dataset.remove_columns(drop_columns_in_ds)
+
+            if drop_duplicates_cols:
+                dataset = self._drop_duplicates(dataset, cols=drop_duplicates_cols)
+
+            # Log dataset shape after block (verbose/debug)
+            self._log_block_info(i, len(self.chained_blocks), name, dataset, "Output")
+
+            if self.log_level == "debug":
+                logger.debug(f"Output dataset (truncated): {dataset}")
+
+        return dataset
