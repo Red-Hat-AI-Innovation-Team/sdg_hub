@@ -9,6 +9,7 @@ ensuring they meet the required schema and contain all necessary fields.
 from typing import Any, Dict, List, Set, Union
 
 # Third Party
+import jinja2
 from jinja2 import Environment, meta
 
 # Local
@@ -109,6 +110,11 @@ def validate_jinja_template_variables(
 ) -> List[str]:
     """Validate that all Jinja template variables in config are available in dataset columns.
 
+    This function handles conditional Jinja2 templates by checking if alternative
+    variable sets are available. For example, if a template uses either 'seed_samples'
+    OR ('seed_context', 'seed_question', 'seed_response'), it will pass validation
+    if at least one complete set is available.
+
     Parameters
     ----------
     config_content : Dict[str, Any]
@@ -131,6 +137,13 @@ def validate_jinja_template_variables(
     template_fields = ["system", "introduction", "principles", "examples", "generation"]
     all_missing_vars = set()
 
+    # Define conditional variable groups - if any complete group is available,
+    # don't report missing vars from other groups
+    conditional_groups = [
+        {"seed_samples"},  # Group 1: structured samples
+        {"seed_context", "seed_question", "seed_response"}  # Group 2: individual seed fields
+    ]
+
     try:
         env = Environment()
 
@@ -141,9 +154,27 @@ def validate_jinja_template_variables(
                     ast = env.parse(template_content)
                     vars_found = meta.find_undeclared_variables(ast)
 
+                    # Check if this is a conditional template with alternative variable groups
+                    template_missing_vars = set()
                     for var in vars_found:
                         if var not in available_columns:
-                            all_missing_vars.add(var)
+                            template_missing_vars.add(var)
+                    
+                    # If there are missing vars, check if they're part of conditional groups
+                    if template_missing_vars:
+                        # Check if any complete conditional group is satisfied
+                        for group in conditional_groups:
+                            if group.issubset(vars_found):  # This group is used in template
+                                if group.issubset(available_columns):  # This group is available
+                                    # Remove ALL variables from other groups that are missing
+                                    # This handles the case where if seed_samples is available,
+                                    # we don't require the individual seed_* fields
+                                    other_groups = [g for g in conditional_groups if g != group]
+                                    for other_group in other_groups:
+                                        template_missing_vars -= other_group
+                        
+                        # Add remaining missing vars (not part of satisfied conditional groups)
+                        all_missing_vars.update(template_missing_vars)
 
         return list(all_missing_vars)
     except (jinja2.exceptions.TemplateSyntaxError, jinja2.exceptions.TemplateError) as e:

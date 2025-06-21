@@ -255,6 +255,81 @@ class TestJinjaTemplateValidation:
         missing_vars = validate_jinja_template_variables(config, available_columns)
         assert missing_vars == []
 
+    def test_conditional_jinja_template_with_seed_samples(self):
+        """Test conditional template validation with seed_samples available."""
+        config = {
+            "examples": """
+            {% if seed_samples is defined %}
+            {% for sample in seed_samples %}
+            Context: {{ sample.seed_context }}
+            Question: {{ sample.seed_question }}
+            Response: {{ sample.seed_response }}
+            {% endfor %}
+            {% else %}
+            Context: {{ seed_context }}
+            Question: {{ seed_question }}
+            Response: {{ seed_response }}
+            {% endif %}
+            """,
+            "generation": "Generate for {{ question }} with {{ context }}"
+        }
+        # Only seed_samples is available, not the individual seed fields
+        available_columns = {"seed_samples", "question", "context"}
+
+        missing_vars = validate_jinja_template_variables(config, available_columns)
+        assert missing_vars == []
+
+    def test_conditional_jinja_template_with_individual_seed_fields(self):
+        """Test conditional template validation with individual seed fields available."""
+        config = {
+            "examples": """
+            {% if seed_samples is defined %}
+            {% for sample in seed_samples %}
+            Context: {{ sample.seed_context }}
+            Question: {{ sample.seed_question }}
+            Response: {{ sample.seed_response }}
+            {% endfor %}
+            {% else %}
+            Context: {{ seed_context }}
+            Question: {{ seed_question }}
+            Response: {{ seed_response }}
+            {% endif %}
+            """,
+            "generation": "Generate for {{ question }} with {{ context }}"
+        }
+        # Only individual seed fields are available, not seed_samples
+        available_columns = {"seed_context", "seed_question", "seed_response", "question", "context"}
+
+        missing_vars = validate_jinja_template_variables(config, available_columns)
+        assert missing_vars == []
+
+    def test_conditional_jinja_template_missing_both_groups(self):
+        """Test conditional template validation when neither group is complete."""
+        config = {
+            "examples": """
+            {% if seed_samples is defined %}
+            {% for sample in seed_samples %}
+            Context: {{ sample.seed_context }}
+            Question: {{ sample.seed_question }}
+            Response: {{ sample.seed_response }}
+            {% endfor %}
+            {% else %}
+            Context: {{ seed_context }}
+            Question: {{ seed_question }}
+            Response: {{ seed_response }}
+            {% endif %}
+            """,
+            "generation": "Generate for {{ question }} with {{ context }}"
+        }
+        # Neither complete group is available
+        available_columns = {"seed_context", "question", "context"}  # missing seed_question, seed_response
+
+        missing_vars = validate_jinja_template_variables(config, available_columns)
+        # Should report missing vars from both groups since neither is complete
+        assert "seed_question" in missing_vars
+        assert "seed_response" in missing_vars
+        assert "seed_samples" in missing_vars
+
 
 class TestBlockColumnRequirements:
     """Test cases for block column requirements validation."""
