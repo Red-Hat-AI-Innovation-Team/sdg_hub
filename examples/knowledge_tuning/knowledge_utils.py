@@ -97,10 +97,34 @@ def _conv_pretrain(rec):
     ]
     return rec
 
+def mask_qa_per_doc(ds, keep_no_qa_per_doc=3):
+    """
+    This function marks all any 3 QA per document as unmask (pre-training) and the rest as mask (finetuning).
+    """
+    backpro_docs = []
+    backpro_docs_dict = {}
+    don_t_backpro_docs = []
+    for i, doc in enumerate(ds['document']):
+        if doc not in backpro_docs_dict:
+            backpro_docs_dict[doc] = 1
+        else:
+            backpro_docs_dict[doc] += 1
+        if backpro_docs_dict[doc] < keep_no_qa_per_doc+1:
+            backpro_docs.append(ds[i])
+            backpro_docs[-1]['unmask'] = True
+        else:
+            don_t_backpro_docs.append(ds[i])
+            don_t_backpro_docs[-1]['unmask'] = False
+    ds_new = concatenate_datasets([Dataset.from_list(backpro_docs), Dataset.from_list(don_t_backpro_docs)])
+    return ds_new
 
 def generate_knowledge_qa_dataset(
-    generated_dataset: Dataset, keep_context_separate=False, keep_document_outline=False, keep_columns=[]
+    generated_dataset: Dataset, keep_context_separate=False, keep_document_outline=False, keep_columns=[], filter_non_pre_training=True
 ):
+    generated_dataset = generated_dataset.map(lambda x: {'response': x['response'].replace('[END]', '').replace('[ANSWER]', '').strip()}, num_proc=10)
+    generated_dataset = mask_qa_per_doc(generated_dataset, keep_no_qa_per_doc=3)
+    if filter_non_pre_training:
+        generated_dataset = generated_dataset.filter(lambda x: x['unmask'])
     def __create_qa_row(rec):
         context = rec["document"]
         instruction = rec["question"]
@@ -146,7 +170,7 @@ def generate_knowledge_qa_dataset(
             return {"messages": messages, "metadata": metadata, "id": str(uuid.uuid4())}
 
     knowledge_ds = generated_dataset.map(
-        __create_qa_row, remove_columns=[e for e in generated_dataset.column_names if e not in keep_columns]
+        __create_qa_row, remove_columns=[e for e in generated_dataset.column_names if e not in keep_columns + ['unmask']]
     )
     return knowledge_ds
 
