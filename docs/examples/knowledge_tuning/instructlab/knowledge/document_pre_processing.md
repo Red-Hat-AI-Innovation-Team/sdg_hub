@@ -1,7 +1,7 @@
 # Preparing Document for Data generation
-- This notebook will show you how to do document parsing
+- This notebook will show you how to do document parsing (Converting document from various formats like pdf, html etc to markdown format for ingesting in a LLM)
 - Document Chunking
-- And finally mixing it with user QNA to  create seed examples
+- And finally mixing it with user QNA yaml to  create seed examples
 
 ### Install SDG
 
