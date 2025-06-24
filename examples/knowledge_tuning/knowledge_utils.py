@@ -101,21 +101,21 @@ def mask_qa_per_doc(ds, keep_no_qa_per_doc=3):
     """
     This function marks all any 3 QA per document as unmask (pre-training) and the rest as mask (finetuning).
     """
-    backpro_docs = []
-    backpro_docs_dict = {}
-    don_t_backpro_docs = []
+    backpropagate_docs = []
+    backpropagate_docs_dict = {}
+    don_t_backpropagate_docs = []
     for i, doc in enumerate(ds['document']):
-        if doc not in backpro_docs_dict:
-            backpro_docs_dict[doc] = 1
+        if doc not in backpropagate_docs_dict:
+            backpropagate_docs_dict[doc] = 1
         else:
-            backpro_docs_dict[doc] += 1
-        if backpro_docs_dict[doc] < keep_no_qa_per_doc+1:
-            backpro_docs.append(ds[i])
-            backpro_docs[-1]['unmask'] = True
+            backpropagate_docs_dict[doc] += 1
+        if backpropagate_docs_dict[doc] < keep_no_qa_per_doc+1:
+            backpropagate_docs.append(ds[i])
+            backpropagate_docs[-1]['unmask'] = True
         else:
-            don_t_backpro_docs.append(ds[i])
-            don_t_backpro_docs[-1]['unmask'] = False
-    ds_new = concatenate_datasets([Dataset.from_list(backpro_docs), Dataset.from_list(don_t_backpro_docs)])
+            don_t_backpropagate_docs.append(ds[i])
+            don_t_backpropagate_docs[-1]['unmask'] = False
+    ds_new = concatenate_datasets([Dataset.from_list(backpropagate_docs), Dataset.from_list(don_t_backpropagate_docs)])
     return ds_new
 
 def generate_knowledge_qa_dataset(
