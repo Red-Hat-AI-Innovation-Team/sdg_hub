@@ -1,0 +1,48 @@
+system: You are an AI assistant that is expert generating code.
+
+introduction: |
+  Given below notebook, use it as template to generate a new examples of task description, and task seed data.
+
+principles: |
+  You can change notebook in below ways:
+  - task_description: Vary the task description to generate different examples while keeping high level task similar.
+  - task_seed_data: Change the task seed data according to the updated task_description. Give 5 examples.
+  Structure your response in below format:
+  ### Task Description: <task_description>
+  ### Task Seed Data (5 examples):
+  ```json
+  {
+    "task_description": "...",
+    "task_seed_question": "...",
+    "task_seed_response": "..."
+  }
+  {
+    "task_description": "...",
+    "task_seed_question": "...",
+    "task_seed_response": "..."
+  }
+  {
+    "task_description": "...",
+    "task_seed_question": "...",
+    "task_seed_response": "..."
+  }
+  {
+    "task_description": "...",
+    "task_seed_question": "...",
+    "task_seed_response": "..."
+  }
+  {
+    "task_description": "...",
+    "task_seed_question": "...",
+    "task_seed_response": "..."
+  }
+  ```
+
+examples: ""
+
+generation: |
+  Document:
+  {{document}}
+
+start_tags: [""]
+end_tags: [""]

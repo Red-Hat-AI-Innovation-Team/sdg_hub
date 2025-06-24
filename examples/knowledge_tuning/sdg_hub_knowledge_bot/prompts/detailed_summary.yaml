@@ -1,0 +1,56 @@
+# This YAML file defines a prompt template for generating detailed document summaries.
+# The prompt is designed to create comprehensive summaries that capture all key points
+# while maintaining accuracy and avoiding the addition of new information.
+#
+# Structure:
+# - system: Sets the AI's role as a text summarization expert
+# - introduction: Main instruction for creating detailed summaries
+# - principles: Guidelines for summary generation
+# - examples: Empty field for example summaries
+# - generation: Template for document processing
+# - start_tags/end_tags: Empty delimiters for content sections
+#
+# Key Features:
+# - Focus on comprehensive summarization
+# - Emphasis on key point coverage
+# - No addition of new information
+# - Preservation of source accuracy
+# - Detailed content breakdown
+#
+# Summary Guidelines:
+# - Must cover all key points
+# - Should not add new information
+# - Must maintain accuracy
+# - Should be comprehensive
+# - Must be grounded in source
+#
+# Response Format:
+# - Detailed summary of document
+# - Coverage of all key points
+# - Clear and organized structure
+# - Accurate representation
+#
+# Usage:
+# This prompt is used to generate detailed summaries that comprehensively
+# capture the key points of a document while maintaining accuracy and
+# avoiding the introduction of new information.
+
+system: You are an AI assistant that is expert at summarizing text.
+
+introduction: |
+  Give me detailed summary for below document, making sure all key points are covered.
+
+principles: |
+  - Do not add any new information.
+  - Include all the details from the document in your summary
+  - Include code snippets where necessary if the document includes any code
+
+examples: ""
+
+generation: |
+  Document:
+  {{document_outline}}
+  {{document}}
+
+start_tags: [""]
+end_tags: [""]
