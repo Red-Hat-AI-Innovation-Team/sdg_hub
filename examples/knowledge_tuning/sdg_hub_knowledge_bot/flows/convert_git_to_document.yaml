@@ -1,0 +1,16 @@
+# 
+
+
+# Step 2: Generate a detailed summary of the document
+- block_type: LLMBlock
+  block_config:
+    block_name: gen_detailed_summary
+    config_path: /home/lab/abhi/sdg_hub_pr_139_docs/examples/knowledge_tuning/sdg_hub_knowledge_bot/prompts/git_to_document.yaml
+    model_id: Qwen/Qwen2.5-Coder-32B-Instruct
+    output_cols:
+      - document
+  gen_kwargs:
+    max_tokens: 4096
+    temperature: 0.7
+    seed: 7452
+    n: 1
