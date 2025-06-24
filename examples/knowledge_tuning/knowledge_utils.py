@@ -99,7 +99,7 @@ def _conv_pretrain(rec):
 
 
 def generate_knowledge_qa_dataset(
-    generated_dataset: Dataset, keep_context_separate=False, keep_document_outline=False
+    generated_dataset: Dataset, keep_context_separate=False, keep_document_outline=False, keep_columns=[]
 ):
     def __create_qa_row(rec):
         context = rec["document"]
@@ -146,7 +146,7 @@ def generate_knowledge_qa_dataset(
             return {"messages": messages, "metadata": metadata, "id": str(uuid.uuid4())}
 
     knowledge_ds = generated_dataset.map(
-        __create_qa_row, remove_columns=generated_dataset.column_names
+        __create_qa_row, remove_columns=[e for e in generated_dataset.column_names if e not in keep_columns]
     )
     return knowledge_ds
 
