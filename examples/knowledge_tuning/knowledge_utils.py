@@ -99,27 +99,49 @@ def _conv_pretrain(rec):
 
 def mask_qa_per_doc(ds, keep_no_qa_per_doc=3):
     """
-    This function marks all any 3 QA per document as unmask (pre-training) and the rest as mask (finetuning).
+    Mark QA entries per document for pre-training vs fine-tuning.
+    
+    Parameters
+    ----------
+    ds : Dataset
+        Input dataset containing documents and QA pairs
+    keep_no_qa_per_doc : int, default=3
+        Number of QA entries per document to mark as unmask (pre-training)
+        
+    Returns
+    -------
+    Dataset
+        Dataset with added 'unmask' boolean column indicating pre-training entries
     """
-    backpropagate_docs = []
-    backpropagate_docs_dict = {}
-    don_t_backpropagate_docs = []
-    for i, doc in enumerate(ds['document']):
-        if doc not in backpropagate_docs_dict:
-            backpropagate_docs_dict[doc] = 1
+
+    unmask_entries = []
+    mask_entries = []
+    doc_count = {}
+    
+    for i, doc in enumerate(ds["document"]):
+        if doc not in doc_count:
+            doc_count[doc] = 1
         else:
-            backpropagate_docs_dict[doc] += 1
-        if backpropagate_docs_dict[doc] < keep_no_qa_per_doc+1:
-            backpropagate_docs.append(ds[i])
-            backpropagate_docs[-1]['unmask'] = True
+            doc_count[doc] += 1
+            
+        entry = ds[i].copy()
+        if doc_count[doc] <= keep_no_qa_per_doc:
+            entry["unmask"] = True
+            unmask_entries.append(entry)
         else:
-            don_t_backpropagate_docs.append(ds[i])
-            don_t_backpropagate_docs[-1]['unmask'] = False
-    ds_new = concatenate_datasets([Dataset.from_list(backpropagate_docs), Dataset.from_list(don_t_backpropagate_docs)])
+            entry["unmask"] = False
+            mask_entries.append(entry)
+            
+    ds_new = concatenate_datasets([Dataset.from_list(unmask_entries), Dataset.from_list(mask_entries)])
     return ds_new
 
 def generate_knowledge_qa_dataset(
-    generated_dataset: Dataset, keep_context_separate=False, keep_document_outline=False, keep_columns=[], filter_non_pre_training=True, keep_no_qa_per_doc=3
+    generated_dataset: Dataset, 
+    keep_context_separate: bool = False, 
+    keep_document_outline: bool = False, 
+    keep_columns: List[str] = None, 
+    filter_non_pre_training: bool = True,
+    keep_no_qa_per_doc: int = 3
 ):
     generated_dataset = generated_dataset.map(lambda x: {'response': x['response'].replace('[END]', '').replace('[ANSWER]', '').strip()}, num_proc=10)
     generated_dataset = mask_qa_per_doc(generated_dataset, keep_no_qa_per_doc=keep_no_qa_per_doc)
@@ -170,7 +192,7 @@ def generate_knowledge_qa_dataset(
             return {"messages": messages, "metadata": metadata, "id": str(uuid.uuid4())}
 
     knowledge_ds = generated_dataset.map(
-        __create_qa_row, remove_columns=[e for e in generated_dataset.column_names if e not in keep_columns + ['unmask']]
+        __create_qa_row, remove_columns=[e for e in generated_dataset.column_names if e not in keep_columns + ["unmask"]]
     )
     return knowledge_ds
 
