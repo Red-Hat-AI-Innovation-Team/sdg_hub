@@ -11,7 +11,7 @@ from typing import List
 import re
 
 # Third Party
-from datasets import Dataset
+from datasets import Dataset, concatenate_datasets
 from tabulate import tabulate
 from transformers import AutoTokenizer
 from langchain_text_splitters import Language, RecursiveCharacterTextSplitter
@@ -119,10 +119,10 @@ def mask_qa_per_doc(ds, keep_no_qa_per_doc=3):
     return ds_new
 
 def generate_knowledge_qa_dataset(
-    generated_dataset: Dataset, keep_context_separate=False, keep_document_outline=False, keep_columns=[], filter_non_pre_training=True
+    generated_dataset: Dataset, keep_context_separate=False, keep_document_outline=False, keep_columns=[], filter_non_pre_training=True, keep_no_qa_per_doc=3
 ):
     generated_dataset = generated_dataset.map(lambda x: {'response': x['response'].replace('[END]', '').replace('[ANSWER]', '').strip()}, num_proc=10)
-    generated_dataset = mask_qa_per_doc(generated_dataset, keep_no_qa_per_doc=3)
+    generated_dataset = mask_qa_per_doc(generated_dataset, keep_no_qa_per_doc=keep_no_qa_per_doc)
     if filter_non_pre_training:
         generated_dataset = generated_dataset.filter(lambda x: x['unmask'])
     def __create_qa_row(rec):
