@@ -1,25 +1,25 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Standard
-import json
-import random
-import uuid
-import os
-import yaml
 from pathlib import Path
 from typing import List
+import json
+import os
+import random
 import re
+import uuid
 
 # Third Party
 from datasets import Dataset, concatenate_datasets
+from langchain_text_splitters import Language, RecursiveCharacterTextSplitter
 from tabulate import tabulate
 from transformers import AutoTokenizer
-from langchain_text_splitters import Language, RecursiveCharacterTextSplitter
+import yaml
 
-# Local
-import sdg_hub
+# First Party
 from sdg_hub.logger_config import setup_logger
 from sdg_hub.utils.datautils import safe_concatenate_datasets
+import sdg_hub
 
 logger = setup_logger(__name__)
 _DEFAULT_CHUNK_OVERLAP = 100
@@ -97,17 +97,18 @@ def _conv_pretrain(rec):
     ]
     return rec
 
-def mask_qa_per_doc(ds, keep_no_qa_per_doc=3):
+
+def mask_qa_per_doc(ds: Dataset, keep_no_qa_per_doc: int = 3) -> Dataset:
     """
     Mark QA entries per document for pre-training vs fine-tuning.
-    
+
     Parameters
     ----------
     ds : Dataset
         Input dataset containing documents and QA pairs
     keep_no_qa_per_doc : int, default=3
         Number of QA entries per document to mark as unmask (pre-training)
-        
+
     Returns
     -------
     Dataset
@@ -117,13 +118,13 @@ def mask_qa_per_doc(ds, keep_no_qa_per_doc=3):
     unmask_entries = []
     mask_entries = []
     doc_count = {}
-    
+
     for i, doc in enumerate(ds["document"]):
         if doc not in doc_count:
             doc_count[doc] = 1
         else:
             doc_count[doc] += 1
-            
+
         entry = ds[i].copy()
         if doc_count[doc] <= keep_no_qa_per_doc:
             entry["unmask"] = True
@@ -131,22 +132,36 @@ def mask_qa_per_doc(ds, keep_no_qa_per_doc=3):
         else:
             entry["unmask"] = False
             mask_entries.append(entry)
-            
-    ds_new = concatenate_datasets([Dataset.from_list(unmask_entries), Dataset.from_list(mask_entries)])
+
+    ds_new = concatenate_datasets(
+        [Dataset.from_list(unmask_entries), Dataset.from_list(mask_entries)]
+    )
     return ds_new
 
+
 def generate_knowledge_qa_dataset(
-    generated_dataset: Dataset, 
-    keep_context_separate: bool = False, 
-    keep_document_outline: bool = False, 
-    keep_columns: List[str] = None, 
+    generated_dataset: Dataset,
+    keep_context_separate: bool = False,
+    keep_document_outline: bool = False,
+    keep_columns: List[str] = None,
     filter_non_pre_training: bool = True,
-    keep_no_qa_per_doc: int = 3
+    keep_no_qa_per_doc: int = 3,
 ):
-    generated_dataset = generated_dataset.map(lambda x: {'response': x['response'].replace('[END]', '').replace('[ANSWER]', '').strip()}, num_proc=10)
-    generated_dataset = mask_qa_per_doc(generated_dataset, keep_no_qa_per_doc=keep_no_qa_per_doc)
+    generated_dataset = generated_dataset.map(
+        lambda x: {
+            "response": x["response"]
+            .replace("[END]", "")
+            .replace("[ANSWER]", "")
+            .strip()
+        },
+        num_proc=10,
+    )
+    generated_dataset = mask_qa_per_doc(
+        generated_dataset, keep_no_qa_per_doc=keep_no_qa_per_doc
+    )
     if filter_non_pre_training:
-        generated_dataset = generated_dataset.filter(lambda x: x['unmask'])
+        generated_dataset = generated_dataset.filter(lambda x: x["unmask"])
+
     def __create_qa_row(rec):
         context = rec["document"]
         instruction = rec["question"]
@@ -192,7 +207,12 @@ def generate_knowledge_qa_dataset(
             return {"messages": messages, "metadata": metadata, "id": str(uuid.uuid4())}
 
     knowledge_ds = generated_dataset.map(
-        __create_qa_row, remove_columns=[e for e in generated_dataset.column_names if e not in keep_columns + ["unmask"]]
+        __create_qa_row,
+        remove_columns=[
+            e
+            for e in generated_dataset.column_names
+            if e not in keep_columns + ["unmask"]
+        ],
     )
     return knowledge_ds
 
