@@ -82,6 +82,8 @@ class OpenAIChatBlock(Block):
         Nucleus sampling parameter (0.0 to 1.0).
     user : Optional[str], optional
         End-user identifier.
+    extra_body : Optional[dict], optional
+        Dictionary of additional parameters if supported by inference backend
     """
 
     def __init__(
@@ -121,13 +123,9 @@ class OpenAIChatBlock(Block):
 
         # For this block, we expect exactly one input column (messages) and one output column
         if len(self.input_cols) != 1:
-            raise ValueError(
-                "OpenAIChatCompletionsLLMBlock expects exactly one input column"
-            )
+            raise ValueError("OpenAIChatBlock expects exactly one input column")
         if len(self.output_cols) != 1:
-            raise ValueError(
-                "OpenAIChatCompletionsLLMBlock expects exactly one output column"
-            )
+            raise ValueError("OpenAIChatBlock expects exactly one output column")
 
         self.messages_column = self.input_cols[0]
         self.output_column = self.output_cols[0]
@@ -159,13 +157,16 @@ class OpenAIChatBlock(Block):
         for key, value in params.items():
             if value is not None:
                 self.gen_kwargs[key] = value
-        
+
         # Log initialization with model and parameters
-        logger.info(f"Initialized OpenAIChatBlock '{block_name}' with model '{model_id}'", extra={
-            "block_name": block_name,
-            "model_id": model_id,
-            "generation_params": self.gen_kwargs
-        })
+        logger.info(
+            f"Initialized OpenAIChatBlock '{block_name}' with model '{model_id}'",
+            extra={
+                "block_name": block_name,
+                "model_id": model_id,
+                "generation_params": self.gen_kwargs,
+            },
+        )
 
     @retry(
         wait=wait_random_exponential(min=1, max=60),
@@ -238,15 +239,29 @@ class OpenAIChatBlock(Block):
 
         # Extract all messages
         messages_list = samples[self.messages_column]
-        
+
         # Log generation start with model and effective parameters
-        logger.info(f"Starting generation for {len(messages_list)} samples", extra={
-            "block_name": self.block_name,
-            "model_id": self.model_id,
-            "batch_size": len(messages_list),
-            "effective_params": {k: v for k, v in final_kwargs.items() 
-                               if k in ["temperature", "max_tokens", "max_completion_tokens", "top_p", "n", "seed"]}
-        })
+        logger.info(
+            f"Starting generation for {len(messages_list)} samples",
+            extra={
+                "block_name": self.block_name,
+                "model_id": self.model_id,
+                "batch_size": len(messages_list),
+                "effective_params": {
+                    k: v
+                    for k, v in final_kwargs.items()
+                    if k
+                    in [
+                        "temperature",
+                        "max_tokens",
+                        "max_completion_tokens",
+                        "top_p",
+                        "n",
+                        "seed",
+                    ]
+                },
+            },
+        )
 
         # Get all responses
         responses = []
@@ -257,11 +272,14 @@ class OpenAIChatBlock(Block):
             responses.append(response.choices[0].message.content)
 
         # Log completion
-        logger.info(f"Generation completed successfully for {len(responses)} samples", extra={
-            "block_name": self.block_name,
-            "model_id": self.model_id,
-            "batch_size": len(responses)
-        })
+        logger.info(
+            f"Generation completed successfully for {len(responses)} samples",
+            extra={
+                "block_name": self.block_name,
+                "model_id": self.model_id,
+                "batch_size": len(responses),
+            },
+        )
 
         # Add responses as new column
         return samples.add_column(self.output_column, responses)
@@ -323,6 +341,8 @@ class OpenAIAsyncChatBlock(Block):
         Nucleus sampling parameter (0.0 to 1.0).
     user : Optional[str], optional
         End-user identifier.
+    extra_body : Optional[dict], optional
+        Dictionary of additional parameters if supported by inference backend
     """
 
     def __init__(
@@ -350,6 +370,7 @@ class OpenAIAsyncChatBlock(Block):
         top_logprobs: Optional[int] = None,
         top_p: Optional[float] = None,
         user: Optional[str] = None,
+        extra_body: Optional[dict] = None,
     ) -> None:
         super().__init__(block_name)
         self.input_cols = [input_cols] if isinstance(input_cols, str) else input_cols
@@ -361,13 +382,9 @@ class OpenAIAsyncChatBlock(Block):
 
         # For this block, we expect exactly one input column (messages) and one output column
         if len(self.input_cols) != 1:
-            raise ValueError(
-                "OpenAIChatCompletionsAsyncLLMBlock expects exactly one input column"
-            )
+            raise ValueError("OpenAIAsyncChatBlock expects exactly one input column")
         if len(self.output_cols) != 1:
-            raise ValueError(
-                "OpenAIChatCompletionsAsyncLLMBlock expects exactly one output column"
-            )
+            raise ValueError("OpenAIAsyncChatBlock expects exactly one output column")
 
         self.messages_column = self.input_cols[0]
         self.output_column = self.output_cols[0]
@@ -392,19 +409,23 @@ class OpenAIAsyncChatBlock(Block):
             "top_logprobs": top_logprobs,
             "top_p": top_p,
             "user": user,
+            "extra_body": extra_body,
         }
 
         # Only include non-None parameters
         for key, value in params.items():
             if value is not None:
                 self.gen_kwargs[key] = value
-        
+
         # Log initialization with model and parameters
-        logger.info(f"Initialized OpenAIAsyncChatBlock '{block_name}' with model '{model_id}'", extra={
-            "block_name": block_name,
-            "model_id": model_id,
-            "generation_params": self.gen_kwargs
-        })
+        logger.info(
+            f"Initialized OpenAIAsyncChatBlock '{block_name}' with model '{model_id}'",
+            extra={
+                "block_name": block_name,
+                "model_id": model_id,
+                "generation_params": self.gen_kwargs,
+            },
+        )
 
     @retry(
         wait=wait_random_exponential(min=1, max=60),
@@ -480,13 +501,27 @@ class OpenAIAsyncChatBlock(Block):
         final_kwargs["model"] = self.model_id
 
         # Log generation start with model and effective parameters
-        logger.info(f"Starting async generation for {len(samples)} samples", extra={
-            "block_name": self.block_name,
-            "model_id": self.model_id,
-            "batch_size": len(samples),
-            "effective_params": {k: v for k, v in final_kwargs.items() 
-                               if k in ["temperature", "max_tokens", "max_completion_tokens", "top_p", "n", "seed"]}
-        })
+        logger.info(
+            f"Starting async generation for {len(samples)} samples",
+            extra={
+                "block_name": self.block_name,
+                "model_id": self.model_id,
+                "batch_size": len(samples),
+                "effective_params": {
+                    k: v
+                    for k, v in final_kwargs.items()
+                    if k
+                    in [
+                        "temperature",
+                        "max_tokens",
+                        "max_completion_tokens",
+                        "top_p",
+                        "n",
+                        "seed",
+                    ]
+                },
+            },
+        )
 
         # Run async generation
         return asyncio.run(self._generate_async(samples, final_kwargs))
@@ -508,11 +543,14 @@ class OpenAIAsyncChatBlock(Block):
         responses = await asyncio.gather(*tasks)
 
         # Log completion
-        logger.info(f"Async generation completed successfully for {len(responses)} samples", extra={
-            "block_name": self.block_name,
-            "model_id": final_kwargs["model"],
-            "batch_size": len(responses)
-        })
+        logger.info(
+            f"Async generation completed successfully for {len(responses)} samples",
+            extra={
+                "block_name": self.block_name,
+                "model_id": final_kwargs["model"],
+                "batch_size": len(responses),
+            },
+        )
 
         # Add responses as new column
         return samples.add_column(self.output_column, responses)

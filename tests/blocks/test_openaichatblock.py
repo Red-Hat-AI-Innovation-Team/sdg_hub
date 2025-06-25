@@ -176,7 +176,7 @@ class TestOpenAIChatBlock:
             temperature=0.5,
         )
 
-        result = block.generate(sample_dataset, temperature=0.9, max_tokens=150)
+        block.generate(sample_dataset, temperature=0.9, max_tokens=150)
 
         # Verify override parameters were used
         calls = mock_openai_client.chat.completions.create.call_args_list
