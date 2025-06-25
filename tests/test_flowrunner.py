@@ -11,6 +11,14 @@ import pytest
 
 # First Party
 from sdg_hub.flow_runner import main, run_flow
+from sdg_hub.utils.error_handling import (
+    APIConnectionError,
+    DataGenerationError,
+    DataSaveError,
+    DatasetLoadError,
+    FlowConfigurationError,
+    FlowRunnerError,
+)
 
 
 @pytest.fixture
@@ -20,7 +28,7 @@ def mock_dataset():
     return Dataset.from_dict(
         {
             "text": ["sample text " + str(i) for i in range(50)],
-            "metadata": [{"id": i} for i in range(50)]
+            "metadata": [{"id": i} for i in range(50)],
         }
     )
 
@@ -171,7 +179,7 @@ def test_run_flow_missing_flow_file(
     mock_input_dataset,
 ):
     """Test run_flow with non-existent flow file."""
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(FlowConfigurationError) as exc_info:
         run_flow(
             ds_path=mock_input_dataset,
             batch_size=8,
@@ -184,6 +192,8 @@ def test_run_flow_missing_flow_file(
             dataset_start_index=0,
             dataset_end_index=None,
         )
+    
+    assert "Flow configuration file not found" in str(exc_info.value)
 
 
 @patch("sdg_hub.flow_runner.run_flow")
@@ -447,9 +457,74 @@ def test_cli_main_with_dataset_indices(
         ],
     )
     assert result.exit_code == 0
-    
+
     # Verify run_flow was called with the correct parameters
     mock_run_flow.assert_called_once()
     call_args = mock_run_flow.call_args
     assert call_args.kwargs["dataset_start_index"] == 10
     assert call_args.kwargs["dataset_end_index"] == 50
+
+
+class TestFlowRunnerErrorHandling:
+    """Test error handling scenarios in flow_runner."""
+
+    def test_dataset_load_error_invalid_file(
+        self, mock_flow_config, mock_output_path, mock_checkpoint_dir
+    ):
+        """Test DatasetLoadError when dataset file is invalid."""
+        with patch("sdg_hub.flow_runner.load_dataset") as mock_load_dataset:
+            mock_load_dataset.side_effect = Exception("Invalid JSON format")
+
+            with pytest.raises(DatasetLoadError) as exc_info:
+                run_flow(
+                    ds_path="invalid.json",
+                    save_path=mock_output_path,
+                    endpoint="http://test.endpoint",
+                    flow_path=mock_flow_config,
+                    checkpoint_dir=mock_checkpoint_dir,
+                )
+
+            assert "Failed to load dataset from 'invalid.json'" in str(exc_info.value)
+            assert "Invalid JSON format" in exc_info.value.details
+
+    def test_api_connection_error_empty_endpoint(
+        self,
+        mock_dataset,
+        mock_flow_config,
+        mock_output_path,
+        mock_checkpoint_dir,
+        mock_input_dataset,
+    ):
+        """Test APIConnectionError with empty endpoint."""
+        with patch("sdg_hub.flow_runner.load_dataset") as mock_load_dataset:
+            mock_load_dataset.return_value = mock_dataset
+
+            with pytest.raises(APIConnectionError) as exc_info:
+                run_flow(
+                    ds_path=mock_input_dataset,
+                    save_path=mock_output_path,
+                    endpoint="",  # Empty endpoint
+                    flow_path=mock_flow_config,
+                    checkpoint_dir=mock_checkpoint_dir,
+                )
+
+            assert "API endpoint cannot be empty" in str(exc_info.value)
+
+    def test_flow_configuration_error_missing_file(
+        self, mock_dataset, mock_output_path, mock_checkpoint_dir, mock_input_dataset
+    ):
+        """Test FlowConfigurationError with missing flow file."""
+        with patch("sdg_hub.flow_runner.load_dataset") as mock_load_dataset:
+            mock_load_dataset.return_value = mock_dataset
+
+            with patch("sdg_hub.flow_runner.OpenAI"):
+                with pytest.raises(FlowConfigurationError) as exc_info:
+                    run_flow(
+                        ds_path=mock_input_dataset,
+                        save_path=mock_output_path,
+                        endpoint="http://test.endpoint",
+                        flow_path="nonexistent.yaml",
+                        checkpoint_dir=mock_checkpoint_dir,
+                    )
+
+                assert "Flow configuration file not found" in str(exc_info.value)
