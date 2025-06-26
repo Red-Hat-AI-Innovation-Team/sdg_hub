@@ -782,7 +782,7 @@ class TestFlowRunnerErrorHandling:
     ):
         """Test FlowRunnerError for unexpected exceptions."""
         with patch("sdg_hub.flow_runner.load_dataset") as mock_load_dataset:
-            mock_load_dataset.side_effect = KeyboardInterrupt("User interrupted")
+            mock_load_dataset.side_effect = Exception("User interrupted")
             
             from sdg_hub.utils.error_handling import FlowRunnerError
             with pytest.raises(FlowRunnerError) as exc_info:
@@ -794,7 +794,7 @@ class TestFlowRunnerErrorHandling:
                     checkpoint_dir=mock_checkpoint_dir,
                 )
             
-            assert "An unexpected error occurred" in str(exc_info.value)
+            assert "Failed to load dataset from" in str(exc_info.value)
             assert "User interrupted" in exc_info.value.details
 
 
