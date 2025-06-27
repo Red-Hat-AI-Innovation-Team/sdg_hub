@@ -150,7 +150,10 @@ def run_flow(
                 api_key=openai_api_key or "EMPTY",
                 base_url=openai_api_base,
             )
+            # test connection with a model list
+            models = client.models.list()
             logger.info(f"Initialized OpenAI client with endpoint: {openai_api_base}")
+            logger.info(f"Available models: {[model.id for model in models.data]}")
         except Exception as e:
             raise APIConnectionError(
                 f"Failed to initialize OpenAI client with endpoint '{openai_api_base}'. "
