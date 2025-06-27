@@ -84,6 +84,7 @@ def test_run_flow_success(
     # Setup mocks
     mock_load_dataset.return_value = mock_dataset
     mock_openai_instance = MagicMock()
+    mock_openai_instance.models.list.return_value = MagicMock(data=[])
     mock_openai.return_value = mock_openai_instance
     mock_flow_instance = MagicMock()
     mock_flow.return_value = mock_flow_instance
@@ -138,6 +139,7 @@ def test_run_flow_debug_mode(
     # Setup mocks
     mock_load_dataset.return_value = mock_dataset
     mock_openai_instance = MagicMock()
+    mock_openai_instance.models.list.return_value = MagicMock(data=[])
     mock_openai.return_value = mock_openai_instance
     mock_flow_instance = MagicMock()
     mock_flow.return_value = mock_flow_instance
@@ -283,6 +285,7 @@ def test_run_flow_with_dataset_indices(
     # Setup mocks
     mock_load_dataset.return_value = mock_dataset
     mock_openai_instance = MagicMock()
+    mock_openai_instance.models.list.return_value = MagicMock(data=[])
     mock_openai.return_value = mock_openai_instance
     mock_flow_instance = MagicMock()
     mock_flow.return_value = mock_flow_instance
@@ -332,6 +335,7 @@ def test_run_flow_with_modified_save_path(
     # Setup mocks
     mock_load_dataset.return_value = mock_dataset
     mock_openai_instance = MagicMock()
+    mock_openai_instance.models.list.return_value = MagicMock(data=[])
     mock_openai.return_value = mock_openai_instance
     mock_flow_instance = MagicMock()
     mock_flow.return_value = mock_flow_instance
@@ -388,6 +392,7 @@ def test_run_flow_without_dataset_indices(
     # Setup mocks
     mock_load_dataset.return_value = mock_dataset
     mock_openai_instance = MagicMock()
+    mock_openai_instance.models.list.return_value = MagicMock(data=[])
     mock_openai.return_value = mock_openai_instance
     mock_flow_instance = MagicMock()
     mock_flow.return_value = mock_flow_instance
@@ -514,7 +519,10 @@ class TestFlowRunnerErrorHandling:
         with patch("sdg_hub.flow_runner.load_dataset") as mock_load_dataset:
             mock_load_dataset.return_value = mock_dataset
 
-            with patch("sdg_hub.flow_runner.OpenAI"):
+            with patch("sdg_hub.flow_runner.OpenAI") as mock_openai:
+                mock_openai_instance = MagicMock()
+                mock_openai_instance.models.list.return_value = MagicMock(data=[])
+                mock_openai.return_value = mock_openai_instance
                 with pytest.raises(FlowConfigurationError) as exc_info:
                     run_flow(
                         ds_path=mock_input_dataset,
@@ -623,7 +631,10 @@ class TestFlowRunnerErrorHandling:
         with patch("sdg_hub.flow_runner.load_dataset") as mock_load_dataset:
             mock_load_dataset.return_value = mock_dataset
             
-            with patch("sdg_hub.flow_runner.OpenAI"):
+            with patch("sdg_hub.flow_runner.OpenAI") as mock_openai:
+                mock_openai_instance = MagicMock()
+                mock_openai_instance.models.list.return_value = MagicMock(data=[])
+                mock_openai.return_value = mock_openai_instance
                 with pytest.raises(FlowConfigurationError) as exc_info:
                     run_flow(
                         ds_path=mock_input_dataset,
@@ -645,7 +656,10 @@ class TestFlowRunnerErrorHandling:
         with patch("sdg_hub.flow_runner.load_dataset") as mock_load_dataset:
             mock_load_dataset.return_value = mock_dataset
             
-            with patch("sdg_hub.flow_runner.OpenAI"):
+            with patch("sdg_hub.flow_runner.OpenAI") as mock_openai:
+                mock_openai_instance = MagicMock()
+                mock_openai_instance.models.list.return_value = MagicMock(data=[])
+                mock_openai.return_value = mock_openai_instance
                 with pytest.raises(FlowConfigurationError) as exc_info:
                     run_flow(
                         ds_path=mock_input_dataset,
@@ -664,7 +678,10 @@ class TestFlowRunnerErrorHandling:
         with patch("sdg_hub.flow_runner.load_dataset") as mock_load_dataset:
             mock_load_dataset.return_value = mock_dataset
             
-            with patch("sdg_hub.flow_runner.OpenAI"):
+            with patch("sdg_hub.flow_runner.OpenAI") as mock_openai:
+                mock_openai_instance = MagicMock()
+                mock_openai_instance.models.list.return_value = MagicMock(data=[])
+                mock_openai.return_value = mock_openai_instance
                 with patch("sdg_hub.flow_runner.Flow") as mock_flow:
                     mock_flow.side_effect = Exception("Invalid block configuration")
                     
@@ -687,7 +704,10 @@ class TestFlowRunnerErrorHandling:
         with patch("sdg_hub.flow_runner.load_dataset") as mock_load_dataset:
             mock_load_dataset.return_value = mock_dataset
             
-            with patch("sdg_hub.flow_runner.OpenAI"):
+            with patch("sdg_hub.flow_runner.OpenAI") as mock_openai:
+                mock_openai_instance = MagicMock()
+                mock_openai_instance.models.list.return_value = MagicMock(data=[])
+                mock_openai.return_value = mock_openai_instance
                 with patch("sdg_hub.flow_runner.Flow") as mock_flow:
                     mock_flow_instance = MagicMock()
                     mock_flow.return_value = mock_flow_instance
@@ -717,7 +737,10 @@ class TestFlowRunnerErrorHandling:
         with patch("sdg_hub.flow_runner.load_dataset") as mock_load_dataset:
             mock_load_dataset.return_value = mock_dataset
             
-            with patch("sdg_hub.flow_runner.OpenAI"):
+            with patch("sdg_hub.flow_runner.OpenAI") as mock_openai:
+                mock_openai_instance = MagicMock()
+                mock_openai_instance.models.list.return_value = MagicMock(data=[])
+                mock_openai.return_value = mock_openai_instance
                 with patch("sdg_hub.flow_runner.Flow") as mock_flow:
                     mock_flow_instance = MagicMock()
                     mock_flow.return_value = mock_flow_instance
@@ -748,7 +771,10 @@ class TestFlowRunnerErrorHandling:
         with patch("sdg_hub.flow_runner.load_dataset") as mock_load_dataset:
             mock_load_dataset.return_value = mock_dataset
             
-            with patch("sdg_hub.flow_runner.OpenAI"):
+            with patch("sdg_hub.flow_runner.OpenAI") as mock_openai:
+                mock_openai_instance = MagicMock()
+                mock_openai_instance.models.list.return_value = MagicMock(data=[])
+                mock_openai.return_value = mock_openai_instance
                 with patch("sdg_hub.flow_runner.Flow") as mock_flow:
                     mock_flow_instance = MagicMock()
                     mock_flow.return_value = mock_flow_instance
