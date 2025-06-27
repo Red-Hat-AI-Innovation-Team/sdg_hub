@@ -172,12 +172,23 @@ def test_run_flow_debug_mode(
     mock_dataset.select.assert_called_once_with(range(30))
 
 
+@patch("sdg_hub.flow_runner.load_dataset")
+@patch("sdg_hub.flow_runner.OpenAI")
 def test_run_flow_missing_flow_file(
+    mock_openai,
+    mock_load_dataset,
     mock_output_path,
     mock_checkpoint_dir,
     mock_input_dataset,
+    mock_dataset,
 ):
     """Test run_flow with non-existent flow file."""
+    # Setup mocks
+    mock_load_dataset.return_value = mock_dataset
+    mock_openai_instance = MagicMock()
+    mock_openai_instance.models.list.return_value = MagicMock(data=[])
+    mock_openai.return_value = mock_openai_instance
+    
     with pytest.raises(FlowConfigurationError) as exc_info:
         run_flow(
             ds_path=mock_input_dataset,
