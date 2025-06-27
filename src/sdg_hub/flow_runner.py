@@ -1,6 +1,7 @@
 """Script for running data generation flows with configurable parameters."""
 
 # Standard
+from importlib import resources
 from typing import Optional
 import os
 import sys
@@ -160,7 +161,8 @@ def run_flow(
 
         # Load and validate flow configuration
         try:
-            flow_path = resolve_path(flow_path, ".")
+            base_path = str(resources.files(__package__))
+            flow_path = resolve_path(flow_path, [".", base_path])
             if not os.path.exists(flow_path):
                 raise FlowConfigurationError(
                     f"Flow configuration file not found: {flow_path}"
