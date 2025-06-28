@@ -42,6 +42,7 @@ def run_flow(
     debug: bool = False,
     dataset_start_index: int = 0,
     dataset_end_index: Optional[int] = None,
+    api_key: Optional[str] = None,
 ) -> None:
     """Process the dataset using the specified configuration.
 
@@ -69,6 +70,8 @@ def run_flow(
         Start index for dataset slicing, by default 0.
     dataset_end_index : Optional[int], optional
         End index for dataset slicing, by default None.
+    api_key : Optional[str], optional
+        API key for the remote endpoint. If not provided, will use OPENAI_API_KEY environment variable, by default None.
 
     Returns
     -------
@@ -137,9 +140,9 @@ def run_flow(
             ) from e
 
         # Validate API configuration
-        openai_api_key = os.environ.get("OPENAI_API_KEY")
+        openai_api_key = api_key or os.environ.get("OPENAI_API_KEY")
         if not openai_api_key or openai_api_key == "EMPTY":
-            logger.warning("OPENAI_API_KEY not set or is 'EMPTY'. API calls may fail.")
+            logger.warning("API key not provided and OPENAI_API_KEY not set or is 'EMPTY'. API calls may fail.")
 
         openai_api_base = endpoint
         if not openai_api_base:
@@ -349,6 +352,12 @@ def run_flow(
 @click.option(
     "--dataset_end_index", type=int, default=None, help="End index of the dataset."
 )
+@click.option(
+    "--api_key",
+    type=str,
+    default=None,
+    help="API key for the remote endpoint. If not provided, will use OPENAI_API_KEY environment variable.",
+)
 def main(
     ds_path: str,
     bs: int,
@@ -361,6 +370,7 @@ def main(
     debug: bool,
     dataset_start_index: int,
     dataset_end_index: Optional[int],
+    api_key: Optional[str],
 ) -> None:
     """CLI entry point for running data generation flows.
 
@@ -388,6 +398,8 @@ def main(
         Start index for dataset slicing.
     dataset_end_index : Optional[int]
         End index for dataset slicing.
+    api_key : Optional[str]
+        API key for the remote endpoint. If not provided, will use OPENAI_API_KEY environment variable.
 
     Returns
     -------
@@ -406,6 +418,7 @@ def main(
             debug=debug,
             dataset_start_index=dataset_start_index,
             dataset_end_index=dataset_end_index,
+            api_key=api_key,
         )
     except (
         DatasetLoadError,
