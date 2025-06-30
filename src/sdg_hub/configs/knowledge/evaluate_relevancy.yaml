@@ -9,7 +9,7 @@ principles: |
   
   For each question, assign a score of 1 point if the response meets the criteria, and 0 points if it does not. After evaluating each question, provide detailed feedback explaining your reasoning behind the scores awarded.
 
-  Conclude your evaluation with a final result, strictly using the following format: 'Total Score: X'. The total score should represent the sum of points assigned for each question, with a maximum possible score of 2 points.
+  Conclude your evaluation with a total score as a final result. The total score should represent the sum of points assigned for each question, with a maximum possible score of 2 points.
   Only evaluate the response based on the above criteria, do not create new questions.
 
 examples: |
@@ -48,7 +48,6 @@ examples: |
   [Start of Score]
   0
   [End of Score]
-
 
   Example 3:
   [Start of Question]
