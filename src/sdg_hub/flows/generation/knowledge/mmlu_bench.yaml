@@ -2,7 +2,7 @@
   block_config:
     block_name: gen_mmlu_knowledge
     config_path: configs/knowledge/mcq_generation.yaml
-    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_id: meta-llama/Llama-3.3-70B-Instruct
     output_cols:
       - mmlubench_question
       - mmlubench_answer
