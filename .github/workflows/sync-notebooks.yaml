@@ -27,40 +27,43 @@ jobs:
       run: |
         pip install jupytext jupyter
 
-    - name: Get changed files
-      id: changed-files
+    - name: Sync Python files to notebooks
       run: |
         # Get files changed in this PR compared to the base branch
         git fetch origin ${{ github.base_ref }}
-        CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.(py|ipynb)$' | grep 'examples/' || true)
-        echo "changed_files=$CHANGED_FILES" >> $GITHUB_OUTPUT
-        echo "Changed files:"
-        echo "$CHANGED_FILES"
-
-    - name: Sync Python files to notebooks
-      if: steps.changed-files.outputs.changed_files != ''
-      run: |
+        CHANGED_PY_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.py$' | grep 'examples/' || true)
+        echo "Changed Python files:"
+        echo "$CHANGED_PY_FILES"
+        
         # Convert only changed .py files to .ipynb (only files that contain cell markers)
-        echo "${{ steps.changed-files.outputs.changed_files }}" | grep '\.py$' | while read py_file; do
-          if [ -f "$py_file" ] && grep -q "# %%" "$py_file"; then
-            echo "Converting $py_file to notebook"
-            jupytext --to ipynb "$py_file"
-          fi
-        done
+        if [ -n "$CHANGED_PY_FILES" ]; then
+          echo "$CHANGED_PY_FILES" | while read py_file; do
+            if [ -f "$py_file" ] && grep -q "# %%" "$py_file"; then
+              echo "Converting $py_file to notebook"
+              jupytext --to ipynb "$py_file"
+            fi
+          done
+        fi
 
     - name: Sync notebooks to Python files
-      if: steps.changed-files.outputs.changed_files != ''
       run: |
+        # Get changed .ipynb files in this PR compared to the base branch
+        CHANGED_IPYNB_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.ipynb$' | grep 'examples/' || true)
+        echo "Changed notebook files:"
+        echo "$CHANGED_IPYNB_FILES"
+        
         # Convert only changed .ipynb files to .py (only if corresponding .py doesn't exist or is newer)
-        echo "${{ steps.changed-files.outputs.changed_files }}" | grep '\.ipynb$' | while read ipynb_file; do
-          if [ -f "$ipynb_file" ]; then
-            py_file="${ipynb_file%.ipynb}.py"
-            if [ ! -f "$py_file" ] || [ "$ipynb_file" -nt "$py_file" ]; then
-              echo "Converting $ipynb_file to Python"
-              jupytext --to py:percent "$ipynb_file"
+        if [ -n "$CHANGED_IPYNB_FILES" ]; then
+          echo "$CHANGED_IPYNB_FILES" | while read ipynb_file; do
+            if [ -f "$ipynb_file" ]; then
+              py_file="${ipynb_file%.ipynb}.py"
+              if [ ! -f "$py_file" ] || [ "$ipynb_file" -nt "$py_file" ]; then
+                echo "Converting $ipynb_file to Python"
+                jupytext --to py:percent "$ipynb_file"
+              fi
             fi
-          fi
-        done
+          done
+        fi
 
     - name: Check for changes
       id: verify-changed-files
