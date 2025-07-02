@@ -1,0 +1,4 @@
+# Jupytext configuration
+formats: "py:percent,ipynb"
+notebook_metadata_filter: "all"
+cell_metadata_filter: "-all"
