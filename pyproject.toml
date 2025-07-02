@@ -76,6 +76,8 @@ dev = [
     "pytest-cov",
     "pytest-html",
     "tox>=4.4.2,<5",
+    "jupytext>=1.15.0",
+    "jupyter>=1.0.0",
 ]
 
 [tool.setuptools_scm]

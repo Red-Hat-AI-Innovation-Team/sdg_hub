@@ -1,0 +1,84 @@
+name: Sync Notebooks
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths: [ '**/*.py', '**/*.ipynb' ]
+
+jobs:
+  sync-notebooks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        pip install jupytext jupyter
+
+    - name: Sync Python files to notebooks
+      run: |
+        # Get files changed in this PR compared to the base branch
+        git fetch origin ${{ github.base_ref }}
+        CHANGED_PY_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.py$' | grep 'examples/' || true)
+        echo "Changed Python files:"
+        echo "$CHANGED_PY_FILES"
+        
+        # Convert only changed .py files to .ipynb (only files that contain cell markers)
+        if [ -n "$CHANGED_PY_FILES" ]; then
+          echo "$CHANGED_PY_FILES" | while read py_file; do
+            if [ -f "$py_file" ] && grep -q "# %%" "$py_file"; then
+              echo "Converting $py_file to notebook"
+              jupytext --to ipynb "$py_file"
+            fi
+          done
+        fi
+
+    - name: Sync notebooks to Python files
+      run: |
+        # Get changed .ipynb files in this PR compared to the base branch
+        CHANGED_IPYNB_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.ipynb$' | grep 'examples/' || true)
+        echo "Changed notebook files:"
+        echo "$CHANGED_IPYNB_FILES"
+        
+        # Convert only changed .ipynb files to .py (only if corresponding .py doesn't exist or is newer)
+        if [ -n "$CHANGED_IPYNB_FILES" ]; then
+          echo "$CHANGED_IPYNB_FILES" | while read ipynb_file; do
+            if [ -f "$ipynb_file" ]; then
+              py_file="${ipynb_file%.ipynb}.py"
+              if [ ! -f "$py_file" ] || [ "$ipynb_file" -nt "$py_file" ]; then
+                echo "Converting $ipynb_file to Python"
+                jupytext --to py:percent "$ipynb_file"
+              fi
+            fi
+          done
+        fi
+
+    - name: Check for changes
+      id: verify-changed-files
+      run: |
+        if [ -n "$(git status --porcelain)" ]; then
+          echo "changed=true" >> $GITHUB_OUTPUT
+        else
+          echo "changed=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Commit and push changes to PR branch
+      if: steps.verify-changed-files.outputs.changed == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .
+        git commit -m "Auto-sync notebooks and Python files" || exit 0
+        git push origin HEAD:${{ github.head_ref }}
