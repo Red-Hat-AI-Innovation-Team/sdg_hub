@@ -84,12 +84,12 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints/
 
-# Don't ignore the generated notebooks in examples/ directory
+# Ignore notebooks in other directories first
+*.ipynb
+
+# But don't ignore the generated notebooks in examples/ directory
 # (we want both .py and .ipynb versions)
 !examples/**/*.ipynb
-
-# But ignore notebooks in other directories
-*.ipynb
 
 # Ignore setup guide
 JUPYTEXT_SETUP_GUIDE.md
