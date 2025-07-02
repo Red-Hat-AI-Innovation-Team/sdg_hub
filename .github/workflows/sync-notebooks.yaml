@@ -29,9 +29,15 @@ jobs:
 
     - name: Sync Python files to notebooks
       run: |
-        # Find the most recent auto-sync commit or use base branch as fallback
-        LAST_SYNC_COMMIT=$(git log --grep="Auto-sync notebooks and Python files" --format="%H" -1 || echo "origin/${{ github.base_ref }}")
-        echo "Comparing against: $LAST_SYNC_COMMIT"
+        # Find the most recent auto-sync commit in this PR or use base branch as fallback
+        git fetch origin ${{ github.base_ref }}
+        LAST_SYNC_COMMIT=$(git log origin/${{ github.base_ref }}..HEAD --grep="Auto-sync notebooks and Python files" --format="%H" -1)
+        if [ -z "$LAST_SYNC_COMMIT" ]; then
+          LAST_SYNC_COMMIT="origin/${{ github.base_ref }}"
+          echo "No auto-sync commit found in this PR, comparing against base branch: $LAST_SYNC_COMMIT"
+        else
+          echo "Found auto-sync commit in this PR, comparing against: $LAST_SYNC_COMMIT"
+        fi
         
         # Get files changed since the last auto-sync commit
         CHANGED_PY_FILES=$(git diff --name-only $LAST_SYNC_COMMIT...HEAD | grep -E '\.py$' | grep 'examples/' || true)
@@ -50,9 +56,15 @@ jobs:
 
     - name: Sync notebooks to Python files
       run: |
-        # Find the most recent auto-sync commit or use base branch as fallback
-        LAST_SYNC_COMMIT=$(git log --grep="Auto-sync notebooks and Python files" --format="%H" -1 || echo "origin/${{ github.base_ref }}")
-        echo "Comparing against: $LAST_SYNC_COMMIT"
+        # Find the most recent auto-sync commit in this PR or use base branch as fallback
+        git fetch origin ${{ github.base_ref }}
+        LAST_SYNC_COMMIT=$(git log origin/${{ github.base_ref }}..HEAD --grep="Auto-sync notebooks and Python files" --format="%H" -1)
+        if [ -z "$LAST_SYNC_COMMIT" ]; then
+          LAST_SYNC_COMMIT="origin/${{ github.base_ref }}"
+          echo "No auto-sync commit found in this PR, comparing against base branch: $LAST_SYNC_COMMIT"
+        else
+          echo "Found auto-sync commit in this PR, comparing against: $LAST_SYNC_COMMIT"
+        fi
         
         # Get changed .ipynb files since the last auto-sync commit
         CHANGED_IPYNB_FILES=$(git diff --name-only $LAST_SYNC_COMMIT...HEAD | grep -E '\.ipynb$' | grep 'examples/' || true)
