@@ -67,3 +67,6 @@ SDG Hub comes with several pre-configured flows:
 
 All flows are located in the `src/sdg_hub/flows` directory.
 """
+
+# %%
+print("This is a test to trigger the CI workflow")
