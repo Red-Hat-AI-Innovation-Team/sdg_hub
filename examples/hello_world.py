@@ -1,4 +1,4 @@
-# %%
+# %% [markdown]
 """
 # Hello World - SDG Hub Simple Example
 
@@ -9,7 +9,7 @@ using the basic knowledge generation flow.
 # %%
 from sdg_hub.flow_runner import run_flow
 
-# %%
+# %% [markdown]
 """
 ## Basic Knowledge Generation Flow
 
@@ -26,7 +26,7 @@ run_flow(
     flow_path="flows/generation/knowledge/synth_knowledge.yaml"
 )
 
-# %%
+# %% [markdown]
 """
 ## Advanced Configuration Example
 
@@ -50,7 +50,7 @@ run_flow(
     save_freq=2,
 )
 
-# %%
+# %% [markdown]
 """
 ## Available Built-in Flows
 
@@ -68,5 +68,10 @@ SDG Hub comes with several pre-configured flows:
 All flows are located in the `src/sdg_hub/flows` directory.
 """
 
-# %%
-print("This is a test to trigger the CI workflow")
+# %% [markdown]
+"""
+## Next Steps
+
+Try running this example with your own data and LLM endpoint to generate 
+synthetic question-answer pairs for training or evaluation purposes.
+"""
