@@ -75,10 +75,17 @@ jobs:
     - name: Check for changes
       id: verify-changed-files
       run: |
+        echo "Git status output:"
+        git status --porcelain
+        echo "Files in examples directory:"
+        ls -la examples/
+        
         if [ -n "$(git status --porcelain)" ]; then
           echo "changed=true" >> $GITHUB_OUTPUT
+          echo "Changes detected - will commit"
         else
           echo "changed=false" >> $GITHUB_OUTPUT
+          echo "No changes detected"
         fi
 
     - name: Commit and push changes to PR branch
@@ -86,6 +93,9 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
+        echo "Adding files to git:"
         git add .
+        echo "Git status after add:"
+        git status
         git commit -m "Auto-sync notebooks and Python files" || exit 0
         git push origin HEAD:${{ github.head_ref }}
