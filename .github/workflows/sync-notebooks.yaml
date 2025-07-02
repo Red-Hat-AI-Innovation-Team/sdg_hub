@@ -27,15 +27,40 @@ jobs:
       run: |
         pip install jupytext jupyter
 
-    - name: Sync Python files to notebooks
+    - name: Get changed files
+      id: changed-files
       run: |
-        # Convert .py files to .ipynb
-        find . -name "*.py" -path "*/examples/*" -exec jupytext --to ipynb {} \;
+        # Get files changed in this PR compared to the base branch
+        git fetch origin ${{ github.base_ref }}
+        CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.(py|ipynb)$' | grep 'examples/' || true)
+        echo "changed_files=$CHANGED_FILES" >> $GITHUB_OUTPUT
+        echo "Changed files:"
+        echo "$CHANGED_FILES"
+
+    - name: Sync Python files to notebooks
+      if: steps.changed-files.outputs.changed_files != ''
+      run: |
+        # Convert only changed .py files to .ipynb (only files that contain cell markers)
+        echo "${{ steps.changed-files.outputs.changed_files }}" | grep '\.py$' | while read py_file; do
+          if [ -f "$py_file" ] && grep -q "# %%" "$py_file"; then
+            echo "Converting $py_file to notebook"
+            jupytext --to ipynb "$py_file"
+          fi
+        done
 
     - name: Sync notebooks to Python files
+      if: steps.changed-files.outputs.changed_files != ''
       run: |
-        # Convert .ipynb files to .py (in case someone committed a notebook directly)
-        find . -name "*.ipynb" -path "*/examples/*" -exec jupytext --to py:percent {} \;
+        # Convert only changed .ipynb files to .py (only if corresponding .py doesn't exist or is newer)
+        echo "${{ steps.changed-files.outputs.changed_files }}" | grep '\.ipynb$' | while read ipynb_file; do
+          if [ -f "$ipynb_file" ]; then
+            py_file="${ipynb_file%.ipynb}.py"
+            if [ ! -f "$py_file" ] || [ "$ipynb_file" -nt "$py_file" ]; then
+              echo "Converting $ipynb_file to Python"
+              jupytext --to py:percent "$ipynb_file"
+            fi
+          fi
+        done
 
     - name: Check for changes
       id: verify-changed-files

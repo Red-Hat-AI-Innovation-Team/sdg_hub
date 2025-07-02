@@ -91,6 +91,9 @@ target/
 # But ignore notebooks in other directories
 *.ipynb
 
+# Ignore setup guide
+JUPYTEXT_SETUP_GUIDE.md
+
 # IPython
 profile_default/
 ipython_config.py
