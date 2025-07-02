@@ -59,15 +59,12 @@ jobs:
         echo "Changed notebook files since last sync:"
         echo "$CHANGED_IPYNB_FILES"
         
-        # Convert only changed .ipynb files to .py (only if corresponding .py doesn't exist or is newer)
+        # Convert only changed .ipynb files to .py (always convert changed files)
         if [ -n "$CHANGED_IPYNB_FILES" ]; then
           echo "$CHANGED_IPYNB_FILES" | while read ipynb_file; do
             if [ -f "$ipynb_file" ]; then
-              py_file="${ipynb_file%.ipynb}.py"
-              if [ ! -f "$py_file" ] || [ "$ipynb_file" -nt "$py_file" ]; then
-                echo "Converting $ipynb_file to Python"
-                jupytext --to py:percent "$ipynb_file"
-              fi
+              echo "Converting $ipynb_file to Python"
+              jupytext --to py:percent "$ipynb_file"
             fi
           done
         fi
