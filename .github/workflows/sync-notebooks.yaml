@@ -29,10 +29,13 @@ jobs:
 
     - name: Sync Python files to notebooks
       run: |
-        # Get files changed in this PR compared to the base branch
-        git fetch origin ${{ github.base_ref }}
-        CHANGED_PY_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.py$' | grep 'examples/' || true)
-        echo "Changed Python files:"
+        # Find the most recent auto-sync commit or use base branch as fallback
+        LAST_SYNC_COMMIT=$(git log --grep="Auto-sync notebooks and Python files" --format="%H" -1 || echo "origin/${{ github.base_ref }}")
+        echo "Comparing against: $LAST_SYNC_COMMIT"
+        
+        # Get files changed since the last auto-sync commit
+        CHANGED_PY_FILES=$(git diff --name-only $LAST_SYNC_COMMIT...HEAD | grep -E '\.py$' | grep 'examples/' || true)
+        echo "Changed Python files since last sync:"
         echo "$CHANGED_PY_FILES"
         
         # Convert only changed .py files to .ipynb (only files that contain cell markers)
@@ -47,9 +50,13 @@ jobs:
 
     - name: Sync notebooks to Python files
       run: |
-        # Get changed .ipynb files in this PR compared to the base branch
-        CHANGED_IPYNB_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.ipynb$' | grep 'examples/' || true)
-        echo "Changed notebook files:"
+        # Find the most recent auto-sync commit or use base branch as fallback
+        LAST_SYNC_COMMIT=$(git log --grep="Auto-sync notebooks and Python files" --format="%H" -1 || echo "origin/${{ github.base_ref }}")
+        echo "Comparing against: $LAST_SYNC_COMMIT"
+        
+        # Get changed .ipynb files since the last auto-sync commit
+        CHANGED_IPYNB_FILES=$(git diff --name-only $LAST_SYNC_COMMIT...HEAD | grep -E '\.ipynb$' | grep 'examples/' || true)
+        echo "Changed notebook files since last sync:"
         echo "$CHANGED_IPYNB_FILES"
         
         # Convert only changed .ipynb files to .py (only if corresponding .py doesn't exist or is newer)
