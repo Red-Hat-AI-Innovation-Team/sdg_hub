@@ -10,6 +10,7 @@ from .openaichatblock import (
     OpenAIChatBlock,
     OpenAIAsyncChatBlock
 )
+from .promptformattingblock import PromptFormattingBlock
 from .utilblocks import (
     SamplePopulatorBlock,
     SelectorBlock,
@@ -29,6 +30,7 @@ __all__ = [
     "IterBlock",
     "LLMBlock",
     "ConditionalLLMBlock",
+    "PromptFormattingBlock",
     "SamplePopulatorBlock",
     "SelectorBlock",
     "CombineColumnsBlock",
