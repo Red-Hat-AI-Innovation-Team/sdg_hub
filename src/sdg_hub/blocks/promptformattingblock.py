@@ -83,7 +83,7 @@ class PromptFormattingBlock(Block):
             "introduction": "user", 
             "principles": "user",
             "examples": "user",
-            "generation": "assistant"
+            "generation": "user"
         })
         
         # Store config for template creation in mapping function
@@ -133,41 +133,27 @@ class PromptFormattingBlock(Block):
         List[Dict[str, str]]
             List of chat messages with role and content.
         """
-        # Create template from structure and config
-        prompt_template = Template(prompt_struct.format(**filtered_config))
-        
-        # Render the template with sample data
-        rendered_template = prompt_template.render(sample).strip()
-        
-        # Apply model prompt template if it's not the default "{prompt}"
-        if model_prompt != "{prompt}":
-            try:
-                final_prompt = PromptRegistry.render_template(
-                    model_prompt, rendered_template, add_generation_prompt=True
-                ).strip()
-            except KeyError:
-                # If template not found, use the rendered template as-is
-                final_prompt = rendered_template
-        else:
-            # For default "{prompt}", just use the rendered template
-            final_prompt = rendered_template
-        
-        # Extract template variables from the sample
-        template_vars = {}
-        for var_name in role_mapping.keys():
-            if var_name in sample:
-                template_vars[var_name] = str(sample[var_name]).strip()
-            else:
-                template_vars[var_name] = ""
-        
-        # Group variables by role
+        # Group template variables by role and render them with sample data
         role_content = {}
-        for var_name, content in template_vars.items():
-            if content:  # Only include non-empty content
-                role = role_mapping[var_name]
-                if role not in role_content:
-                    role_content[role] = []
-                role_content[role].append(content)
+        for var_name, role in role_mapping.items():
+            if var_name in filtered_config:
+                content_template = filtered_config[var_name]
+                if content_template and str(content_template).strip():
+                    # Render the content template with sample data
+                    try:
+                        content_template_obj = Template(str(content_template))
+                        rendered_content = content_template_obj.render(sample).strip()
+                        if rendered_content:  # Only include non-empty content
+                            if role not in role_content:
+                                role_content[role] = []
+                            role_content[role].append(rendered_content)
+                    except Exception as e:
+                        # If rendering fails, use the raw content
+                        logger.warning(f"Failed to render template for {var_name}: {e}")
+                        if str(content_template).strip():
+                            if role not in role_content:
+                                role_content[role] = []
+                            role_content[role].append(str(content_template).strip())
         
         # Create messages from grouped content
         messages = []
@@ -180,8 +166,28 @@ class PromptFormattingBlock(Block):
                     "content": combined_content
                 })
         
-        # If no messages were created, create a default user message
+        # If no messages were created, fall back to legacy string format
         if not messages:
+            # Create template from structure and config
+            prompt_template = Template(prompt_struct.format(**filtered_config))
+            
+            # Render the template with sample data
+            rendered_template = prompt_template.render(sample).strip()
+            
+            # Apply model prompt template if it's not the default "{prompt}"
+            if model_prompt != "{prompt}":
+                try:
+                    final_prompt = PromptRegistry.render_template(
+                        model_prompt, rendered_template, add_generation_prompt=True
+                    ).strip()
+                except KeyError:
+                    # If template not found, use the rendered template as-is
+                    final_prompt = rendered_template
+            else:
+                # For default "{prompt}", just use the rendered template
+                final_prompt = rendered_template
+            
+            # Create a default user message
             messages.append({
                 "role": "user",
                 "content": final_prompt
