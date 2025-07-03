@@ -10,7 +10,6 @@ from .openaichatblock import (
     OpenAIChatBlock,
     OpenAIAsyncChatBlock
 )
-from .promptformattingblock import PromptFormattingBlock
 from .utilblocks import (
     SamplePopulatorBlock,
     SelectorBlock,
@@ -21,6 +20,7 @@ from .utilblocks import (
     SetToMajorityValue,
     FilterByValueBlock,
     IterBlock,
+    PromptFormattingBlock,
 )
 from ..registry import BlockRegistry
 
@@ -31,6 +31,8 @@ __all__ = [
     "LLMBlock",
     "ConditionalLLMBlock",
     "PromptFormattingBlock",
+    "OpenAIChatBlock",
+    "OpenAIAsyncChatBlock",
     "SamplePopulatorBlock",
     "SelectorBlock",
     "CombineColumnsBlock",
@@ -39,6 +41,4 @@ __all__ = [
     "RenameColumns",
     "SetToMajorityValue",
     "BlockRegistry",
-    "OpenAIChatBlock",
-    "OpenAIAsyncChatBlock"
 ]
