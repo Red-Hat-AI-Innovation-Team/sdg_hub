@@ -1,0 +1,4 @@
+introduction: "This template requires: {{required_var}}"
+principles: "Must have: {{required_var}}"
+examples: "Example: {{required_var}}"
+generation: "Process: {{required_var}}"

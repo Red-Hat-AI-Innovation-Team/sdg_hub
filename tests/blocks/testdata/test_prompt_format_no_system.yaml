@@ -1,0 +1,4 @@
+introduction: "Generate a response"
+principles: "Be helpful"
+examples: "Example provided"
+generation: "Process: {{text}}"

@@ -3,13 +3,13 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks.llm_utils import StringParserBlock
+from sdg_hub.blocks.llm_utils import TextParserBlock
 
 
 @pytest.fixture
 def postprocessing_block():
-    """Create a basic StringParserBlock instance for testing."""
-    return StringParserBlock(
+    """Create a basic TextParserBlock instance for testing."""
+    return TextParserBlock(
         block_name="test_block",
         input_cols="raw_output",
         output_cols=["output"],
@@ -18,8 +18,8 @@ def postprocessing_block():
 
 @pytest.fixture
 def postprocessing_block_with_custom_parser():
-    """Create a StringParserBlock instance with custom parser configuration."""
-    return StringParserBlock(
+    """Create a TextParserBlock instance with custom parser configuration."""
+    return TextParserBlock(
         block_name="test_block",
         input_cols="raw_output",
         output_cols=["output"],
@@ -30,8 +30,8 @@ def postprocessing_block_with_custom_parser():
 
 @pytest.fixture
 def postprocessing_block_with_tags():
-    """Create a StringParserBlock instance with tag-based parsing configuration."""
-    return StringParserBlock(
+    """Create a TextParserBlock instance with tag-based parsing configuration."""
+    return TextParserBlock(
         block_name="test_block",
         input_cols="raw_output",
         output_cols=["output"],
@@ -42,8 +42,8 @@ def postprocessing_block_with_tags():
 
 @pytest.fixture
 def postprocessing_block_multi_column():
-    """Create a StringParserBlock instance with multiple output columns."""
-    return StringParserBlock(
+    """Create a TextParserBlock instance with multiple output columns."""
+    return TextParserBlock(
         block_name="test_block",
         input_cols="raw_output",
         output_cols=["title", "content"],
@@ -260,9 +260,9 @@ def test_generate_all_empty_parsed_outputs_custom_parser(
 def test_constructor_validation_no_input_cols():
     """Test constructor validation with no input columns."""
     with pytest.raises(
-        ValueError, match="StringParserBlock expects at least one input column"
+        ValueError, match="TextParserBlock expects at least one input column"
     ):
-        StringParserBlock(
+        TextParserBlock(
             block_name="test_block",
             input_cols=[],
             output_cols=["output"],
@@ -272,7 +272,7 @@ def test_constructor_validation_no_input_cols():
 def test_constructor_validation_multiple_input_cols():
     """Test constructor validation with multiple input columns (should warn but not error)."""
     # This should not raise an error, just log a warning
-    block = StringParserBlock(
+    block = TextParserBlock(
         block_name="test_block",
         input_cols=["col1", "col2"],
         output_cols=["output"],
@@ -284,7 +284,7 @@ def test_constructor_validation_multiple_input_cols():
 
 def test_constructor_string_input_cols():
     """Test constructor with string input_cols (should be converted to list)."""
-    block = StringParserBlock(
+    block = TextParserBlock(
         block_name="test_block",
         input_cols="raw_output",
         output_cols=["output"],
@@ -295,7 +295,7 @@ def test_constructor_string_input_cols():
 
 def test_constructor_string_output_cols():
     """Test constructor with string output_cols (should be converted to list)."""
-    block = StringParserBlock(
+    block = TextParserBlock(
         block_name="test_block",
         input_cols="raw_output",
         output_cols="output",
