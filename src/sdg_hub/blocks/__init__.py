@@ -6,7 +6,6 @@ This package provides various block implementations for data generation, process
 # Local
 from .block import Block
 from .llmblock import LLMBlock, ConditionalLLMBlock
-from .openaichatblock import OpenAIChatBlock, OpenAIAsyncChatBlock
 from .llm import LLMChatBlock
 from .utilblocks import (
     SamplePopulatorBlock,
@@ -41,7 +40,5 @@ __all__ = [
     "RenameColumns",
     "SetToMajorityValue",
     "BlockRegistry",
-    "OpenAIChatBlock",
-    "OpenAIAsyncChatBlock",
     "PromptBuilderBlock",
 ]
