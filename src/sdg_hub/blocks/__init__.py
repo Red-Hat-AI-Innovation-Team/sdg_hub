@@ -7,6 +7,7 @@ This package provides various block implementations for data generation, process
 from .block import Block
 from .llmblock import LLMBlock, ConditionalLLMBlock
 from .openaichatblock import OpenAIChatBlock, OpenAIAsyncChatBlock
+from .llm import LLMChatBlock
 from .utilblocks import (
     SamplePopulatorBlock,
     SelectorBlock,
@@ -30,6 +31,7 @@ __all__ = [
     "IterBlock",
     "LLMBlock",
     "ConditionalLLMBlock",
+    "LLMChatBlock",
     "TextParserBlock",
     "SamplePopulatorBlock",
     "SelectorBlock",
