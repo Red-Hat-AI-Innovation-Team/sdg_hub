@@ -177,7 +177,11 @@ class LLMConfig:
             raise ValueError(f"timeout must be positive, got {self.timeout}")
 
     def _resolve_api_key(self) -> None:
-        """Resolve API key from environment variables if not provided."""
+        """Resolve API key from environment variables if not provided.
+        
+        This method only reads from environment variables and does not modify them,
+        ensuring thread-safety when multiple instances are used concurrently.
+        """
         if self.api_key is not None:
             return
 
@@ -260,9 +264,10 @@ class LLMConfig:
             New configuration with overrides applied.
         """
         # Get current values as dict
+        from dataclasses import fields
         current_values = {
             field.name: getattr(self, field.name)
-            for field in self.__dataclass_fields__.values()
+            for field in fields(self)
         }
 
         # Apply overrides

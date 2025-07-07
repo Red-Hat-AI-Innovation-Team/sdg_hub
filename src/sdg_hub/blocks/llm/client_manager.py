@@ -4,7 +4,6 @@
 # Standard
 from typing import Any, Dict, List, Optional
 import asyncio
-import os
 
 # Third Party
 from litellm import acompletion, completion
@@ -81,29 +80,9 @@ class LLMClientManager:
         # Set global timeout for LiteLLM
         litellm.request_timeout = self.config.timeout
 
-        # Configure API key if provided
-        if self.config.api_key:
-            provider = self.config.get_provider().lower()
+        # Note: API keys are now passed directly in completion calls
+        # instead of modifying environment variables for thread-safety
 
-            # Set provider-specific environment variables that LiteLLM expects
-            if provider == "openai":
-                os.environ["OPENAI_API_KEY"] = self.config.api_key
-            elif provider == "anthropic":
-                os.environ["ANTHROPIC_API_KEY"] = self.config.api_key
-            elif provider == "google":
-                os.environ["GOOGLE_API_KEY"] = self.config.api_key
-            elif provider == "azure":
-                os.environ["AZURE_API_KEY"] = self.config.api_key
-            elif provider == "cohere":
-                os.environ["COHERE_API_KEY"] = self.config.api_key
-            elif provider == "huggingface":
-                os.environ["HUGGINGFACE_API_KEY"] = self.config.api_key
-            # Add more providers as needed
-
-        # Configure API base if provided (for local models)
-        if self.config.api_base:
-            # LiteLLM will use this in the completion call
-            pass
 
     def _validate_setup(self) -> None:
         """Validate that the LLM setup is working."""
@@ -392,13 +371,8 @@ class LLMClientManager:
         self.load()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, _exc_type, _exc_val, _exc_tb):
         """Context manager exit."""
-        _ = (
-            exc_type,
-            exc_val,
-            exc_tb,
-        )  # Unused but required for context manager protocol
         self.unload()
 
     def __repr__(self) -> str:
