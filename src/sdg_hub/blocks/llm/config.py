@@ -178,7 +178,7 @@ class LLMConfig:
 
     def _resolve_api_key(self) -> None:
         """Resolve API key from environment variables if not provided.
-        
+
         This method only reads from environment variables and does not modify them,
         ensuring thread-safety when multiple instances are used concurrently.
         """
@@ -265,9 +265,9 @@ class LLMConfig:
         """
         # Get current values as dict
         from dataclasses import fields
+
         current_values = {
-            field.name: getattr(self, field.name)
-            for field in fields(self)
+            field.name: getattr(self, field.name) for field in fields(self)
         }
 
         # Apply overrides

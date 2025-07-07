@@ -6,7 +6,7 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks import PromptBuilderBlock
+from sdg_hub.blocks.llm import PromptBuilderBlock
 
 # Get the absolute paths to test config files
 TEST_CONFIG_WITH_SYSTEM = os.path.join(

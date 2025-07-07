@@ -3,7 +3,7 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks.llm_utils import TextParserBlock
+from sdg_hub.blocks.llm import TextParserBlock
 
 
 @pytest.fixture

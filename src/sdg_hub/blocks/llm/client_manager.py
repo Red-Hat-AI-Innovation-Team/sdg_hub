@@ -83,7 +83,6 @@ class LLMClientManager:
         # Note: API keys are now passed directly in completion calls
         # instead of modifying environment variables for thread-safety
 
-
     def _validate_setup(self) -> None:
         """Validate that the LLM setup is working."""
         try:

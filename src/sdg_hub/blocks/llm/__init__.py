@@ -11,6 +11,8 @@ from .client_manager import LLMClientManager
 from .config import LLMConfig
 from .error_handler import LLMErrorHandler, ErrorCategory
 from .llm_chat_block import LLMChatBlock
+from .prompt_builder_block import PromptBuilderBlock
+from .text_parser_block import TextParserBlock
 
 __all__ = [
     "LLMConfig",
@@ -18,4 +20,6 @@ __all__ = [
     "LLMErrorHandler",
     "ErrorCategory",
     "LLMChatBlock",
+    "PromptBuilderBlock",
+    "TextParserBlock",
 ]

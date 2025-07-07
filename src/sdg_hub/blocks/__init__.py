@@ -6,7 +6,7 @@ This package provides various block implementations for data generation, process
 # Local
 from .block import Block
 from .llmblock import LLMBlock, ConditionalLLMBlock
-from .llm import LLMChatBlock
+from .llm import LLMChatBlock, PromptBuilderBlock, TextParserBlock
 from .utilblocks import (
     SamplePopulatorBlock,
     SelectorBlock,
@@ -17,10 +17,6 @@ from .utilblocks import (
     SetToMajorityValue,
     FilterByValueBlock,
     IterBlock,
-)
-from .llm_utils import (
-    TextParserBlock,
-    PromptBuilderBlock,
 )
 from ..registry import BlockRegistry
 
