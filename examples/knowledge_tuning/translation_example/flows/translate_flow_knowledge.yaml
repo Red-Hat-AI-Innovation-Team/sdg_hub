@@ -1,0 +1,57 @@
+- block_type: TranslationBlock
+  block_config:
+    block_name: document_translation
+    config_path: configs/translate_documents.yaml
+    output_cols:
+    - title_translated
+    - text_translated
+    source_lang: "kan_Knda"  # Source language (Kannada)
+    target_lang: "eng_Latn"  # Target language (English)
+    trans_model_id: ai4bharat/indictrans2-indic-en-dist-200M
+    client: http://localhost:8000/v1
+
+- block_type: LLMBlock
+  block_config:
+    block_name: question_generation
+    model_id: "ibm-granite/granite-3.3-2b-instruct"
+    config_path: configs/generate_question.yaml
+    output_cols:
+      - question
+    parser_kwargs:
+      parser_name: custom
+      parsing_pattern: (?:Question|QUESTION)\:\s*(.*)
+      parser_cleanup_tags:
+        - "[END]"
+        - "[End]"
+  gen_kwargs:
+    max_tokens: 512
+    temperature: 0.7
+
+- block_type: LLMBlock
+  block_config:
+    block_name: response_generation
+    model_id: "ibm-granite/granite-3.3-2b-instruct"
+    config_path: configs/generate_response.yaml
+    output_cols:
+      - response
+    parser_kwargs:
+      parser_name: custom
+      parsing_pattern: (?:Answer|ANSWER)\:\s*(.*)
+      parser_cleanup_tags:
+        - "[END]"
+        - "[End]"
+  gen_kwargs:
+    max_tokens: 512
+    temperature: 0.7
+
+- block_type: TranslationBlock
+  block_config:
+    block_name: question_response_translation
+    config_path: configs/translate_question_response.yaml
+    output_cols:
+    - question_translated
+    - response_translated
+    source_lang: "eng_Latn"  # Source language (English)
+    target_lang: "kan_Knda"  # Target language (Kannada)
+    trans_model_id: ai4bharat/indictrans2-en-indic-dist-200M
+    client: http://localhost:8000/v1

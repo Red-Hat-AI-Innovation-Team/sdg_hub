@@ -1,0 +1,32 @@
+system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: Generate answers for the given question from a chapter in a {{domain}} textbook.
+
+principles: |
+  Here are the requirements:
+  1. The answer should be grounded on the provided document
+  2. If the document does not contain the answer to the question then generate "I don't know".
+  3. Do not use internal knowledge to answer the question.
+  4. The answer should be an appropriate response to the question and the document. Long answers are preferable.
+
+examples: |
+  Here is a sample section of the document as an example:
+  {{icl_document}}
+
+  Here are some examples to help you understand the type of questions that are asked for this document:
+
+  Question: {{icl_query}}
+  Response: {{icl_response}}
+
+  Here is the document:
+
+  {{title_translated}}
+  {{text_translated}}
+
+  Question: {{question}}
+
+generation: |
+  Provide an answer for the given question based on the document.
+
+start_tags: [""]
+end_tags: [""]
