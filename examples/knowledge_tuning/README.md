@@ -1,6 +1,6 @@
-# 📚 Synthetic Data Generation for Knowledge Tuning
+# Synthetic Data Generation for Knowledge Tuning
 
-## 🧠 What is Knowledge Tuning?
+## What is Knowledge Tuning?
 
 **Knowledge tuning** is the process of adapting a large language model (LLM) to new factual content by training it on specific documents. The goal is to enable the model to **recall and reason over document-grounded information** when performing downstream tasks such as:
 
@@ -16,7 +16,39 @@ This adaptation can be used:
 
 ---
 
-## 🔧 Repository Structure
+### Setup Instructions
+
+#### Install sdg-hub
+
+```bash 
+pip install sdg-hub==0.1.0a4
+```
+
+#### Install with optional dependencies
+
+If you want to use the vLLM server, you can install it with the following command:
+
+```bash 
+pip install sdg-hub[vllm] 
+```
+
+In order to use docling, you need to install it with the following command:
+
+```bash
+pip install sdg-hub[examples]
+```
+
+### Serving the Teacher Model
+
+#### vLLM Server
+
+Launch the vLLM server with the following command:
+
+```bash
+vllm serve meta-llama/Llama-3.3-70B-Instruct --tensor-parallel-size 4
+```
+
+## Repository Structure
 
 This repository demonstrates how to generate synthetic data for knowledge tuning using different approaches and teacher models:
 
@@ -87,7 +119,7 @@ knowl_train = generate_knowledge_qa_dataset(
 
 ---
 
-## 📈 Generation Statistics
+## Generation Statistics
 
 Default generation parameters (based on `llama-3.3-70B`) are defined in:
 [`synth_knowledge1.5.yaml`](src/sdg_hub/flows/generation/knowledge/synth_knowledge1.5.yaml)
