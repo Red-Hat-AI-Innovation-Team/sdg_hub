@@ -19,7 +19,7 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
@@ -28,25 +28,27 @@ jobs:
         pip install jupytext jupyter
 
     - name: Sync Python files to notebooks
+      env:
+        BASE_REF: ${{ github.base_ref }}
       run: |
         # Find the most recent auto-sync commit in this PR or use base branch as fallback
-        git fetch origin ${{ github.base_ref }}
-        LAST_SYNC_COMMIT=$(git log origin/${{ github.base_ref }}..HEAD --grep="Auto-sync notebooks and Python files" --format="%H" -1)
+        git fetch origin "$BASE_REF"
+        LAST_SYNC_COMMIT=$(git log "origin/$BASE_REF..HEAD" --grep="Auto-sync notebooks and Python files" --format="%H" -1)
         if [ -z "$LAST_SYNC_COMMIT" ]; then
-          LAST_SYNC_COMMIT="origin/${{ github.base_ref }}"
+          LAST_SYNC_COMMIT="origin/$BASE_REF"
           echo "No auto-sync commit found in this PR, comparing against base branch: $LAST_SYNC_COMMIT"
         else
           echo "Found auto-sync commit in this PR, comparing against: $LAST_SYNC_COMMIT"
         fi
         
         # Get files changed since the last auto-sync commit
-        CHANGED_PY_FILES=$(git diff --name-only $LAST_SYNC_COMMIT...HEAD | grep -E '\.py$' | grep 'examples/' || true)
+        CHANGED_PY_FILES=$(git diff --name-only "$LAST_SYNC_COMMIT...HEAD" | grep -E '\.py$' | grep 'examples/' || true)
         echo "Changed Python files since last sync:"
         echo "$CHANGED_PY_FILES"
         
         # Convert only changed .py files to .ipynb (only files that contain cell markers)
         if [ -n "$CHANGED_PY_FILES" ]; then
-          echo "$CHANGED_PY_FILES" | while read py_file; do
+          echo "$CHANGED_PY_FILES" | while IFS= read -r py_file; do
             if [ -f "$py_file" ] && grep -q "# %%" "$py_file"; then
               echo "Converting $py_file to notebook"
               jupytext --to ipynb "$py_file"
@@ -55,25 +57,27 @@ jobs:
         fi
 
     - name: Sync notebooks to Python files
+      env:
+        BASE_REF: ${{ github.base_ref }}
       run: |
         # Find the most recent auto-sync commit in this PR or use base branch as fallback
-        git fetch origin ${{ github.base_ref }}
-        LAST_SYNC_COMMIT=$(git log origin/${{ github.base_ref }}..HEAD --grep="Auto-sync notebooks and Python files" --format="%H" -1)
+        git fetch origin "$BASE_REF"
+        LAST_SYNC_COMMIT=$(git log "origin/$BASE_REF..HEAD" --grep="Auto-sync notebooks and Python files" --format="%H" -1)
         if [ -z "$LAST_SYNC_COMMIT" ]; then
-          LAST_SYNC_COMMIT="origin/${{ github.base_ref }}"
+          LAST_SYNC_COMMIT="origin/$BASE_REF"
           echo "No auto-sync commit found in this PR, comparing against base branch: $LAST_SYNC_COMMIT"
         else
           echo "Found auto-sync commit in this PR, comparing against: $LAST_SYNC_COMMIT"
         fi
         
         # Get changed .ipynb files since the last auto-sync commit
-        CHANGED_IPYNB_FILES=$(git diff --name-only $LAST_SYNC_COMMIT...HEAD | grep -E '\.ipynb$' | grep 'examples/' || true)
+        CHANGED_IPYNB_FILES=$(git diff --name-only "$LAST_SYNC_COMMIT...HEAD" | grep -E '\.ipynb$' | grep 'examples/' || true)
         echo "Changed notebook files since last sync:"
         echo "$CHANGED_IPYNB_FILES"
         
         # Convert only changed .ipynb files to .py (always convert changed files)
         if [ -n "$CHANGED_IPYNB_FILES" ]; then
-          echo "$CHANGED_IPYNB_FILES" | while read ipynb_file; do
+          echo "$CHANGED_IPYNB_FILES" | while IFS= read -r ipynb_file; do
             if [ -f "$ipynb_file" ]; then
               echo "Converting $ipynb_file to Python"
               jupytext --to py:percent "$ipynb_file"
@@ -90,15 +94,17 @@ jobs:
         ls -la examples/
         
         if [ -n "$(git status --porcelain)" ]; then
-          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "changed=true" >> "$GITHUB_OUTPUT"
           echo "Changes detected - will commit"
         else
-          echo "changed=false" >> $GITHUB_OUTPUT
+          echo "changed=false" >> "$GITHUB_OUTPUT"
           echo "No changes detected"
         fi
 
     - name: Commit and push changes to PR branch
       if: steps.verify-changed-files.outputs.changed == 'true'
+      env:
+        HEAD_REF: ${{ github.head_ref }}
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
@@ -107,4 +113,4 @@ jobs:
         echo "Git status after add:"
         git status
         git commit -m "Auto-sync notebooks and Python files" || exit 0
-        git push origin HEAD:${{ github.head_ref }}
+        git push origin "HEAD:$HEAD_REF"
