@@ -131,6 +131,7 @@ knowl_train = create_knowledge_regular_ds(generated_dataset=generated_data)
 ### Workflow: Fine-tuning Instruct Model
 
 * You can simply take the generated data and continue instruction tuning an existing instruct model (e.g. Qwen 2.5 8B instruct, LLama 3.3 8B/70B etc.)
+* Simply follow [Creating QA dataset](#creating-qa-dataset) section for creating the training data.
 * Note: The model might suffer catasropic forgetting and might need a replay buffer of instruction data. Or you might need to explore alternate methods like Parameter efficient fine-tuning.
 
 ---
