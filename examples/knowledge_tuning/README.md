@@ -82,12 +82,10 @@ Once synthetic QA data is generated, you’ll need to prepare it for training:
 * During training, backpropagate on both the **prompt** (document + question) and the **response** (answer).
 * For `instructlab.training`, you can use the `unmask` field to enable pretraining-style loss computation over the full prompt-response.
 
-### Workflow: InstructLab (Knowledge + RAFT)
+### Creating QA dataset
 
-We recommend preparing **two datasets**:
-
-#### 1. Knowledge Dataset (for Phase 1)
-
+* You can use below function to transform the generated dataset into Prompt + Response pair for training in messages format.
+* You can control various parameters like appending document to question, adding document outline to document etc.
 ```python
 from knowledge_utils import generate_knowledge_qa_dataset
 
@@ -98,14 +96,32 @@ knowl_train = generate_knowledge_qa_dataset(
     keep_columns=['document', 'document_outline', 'raw_document']
 )
 ```
-
 * `keep_context_separate=False`: Includes the document in the prompt
 * `keep_document_outline=True`: Adds structure to the prompt using outline
 * `keep_columns`: Retains metadata for record-keeping (not used in training)
 
+
+### Workflow: InstructLab (Knowledge + RAFT)
+
+We recommend preparing **two datasets**:
+
+#### 1. Knowledge Dataset (for Phase 1)
+
+```python
+from knowledge_utils import create_knowledge_pretraining_ds
+
+knowl_train = create_knowledge_pretraining_ds(generated_dataset=generated_data)
+```
+
 > Use this dataset for Phase 1 (Knowledge Tuning). You can also merge multiple such datasets for multi-document tuning.
 
 #### 2. RAFT Dataset (for Phase 2)
+
+```python
+from knowledge_utils import create_knowledge_regular_ds
+
+knowl_train = create_knowledge_regular_ds(generated_dataset=generated_data)
+```
 
 * Prepare your RAFT-style dataset using the same base data or additional generation runs.
 * This dataset can be **mixed with general instruction-tuning data**, enabling broad instruction-following ability while preserving document-specific knowledge.
