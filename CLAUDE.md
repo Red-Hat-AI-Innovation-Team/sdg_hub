@@ -29,6 +29,7 @@ SDG Hub is a modular synthetic data generation toolkit for LLMs. The framework i
 - Install for development: `pip install -e .[dev]`
 - Install with web interface: `pip install -e .[web_interface]`
 - Install with examples dependencies: `pip install -e .[examples]`
+- Initialize environment with `uv`: `uv sync --extra dev` (recommended)
 
 ### Git Workflow
 - **IMPORTANT**: Always create a feature branch and never push directly to main
@@ -94,6 +95,12 @@ When creating new blocks:
 - Use pytest fixtures for common test setup
 - Test both positive and negative cases
 - Include edge cases and error conditions
+
+### Entry Points and CLI
+
+- Main execution via `run_flow()` function in `flow_runner.py`
+- Core flow execution engine in `flow.py` 
+- Web interface available via `web_interface/app.py` (requires `[web_interface]` extras)
 
 ## Additional Tips
 - Use `rg` in favor of `grep` whenever it's available

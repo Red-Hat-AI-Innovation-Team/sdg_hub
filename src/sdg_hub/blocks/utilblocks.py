@@ -533,6 +533,142 @@ class SetToMajorityValue(Block):
         return Dataset.from_pandas(samples)
 
 
+@BlockRegistry.register("ChunkingBlock")
+class ChunkingBlock(Block):
+    """Block for splitting documents into smaller chunks for processing.
+
+    This block takes documents and splits them into smaller chunks to fit
+    within context length limits. Useful for processing large documents
+    with models that have limited context windows.
+
+    Parameters
+    ----------
+    block_name : str
+        Name of the block.
+    input_col : str
+        Name of the column containing documents to chunk.
+    output_col : str
+        Name of the column to store the chunks.
+    chunk_size : int, optional
+        Maximum size of each chunk in characters, by default 2000.
+    overlap : int, optional
+        Number of characters to overlap between chunks, by default 200.
+    separator : str, optional
+        String to use for splitting text, by default "\\n\\n".
+    **batch_kwargs : Dict[str, Any]
+        Additional keyword arguments for batch processing.
+    """
+
+    def __init__(
+        self,
+        block_name: str,
+        input_col: str,
+        output_col: str,
+        chunk_size: int = 2000,
+        overlap: int = 200,
+        separator: str = "\n\n",
+        **batch_kwargs: Dict[str, Any],
+    ) -> None:
+        super().__init__(block_name=block_name)
+        self.input_col = input_col
+        self.output_col = output_col
+        self.chunk_size = chunk_size
+        self.overlap = overlap
+        self.separator = separator
+        self.num_procs = batch_kwargs.get("num_procs", 1)
+
+    def _chunk_text(self, text: str) -> List[str]:
+        """Split text into overlapping chunks.
+
+        Parameters
+        ----------
+        text : str
+            Text to be chunked.
+
+        Returns
+        -------
+        List[str]
+            List of text chunks.
+        """
+        if len(text) <= self.chunk_size:
+            return [text]
+
+        chunks = []
+        start = 0
+        
+        while start < len(text):
+            end = start + self.chunk_size
+            
+            # If we're not at the end, try to break at a natural boundary
+            if end < len(text):
+                # Look for separator within the last 10% of chunk
+                search_start = max(start, end - self.chunk_size // 10)
+                separator_idx = text.rfind(self.separator, search_start, end)
+                
+                if separator_idx != -1:
+                    end = separator_idx + len(self.separator)
+            
+            chunk = text[start:end].strip()
+            if chunk:
+                chunks.append(chunk)
+            
+            # Move start position with overlap
+            start = max(start + 1, end - self.overlap)
+            
+            # Prevent infinite loop
+            if start >= len(text):
+                break
+                
+        return chunks
+
+    def _generate(self, sample: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Generate chunks for a single sample.
+
+        Parameters
+        ----------
+        sample : Dict[str, Any]
+            Input sample containing document to chunk.
+
+        Returns
+        -------
+        List[Dict[str, Any]]
+            List of samples, each containing a chunk.
+        """
+        text = sample[self.input_col]
+        chunks = self._chunk_text(text)
+        
+        result = []
+        for i, chunk in enumerate(chunks):
+            new_sample = sample.copy()
+            new_sample[self.output_col] = chunk
+            new_sample["chunk_id"] = i
+            new_sample["total_chunks"] = len(chunks)
+            result.append(new_sample)
+            
+        return result
+
+    def generate(self, samples: Dataset) -> Dataset:
+        """Generate a dataset with chunked documents.
+
+        Parameters
+        ----------
+        samples : Dataset
+            Input dataset containing documents to chunk.
+
+        Returns
+        -------
+        Dataset
+            Dataset with documents split into chunks.
+        """
+        all_chunks = []
+        
+        for sample in samples:
+            chunks = self._generate(sample)
+            all_chunks.extend(chunks)
+            
+        return Dataset.from_list(all_chunks)
+
+
 @BlockRegistry.register("IterBlock")
 class IterBlock(Block):
     """Block for iteratively applying another block multiple times.
