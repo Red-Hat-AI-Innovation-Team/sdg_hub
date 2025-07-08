@@ -60,7 +60,7 @@ This repository demonstrates how to generate synthetic data for knowledge tuning
    * Phase 1: Knowledge tuning via synthetic QAs
    * Phase 2: Instruction tuning to generalize reasoning skills
 
-2. [`nemotron/`](knowledge_tuning_with_reasoning_model/):
+2. [`knowledge_tuning_with_reasoning_model/`](knowledge_tuning_with_reasoning_model/):
    Uses **Nemotron Super** as the teacher model to generate reasoning-focused synthetic data grounded in document content. We also show how to edit the knowledge pipeline to introduce new types of summaires
 
 Each example includes:
@@ -105,7 +105,7 @@ knowl_train = generate_knowledge_qa_dataset(
 
 We recommend preparing **two datasets**:
 
-#### 1. Knowledge Dataset (for Phase 1)
+#### 1. Knowledge Dataset (for Knowledge Phase)
 
 ```python
 from knowledge_utils import create_knowledge_pretraining_ds
@@ -115,7 +115,7 @@ knowl_train = create_knowledge_pretraining_ds(generated_dataset=generated_data)
 
 > Use this dataset for Phase 1 (Knowledge Tuning). You can also merge multiple such datasets for multi-document tuning.
 
-#### 2. RAFT Dataset (for Phase 2)
+#### 2. RAFT Dataset (Skills Phase)
 
 ```python
 from knowledge_utils import create_knowledge_regular_ds
