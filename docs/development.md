@@ -273,6 +273,114 @@ def test_llm_block_generation(sample_dataset):
         assert len(result) == 2
 ```
 
+## Notebook Contributions
+
+### Dual-Format Notebook Workflow
+
+SDG Hub uses Jupytext to maintain notebooks in both Python (`.py`) and Jupyter (`.ipynb`) formats for better version control and collaboration.
+
+### Getting Started with Notebooks
+
+1. **Installation**: Development dependencies include Jupytext and Jupyter:
+   ```bash
+   pip install -e .[dev]
+   ```
+
+2. **Configuration**: The repository is configured with `.jupytext.yml` for automatic format pairing:
+   ```yaml
+   formats: "py:percent,ipynb"
+   notebook_metadata_filter: "all"
+   cell_metadata_filter: "-all"
+   ```
+
+### Creating New Notebooks
+
+Create notebooks in the `examples/` directory using either format:
+
+**Option 1: Start with Python file**
+```python
+# ---
+# jupyter:
+#   jupytext:
+#     cell_metadata_filter: -all
+#     notebook_metadata_filter: all
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.17.2
+# ---
+
+# %% [markdown]
+"""
+# My Notebook Title
+
+Description of what this notebook demonstrates.
+"""
+
+# %%
+from sdg_hub.flow_runner import run_flow
+
+# %% [markdown]
+"""
+## Section Title
+
+Explanation of the code below.
+"""
+
+# %%
+# Your code here
+```
+
+**Option 2: Start with Jupyter notebook**
+Create a `.ipynb` file normally in Jupyter Lab/Notebook, and the Python version will be auto-generated.
+
+### Notebook Sync Workflow
+
+The repository uses GitHub Actions to automatically sync between formats:
+
+1. **Automatic Sync**: When you push changes to either `.py` or `.ipynb` files in `examples/`, the corresponding format is automatically updated
+2. **Change Detection**: Only files modified since the last auto-sync are processed
+3. **Priority Logic**: When both `.py` and `.ipynb` files are modified:
+   - **Notebook priority**: The `.ipynb` file changes take precedence
+   - The Python file will be overwritten with the notebook content
+   - This ensures the interactive notebook experience is preserved
+4. **Cell Markers**: Only Python files with `# %%` cell markers are treated as notebooks
+
+### Best Practices for Notebook Contributions
+
+1. **File Location**: Place notebooks in the `examples/` directory
+2. **Naming**: Use descriptive names like `hello_world.py` or `advanced_flows.py`
+3. **Cell Structure**: Use proper cell markers:
+   - `# %%` for code cells
+   - `# %% [markdown]` for markdown cells
+4. **Documentation**: Include markdown cells explaining the purpose and usage
+5. **Testing**: Ensure your notebook runs without errors before committing
+
+### Working with Both Formats
+
+You can work with either format:
+
+- **Python files (`.py`)**: Better for code review, version control, and text editors
+- **Jupyter files (`.ipynb`)**: Better for interactive development and rich output display
+
+Changes made in either format will be automatically synchronized by the GitHub Actions workflow.
+
+### Local Development
+
+To work locally with both formats:
+
+```bash
+# Convert Python to notebook
+jupytext --to ipynb examples/my_notebook.py
+
+# Convert notebook to Python
+jupytext --to py:percent examples/my_notebook.ipynb
+
+# Sync formats (bidirectional)
+jupytext --sync examples/my_notebook.py
+```
+
 ## Contributing
 
 ### Contribution Types
@@ -283,6 +391,7 @@ We welcome:
 - **Documentation improvements**
 - **Test coverage improvements**
 - **Performance optimizations**
+- **Notebook examples and tutorials**
 
 ### Pull Request Process
 
