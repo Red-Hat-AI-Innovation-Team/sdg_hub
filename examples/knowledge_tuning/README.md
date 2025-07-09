@@ -70,6 +70,8 @@ Each example includes:
 * Filtering and validation logic
 * Dataset formatting for fine-tuning
 
+3. [`translation_example`](translation_example/):
+    Implements a translation block to translate article into a target language for generating knowledge QA. The example scripts show how to translate Kannada Wikipedia article into English and generate synthetic QA to train a model.
 ---
 
 ## Data Post-Processing
