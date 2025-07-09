@@ -110,17 +110,22 @@ We recommend preparing **two datasets**:
 ```python
 from knowledge_utils import create_knowledge_pretraining_ds
 
-knowl_train = create_knowledge_pretraining_ds(generated_dataset=generated_data)
+knowledge_data = create_knowledge_pretraining_ds(generated_dataset=generated_data)
 ```
 
 > Use this dataset for Phase 1 (Knowledge Tuning). You can also merge multiple such datasets for multi-document tuning.
 
-#### 2. RAFT Dataset (Skills Phase)
+#### 2. Skills Dataset: Knowledge + RAFT Dataset (Skills Phase)
 
 ```python
 from knowledge_utils import create_knowledge_regular_ds
+from datasets import concatenate_datasets
 
-knowl_train = create_knowledge_regular_ds(generated_dataset=generated_data)
+raft_and_summary_data = create_knowledge_regular_ds(generated_dataset=generated_data)
+
+knowledge_data = create_knowledge_pretraining_ds(generated_dataset=generated_data, add_auxiliary_dataset=False)
+
+knowledge_skills_data = concatenate_datasets([raft_and_summary_data, knowledge_data])
 ```
 
 * Prepare your RAFT-style dataset using the same base data or additional generation runs.

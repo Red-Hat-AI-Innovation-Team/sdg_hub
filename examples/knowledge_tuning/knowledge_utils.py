@@ -268,7 +268,7 @@ def build_raft_dataset(ds: Dataset, p, num_doc_in_context=4):
 
 
 def create_knowledge_regular_ds(generated_dataset: Dataset):
-    # Phase 1.0
+    # Phase 1.0 (Skills Phase)
     knowledge_ds = generate_knowledge_qa_dataset(
         generated_dataset, keep_context_separate=True
     )
@@ -276,26 +276,22 @@ def create_knowledge_regular_ds(generated_dataset: Dataset):
 
     auxiliary_dataset = create_auxiliary_dataset(generated_dataset)
     if auxiliary_dataset is not None:
-        transformed_data = safe_concatenate_datasets([knowledge_ds, auxiliary_dataset])
-    else:
-        transformed_data = knowledge_ds
-    return transformed_data
+        knowledge_ds = safe_concatenate_datasets([knowledge_ds, auxiliary_dataset])
+    return knowledge_ds
 
 
-def create_knowledge_pretraining_ds(generated_dataset: Dataset):
-    # Phase 0.7
+def create_knowledge_pretraining_ds(generated_dataset: Dataset, add_auxiliary_dataset: bool = True):
+    # Phase 0.7 (Knowledge Phase)
     knowledge_ds = generate_knowledge_qa_dataset(
         generated_dataset, keep_context_separate=False
     )
     knowledge_ds = knowledge_ds.map(_conv_pretrain)
 
     auxiliary_dataset = create_auxiliary_dataset(generated_dataset)
-    if auxiliary_dataset is not None:
+    if auxiliary_dataset is not None and add_auxiliary_dataset:
         auxiliary_dataset = auxiliary_dataset.map(_conv_pretrain)
-        transformed_data = safe_concatenate_datasets([knowledge_ds, auxiliary_dataset])
-    else:
-        transformed_data = knowledge_ds
-    return transformed_data
+        knowledge_ds = safe_concatenate_datasets([knowledge_ds, auxiliary_dataset])
+    return knowledge_ds
 
 
 def fuse_texts(text_list, short_length_threshold=100):
