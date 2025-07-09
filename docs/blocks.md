@@ -10,9 +10,24 @@ Blocks are the fundamental processing units in SDG Hub. Each block performs a sp
 
 ### Core Framework
 
-#### Block (Base Class)
+#### BaseBlock (Base Class)
+- **Registered Name**: `BaseBlock`
+- **Purpose**: Enhanced abstract base class providing standardized functionality for all blocks
+- **Key Features**:
+  - Standardized constructor with input/output column specifications
+  - Comprehensive validation system (empty datasets, missing columns, output collisions)
+  - Rich panel logging with color-coded change tracking
+  - Column normalization (str → List[str] conversion)
+  - Custom exception hierarchy for specific error types
+- **Parameters**:
+  - `block_name: str` - Name of the block instance
+  - `input_cols: Optional[Union[str, List[str]]]` - Input column specifications
+  - `output_cols: Optional[Union[str, List[str]]]` - Output column specifications
+  - `**kwargs: Any` - Additional block-specific parameters
+
+#### Block (Legacy Base Class)
 - **Registered Name**: `Block`
-- **Purpose**: Abstract base class providing common functionality for all blocks
+- **Purpose**: Legacy abstract base class (being phased out in favor of BaseBlock)
 - **Key Features**:
   - Template validation using Jinja2
   - Configuration file loading (YAML)
@@ -319,15 +334,38 @@ Blocks are designed to work seamlessly in data processing pipelines, with consis
 
 ## Creating Custom Blocks
 
-To create a custom block:
+To create a custom block with the new BaseBlock:
+
+```python
+from sdg_hub.blocks.base import BaseBlock
+from sdg_hub.registry import BlockRegistry
+from datasets import Dataset
+
+@BlockRegistry.register("MyCustomBlock")
+class MyCustomBlock(BaseBlock):
+    def __init__(self, block_name: str, custom_param: str, **kwargs):
+        super().__init__(block_name=block_name, **kwargs)
+        self.custom_param = custom_param
+    
+    def generate(self, dataset: Dataset, **kwargs) -> Dataset:
+        # Custom processing logic
+        processed_dataset = dataset.map(
+            lambda x: {"processed": f"{self.custom_param}: {x['input']}"}
+        )
+        return processed_dataset
+```
+
+### Legacy Block Creation (Deprecated)
+
+For legacy blocks using the old Block class:
 
 ```python
 from sdg_hub.blocks import Block
 from sdg_hub.registry import BlockRegistry
 from datasets import Dataset
 
-@BlockRegistry.register("MyCustomBlock")
-class MyCustomBlock(Block):
+@BlockRegistry.register("MyLegacyBlock")
+class MyLegacyBlock(Block):
     def __init__(self, block_name: str, custom_param: str, **kwargs):
         super().__init__(block_name)
         self.custom_param = custom_param
@@ -351,9 +389,13 @@ Then use it in a flow:
 
 ## Best Practices
 
-1. **Descriptive Names**: Use clear, descriptive block names for easier debugging
-2. **Configuration Files**: Store complex prompts and templates in separate YAML files
-3. **Error Handling**: Blocks should handle edge cases gracefully
-4. **Documentation**: Include docstrings describing block purpose and parameters
-5. **Testing**: Test blocks with various input formats and edge cases
-6. **Performance**: Use batch processing and parallel execution for large datasets
+1. **Use BaseBlock**: Prefer the new BaseBlock class for all new blocks to get standardized validation and logging
+2. **Descriptive Names**: Use clear, descriptive block names for easier debugging
+3. **Column Specifications**: Always specify input_cols and output_cols for better validation
+4. **Configuration Files**: Store complex prompts and templates in separate YAML files
+5. **Error Handling**: Blocks should handle edge cases gracefully
+6. **Documentation**: Include docstrings describing block purpose and parameters
+7. **Testing**: Test blocks with various input formats and edge cases
+8. **Performance**: Use batch processing and parallel execution for large datasets
+
+For detailed guidance on creating blocks with BaseBlock, see the [BaseBlock Development Guide](base-block.md).
