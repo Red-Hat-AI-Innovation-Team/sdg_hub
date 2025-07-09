@@ -1,6 +1,15 @@
-# Model Backend Configuration Guide
+# Model Serving and Backend Configuration
 
-This guide explains how to configure SDG Hub to work with different model backends and providers. SDG Hub supports various model providers through OpenAI-compatible APIs.
+This guide explains how to configure SDG Hub to work with different model backends and providers. SDG Hub supports various model providers through OpenAI-compatible APIs, enabling flexible deployment options for synthetic data generation.
+
+## Table of Contents
+- [Supported Backends](#supported-backends)
+- [Configuration Examples](#configuration-examples)
+- [Context Length Considerations](#context-length-considerations)
+- [Environment Variables](#environment-variables)
+- [Troubleshooting](#troubleshooting)
+- [Best Practices](#best-practices)
+- [Contributing](#contributing)
 
 ## Supported Backends
 
@@ -32,7 +41,8 @@ model_id: gpt-4  # Or gpt-3.5-turbo, gpt-4-turbo, etc.
 python -m vllm.entrypoints.openai.api_server \
     --model meta-llama/Llama-3.1-8B-Instruct \
     --port 8000 \
-    --dtype float16
+    --dtype float16 \
+    --max-model-len 4096
 ```
 
 **Client Configuration:**
@@ -268,6 +278,26 @@ except Exception as e:
     print(f"❌ Connection failed: {e}")
 ```
 
+## Best Practices
+
+### Production Deployment
+- Use environment variables for API keys and sensitive configuration
+- Implement proper rate limiting and retry logic
+- Monitor API costs and usage patterns
+- Use checkpointing for long-running data generation tasks
+
+### Security Considerations
+- Never commit API keys or sensitive credentials to version control
+- Use secure credential management systems in production
+- Implement proper access controls for API endpoints
+- Monitor for unusual API usage patterns
+
+### Performance Optimization
+- Choose appropriate model sizes for your use case
+- Use chunking for models with limited context windows
+- Implement parallel processing for large datasets
+- Consider caching for frequently used prompts
+
 ## Contributing
 
 When adding support for new backends:
@@ -276,5 +306,6 @@ When adding support for new backends:
 2. Document any specific configuration requirements
 3. Add example configurations to this guide
 4. Update the troubleshooting section with common issues
+5. Add tests for the new backend in the test suite
 
 For questions or issues with specific backends, please check the respective provider's documentation or open an issue in the SDG Hub repository.

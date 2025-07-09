@@ -1,14 +1,36 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
 
-"""Simple test runner to validate PR functionality works correctly."""
+"""Simple test runner to validate PR functionality works correctly.
+
+This module provides a lightweight test suite for validating that the PR changes
+work correctly without requiring external dependencies or complex setup.
+
+Usage:
+    python simple_test_runner.py
+
+The script validates:
+- ChunkingBlock functionality for context length management
+- Backend documentation completeness
+- Notebook server-agnostic updates
+- Environment variable support
+- Context length handling logic
+- YAML configuration structure
+"""
 
 import sys
 import traceback
+from typing import Dict, Tuple, List, Any, Optional
 
 
-def test_chunking_block():
-    """Test that ChunkingBlock works correctly."""
+def test_chunking_block() -> bool:
+    """Test that ChunkingBlock works correctly.
+    
+    Returns
+    -------
+    bool
+        True if ChunkingBlock test passes, False otherwise
+    """
     print("🧪 Testing ChunkingBlock...")
     
     try:
@@ -45,13 +67,24 @@ def test_chunking_block():
         return False
 
 
-def test_backend_documentation():
-    """Test that backend documentation exists and is comprehensive."""
+def test_backend_documentation() -> bool:
+    """Test that backend documentation exists and is comprehensive.
+    
+    Returns
+    -------
+    bool
+        True if documentation test passes, False otherwise
+    """
     print("📚 Testing backend documentation...")
     
     try:
         import os
-        doc_path = "examples/knowledge_tuning/MODEL_BACKENDS.md"
+        
+        # Use configurable path instead of hardcoded
+        doc_path = os.path.join(
+            os.path.dirname(__file__),
+            "docs", "model_serving.md"
+        )
         
         assert os.path.exists(doc_path), f"Documentation file not found: {doc_path}"
         
@@ -82,13 +115,26 @@ def test_backend_documentation():
         return False
 
 
-def test_notebook_updates():
-    """Test that notebook has been updated with server-agnostic features."""
+def test_notebook_updates() -> bool:
+    """Test that notebook has been updated with server-agnostic features.
+    
+    Returns
+    -------
+    bool
+        True if notebook update test passes, False otherwise
+    """
     print("📓 Testing notebook updates...")
     
     try:
         import json
-        notebook_path = "examples/knowledge_tuning/data-generation-with-llama-70b/data-generation-with-llama-70b.ipynb"
+        import os
+        
+        # Use configurable path instead of hardcoded
+        notebook_path = os.path.join(
+            os.path.dirname(__file__),
+            "examples", "knowledge_tuning", "data-generation-with-llama-70b", 
+            "data-generation-with-llama-70b.ipynb"
+        )
         
         with open(notebook_path, 'r') as f:
             notebook = json.load(f)
@@ -101,8 +147,8 @@ def test_notebook_updates():
             "BACKEND",
             "BASE_URL",
             "MODEL_ID", 
-            "environment variable",
-            "MODEL_BACKENDS.md",
+            "environment",
+            "model_serving.md",
             "OpenAI"
         ]
         

@@ -10,6 +10,16 @@ Usage:
     python tests/test_end_to_end.py --backend openai --api-key YOUR_KEY
     python tests/test_end_to_end.py --backend vllm --base-url http://localhost:8000/v1
     python tests/test_end_to_end.py --backend ollama --base-url http://localhost:11434/v1
+
+Examples:
+    # Test OpenAI backend
+    python tests/test_end_to_end.py --backend openai --api-key sk-your-key --base-url https://api.openai.com/v1
+
+    # Test local vLLM backend
+    python tests/test_end_to_end.py --backend vllm --api-key EMPTY --base-url http://localhost:8000/v1 --model-id meta-llama/Llama-3.1-8B-Instruct
+
+    # Test Ollama backend
+    python tests/test_end_to_end.py --backend ollama --api-key EMPTY --base-url http://localhost:11434/v1 --model-id llama3.1
 """
 
 # Standard
@@ -18,7 +28,7 @@ import os
 import sys
 import tempfile
 import traceback
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Tuple
 
 # Third Party
 from datasets import Dataset
@@ -33,22 +43,55 @@ from sdg_hub.blocks.utilblocks import ChunkingBlock
 class EndToEndTester:
     """End-to-end tester for different model backends."""
 
-    def __init__(self, backend: str, api_key: str, base_url: str, model_id: Optional[str] = None):
-        """Initialize tester with backend configuration."""
-        self.backend = backend
-        self.api_key = api_key
-        self.base_url = base_url
-        self.model_id = model_id
-        self.client = None
-        self.teacher_model = None
+    def __init__(self, backend: str, api_key: str, base_url: str, model_id: Optional[str] = None) -> None:
+        """Initialize tester with backend configuration.
+        
+        Parameters
+        ----------
+        backend : str
+            Backend type to test ('openai', 'vllm', 'ollama', 'azure')
+        api_key : str
+            API key for authentication (use 'EMPTY' for local providers)
+        base_url : str
+            Base URL for the API endpoint
+        model_id : Optional[str], optional
+            Specific model ID to use, by default None
+        """
+        self.backend: str = backend
+        self.api_key: str = api_key
+        self.base_url: str = base_url
+        self.model_id: Optional[str] = model_id
+        self.client: Optional[OpenAI] = None
+        self.teacher_model: Optional[str] = None
 
     def setup_client(self) -> bool:
-        """Set up OpenAI client for the specified backend."""
+        """Set up OpenAI client for the specified backend.
+        
+        Returns
+        -------
+        bool
+            True if client setup was successful, False otherwise
+            
+        Raises
+        ------
+        ImportError
+            If required dependencies are not available
+        ValueError
+            If backend configuration is invalid
+        """
         try:
             print(f"🔧 Setting up {self.backend} client...")
             
             if self.backend == "azure":
-                from openai import AzureOpenAI
+                try:
+                    from openai import AzureOpenAI
+                except ImportError as e:
+                    print(f"❌ Azure OpenAI not available: {e}")
+                    return False
+                    
+                if not self.base_url.endswith('/'):
+                    self.base_url += '/'
+                    
                 self.client = AzureOpenAI(
                     api_key=self.api_key,
                     api_version="2024-02-01",
@@ -63,8 +106,16 @@ class EndToEndTester:
             print(f"✅ Client initialized successfully")
             return True
             
+        except ImportError as e:
+            print(f"❌ Missing required dependency: {e}")
+            print("💡 Try: pip install openai")
+            return False
+        except ValueError as e:
+            print(f"❌ Invalid configuration: {e}")
+            return False
         except Exception as e:
             print(f"❌ Failed to initialize client: {e}")
+            print(f"💡 Check your backend configuration and network connectivity")
             return False
 
     def test_connection(self) -> bool:
