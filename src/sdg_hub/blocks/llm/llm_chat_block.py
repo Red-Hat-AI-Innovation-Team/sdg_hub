@@ -11,7 +11,8 @@ from datasets import Dataset
 # Local
 from ...logger_config import setup_logger
 from ...registry import BlockRegistry
-from ..block import Block
+from ...utils.error_handling import BlockValidationError
+from ..base import BaseBlock
 from .client_manager import LLMClientManager
 from .config import LLMConfig
 
@@ -19,7 +20,7 @@ logger = setup_logger(__name__)
 
 
 @BlockRegistry.register("LLMChatBlock")
-class LLMChatBlock(Block):
+class LLMChatBlock(BaseBlock):
     """Unified LLM chat block supporting all providers via LiteLLM.
 
     This block replaces OpenAIChatBlock and OpenAIAsyncChatBlock with a single
@@ -76,6 +77,16 @@ class LLMChatBlock(Block):
         Whether to stream responses.
     n : Optional[int], optional
         Number of completions to generate.
+    logprobs : Optional[bool], optional
+        Whether to return log probabilities.
+    top_logprobs : Optional[int], optional
+        Number of top log probabilities to return.
+    user : Optional[str], optional
+        End-user identifier.
+    extra_headers : Optional[Dict[str, str]], optional
+        Additional headers to send with requests.
+    extra_body : Optional[Dict[str, Any]], optional
+        Additional parameters for the request body.
     **kwargs : Any
         Additional provider-specific parameters.
 
@@ -132,20 +143,27 @@ class LLMChatBlock(Block):
         response_format: Optional[Dict[str, Any]] = None,
         stream: Optional[bool] = None,
         n: Optional[int] = None,
+        logprobs: Optional[bool] = None,
+        top_logprobs: Optional[int] = None,
+        user: Optional[str] = None,
+        extra_headers: Optional[Dict[str, str]] = None,
+        extra_body: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(block_name)
-
-        # Validate input/output columns
-        self.input_cols = [input_cols] if isinstance(input_cols, str) else input_cols
-        self.output_cols = (
-            [output_cols] if isinstance(output_cols, str) else output_cols
+        super().__init__(
+            block_name=block_name, input_cols=input_cols, output_cols=output_cols
         )
 
+        # BaseBlock handles column normalization and validation
+        # Additional validation for LLMChatBlock requirements
         if len(self.input_cols) != 1:
-            raise ValueError("LLMChatBlock expects exactly one input column")
+            raise ValueError(
+                f"LLMChatBlock expects exactly one input column, got {len(self.input_cols)}: {self.input_cols}"
+            )
         if len(self.output_cols) != 1:
-            raise ValueError("LLMChatBlock expects exactly one output column")
+            raise ValueError(
+                f"LLMChatBlock expects exactly one output column, got {len(self.output_cols)}: {self.output_cols}"
+            )
 
         self.messages_column = self.input_cols[0]
         self.output_column = self.output_cols[0]
@@ -168,6 +186,11 @@ class LLMChatBlock(Block):
             response_format=response_format,
             stream=stream,
             n=n,
+            logprobs=logprobs,
+            top_logprobs=top_logprobs,
+            user=user,
+            extra_headers=extra_headers,
+            extra_body=extra_body,
             provider_specific=kwargs if kwargs else None,
         )
 
@@ -358,62 +381,69 @@ class LLMChatBlock(Block):
             "async_mode": self.async_mode,
         }
 
-    def validate_input(self, sample: Dict[str, Any]) -> bool:
-        """Validate that a sample has the required input format.
+    def _validate_custom(self, dataset: Dataset) -> None:
+        """Custom validation for LLMChatBlock message format.
+
+        Validates that all samples contain properly formatted messages.
 
         Parameters
         ----------
-        sample : Dict[str, Any]
-            Input sample to validate.
+        dataset : Dataset
+            The dataset to validate.
 
-        Returns
-        -------
-        bool
-            True if the sample is valid.
+        Raises
+        ------
+        BlockValidationError
+            If message format validation fails.
         """
-        if self.messages_column not in sample:
-            logger.warning(
-                f"Sample missing required column '{self.messages_column}'",
-                extra={"block_name": self.block_name, "sample": sample},
-            )
-            return False
 
-        messages = sample[self.messages_column]
+        def validate_sample(sample_with_index):
+            """Validate a single sample's message format."""
+            idx, sample = sample_with_index
+            messages = sample[self.messages_column]
 
-        if not isinstance(messages, list):
-            logger.warning(
-                f"Messages column must be a list, got {type(messages)}",
-                extra={"block_name": self.block_name, "messages_type": type(messages)},
-            )
-            return False
-
-        if not messages:
-            logger.warning(
-                "Messages list is empty", extra={"block_name": self.block_name}
-            )
-            return False
-
-        # Validate message format
-        for i, message in enumerate(messages):
-            if not isinstance(message, dict):
-                logger.warning(
-                    f"Message {i} must be a dict, got {type(message)}",
-                    extra={"block_name": self.block_name, "message_index": i},
+            # Validate messages is a list
+            if not isinstance(messages, list):
+                raise BlockValidationError(
+                    f"Messages column '{self.messages_column}' must contain a list, "
+                    f"got {type(messages)} in row {idx}",
+                    details=f"Block: {self.block_name}, Row: {idx}, Value: {messages}",
                 )
-                return False
 
-            if "role" not in message or "content" not in message:
-                logger.warning(
-                    f"Message {i} must have 'role' and 'content' fields",
-                    extra={
-                        "block_name": self.block_name,
-                        "message_index": i,
-                        "message_data": message,
-                    },
+            # Validate messages is not empty
+            if not messages:
+                raise BlockValidationError(
+                    f"Messages list is empty in row {idx}",
+                    details=f"Block: {self.block_name}, Row: {idx}",
                 )
-                return False
 
-        return True
+            # Validate each message format
+            for msg_idx, message in enumerate(messages):
+                if not isinstance(message, dict):
+                    raise BlockValidationError(
+                        f"Message {msg_idx} in row {idx} must be a dict, got {type(message)}",
+                        details=f"Block: {self.block_name}, Row: {idx}, Message: {msg_idx}, Value: {message}",
+                    )
+
+                # Validate required fields
+                if "role" not in message or message["role"] is None:
+                    raise BlockValidationError(
+                        f"Message {msg_idx} in row {idx} missing required 'role' field",
+                        details=f"Block: {self.block_name}, Row: {idx}, Message: {msg_idx}, Available fields: {list(message.keys())}",
+                    )
+
+                if "content" not in message or message["content"] is None:
+                    raise BlockValidationError(
+                        f"Message {msg_idx} in row {idx} missing required 'content' field",
+                        details=f"Block: {self.block_name}, Row: {idx}, Message: {msg_idx}, Available fields: {list(message.keys())}",
+                    )
+
+            return True  # Return something for map
+
+        # Use map to validate all samples
+        # Add index to each sample for better error reporting
+        indexed_samples = [(i, sample) for i, sample in enumerate(dataset)]
+        list(map(validate_sample, indexed_samples))
 
     def __del__(self) -> None:
         """Cleanup when block is destroyed."""
