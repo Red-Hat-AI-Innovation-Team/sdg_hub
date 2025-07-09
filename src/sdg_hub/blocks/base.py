@@ -235,6 +235,25 @@ class BaseBlock(ABC):
         self._validate_dataset_not_empty(dataset)
         self._validate_columns(dataset)
         self._validate_output_columns(dataset)
+    
+    def _validate_custom(self, dataset: Dataset) -> None:
+        """Hook for subclasses to add custom validation logic.
+        
+        Override this method in subclasses to add block-specific validation
+        that goes beyond the standard column and dataset validation.
+        
+        Parameters
+        ----------
+        dataset : Dataset
+            The dataset to validate.
+            
+        Raises
+        ------
+        BlockValidationError
+            If custom validation fails.
+        """
+        # Base implementation does nothing - subclasses can override
+        pass
 
     def _log_input_data(self, dataset: Dataset) -> None:
         """Log information about input dataset using Rich panels.
@@ -406,6 +425,9 @@ class BaseBlock(ABC):
 
         # Perform comprehensive dataset validation
         self._validate_dataset(samples)
+        
+        # Allow subclasses to add custom validation
+        self._validate_custom(samples)
 
         # Call the actual generate method
         output_dataset = self.generate(samples, **kwargs)

@@ -9,11 +9,15 @@ import pytest
 
 # First Party
 from sdg_hub.blocks.base import BaseBlock
+from sdg_hub.logger_config import setup_logger
 from sdg_hub.utils.error_handling import (
+    BlockValidationError,
     EmptyDatasetError,
     MissingColumnError,
     OutputColumnCollisionError,
 )
+
+logger = setup_logger(__name__)
 
 
 class DummyBlock(BaseBlock):
@@ -433,6 +437,116 @@ class TestGetInfo:
         assert info["output_cols"] == []
         assert info["block_name"] == "test_block"
         assert info["block_type"] == "DummyBlock"
+
+
+class TestCustomValidation:
+    """Test custom validation hook functionality."""
+
+    def create_test_dataset(self, data=None):
+        """Helper to create test datasets."""
+        if data is None:
+            data = [
+                {"input": "test1", "category": "A"},
+                {"input": "test2", "category": "B"},
+            ]
+        return Dataset.from_list(data)
+
+    def test_custom_validation_hook_called(self):
+        """Test that custom validation hook is called during __call__."""
+        dataset = self.create_test_dataset()
+        
+        # Create a block that tracks if custom validation was called
+        class TestBlockWithCustomValidation(DummyBlock):
+            def __init__(self, block_name: str, **kwargs):
+                super().__init__(block_name, **kwargs)
+                self.custom_validation_called = False
+                
+            def _validate_custom(self, dataset):
+                self.custom_validation_called = True
+                super()._validate_custom(dataset)
+        
+        block = TestBlockWithCustomValidation("test_block", input_cols=["input"])
+        
+        # Call the block - this should trigger custom validation
+        result = block(dataset)
+        
+        # Verify custom validation was called
+        assert block.custom_validation_called is True
+
+    def test_custom_validation_failure(self):
+        """Test that custom validation failures are properly raised."""
+        dataset = self.create_test_dataset()
+        
+        class TestBlockWithFailingValidation(DummyBlock):
+            def _validate_custom(self, dataset):
+                raise BlockValidationError("Custom validation failed", "Test details")
+        
+        block = TestBlockWithFailingValidation("test_block", input_cols=["input"])
+        
+        # Custom validation failure should be raised
+        with pytest.raises(BlockValidationError, match="Custom validation failed"):
+            block(dataset)
+
+    def test_custom_validation_order(self):
+        """Test that custom validation happens after standard validation."""
+        empty_dataset = Dataset.from_list([])
+        
+        class TestBlockValidationOrder(DummyBlock):
+            def __init__(self, block_name: str, **kwargs):
+                super().__init__(block_name, **kwargs)
+                self.custom_validation_called = False
+                
+            def _validate_custom(self, dataset):
+                self.custom_validation_called = True
+        
+        block = TestBlockValidationOrder("test_block")
+        
+        # Should fail on empty dataset validation before custom validation
+        with pytest.raises(EmptyDatasetError):
+            block(empty_dataset)
+        
+        # Custom validation should not have been called due to early failure
+        assert block.custom_validation_called is False
+
+    def test_custom_validation_with_dataset_access(self):
+        """Test that custom validation can access and inspect dataset."""
+        dataset = self.create_test_dataset([
+            {"input": "valid", "special": "good"},
+            {"input": "invalid", "special": "bad"},
+        ])
+        
+        class TestBlockWithDatasetValidation(DummyBlock):
+            def _validate_custom(self, dataset):
+                # Check that all 'special' values are 'good'
+                for i, sample in enumerate(dataset):
+                    if sample["special"] != "good":
+                        raise BlockValidationError(
+                            f"Invalid special value in row {i}: {sample['special']}"
+                        )
+        
+        block = TestBlockWithDatasetValidation("test_block", input_cols=["input"])
+        
+        # Should fail because second row has 'bad' value
+        with pytest.raises(BlockValidationError, match="Invalid special value in row 1: bad"):
+            block(dataset)
+
+    @patch("sdg_hub.blocks.base.console")
+    def test_custom_validation_with_logging(self, mock_console):
+        """Test that custom validation works with Rich logging."""
+        dataset = self.create_test_dataset()
+        
+        class TestBlockWithLoggingValidation(DummyBlock):
+            def _validate_custom(self, dataset):
+                # Custom validation that passes
+                logger.info("Custom validation passed")
+        
+        block = TestBlockWithLoggingValidation("test_block", input_cols=["input"])
+        
+        # Should succeed and show logging panels
+        result = block(dataset)
+        
+        # Verify logging was called (input and output panels)
+        assert mock_console.print.call_count == 2
 
 
 class TestEdgeCases:
