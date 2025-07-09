@@ -1,10 +1,13 @@
 """Custom exception classes for SDG Hub error handling."""
 
+# Standard
+from typing import List, Optional
+
 
 class SDGHubError(Exception):
     """Base exception class for all SDG Hub errors."""
 
-    def __init__(self, message: str, details: str = None):
+    def __init__(self, message: str, details: Optional[str] = None):
         """Initialize SDGHubError.
 
         Parameters
@@ -74,6 +77,87 @@ class BlockExecutionError(BlockError):
     """Raised when block execution fails."""
 
     pass
+
+
+class BlockValidationError(BlockError):
+    """Base exception class for block validation errors."""
+
+    pass
+
+
+class MissingColumnError(BlockValidationError):
+    """Raised when required input columns are missing from dataset."""
+
+    def __init__(
+        self, block_name: str, missing_columns: List[str], available_columns: List[str]
+    ):
+        """Initialize MissingColumnError.
+
+        Parameters
+        ----------
+        block_name : str
+            Name of the block that failed validation.
+        missing_columns : List[str]
+            List of missing column names.
+        available_columns : List[str]
+            List of available column names in the dataset.
+        """
+        self.block_name = block_name
+        self.missing_columns = missing_columns
+        self.available_columns = available_columns
+
+        message = (
+            f"Block '{block_name}' missing required input columns: {missing_columns}"
+        )
+        details = f"Available columns: {available_columns}"
+
+        super().__init__(message, details)
+
+
+class EmptyDatasetError(BlockValidationError):
+    """Raised when an empty dataset is provided to a block."""
+
+    def __init__(self, block_name: str):
+        """Initialize EmptyDatasetError.
+
+        Parameters
+        ----------
+        block_name : str
+            Name of the block that received the empty dataset.
+        """
+        self.block_name = block_name
+
+        message = f"Block '{block_name}' received an empty dataset"
+        details = "Dataset must contain at least one sample for processing"
+
+        super().__init__(message, details)
+
+
+class OutputColumnCollisionError(BlockValidationError):
+    """Raised when output columns would overwrite existing dataset columns."""
+
+    def __init__(
+        self, block_name: str, collision_columns: List[str], existing_columns: List[str]
+    ):
+        """Initialize OutputColumnCollisionError.
+
+        Parameters
+        ----------
+        block_name : str
+            Name of the block that has column collisions.
+        collision_columns : List[str]
+            List of output columns that collide with existing columns.
+        existing_columns : List[str]
+            List of existing column names in the dataset.
+        """
+        self.block_name = block_name
+        self.collision_columns = collision_columns
+        self.existing_columns = existing_columns
+
+        message = f"Block '{block_name}' output columns would overwrite existing data: {collision_columns}"
+        details = f"Existing columns: {existing_columns}"
+
+        super().__init__(message, details)
 
 
 class FlowError(SDGHubError):
