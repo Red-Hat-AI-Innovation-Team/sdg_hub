@@ -8,35 +8,31 @@
   block_config:
     block_name: gen_detailed_summary
     config_path: configs/knowledge/detailed_summary.yaml
-    model_id: meta-llama/Llama-3.3-70B-Instruct
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
     output_cols:
       - summary_detailed
   gen_kwargs:
-    max_tokens: 4096
-    temperature: 0.7
-    n: 50
+    max_tokens: 2048
 
 - block_type: LLMBlock
   block_config:
     block_name: gen_atomic_facts
     config_path: configs/knowledge/atomic_facts.yaml
-    model_id: meta-llama/Llama-3.3-70B-Instruct
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
     output_cols:
       - summary_atomic_facts
   gen_kwargs:
-    max_tokens: 4096
-    temperature: 0.7
+    max_tokens: 2048
 
 - block_type: LLMBlock
   block_config:
     block_name: gen_extractive_summary
     config_path: configs/knowledge/extractive_summary.yaml
-    model_id: meta-llama/Llama-3.3-70B-Instruct
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
     output_cols:
       - summary_extractive
   gen_kwargs:
-    max_tokens: 4096
-    temperature: 0.7
+    max_tokens: 2048
 
 - block_type: FlattenColumnsBlock
   block_config:
@@ -59,33 +55,25 @@
 - block_type: LLMBlock
   block_config:
     block_name: knowledge generation
-    config_path: configs/knowledge/generate_questions.yaml
-    model_id: meta-llama/Llama-3.3-70B-Instruct
+    config_path: configs/knowledge/generate_questions_responses.yaml
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
     output_cols:
       - question
+      - response
     parser_kwargs:
       parser_name: custom
-      parsing_pattern: "\\[(?:Question|QUESTION)\\]\\s*(.*?)\\s*(?=\\[(?:Question|QUESTION)\\]|$)"
+      parsing_pattern: "\\[(?:Question|QUESTION)\\]\\s*(.*?)\\s*\\[(?:Answer|ANSWER)\\]\\s*(.*?)\\s*(?=\\[(?:Question|QUESTION)\\]|$)"
+      parser_cleanup_tags:
+        - "[END]"
   gen_kwargs:
-    temperature: 0.7
-    max_tokens: 100
-
-- block_type: LLMBlock
-  block_config:
-    block_name: knowledge generation
-    config_path: configs/knowledge/generate_responses.yaml
-    model_id: meta-llama/Llama-3.3-70B-Instruct
-    output_cols:
-      - response
-  gen_kwargs:
-    temperature: 0.7
+    temperature: 0.0
     max_tokens: 2048
 
 - block_type: LLMBlock
   block_config:
     block_name: eval_faithfulness_qa_pair
     config_path: configs/knowledge/evaluate_faithfulness.yaml
-    model_id: meta-llama/Llama-3.3-70B-Instruct
+    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
     output_cols:
       - explanation
       - judgment
