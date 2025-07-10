@@ -131,20 +131,20 @@ class TestColumnNormalization:
         assert result == ["column"]
 
     def test_normalize_list(self):
-        """Test normalizing list returns the same list."""
+        """Test normalizing list returns a copy of the list."""
         block = DummyBlock("test_block")
         input_list = ["col1", "col2"]
         result = block._normalize_columns(input_list)
         assert result == input_list
-        assert result is input_list  # Should be the same object
+        assert result is not input_list  # Should be a copy, not the same object
 
     def test_normalize_dict(self):
-        """Test normalizing dictionary returns the same dictionary."""
+        """Test normalizing dictionary returns a deep copy of the dictionary."""
         block = DummyBlock("test_block")
         input_dict = {"col1": "prompt1", "col2": "prompt2"}
         result = block._normalize_columns(input_dict)
         assert result == input_dict
-        assert result is input_dict  # Should be the same object
+        assert result is not input_dict  # Should be a copy, not the same object
 
     def test_normalize_invalid_type(self):
         """Test normalizing invalid type raises ValueError."""
@@ -622,6 +622,98 @@ class TestCustomValidation:
 
         # Verify logging was called (input and output panels)
         assert mock_console.print.call_count == 2
+
+
+class TestDictionaryMutationProtection:
+    """Test that dictionary columns are protected from external mutations."""
+
+    def test_input_dict_mutation_protection(self):
+        """Test that external changes to input dict don't affect stored version."""
+        original_dict = {"col1": "template1", "col2": "template2"}
+        block = DummyBlock("test_block", input_cols=original_dict)
+        
+        # Verify initial state
+        assert block.input_cols == original_dict
+        
+        # Modify original dictionary
+        original_dict["col3"] = "template3"
+        original_dict["col1"] = "MODIFIED"
+        
+        # Block's internal state should be unchanged
+        assert block.input_cols == {"col1": "template1", "col2": "template2"}
+        assert "col3" not in block.input_cols
+        assert block.input_cols["col1"] == "template1"
+
+    def test_output_dict_mutation_protection(self):
+        """Test that external changes to output dict don't affect stored version."""
+        original_dict = {"output1": "result1", "output2": "result2"}
+        block = DummyBlock("test_block", output_cols=original_dict)
+        
+        # Verify initial state
+        assert block.output_cols == original_dict
+        
+        # Modify original dictionary
+        original_dict["output3"] = "result3"
+        del original_dict["output1"]
+        
+        # Block's internal state should be unchanged
+        assert block.output_cols == {"output1": "result1", "output2": "result2"}
+        assert "output3" not in block.output_cols
+
+    def test_nested_dict_mutation_protection(self):
+        """Test that nested dictionaries are also protected from mutations."""
+        nested_dict = {
+            "col1": {"template": "value1", "params": {"nested": "deep"}},
+            "col2": {"template": "value2"}
+        }
+        block = DummyBlock("test_block", input_cols=nested_dict)
+        
+        # Modify nested structure
+        nested_dict["col1"]["template"] = "MODIFIED"
+        nested_dict["col1"]["params"]["nested"] = "CHANGED"
+        nested_dict["col2"]["new_key"] = "new_value"
+        
+        # Block's internal state should be unchanged
+        assert block.input_cols["col1"]["template"] == "value1"
+        assert block.input_cols["col1"]["params"]["nested"] == "deep"
+        assert "new_key" not in block.input_cols["col2"]
+
+    def test_property_returns_independent_copies(self):
+        """Test that each call to input_cols/output_cols returns independent copies."""
+        original_dict = {"col1": "template1", "col2": "template2"}
+        block = DummyBlock("test_block", input_cols=original_dict)
+        
+        # Get two copies
+        copy1 = block.input_cols
+        copy2 = block.input_cols
+        
+        # They should be equal but not the same object
+        assert copy1 == copy2
+        assert copy1 is not copy2
+        
+        # Modifying one shouldn't affect the other
+        copy1["col3"] = "template3"
+        assert "col3" not in copy2
+        assert "col3" not in block.input_cols
+
+    def test_mixed_type_immutability(self):
+        """Test immutability works correctly for both lists and dicts."""
+        list_cols = ["col1", "col2"]
+        dict_cols = {"col3": "template3", "col4": "template4"}
+        
+        block1 = DummyBlock("test1", input_cols=list_cols, output_cols=dict_cols)
+        block2 = DummyBlock("test2", input_cols=dict_cols, output_cols=list_cols)
+        
+        # Modify originals
+        list_cols.append("col5")
+        dict_cols["col6"] = "template6"
+        
+        # Blocks should be unaffected
+        assert len(block1.input_cols) == 2
+        assert len(block2.output_cols) == 2
+        assert "col5" not in block1.input_cols
+        assert "col6" not in block1.output_cols
+        assert "col6" not in block2.input_cols
 
 
 class TestEdgeCases:

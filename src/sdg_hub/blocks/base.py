@@ -7,6 +7,7 @@ with unified constructor patterns, column handling, and common functionality.
 
 # Standard
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import Any, Dict, List, Optional, Union
 
 # Third Party
@@ -88,17 +89,21 @@ class BaseBlock(ABC):
     @property
     def input_cols(self) -> Union[List[str], Dict[str, Any]]:
         """Get the input column specification (immutable)."""
+        if isinstance(self._input_cols, dict):
+            return deepcopy(self._input_cols)
         return self._input_cols.copy()
 
     @property
     def output_cols(self) -> Union[List[str], Dict[str, Any]]:
         """Get the output column specification (immutable)."""
+        if isinstance(self._output_cols, dict):
+            return deepcopy(self._output_cols)
         return self._output_cols.copy()
 
     def _normalize_columns(
         self, cols: Optional[Union[str, List[str], Dict[str, Any]]]
     ) -> Union[List[str], Dict[str, Any]]:
-        """Normalize column specifications to list format.
+        """Normalize column specifications to appropriate format.
 
         Parameters
         ----------
@@ -107,8 +112,10 @@ class BaseBlock(ABC):
 
         Returns
         -------
-        List[str]
-            Normalized list of column names. Empty list if cols is None.
+        Union[List[str], Dict[str, Any]]
+            Normalized column specification. Returns empty list if cols is None,
+            single-item list for strings, copy of list for lists, or deep copy
+            of dictionary for dictionaries.
 
         Raises
         ------
@@ -120,9 +127,9 @@ class BaseBlock(ABC):
         if isinstance(cols, str):
             return [cols]
         if isinstance(cols, list):
-            return cols
+            return cols.copy()
         if isinstance(cols, dict):
-            return cols
+            return deepcopy(cols)
 
         # This will only be reached if cols is not None, str, list, or dict
         raise ValueError(
