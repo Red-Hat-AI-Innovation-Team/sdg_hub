@@ -50,7 +50,7 @@ vllm serve meta-llama/Llama-3.3-70B-Instruct --tensor-parallel-size 4
 
 ## Repository Structure
 
-This repository demonstrates how to generate synthetic data for knowledge tuning using different approaches and teacher models:
+This repository demonstrates how to generate synthetic data for knowledge tuning using different approaches:
 
 ### Examples
 
