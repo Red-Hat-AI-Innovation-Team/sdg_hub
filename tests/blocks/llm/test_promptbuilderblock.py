@@ -95,6 +95,37 @@ class TestPromptBuilderBlock:
                 prompt_config_path="/nonexistent/path.yaml",
             )
 
+    def test_init_with_invalid_yaml_config(self, tmp_path):
+        """Test initialization with invalid YAML config returns None and raises ValueError."""
+        # Create a file with invalid YAML
+        invalid_config = tmp_path / "invalid.yaml"
+        invalid_config.write_text("invalid: yaml: content: [unclosed")
+        
+        with pytest.raises(ValueError, match="Failed to load prompt configuration"):
+            PromptBuilderBlock(
+                block_name="test_block",
+                input_cols="input_text",
+                output_cols="output",
+                prompt_config_path=str(invalid_config),
+            )
+
+    def test_load_config_with_yaml_error(self, tmp_path):
+        """Test _load_config handles YAML parsing errors."""
+        # Create a temporary invalid YAML file
+        invalid_config = tmp_path / "invalid.yaml"
+        invalid_config.write_text("invalid: yaml: [unclosed")
+        
+        block = PromptBuilderBlock(
+            block_name="test_block",
+            input_cols="input_text",
+            output_cols="output",
+            prompt_config_path=TEST_CONFIG_NO_SYSTEM,
+        )
+        
+        # Test that _load_config returns None for invalid YAML
+        result = block._load_config(str(invalid_config))
+        assert result is None
+
     def test_resolve_template_vars_with_string_cols(self):
         """Test _resolve_template_vars with string input_cols."""
         block = PromptBuilderBlock(
