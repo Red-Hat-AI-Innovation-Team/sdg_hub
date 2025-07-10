@@ -94,7 +94,7 @@
   block_config:
     block_name: eval_relevancy_qa_pair
     config_path: configs/knowledge/evaluate_relevancy.yaml
-    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_id: meta-llama/Llama-3.3-70B-Instruct
     output_cols:
       - feedback
       - score
@@ -116,7 +116,7 @@
   block_config:
     block_name: eval_verify_question
     config_path: configs/knowledge/evaluate_question.yaml
-    model_id: mistralai/Mixtral-8x7B-Instruct-v0.1
+    model_id: meta-llama/Llama-3.3-70B-Instruct
     output_cols:
       - explanation
       - rating
