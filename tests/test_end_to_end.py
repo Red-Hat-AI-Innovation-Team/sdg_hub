@@ -222,6 +222,25 @@ class EndToEndTester:
                     print(f"❌ Missing required field: {field}")
                     return False
             
+            # Verify chunk content and sizing
+            for i, chunk in enumerate(chunked_dataset):
+                chunk_text = chunk["document"]
+                if len(chunk_text) > 512:
+                    print(f"❌ Chunk {i} exceeds max size: {len(chunk_text)} chars")
+                    return False
+                if not chunk_text.strip():
+                    print(f"❌ Chunk {i} is empty")
+                    return False
+                    
+            # Test edge case: document smaller than chunk size
+            small_doc = [{"document": "Small doc"}]
+            small_dataset = Dataset.from_list(small_doc)
+            small_chunked = chunking_block.generate(small_dataset)
+            
+            if len(small_chunked) != 1:
+                print(f"❌ Small document should produce 1 chunk, got {len(small_chunked)}")
+                return False
+            
             print(f"✅ Chunk metadata validation passed")
             return True
             
