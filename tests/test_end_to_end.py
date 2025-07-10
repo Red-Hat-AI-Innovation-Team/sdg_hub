@@ -304,6 +304,10 @@ class EndToEndTester:
             
             if self.backend == "vllm":
                 # Test vLLM model ID format
+                if not self.teacher_model:
+                    print("❌ No teacher model available for vLLM validation")
+                    return False
+
                 if not self.teacher_model.startswith("/"):
                     print(f"⚠️  vLLM model ID should start with '/' but got: {self.teacher_model}")
                 else:
@@ -314,7 +318,6 @@ class EndToEndTester:
                     print(f"⚠️  vLLM should use 'EMPTY' API key but got: {self.api_key}")
                 else:
                     print(f"✅ vLLM API key correctly set to 'EMPTY'")
-                    
             elif self.backend == "ollama":
                 # Test Ollama-specific features
                 if "localhost:11434" not in self.base_url:
