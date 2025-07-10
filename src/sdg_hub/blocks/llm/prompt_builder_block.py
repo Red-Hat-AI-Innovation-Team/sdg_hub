@@ -6,23 +6,25 @@ including conversion to OpenAI Messages format and template rendering.
 """
 
 # Standard
-import re
+from collections import ChainMap
 from typing import Any, Dict, List, Optional, Union
 
 # Third Party
 from datasets import Dataset
-from jinja2 import Template
+from jinja2 import Template, UndefinedError
+import yaml
 
 # Local
 from ...logger_config import setup_logger
 from ...registry import BlockRegistry
-from ..block import Block
+from ...utils.error_handling import TemplateValidationError
+from ..base import BaseBlock
 
 logger = setup_logger(__name__)
 
 
 @BlockRegistry.register("PromptBuilderBlock")
-class PromptBuilderBlock(Block):
+class PromptBuilderBlock(BaseBlock):
     """Block for formatting prompts into structured chat messages or plain text.
 
     This block takes input from dataset columns, applies a Jinja template from a YAML config,
@@ -57,14 +59,23 @@ class PromptBuilderBlock(Block):
         prompt_config_path: str,
         format_as_messages: bool = True,
         default_role: str = "user",
+        **kwargs: Any,
     ) -> None:
-        super().__init__(block_name)
-        self.input_cols = input_cols
+        super().__init__(
+            block_name=block_name,
+            input_cols=input_cols,
+            output_cols=output_cols,
+            **kwargs,
+        )
+
+        # Validate exactly one output column
+        if len(self.output_cols) != 1:
+            raise ValueError(
+                f"PromptBuilderBlock expects exactly one output column, got {len(self.output_cols)}: {self.output_cols}"
+            )
+
         # Process input column specifications
         self._process_input_cols()
-        self.output_cols = (
-            output_cols if isinstance(output_cols, str) else output_cols[0]
-        )
 
         self.prompt_config_path = prompt_config_path
         self.format_as_messages = format_as_messages
@@ -72,6 +83,10 @@ class PromptBuilderBlock(Block):
 
         # Load prompt configuration
         self.prompt_config = self._load_config(prompt_config_path)
+        if self.prompt_config is None:
+            raise ValueError(
+                f"Failed to load prompt configuration from {prompt_config_path}"
+            )
 
         # Build the prompt structure from config
         prompt_struct = """{introduction}\n{principles}\n{examples}\n{generation}"""
@@ -81,6 +96,47 @@ class PromptBuilderBlock(Block):
             k: (v if v is not None else "") for k, v in self.prompt_config.items()
         }
         self.prompt_template = Template(prompt_struct.format(**filtered_config))
+
+    def _load_config(self, config_path: str) -> Optional[Dict[str, Any]]:
+        """Load the configuration file for this block."""
+        try:
+            with open(config_path, "r", encoding="utf-8") as config_file:
+                try:
+                    return yaml.safe_load(config_file)
+                except yaml.YAMLError as e:
+                    logger.error(f"Error parsing YAML from {config_path}: {e}")
+                    return None
+        except FileNotFoundError:
+            logger.error(f"Configuration file not found: {config_path}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error reading config file {config_path}: {e}")
+            return None
+
+    def _validate_custom(self, dataset: Dataset) -> None:
+        """Custom validation for prompt template requirements."""
+        # Get a sample from the dataset to test template rendering
+        if len(dataset) > 0:
+            sample = dataset[0]
+            template_vars = self._resolve_template_vars(sample)
+
+            # Validate template can be rendered with available variables
+            class Default(dict):
+                def __missing__(self, key: str) -> None:
+                    raise KeyError(key)
+
+            try:
+                # Try rendering the template with the template_vars
+                self.prompt_template.render(ChainMap(template_vars, Default()))
+            except UndefinedError as e:
+                # Extract missing variable name from error message
+                missing_var = str(e).split("'")[1] if "'" in str(e) else str(e)
+                logger.error(f"Missing template variable: {missing_var}")
+                raise TemplateValidationError(
+                    block_name=self.block_name,
+                    missing_variables=[missing_var],
+                    available_variables=list(template_vars.keys()),
+                ) from e
 
     def _process_input_cols(self) -> None:
         """Process input column specifications into standardized format."""
@@ -280,36 +336,36 @@ class PromptBuilderBlock(Block):
             # Step 1: Resolve template variables from dataset columns
             template_vars = self._resolve_template_vars(sample)
 
-            # Step 2: Validate and render the template
-            if self._validate(self.prompt_template, template_vars):
-                rendered_content = self.prompt_template.render(template_vars).strip()
+            # Step 2: Render the template (validation is handled by _validate_custom)
+            rendered_content = self.prompt_template.render(template_vars).strip()
 
-                if rendered_content:
-                    # Step 3: Format output based on format_as_messages setting
-                    if self.format_as_messages:
-                        # Convert to OpenAI Messages format with robust handling
-                        formatted_output = self._convert_to_openai_messages(
-                            rendered_content, template_vars
-                        )
-                    else:
-                        # Keep as plain string
-                        formatted_output = rendered_content
-
-                    sample[self.output_cols] = formatted_output
+            if rendered_content:
+                # Step 3: Format output based on format_as_messages setting
+                if self.format_as_messages:
+                    # Convert to OpenAI Messages format with robust handling
+                    formatted_output = self._convert_to_openai_messages(
+                        rendered_content, template_vars
+                    )
                 else:
-                    logger.warning(f"Sample produced no content: {sample}")
-                    sample[self.output_cols] = [] if self.format_as_messages else ""
+                    # Keep as plain string
+                    formatted_output = rendered_content
+
+                # Use the single output column (validated to be exactly one)
+                output_col = self.output_cols[0]
+                sample[output_col] = formatted_output
             else:
-                logger.warning(f"Sample failed template validation: {sample}")
-                sample[self.output_cols] = [] if self.format_as_messages else ""
+                logger.warning(f"Sample produced no content: {sample}")
+                output_col = self.output_cols[0]
+                sample[output_col] = [] if self.format_as_messages else ""
 
         except Exception as e:
             logger.warning(f"Failed to format sample: {sample}. Error: {e}")
-            sample[self.output_cols] = [] if self.format_as_messages else ""
+            output_col = self.output_cols[0]
+            sample[output_col] = [] if self.format_as_messages else ""
 
         return sample
 
-    def generate(self, samples: Dataset) -> Dataset:
+    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
         """Generate formatted output for all samples using dataset map.
 
         Parameters

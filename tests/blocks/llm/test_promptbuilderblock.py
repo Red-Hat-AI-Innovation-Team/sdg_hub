@@ -34,7 +34,7 @@ class TestPromptBuilderBlock:
 
         assert block.block_name == "test_block"
         assert block.input_col_map == {"input_text": "input_text"}
-        assert block.output_cols == "output"
+        assert block.output_cols == ["output"]
         assert block.format_as_messages is True
         assert block.default_role == "user"
 
@@ -65,12 +65,34 @@ class TestPromptBuilderBlock:
 
     def test_init_with_invalid_input_cols(self):
         """Test initialization with invalid input_cols type."""
-        with pytest.raises(ValueError, match="input_cols must be str, list, or dict"):
+        with pytest.raises(ValueError, match="Invalid column specification"):
             PromptBuilderBlock(
                 block_name="test_block",
                 input_cols=123,  # Invalid type
                 output_cols="output",
                 prompt_config_path=TEST_CONFIG_WITH_SYSTEM,
+            )
+
+    def test_init_with_multiple_output_cols(self):
+        """Test initialization with multiple output columns raises error."""
+        with pytest.raises(
+            ValueError, match="PromptBuilderBlock expects exactly one output column"
+        ):
+            PromptBuilderBlock(
+                block_name="test_block",
+                input_cols="input_text",
+                output_cols=["output1", "output2"],
+                prompt_config_path=TEST_CONFIG_WITH_SYSTEM,
+            )
+
+    def test_init_with_invalid_config_path(self):
+        """Test initialization with invalid config path raises error."""
+        with pytest.raises(FileNotFoundError):
+            PromptBuilderBlock(
+                block_name="test_block",
+                input_cols="input_text",
+                output_cols="output",
+                prompt_config_path="/nonexistent/path.yaml",
             )
 
     def test_resolve_template_vars_with_string_cols(self):
@@ -431,3 +453,29 @@ class TestPromptBuilderBlock:
         assert result[0]["id"] == 1
         assert result[0]["metadata"] == {"key": "value"}
         assert "messages" in result[0]
+
+    def test_baseblock_integration(self):
+        """Test that PromptBuilderBlock properly integrates with BaseBlock."""
+        block = PromptBuilderBlock(
+            block_name="test_block",
+            input_cols="input_text",
+            output_cols="output",
+            prompt_config_path=TEST_CONFIG_NO_SYSTEM,
+        )
+
+        # Test BaseBlock properties
+        assert block.block_name == "test_block"
+        assert block.input_cols == ["input_text"]
+        assert block.output_cols == ["output"]
+
+        # Test that it has BaseBlock methods
+        assert hasattr(block, "_validate_custom")
+        assert hasattr(block, "_log_input_data")
+        assert hasattr(block, "_log_output_data")
+
+        # Test get_info method from BaseBlock
+        info = block.get_info()
+        assert info["block_name"] == "test_block"
+        assert info["block_type"] == "PromptBuilderBlock"
+        assert info["input_cols"] == ["input_text"]
+        assert info["output_cols"] == ["output"]
