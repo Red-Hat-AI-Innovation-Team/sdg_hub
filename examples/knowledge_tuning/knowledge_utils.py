@@ -268,7 +268,22 @@ def build_raft_dataset(ds: Dataset, p, num_doc_in_context=4):
 
 
 def create_knowledge_regular_ds(generated_dataset: Dataset):
-    # Phase 1.0 (Skills Phase)
+    """  
+    Create a knowledge dataset for the Skills Phase of knowledge tuning.  
+    
+    This function generates QA datasets with RAFT-style context separation  
+    and optionally includes auxiliary datasets for enhanced training.  
+    
+    Parameters  
+    ----------  
+    generated_dataset : Dataset  
+        The input dataset containing generated knowledge content  
+        
+    Returns  
+    -------  
+    Dataset  
+        Processed dataset ready for skills phase training 
+    """
     knowledge_ds = generate_knowledge_qa_dataset(
         generated_dataset, keep_context_separate=True
     )
@@ -282,9 +297,23 @@ def create_knowledge_regular_ds(generated_dataset: Dataset):
 
 def create_knowledge_pretraining_ds(generated_dataset: Dataset, add_auxiliary_dataset: bool = True):
     # Phase 0.7 (Knowledge Phase)
+    """  
+    Create a knowledge dataset for the Knowledge Phase of knowledge tuning.  
+    
+    This function generates QA datasets for pretraining-style knowledge tuning  
+    with optional auxiliary dataset inclusion.  
+    
+    Parameters  
+    ----------  
+    generated_dataset (Dataset): The dataset containing generated knowledge data.  
+    add_auxiliary_dataset (bool): Whether to include an auxiliary dataset.  
+    
+    Returns  
+    -------  
+    Dataset: The generated knowledge dataset.  
+    """
     knowledge_ds = generate_knowledge_qa_dataset(
-        generated_dataset, keep_context_separate=False
-    )
+        generated_dataset, keep_context_separate=False)
     knowledge_ds = knowledge_ds.map(_conv_pretrain)
 
     auxiliary_dataset = create_auxiliary_dataset(generated_dataset)
