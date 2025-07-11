@@ -6,12 +6,11 @@ including conversion to OpenAI Messages format and template rendering.
 """
 
 # Standard
-from collections import ChainMap
 from typing import Any, Dict, List, Optional, Union
 
 # Third Party
 from datasets import Dataset
-from jinja2 import Template, UndefinedError
+from jinja2 import Template, meta
 import yaml
 
 # Local
@@ -114,29 +113,21 @@ class PromptBuilderBlock(BaseBlock):
             return None
 
     def _validate_custom(self, dataset: Dataset) -> None:
-        """Custom validation for prompt template requirements."""
-        # Get a sample from the dataset to test template rendering
         if len(dataset) > 0:
+            # Get required variables directly from template AST
+            ast = self.prompt_template.environment.parse(self.prompt_template.source)
+            required_vars = meta.find_undeclared_variables(ast)
+
             sample = dataset[0]
             template_vars = self._resolve_template_vars(sample)
+            missing_vars = required_vars - set(template_vars.keys())
 
-            # Validate template can be rendered with available variables
-            class Default(dict):
-                def __missing__(self, key: str) -> None:
-                    raise KeyError(key)
-
-            try:
-                # Try rendering the template with the template_vars
-                self.prompt_template.render(ChainMap(template_vars, Default()))
-            except UndefinedError as e:
-                # Extract missing variable name from error message
-                missing_var = str(e).split("'")[1] if "'" in str(e) else str(e)
-                logger.error(f"Missing template variable: {missing_var}")
+            if missing_vars:
                 raise TemplateValidationError(
                     block_name=self.block_name,
-                    missing_variables=[missing_var],
+                    missing_variables=list(missing_vars),
                     available_variables=list(template_vars.keys()),
-                ) from e
+                )
 
     def _process_input_cols(self) -> None:
         """Process input column specifications into standardized format."""
