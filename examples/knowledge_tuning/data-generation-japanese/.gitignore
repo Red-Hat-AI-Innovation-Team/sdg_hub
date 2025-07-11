@@ -1,5 +1,4 @@
 /model_comparison*.md*
-/model_output*.md*
 /seed_data*.jsonl*
 /generated_data*.jsonl*
 /messages_data*.jsonl*
