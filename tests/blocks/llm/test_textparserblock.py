@@ -258,15 +258,21 @@ def test_generate_all_empty_parsed_outputs_custom_parser(
 
 
 def test_constructor_validation_no_input_cols():
-    """Test constructor validation with no input columns."""
+    """Test validation with no input columns during execution."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols=[],
+        output_cols=["output"],
+    )
+
+    # Create test dataset
+    test_data = Dataset.from_list([{"test": "value"}])
+
+    # Validation should fail during execution
     with pytest.raises(
         ValueError, match="TextParserBlock expects at least one input column"
     ):
-        TextParserBlock(
-            block_name="test_block",
-            input_cols=[],
-            output_cols=["output"],
-        )
+        block(test_data)
 
 
 def test_constructor_validation_multiple_input_cols():
@@ -304,12 +310,16 @@ def test_constructor_string_output_cols():
     assert block.output_cols == ["output"]
 
 
-def test_parse_uneven_tags(postprocessing_block_multi_column):
+def test_parse_uneven_tags():
     """Test parsing with uneven start and end tags."""
-    # Test with more start tags than end tags
-    postprocessing_block_multi_column.start_tags = ["<title>", "<content>", "<footer>"]
-    postprocessing_block_multi_column.end_tags = ["</title>", "</content>"]
-    postprocessing_block_multi_column.output_cols = ["title", "content", "footer"]
+    # Create a block with more start tags than end tags
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["title", "content", "footer"],
+        start_tags=["<title>", "<content>", "<footer>"],
+        end_tags=["</title>", "</content>"],
+    )
 
     text = """
     <title>Header content</title>
@@ -317,7 +327,7 @@ def test_parse_uneven_tags(postprocessing_block_multi_column):
     <footer>Footer content</footer>
     """
 
-    result = postprocessing_block_multi_column._parse(text)
+    result = block._parse(text)
     assert result == {
         "title": ["Header content"],
         "content": ["Main content"],
@@ -325,19 +335,23 @@ def test_parse_uneven_tags(postprocessing_block_multi_column):
     }
 
 
-def test_parse_more_output_cols_than_tags(postprocessing_block_multi_column):
+def test_parse_more_output_cols_than_tags():
     """Test parsing when there are more output columns than tag pairs."""
-    # Configure with 3 output columns but only 2 tag pairs
-    postprocessing_block_multi_column.start_tags = ["<title>", "<content>"]
-    postprocessing_block_multi_column.end_tags = ["</title>", "</content>"]
-    postprocessing_block_multi_column.output_cols = ["title", "content", "footer"]
+    # Create a block with 3 output columns but only 2 tag pairs
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["title", "content", "footer"],
+        start_tags=["<title>", "<content>"],
+        end_tags=["</title>", "</content>"],
+    )
 
     text = """
     <title>Header content</title>
     <content>Main content</content>
     """
 
-    result = postprocessing_block_multi_column._parse(text)
+    result = block._parse(text)
     # All output columns should be present, with footer having empty list
     assert result == {
         "title": ["Header content"],
@@ -379,9 +393,14 @@ def test_extract_matches_cascading_tags(postprocessing_block):
 
 def test_parse_mixed_tag_types(postprocessing_block_multi_column):
     """Test parsing with mixed tag types (XML-style and custom markers)."""
-    postprocessing_block_multi_column.start_tags = ["<header>", "START"]
-    postprocessing_block_multi_column.end_tags = ["</header>", "END"]
-    postprocessing_block_multi_column.output_cols = ["header", "body"]
+    # Create a new block with the desired configuration
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["header", "body"],
+        start_tags=["<header>", "START"],
+        end_tags=["</header>", "END"],
+    )
 
     text = """
     <header>XML Style Header</header>
@@ -390,7 +409,7 @@ def test_parse_mixed_tag_types(postprocessing_block_multi_column):
     START Another Custom Body END
     """
 
-    result = postprocessing_block_multi_column._parse(text)
+    result = block._parse(text)
     assert result == {
         "header": ["XML Style Header", "Another XML Header"],
         "body": ["Custom Style Body", "Another Custom Body"],
@@ -399,9 +418,14 @@ def test_parse_mixed_tag_types(postprocessing_block_multi_column):
 
 def test_parse_with_special_characters(postprocessing_block_with_tags):
     """Test parsing with special characters in tags and content."""
-    postprocessing_block_with_tags.start_tags = ["<special>"]
-    postprocessing_block_with_tags.end_tags = ["</special>"]
-    postprocessing_block_with_tags.output_cols = ["special"]
+    # Create a new block with the desired configuration
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["special"],
+        start_tags=["<special>"],
+        end_tags=["</special>"],
+    )
 
     text = """
     <special>Content with &amp; entities</special>
@@ -409,7 +433,7 @@ def test_parse_with_special_characters(postprocessing_block_with_tags):
     <special>Content with "quotes" and 'apostrophes'</special>
     """
 
-    result = postprocessing_block_with_tags._parse(text)
+    result = block._parse(text)
     assert result == {
         "special": [
             "Content with &amp; entities",
@@ -422,9 +446,13 @@ def test_parse_with_special_characters(postprocessing_block_with_tags):
 def test_parse_mismatched_config_tags(postprocessing_block_multi_column):
     """Test parsing with mismatched numbers of start and end tags in configuration."""
     # Test case 1: More start tags than end tags
-    postprocessing_block_multi_column.start_tags = ["<header>", "<content>", "<footer>"]
-    postprocessing_block_multi_column.end_tags = ["</header>", "</content>"]
-    postprocessing_block_multi_column.output_cols = ["header", "content", "footer"]
+    block1 = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["header", "content", "footer"],
+        start_tags=["<header>", "<content>", "<footer>"],
+        end_tags=["</header>", "</content>"],
+    )
 
     text = """
     <header>Header content</header>
@@ -432,7 +460,7 @@ def test_parse_mismatched_config_tags(postprocessing_block_multi_column):
     <footer>Footer content</footer>
     """
 
-    result = postprocessing_block_multi_column._parse(text)
+    result = block1._parse(text)
     assert result == {
         "header": ["Header content"],
         "content": ["Main content"],
@@ -440,13 +468,13 @@ def test_parse_mismatched_config_tags(postprocessing_block_multi_column):
     }
 
     # Test case 2: More end tags than start tags
-    postprocessing_block_multi_column.start_tags = ["<header>"]
-    postprocessing_block_multi_column.end_tags = [
-        "</header>",
-        "</content>",
-        "</footer>",
-    ]
-    postprocessing_block_multi_column.output_cols = ["header", "content", "footer"]
+    block2 = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["header", "content", "footer"],
+        start_tags=["<header>"],
+        end_tags=["</header>", "</content>", "</footer>"],
+    )
 
     text = """
     <header>Header content</header>
@@ -454,25 +482,34 @@ def test_parse_mismatched_config_tags(postprocessing_block_multi_column):
     </footer>
     """
 
-    result = postprocessing_block_multi_column._parse(text)
+    result = block2._parse(text)
     assert result == {"header": ["Header content"], "content": [], "footer": []}
 
     # Test case 3: Empty tags list
-    postprocessing_block_multi_column.start_tags = []
-    postprocessing_block_multi_column.end_tags = []
-    postprocessing_block_multi_column.output_cols = ["text"]
+    block3 = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["text"],
+        start_tags=[],
+        end_tags=[],
+    )
 
     text = "Some text without tags"
 
-    result = postprocessing_block_multi_column._parse(text)
+    result = block3._parse(text)
     assert result == {"text": []}
 
 
 def test_parse_uneven_tags_comprehensive(postprocessing_block_multi_column):
     """Test parsing with uneven or mismatched start and end tags - comprehensive test cases."""
-    postprocessing_block_multi_column.start_tags = ["<section>", "<subsection>"]
-    postprocessing_block_multi_column.end_tags = ["</section>", "</subsection>"]
-    postprocessing_block_multi_column.output_cols = ["section", "subsection"]
+    # Create a new block with the desired configuration
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["section", "subsection"],
+        start_tags=["<section>", "<subsection>"],
+        end_tags=["</section>", "</subsection>"],
+    )
 
     # Test cases with various uneven tag scenarios
     test_cases = [
@@ -521,15 +558,20 @@ def test_parse_uneven_tags_comprehensive(postprocessing_block_multi_column):
     ]
 
     for text, expected in test_cases:
-        result = postprocessing_block_multi_column._parse(text)
+        result = block._parse(text)
         assert result == expected, f"Failed for text: {text}"
 
 
 def test_parse_with_whitespace_comprehensive(postprocessing_block_with_tags):
     """Test parsing with various whitespace patterns - comprehensive test."""
-    postprocessing_block_with_tags.start_tags = ["<text>"]
-    postprocessing_block_with_tags.end_tags = ["</text>"]
-    postprocessing_block_with_tags.output_cols = ["text"]
+    # Create a new block with the desired configuration
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["text"],
+        start_tags=["<text>"],
+        end_tags=["</text>"],
+    )
 
     text = """
     <text>  Leading and trailing spaces  </text>
@@ -540,7 +582,7 @@ def test_parse_with_whitespace_comprehensive(postprocessing_block_with_tags):
     <text>\tTabbed content\t</text>
     """
 
-    result = postprocessing_block_with_tags._parse(text)
+    result = block._parse(text)
     assert result == {
         "text": ["Leading and trailing spaces", "Multiple\n    Lines", "Tabbed content"]
     }

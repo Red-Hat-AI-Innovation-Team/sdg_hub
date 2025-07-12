@@ -6,8 +6,8 @@ start/end tags, custom regex patterns, and cleanup operations.
 """
 
 # Standard
+from typing import Any, List, Optional, Union
 import re
-from typing import Any, Dict, List, Optional, Union
 
 # Third Party
 from datasets import Dataset
@@ -15,25 +15,25 @@ from datasets import Dataset
 # Local
 from ...logger_config import setup_logger
 from ...registry import BlockRegistry
-from ..block import Block
+from ..base import BaseBlock
 
 logger = setup_logger(__name__)
 
 
 @BlockRegistry.register("TextParserBlock")
-class TextParserBlock(Block):
+class TextParserBlock(BaseBlock):
     """Block for parsing and post-processing LLM outputs.
 
     This block handles output parsing using start/end tags, custom regex patterns,
-    and cleanup operations. It duplicates the parsing functionality from LLMBlock.
+    and cleanup operations. It expects exactly one input column containing raw LLM output.
 
     Parameters
     ----------
     block_name : str
-        Name of the block.
-    input_cols : Union[str, List[str]]
-        Input column name(s) containing raw LLM output.
-    output_cols : Union[str, List[str]]
+        Unique identifier for this block instance.
+    input_cols : Optional[Union[str, List[str]]], optional
+        Input column name(s) containing raw LLM output. Must specify exactly one column.
+    output_cols : Optional[Union[str, List[str]]], optional
         Output column name(s) for parsed results.
     start_tags : List[str], optional
         List of start tags for tag-based parsing. Default is [].
@@ -43,6 +43,8 @@ class TextParserBlock(Block):
         Regex pattern for custom parsing. Default is None.
     parser_cleanup_tags : Optional[List[str]], optional
         List of tags to clean from parsed output. Default is None.
+    **kwargs : Any
+        Additional block-specific parameters passed to BaseBlock.
     """
 
     def __init__(
@@ -54,21 +56,36 @@ class TextParserBlock(Block):
         end_tags: Optional[List[str]] = None,
         parsing_pattern: Optional[str] = None,
         parser_cleanup_tags: Optional[List[str]] = None,
+        **kwargs: Any,
     ) -> None:
-        super().__init__(block_name)
-        self.input_cols = [input_cols] if isinstance(input_cols, str) else input_cols
-        self.output_cols = (
-            [output_cols] if isinstance(output_cols, str) else output_cols
+        super().__init__(
+            block_name=block_name,
+            input_cols=input_cols,
+            output_cols=output_cols,
+            **kwargs,
         )
         self.start_tags = start_tags or []
         self.end_tags = end_tags or []
         self.parsing_pattern = parsing_pattern
         self.parser_cleanup_tags = parser_cleanup_tags
 
-        # Validate the block configuration
+    def _validate_custom(self, dataset: Dataset) -> None:
+        """Validate TextParserBlock specific requirements.
+
+        Parameters
+        ----------
+        dataset : Dataset
+            The dataset to validate.
+
+        Raises
+        ------
+        ValueError
+            If TextParserBlock requirements are not met.
+        """
+        # Validate that we have exactly one input column
         if len(self.input_cols) == 0:
             raise ValueError("TextParserBlock expects at least one input column")
-        elif len(self.input_cols) > 1:
+        if len(self.input_cols) > 1:
             logger.warning(
                 f"TextParserBlock expects exactly one input column, but got {len(self.input_cols)}. "
                 f"Using the first column: {self.input_cols[0]}"
@@ -173,7 +190,7 @@ class TextParserBlock(Block):
             result.append({**sample, **dict(zip(parsed_outputs.keys(), values))})
         return result
 
-    def generate(self, samples: Dataset) -> Dataset:
+    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
         logger.debug(f"Parsing outputs for {len(samples)} samples")
         if len(samples) == 0:
             logger.warning("No samples to parse, returning empty dataset")
