@@ -91,6 +91,30 @@ class TextParserBlock(BaseBlock):
                 f"Using the first column: {self.input_cols[0]}"
             )
 
+        # Validate that at least one parsing method is configured
+        has_regex = self.parsing_pattern is not None
+        has_tags = bool(self.start_tags) or bool(self.end_tags)
+
+        if not has_regex and not has_tags:
+            raise ValueError(
+                "TextParserBlock requires at least one parsing method: "
+                "either 'parsing_pattern' (regex) or 'start_tags'/'end_tags' (tag-based parsing)"
+            )
+
+        # Validate tag parsing configuration
+        if has_tags:
+            if len(self.start_tags) != len(self.end_tags):
+                raise ValueError(
+                    f"start_tags and end_tags must have the same length. "
+                    f"Got {len(self.start_tags)} start_tags and {len(self.end_tags)} end_tags"
+                )
+
+            if len(self.start_tags) != len(self.output_cols):
+                raise ValueError(
+                    f"When using tag-based parsing, the number of tag pairs must match output_cols. "
+                    f"Got {len(self.start_tags)} tag pairs and {len(self.output_cols)} output columns"
+                )
+
     def _extract_matches(
         self, text: str, start_tag: Optional[str], end_tag: Optional[str]
     ) -> List[str]:
@@ -125,6 +149,10 @@ class TextParserBlock(BaseBlock):
             column_name: [] for column_name in self.output_cols
         }
 
+        logger.debug(
+            f"Regex parsing found {len(all_matches)} matches with pattern: {self.parsing_pattern}"
+        )
+
         if all_matches and isinstance(all_matches[0], tuple):
             return self._process_tuple_matches(all_matches, matches)
         return self._process_single_matches(all_matches, matches)
@@ -138,9 +166,12 @@ class TextParserBlock(BaseBlock):
         for start_tag, end_tag, output_col in zip(
             self.start_tags, self.end_tags, self.output_cols
         ):
-            matches[output_col] = self._extract_matches(
-                generated_string, start_tag, end_tag
+            extracted = self._extract_matches(generated_string, start_tag, end_tag)
+            matches[output_col] = extracted
+            logger.debug(
+                f"Tag parsing for '{output_col}' with tags '{start_tag}'/'{end_tag}' found {len(extracted)} matches"
             )
+
         return matches
 
     def _process_tuple_matches(
@@ -170,18 +201,22 @@ class TextParserBlock(BaseBlock):
 
     def _generate(self, sample: dict) -> List[dict]:
         input_column = self.input_cols[0]
-        if input_column not in sample:
+        raw_output = sample[input_column]
+        if not raw_output or not isinstance(raw_output, str):
             logger.warning(
-                f"Input column '{input_column}' not found in sample: {sample}"
+                f"Input column '{input_column}' contains invalid data (empty or non-string): {type(raw_output)}"
             )
             return []
 
-        raw_output = sample[input_column]
         parsed_outputs = self._parse(raw_output)
 
         if not parsed_outputs or not any(
             len(value) > 0 for value in parsed_outputs.values()
         ):
+            logger.warning(
+                f"Failed to parse any content from input. Raw output length: {len(raw_output)}, "
+                f"parsing method: {'regex' if self.parsing_pattern else 'tags'}"
+            )
             return []
 
         result = []

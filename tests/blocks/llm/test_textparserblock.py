@@ -1,6 +1,7 @@
 # Third Party
 from datasets import Dataset
 import pytest
+from unittest.mock import patch
 
 # First Party
 from sdg_hub.blocks.llm import TextParserBlock
@@ -206,13 +207,15 @@ def test_generate_multiple_matches_per_input(postprocessing_block_multi_column):
 
 
 def test_generate_missing_input_column(postprocessing_block):
-    """Test generate functionality when input column is missing."""
+    """Test that missing input column is handled by BaseBlock validation."""
+    from sdg_hub.utils.error_handling import MissingColumnError
+
     data = [{"other_column": "some text"}]
     dataset = Dataset.from_list(data)
 
-    result = postprocessing_block.generate(dataset)
-
-    assert len(result) == 0
+    # BaseBlock should handle validation and raise MissingColumnError
+    with pytest.raises(MissingColumnError):
+        postprocessing_block(dataset)  # Use __call__ to trigger validation
 
 
 def test_generate_empty_dataset(postprocessing_block):
@@ -586,3 +589,208 @@ def test_parse_with_whitespace_comprehensive(postprocessing_block_with_tags):
     assert result == {
         "text": ["Leading and trailing spaces", "Multiple\n    Lines", "Tabbed content"]
     }
+
+
+# New validation tests
+def test_validation_no_parsing_method_configured():
+    """Test validation failure when no parsing method is configured."""
+    with pytest.raises(ValueError, match="at least one parsing method"):
+        block = TextParserBlock(
+            block_name="test_block",
+            input_cols="raw_output",
+            output_cols=["output"],
+            # No parsing_pattern, start_tags, or end_tags
+        )
+        test_data = Dataset.from_list([{"raw_output": "test"}])
+        block(test_data)
+
+
+def test_validation_mismatched_tag_lengths():
+    """Test validation failure when start_tags and end_tags have different lengths."""
+    with pytest.raises(
+        ValueError, match="start_tags and end_tags must have the same length"
+    ):
+        block = TextParserBlock(
+            block_name="test_block",
+            input_cols="raw_output",
+            output_cols=["output"],
+            start_tags=["<start1>", "<start2>"],
+            end_tags=["<end1>"],  # Missing second end tag
+        )
+        test_data = Dataset.from_list([{"raw_output": "test"}])
+        block(test_data)
+
+
+def test_validation_tag_pairs_output_cols_mismatch():
+    """Test validation failure when tag pairs don't match output columns."""
+    with pytest.raises(ValueError, match="number of tag pairs must match output_cols"):
+        block = TextParserBlock(
+            block_name="test_block",
+            input_cols="raw_output",
+            output_cols=["col1", "col2", "col3"],  # 3 output columns
+            start_tags=["<start1>", "<start2>"],  # Only 2 tag pairs
+            end_tags=["<end1>", "<end2>"],
+        )
+        test_data = Dataset.from_list([{"raw_output": "test"}])
+        block(test_data)
+
+
+def test_validation_regex_only_configuration():
+    """Test that regex-only configuration is valid."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        parsing_pattern=r"Answer: (.*)",
+        # No tags specified - this should be valid
+    )
+
+    data = [{"raw_output": "Answer: test response"}]
+    dataset = Dataset.from_list(data)
+
+    # Should not raise validation errors
+    result = block(dataset)
+    assert len(result) == 1
+    assert result[0]["output"] == "test response"
+
+
+def test_validation_tags_only_configuration():
+    """Test that tags-only configuration is valid."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+        # No parsing_pattern - this should be valid
+    )
+
+    data = [{"raw_output": "<answer>test response</answer>"}]
+    dataset = Dataset.from_list(data)
+
+    # Should not raise validation errors
+    result = block(dataset)
+    assert len(result) == 1
+    assert result[0]["output"] == "test response"
+
+
+def test_enhanced_error_handling_invalid_input_data():
+    """Test enhanced error handling for invalid input data types."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        parsing_pattern=r"Answer: (.*)",
+    )
+
+    # Test with non-string input (separate datasets to avoid PyArrow issues)
+    test_cases = [
+        [{"raw_output": None}],
+        [{"raw_output": 123}],
+        [{"raw_output": ""}],  # Empty string instead of list to avoid PyArrow issues
+    ]
+
+    warning_count = 0
+    for data in test_cases:
+        dataset = Dataset.from_list(data)
+
+        with patch("sdg_hub.blocks.llm.text_parser_block.logger") as mock_logger:
+            result = block.generate(dataset)
+
+            # Should log warnings for invalid data
+            if mock_logger.warning.called:
+                warning_count += 1
+            assert len(result) == 0  # Should return empty dataset
+
+    assert warning_count >= 2  # At least None and 123 should trigger warnings
+
+
+def test_enhanced_logging_for_parsing_failures():
+    """Test enhanced logging when parsing fails."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+    )
+
+    # Test with input that won't match the pattern
+    data = [{"raw_output": "No tags in this text"}]
+    dataset = Dataset.from_list(data)
+
+    with patch("sdg_hub.blocks.llm.text_parser_block.logger") as mock_logger:
+        result = block.generate(dataset)
+
+        # Should log warning about parsing failure
+        mock_logger.warning.assert_called()
+        warning_call = mock_logger.warning.call_args[0][0]
+        assert "Failed to parse any content" in warning_call
+        assert "parsing method: tags" in warning_call
+
+
+def test_enhanced_logging_missing_input_column():
+    """Test that BaseBlock handles missing input columns with proper validation."""
+    # BaseBlock should handle missing column validation, so this should raise an error
+    # during validation, not during generate()
+    from sdg_hub.utils.error_handling import MissingColumnError
+
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="missing_column",
+        output_cols=["output"],
+        parsing_pattern=r"Answer: (.*)",
+    )
+
+    data = [{"other_column": "test"}]
+    dataset = Dataset.from_list(data)
+
+    # BaseBlock should validate and raise MissingColumnError
+    with pytest.raises(MissingColumnError):
+        result = block(dataset)  # Use __call__ to trigger validation
+
+
+def test_enhanced_logging_regex_parsing():
+    """Test enhanced debug logging for regex parsing."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        parsing_pattern=r"Answer: (.*)",
+    )
+
+    data = [{"raw_output": "Answer: test response"}]
+    dataset = Dataset.from_list(data)
+
+    with patch("sdg_hub.blocks.llm.text_parser_block.logger") as mock_logger:
+        result = block.generate(dataset)
+
+        # Should log debug info about matches found
+        mock_logger.debug.assert_called()
+        debug_call = mock_logger.debug.call_args[0][0]
+        assert "Regex parsing found" in debug_call
+        assert "matches with pattern" in debug_call
+
+
+def test_enhanced_logging_tag_parsing():
+    """Test enhanced debug logging for tag parsing."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+    )
+
+    data = [{"raw_output": "<answer>test response</answer>"}]
+    dataset = Dataset.from_list(data)
+
+    with patch("sdg_hub.blocks.llm.text_parser_block.logger") as mock_logger:
+        result = block.generate(dataset)
+
+        # Should log debug info about tag parsing
+        mock_logger.debug.assert_called()
+        debug_call = mock_logger.debug.call_args[0][0]
+        assert "Tag parsing for" in debug_call
+        assert "found" in debug_call
+        assert "matches" in debug_call
