@@ -14,13 +14,17 @@ from datasets import Dataset
 
 # Local
 from ...logger_config import setup_logger
-from ...registry import BlockRegistry
+from ..registry import BlockRegistry
 from ..base import BaseBlock
 
 logger = setup_logger(__name__)
 
 
-@BlockRegistry.register("FilterByValueBlock")
+@BlockRegistry.register(
+    "FilterByValueBlock",
+    "filtering",
+    "Filters datasets based on column values using various comparison operations",
+)
 class FilterByValueBlock(BaseBlock):
     """A block for filtering datasets based on column values.
 
@@ -63,11 +67,11 @@ class FilterByValueBlock(BaseBlock):
             input_cols=input_cols,
             output_cols=None,
         )
-        
+
         # Validate that we have at least one input column
         if len(self.input_cols) == 0:
             raise ValueError("FilterByValueBlock requires at least one input column")
-        
+
         # Validate that operation is from operator module
         if operation.__module__ != "_operator":
             logger.error("Invalid operation: %s", operation)
