@@ -14,13 +14,13 @@ from datasets import Dataset
 
 # Local
 from ...logger_config import setup_logger
-from ...registry import BlockRegistry
+from ..registry import BlockRegistry
 from ..base import BaseBlock
 
 logger = setup_logger(__name__)
 
 
-@BlockRegistry.register("TextParserBlock")
+@BlockRegistry.register("TextParserBlock", "llm", "Parses and post-processes LLM outputs using tags or regex patterns")
 class TextParserBlock(BaseBlock):
     """Block for parsing and post-processing LLM outputs.
 

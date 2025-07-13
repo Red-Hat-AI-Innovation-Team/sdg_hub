@@ -15,14 +15,18 @@ import yaml
 
 # Local
 from ...logger_config import setup_logger
-from ...registry import BlockRegistry
+from ..registry import BlockRegistry
 from ...utils.error_handling import TemplateValidationError
 from ..base import BaseBlock
 
 logger = setup_logger(__name__)
 
 
-@BlockRegistry.register("PromptBuilderBlock")
+@BlockRegistry.register(
+    "PromptBuilderBlock",
+    "llm",
+    "Formats prompts into structured chat messages or plain text using Jinja templates",
+)
 class PromptBuilderBlock(BaseBlock):
     """Block for formatting prompts into structured chat messages or plain text.
 

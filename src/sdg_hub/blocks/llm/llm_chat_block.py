@@ -10,7 +10,7 @@ from datasets import Dataset
 
 # Local
 from ...logger_config import setup_logger
-from ...registry import BlockRegistry
+from ..registry import BlockRegistry
 from ...utils.error_handling import BlockValidationError
 from ..base import BaseBlock
 from .client_manager import LLMClientManager
@@ -19,7 +19,11 @@ from .config import LLMConfig
 logger = setup_logger(__name__)
 
 
-@BlockRegistry.register("LLMChatBlock")
+@BlockRegistry.register(
+    "LLMChatBlock",
+    "llm",
+    "Unified LLM chat block supporting 100+ providers via LiteLLM",
+)
 class LLMChatBlock(BaseBlock):
     """Unified LLM chat block supporting all providers via LiteLLM.
 
