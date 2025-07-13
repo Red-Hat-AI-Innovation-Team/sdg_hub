@@ -104,7 +104,7 @@ class FilterByValueBlock(BaseBlock):
             sample[self.column_name] = None
         return sample
 
-    def generate(self, samples: Dataset) -> Dataset:
+    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
         """Generate filtered dataset based on specified conditions.
 
         Parameters

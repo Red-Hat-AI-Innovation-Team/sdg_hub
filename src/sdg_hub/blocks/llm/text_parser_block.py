@@ -20,7 +20,11 @@ from ..base import BaseBlock
 logger = setup_logger(__name__)
 
 
-@BlockRegistry.register("TextParserBlock", "llm", "Parses and post-processes LLM outputs using tags or regex patterns")
+@BlockRegistry.register(
+    "TextParserBlock",
+    "llm",
+    "Parses and post-processes LLM outputs using tags or regex patterns",
+)
 class TextParserBlock(BaseBlock):
     """Block for parsing and post-processing LLM outputs.
 
