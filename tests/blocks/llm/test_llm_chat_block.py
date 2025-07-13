@@ -526,10 +526,10 @@ class TestRegistration:
     def test_llm_chat_block_registered(self):
         """Test that LLMChatBlock is properly registered."""
         # First Party
-        from sdg_hub.registry import BlockRegistry
+        from sdg_hub.blocks.registry import BlockRegistry
 
-        assert "LLMChatBlock" in BlockRegistry._registry
-        assert BlockRegistry._registry["LLMChatBlock"] == LLMChatBlock
+        assert "LLMChatBlock" in BlockRegistry._metadata
+        assert BlockRegistry._metadata["LLMChatBlock"].block_class == LLMChatBlock
 
 
 class TestLLMChatBlockValidation:
