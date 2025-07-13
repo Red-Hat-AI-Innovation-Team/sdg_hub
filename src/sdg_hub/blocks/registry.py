@@ -164,8 +164,8 @@ class BlockRegistry:
                 ) from exc
 
     @classmethod
-    def get_block_class(cls, block_name: str) -> Type:
-        """Retrieve a block class with enhanced error handling.
+    def get(cls, block_name: str) -> Type:
+        """Get a block class with enhanced error handling.
 
         Parameters
         ----------
@@ -217,8 +217,8 @@ class BlockRegistry:
         return metadata.block_class
 
     @classmethod
-    def get_metadata(cls, block_name: str) -> BlockMetadata:
-        """Retrieve metadata for a specific block.
+    def info(cls, block_name: str) -> BlockMetadata:
+        """Get metadata for a specific block.
 
         Parameters
         ----------
@@ -240,7 +240,7 @@ class BlockRegistry:
         return cls._metadata[block_name]
 
     @classmethod
-    def get_categories(cls) -> List[str]:
+    def categories(cls) -> List[str]:
         """Get all available categories.
 
         Returns
@@ -251,7 +251,7 @@ class BlockRegistry:
         return sorted(cls._categories.keys())
 
     @classmethod
-    def get_blocks_by_category(cls, category: str) -> List[str]:
+    def category(cls, category: str) -> List[str]:
         """Get all blocks in a specific category.
 
         Parameters
@@ -278,7 +278,7 @@ class BlockRegistry:
         return sorted(cls._categories[category])
 
     @classmethod
-    def list_blocks(cls) -> Dict[str, List[str]]:
+    def all(cls) -> Dict[str, List[str]]:
         """List all blocks organized by category.
 
         Returns
@@ -291,7 +291,7 @@ class BlockRegistry:
         }
 
     @classmethod
-    def print_blocks(cls) -> None:
+    def show(cls) -> None:
         """Print a Rich-formatted table of all available blocks."""
         if not cls._metadata:
             console.print("[yellow]No blocks registered yet.[/yellow]")
@@ -303,7 +303,6 @@ class BlockRegistry:
         table.add_column("Block Name", style="cyan", no_wrap=True)
         table.add_column("Category", style="green")
         table.add_column("Description", style="white")
-        table.add_column("Status", style="yellow")
 
         # Sort blocks by category, then by name
         sorted_blocks = sorted(
@@ -311,10 +310,12 @@ class BlockRegistry:
         )
 
         for name, metadata in sorted_blocks:
-            status = "⚠️ Deprecated" if metadata.deprecated else "✅ Active"
             description = metadata.description or "No description"
 
-            table.add_row(name, metadata.category, description, status)
+            # Show deprecated blocks with a warning indicator in the name
+            block_name = f"⚠️ {name}" if metadata.deprecated else name
+
+            table.add_row(block_name, metadata.category, description)
 
         console.print(table)
 

@@ -141,13 +141,13 @@ class TestBlockRegistry:
             def generate(self, samples: Dataset, **kwargs) -> Dataset:
                 return samples
 
-        retrieved_class = BlockRegistry.get_block_class("TestBlock")
+        retrieved_class = BlockRegistry.get("TestBlock")
         assert retrieved_class == TestBlock
 
     def test_get_block_class_not_found(self):
         """Test error when block not found."""
         with pytest.raises(KeyError) as exc_info:
-            BlockRegistry.get_block_class("NonExistentBlock")
+            BlockRegistry.get("NonExistentBlock")
 
         error_msg = str(exc_info.value)
         assert "NonExistentBlock" in error_msg
@@ -162,7 +162,7 @@ class TestBlockRegistry:
                 return samples
 
         with pytest.raises(KeyError) as exc_info:
-            BlockRegistry.get_block_class("TestBloc")  # Missing 'k'
+            BlockRegistry.get("TestBloc")  # Missing 'k'
 
         error_msg = str(exc_info.value)
         assert "Did you mean: TestBlock" in error_msg
@@ -181,7 +181,7 @@ class TestBlockRegistry:
             # Clear previous calls from registration
             mock_logger.reset_mock()
 
-            retrieved_class = BlockRegistry.get_block_class("OldBlock")
+            retrieved_class = BlockRegistry.get("OldBlock")
             assert retrieved_class == OldBlock
 
             # Check deprecation warning was logged
@@ -198,7 +198,7 @@ class TestBlockRegistry:
             def generate(self, samples: Dataset, **kwargs) -> Dataset:
                 return samples
 
-        metadata = BlockRegistry.get_metadata("TestBlock")
+        metadata = BlockRegistry.info("TestBlock")
         assert metadata.name == "TestBlock"
         assert metadata.category == "test"
         assert metadata.description == "A test block"
@@ -206,7 +206,7 @@ class TestBlockRegistry:
     def test_get_metadata_not_found(self):
         """Test error when metadata not found."""
         with pytest.raises(KeyError, match="'NonExistentBlock' not found in registry"):
-            BlockRegistry.get_metadata("NonExistentBlock")
+            BlockRegistry.info("NonExistentBlock")
 
     def test_get_categories(self):
         """Test getting all categories."""
@@ -221,7 +221,7 @@ class TestBlockRegistry:
             def generate(self, samples: Dataset, **kwargs) -> Dataset:
                 return samples
 
-        categories = BlockRegistry.get_categories()
+        categories = BlockRegistry.categories()
         assert categories == ["category1", "category2"]
 
     def test_get_blocks_by_category(self):
@@ -242,13 +242,13 @@ class TestBlockRegistry:
             def generate(self, samples: Dataset, **kwargs) -> Dataset:
                 return samples
 
-        test_blocks = BlockRegistry.get_blocks_by_category("test")
+        test_blocks = BlockRegistry.category("test")
         assert test_blocks == ["Block1", "Block2"]
 
     def test_get_blocks_by_category_not_found(self):
         """Test error when category not found."""
         with pytest.raises(KeyError) as exc_info:
-            BlockRegistry.get_blocks_by_category("NonExistentCategory")
+            BlockRegistry.category("NonExistentCategory")
 
         error_msg = str(exc_info.value)
         assert "NonExistentCategory" in error_msg
@@ -272,14 +272,14 @@ class TestBlockRegistry:
             def generate(self, samples: Dataset, **kwargs) -> Dataset:
                 return samples
 
-        blocks = BlockRegistry.list_blocks()
+        blocks = BlockRegistry.all()
         expected = {"category1": ["Block1", "Block2"], "category2": ["Block3"]}
         assert blocks == expected
 
     def test_print_blocks_empty_registry(self):
         """Test printing blocks when registry is empty."""
         with patch("sdg_hub.blocks.registry.console") as mock_console:
-            BlockRegistry.print_blocks()
+            BlockRegistry.show()
             mock_console.print.assert_called_once_with(
                 "[yellow]No blocks registered yet.[/yellow]"
             )
@@ -300,7 +300,7 @@ class TestBlockRegistry:
                 return samples
 
         with patch("sdg_hub.blocks.registry.console") as mock_console:
-            BlockRegistry.print_blocks()
+            BlockRegistry.show()
 
             # Check that console.print was called (for table and summary)
             assert mock_console.print.call_count >= 2
@@ -348,7 +348,7 @@ class TestBlockRegistry:
                 return samples
 
         # Check both blocks are in the same category
-        blocks_in_category = BlockRegistry.get_blocks_by_category("shared_category")
+        blocks_in_category = BlockRegistry.category("shared_category")
         assert "Block1" in blocks_in_category
         assert "Block2" in blocks_in_category
         assert len(blocks_in_category) == 2
@@ -362,7 +362,7 @@ class TestBlockRegistry:
                 return samples
 
         with pytest.raises(KeyError) as exc_info:
-            BlockRegistry.get_block_class("NonExistentBlock")
+            BlockRegistry.get("NonExistentBlock")
 
         error_msg = str(exc_info.value)
         assert "Available blocks: ExistingBlock" in error_msg
