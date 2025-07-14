@@ -19,7 +19,6 @@ from ..logger_config import setup_logger
 logger = setup_logger(__name__)
 
 
-
 @BlockRegistry.register("SamplePopulatorBlock")
 class SamplePopulatorBlock(Block):
     """Block for populating dataset with data from configuration files.
@@ -95,7 +94,6 @@ class SamplePopulatorBlock(Block):
         return samples
 
 
-
 @BlockRegistry.register("CombineColumnsBlock")
 class CombineColumnsBlock(Block):
     r"""Block for combining multiple columns into a single column.
@@ -164,8 +162,6 @@ class CombineColumnsBlock(Block):
         """
         samples = samples.map(self._generate, num_proc=self.num_procs)
         return samples
-
-
 
 
 @BlockRegistry.register("DuplicateColumns")
@@ -251,8 +247,6 @@ class RenameColumns(Block):
         """
         samples = samples.rename_columns(self.columns_map)
         return samples
-
-
 
 
 @BlockRegistry.register("IterBlock")

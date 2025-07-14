@@ -6,6 +6,7 @@ import pytest
 
 # First Party
 from sdg_hub.blocks.transform import SelectorBlock
+from sdg_hub.utils.error_handling import MissingColumnError
 
 
 @pytest.fixture
@@ -47,7 +48,7 @@ def test_selector_block_basic(sample_dataset):
     assert "other_col" in result.column_names
 
 
-def test_selector_block_invalid_choice(sample_dataset):
+def test_selector_block_invalid_choice():
     """Test SelectorBlock with invalid choice values."""
     block = SelectorBlock(
         block_name="test_selector",
@@ -66,8 +67,9 @@ def test_selector_block_invalid_choice(sample_dataset):
         }
     )
 
-    with pytest.raises(KeyError):
-        block.generate(invalid_dataset)
+    # Invalid choice values now result in None values, not exceptions
+    result = block.generate(invalid_dataset)
+    assert result["chosen_response"][0] is None
 
 
 def test_selector_block_empty_dataset():
@@ -112,8 +114,7 @@ def test_selector_block_custom_num_procs(sample_dataset):
 def test_selector_block_empty_choice_map(sample_dataset):
     """Test SelectorBlock with an empty choice map.
 
-    Verifies that the block raises a KeyError when trying to use an empty choice map,
-    as there would be no valid mappings to look up.
+    Verifies that with an empty choice map, all values result in None.
     """
     block = SelectorBlock(
         block_name="test_selector",
@@ -122,14 +123,15 @@ def test_selector_block_empty_choice_map(sample_dataset):
         output_col="chosen_response",
     )
 
-    with pytest.raises(KeyError):
-        block.generate(sample_dataset)
+    result = block.generate(sample_dataset)
+    # All values should be None since no mappings exist
+    assert all(x is None for x in result["chosen_response"])
 
 
 def test_selector_block_nonexistent_choice_map_columns(sample_dataset):
     """Test SelectorBlock with non-existent column names in choice map.
 
-    Verifies that the block properly handles and raises KeyError when
+    Verifies that the block properly handles and raises MissingColumnError when
     attempting to map to columns that don't exist in the dataset.
     """
     block = SelectorBlock(
@@ -142,5 +144,5 @@ def test_selector_block_nonexistent_choice_map_columns(sample_dataset):
         output_col="chosen_response",
     )
 
-    with pytest.raises(KeyError):
+    with pytest.raises(MissingColumnError):
         block.generate(sample_dataset)

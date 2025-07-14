@@ -11,6 +11,6 @@ from .set_majority_value import SetToMajorityValue
 
 __all__ = [
     "FlattenColumnsBlock",
-    "SelectorBlock", 
+    "SelectorBlock",
     "SetToMajorityValue",
 ]

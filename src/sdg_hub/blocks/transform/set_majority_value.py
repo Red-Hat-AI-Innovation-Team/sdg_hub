@@ -14,14 +14,14 @@ from datasets import Dataset
 # Local
 from ...logger_config import setup_logger
 from ..base import BaseBlock
-from ...registry import BlockRegistry
+from ..registry import BlockRegistry
 from ...utils.error_handling import MissingColumnError
 
 logger = setup_logger(__name__)
 
 
 @BlockRegistry.register(
-    "SetToMajorityValue", 
+    "SetToMajorityValue",
     "transform",
     "Sets all values in a column to the most frequent (majority) value",
 )
@@ -39,7 +39,7 @@ class SetToMajorityValue(BaseBlock):
         Name of the column to set to majority value.
     input_cols : Optional[Union[str, List[str]]], optional
         Input column specification. If provided, col_name must be included.
-    output_cols : Optional[Union[str, List[str]]], optional  
+    output_cols : Optional[Union[str, List[str]]], optional
         Output column specification. Defaults to same as input column.
     """
 
@@ -56,16 +56,16 @@ class SetToMajorityValue(BaseBlock):
             # Legacy mode - derive columns automatically
             input_cols = [col_name]
             output_cols = [col_name]
-        
+
         super().__init__(
             block_name=block_name,
             input_cols=input_cols,
             output_cols=output_cols,
-            **kwargs
+            **kwargs,
         )
-        
+
         self.col_name = col_name
-        
+
         # Validate that col_name is in input_cols if specified
         if isinstance(self.input_cols, list) and self.col_name not in self.input_cols:
             logger.warning(
@@ -74,17 +74,17 @@ class SetToMajorityValue(BaseBlock):
 
     def _validate(self, samples: Dataset) -> Dataset:
         """Validate that the required column exists in the dataset.
-        
+
         Parameters
         ----------
         samples : Dataset
             Input dataset to validate.
-            
+
         Returns
         -------
         Dataset
             Validated dataset.
-            
+
         Raises
         ------
         MissingColumnError
@@ -94,9 +94,9 @@ class SetToMajorityValue(BaseBlock):
             raise MissingColumnError(
                 block_name=self.block_name,
                 missing_columns=[self.col_name],
-                available_columns=samples.column_names
+                available_columns=samples.column_names,
             )
-        
+
         return samples
 
     def generate(self, samples: Dataset) -> Dataset:
@@ -114,19 +114,21 @@ class SetToMajorityValue(BaseBlock):
         """
         # Validate input
         samples = self._validate(samples)
-        
+
         # Convert to pandas for mode calculation
         df = samples.to_pandas()
-        
+
         # Find the majority value (mode)
         mode_series = df[self.col_name].mode()
         if len(mode_series) == 0:
-            logger.warning(f"No mode found for column '{self.col_name}', keeping original values")
+            logger.warning(
+                f"No mode found for column '{self.col_name}', keeping original values"
+            )
             return samples
-        
+
         majority_value = mode_series[0]
         original_unique_values = df[self.col_name].nunique()
-        
+
         # Log the operation
         logger.info(
             f"Setting column '{self.col_name}' to majority value for block '{self.block_name}'",
@@ -136,15 +138,15 @@ class SetToMajorityValue(BaseBlock):
                 "majority_value": str(majority_value),
                 "original_unique_values": original_unique_values,
                 "total_rows": len(df),
-            }
+            },
         )
-        
+
         # Set all values to majority value
         df[self.col_name] = majority_value
-        
+
         # Convert back to dataset
         result = Dataset.from_pandas(df)
-        
+
         # Log completion
         logger.info(
             f"Successfully set column to majority value for block '{self.block_name}'",
@@ -153,7 +155,7 @@ class SetToMajorityValue(BaseBlock):
                 "column_name": self.col_name,
                 "new_value": str(majority_value),
                 "rows_affected": len(result),
-            }
+            },
         )
-        
+
         return result

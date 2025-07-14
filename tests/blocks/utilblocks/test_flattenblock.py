@@ -10,6 +10,7 @@ import pytest
 
 # First Party
 from sdg_hub.blocks.transform import FlattenColumnsBlock
+from sdg_hub.utils.error_handling import MissingColumnError
 
 
 def test_flatten_columns_basic():
@@ -135,7 +136,7 @@ def test_flatten_columns_with_invalid_input():
         var_name="dataset_type",
     )
 
-    with pytest.raises(KeyError):
+    with pytest.raises(MissingColumnError):
         block.generate(dataset)
 
 

@@ -14,7 +14,7 @@ from datasets import Dataset
 # Local
 from ...logger_config import setup_logger
 from ..base import BaseBlock
-from ...registry import BlockRegistry
+from ..registry import BlockRegistry
 from ...utils.error_handling import MissingColumnError
 
 logger = setup_logger(__name__)
@@ -62,18 +62,18 @@ class FlattenColumnsBlock(BaseBlock):
             # Legacy mode - derive columns automatically
             input_cols = var_cols
             output_cols = [value_name, var_name]
-        
+
         super().__init__(
             block_name=block_name,
             input_cols=input_cols,
             output_cols=output_cols,
-            **kwargs
+            **kwargs,
         )
-        
+
         self.var_cols = var_cols
         self.value_name = value_name
         self.var_name = var_name
-        
+
         # Validate var_cols are subset of input_cols if both specified
         if isinstance(self.input_cols, list) and self.var_cols:
             missing_cols = set(self.var_cols) - set(self.input_cols)
@@ -84,17 +84,17 @@ class FlattenColumnsBlock(BaseBlock):
 
     def _validate(self, samples: Dataset) -> Dataset:
         """Validate that required columns exist in the dataset.
-        
+
         Parameters
         ----------
         samples : Dataset
             Input dataset to validate.
-            
+
         Returns
         -------
         Dataset
             Validated dataset.
-            
+
         Raises
         ------
         MissingColumnError
@@ -106,9 +106,9 @@ class FlattenColumnsBlock(BaseBlock):
             raise MissingColumnError(
                 block_name=self.block_name,
                 missing_columns=missing_cols,
-                available_columns=samples.column_names
+                available_columns=samples.column_names,
             )
-        
+
         return samples
 
     def generate(self, samples: Dataset) -> Dataset:
@@ -126,7 +126,7 @@ class FlattenColumnsBlock(BaseBlock):
         """
         # Validate input
         samples = self._validate(samples)
-        
+
         # Log the operation
         logger.info(
             f"Flattening {len(self.var_cols)} columns into long format for block '{self.block_name}'",
@@ -136,13 +136,13 @@ class FlattenColumnsBlock(BaseBlock):
                 "value_column": self.value_name,
                 "variable_name_column": self.var_name,
                 "input_rows": len(samples),
-            }
+            },
         )
-        
+
         # Convert to pandas for melting operation
         df = samples.to_pandas()
         id_cols = [col for col in samples.column_names if col not in self.var_cols]
-        
+
         # Perform the melt operation
         flatten_df = df.melt(
             id_vars=id_cols,
@@ -150,10 +150,10 @@ class FlattenColumnsBlock(BaseBlock):
             value_name=self.value_name,
             var_name=self.var_name,
         )
-        
+
         # Convert back to dataset
         result = Dataset.from_pandas(flatten_df)
-        
+
         # Log completion
         logger.info(
             f"Successfully flattened dataset for block '{self.block_name}'",
@@ -161,8 +161,10 @@ class FlattenColumnsBlock(BaseBlock):
                 "block_name": self.block_name,
                 "output_rows": len(result),
                 "new_columns": [self.value_name, self.var_name],
-                "expansion_factor": len(result) / len(samples) if len(samples) > 0 else 0,
-            }
+                "expansion_factor": len(result) / len(samples)
+                if len(samples) > 0
+                else 0,
+            },
         )
-        
+
         return result

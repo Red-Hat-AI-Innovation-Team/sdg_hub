@@ -6,6 +6,7 @@ import pytest
 
 # First Party
 from sdg_hub.blocks.transform import SetToMajorityValue
+from sdg_hub.utils.error_handling import EmptyDatasetError
 
 
 @pytest.fixture
@@ -61,8 +62,9 @@ def test_set_to_majority_empty_column():
     dataset = Dataset.from_dict({"empty_col": []})
     block = SetToMajorityValue(block_name="test_block", col_name="empty_col")
 
-    with pytest.raises(KeyError):
-        block.generate(dataset)
+    # BaseBlock raises EmptyDatasetError for empty datasets
+    with pytest.raises(EmptyDatasetError):
+        block(dataset)  # Use __call__ to trigger BaseBlock validation
 
 
 def test_set_to_majority_single_value():
@@ -87,7 +89,10 @@ def test_set_to_majority_all_unique():
 def test_set_to_majority_tie_handling():
     """Test behavior when there are multiple values with the same frequency."""
     dataset = Dataset.from_dict(
-        {"tie_col": ["A", "B", "A", "B", "C", "D"], "other_col": ["1", "2", "3", "4", "5", "6"]}
+        {
+            "tie_col": ["A", "B", "A", "B", "C", "D"],
+            "other_col": ["1", "2", "3", "4", "5", "6"],
+        }
     )
     block = SetToMajorityValue(block_name="test_block", col_name="tie_col")
     result = block.generate(dataset)

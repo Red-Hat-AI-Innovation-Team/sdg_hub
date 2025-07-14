@@ -14,7 +14,7 @@ from datasets import Dataset
 # Local
 from ...logger_config import setup_logger
 from ..base import BaseBlock
-from ...registry import BlockRegistry
+from ..registry import BlockRegistry
 from ...utils.error_handling import MissingColumnError
 
 logger = setup_logger(__name__)
@@ -22,7 +22,7 @@ logger = setup_logger(__name__)
 
 @BlockRegistry.register(
     "SelectorBlock",
-    "transform", 
+    "transform",
     "Selects and maps values from one column to another based on choice mapping",
 )
 class SelectorBlock(BaseBlock):
@@ -68,26 +68,26 @@ class SelectorBlock(BaseBlock):
             mapped_cols = list(choice_map.values())
             input_cols = [choice_col] + mapped_cols
             output_cols = [output_col]
-        
+
         super().__init__(
             block_name=block_name,
             input_cols=input_cols,
             output_cols=output_cols,
-            **batch_kwargs
+            **batch_kwargs,
         )
-        
+
         self.choice_map = choice_map
         self.choice_col = choice_col
         self.output_col = output_col
         self.num_procs = num_procs
-        
+
         # Validate that choice_col and mapped columns are in input_cols if specified
         if isinstance(self.input_cols, list):
             if self.choice_col not in self.input_cols:
                 logger.warning(
                     f"Choice column '{self.choice_col}' not found in input_cols {self.input_cols}"
                 )
-            
+
             missing_mapped_cols = set(choice_map.values()) - set(self.input_cols)
             if missing_mapped_cols:
                 logger.warning(
@@ -96,17 +96,17 @@ class SelectorBlock(BaseBlock):
 
     def _validate(self, samples: Dataset) -> Dataset:
         """Validate that required columns exist in the dataset.
-        
+
         Parameters
         ----------
         samples : Dataset
             Input dataset to validate.
-            
+
         Returns
         -------
         Dataset
             Validated dataset.
-            
+
         Raises
         ------
         MissingColumnError
@@ -117,9 +117,9 @@ class SelectorBlock(BaseBlock):
             raise MissingColumnError(
                 block_name=self.block_name,
                 missing_columns=[self.choice_col],
-                available_columns=samples.column_names
+                available_columns=samples.column_names,
             )
-        
+
         # Check that all mapped columns exist
         mapped_cols = list(self.choice_map.values())
         missing_cols = list(set(mapped_cols) - set(samples.column_names))
@@ -127,9 +127,9 @@ class SelectorBlock(BaseBlock):
             raise MissingColumnError(
                 block_name=self.block_name,
                 missing_columns=missing_cols,
-                available_columns=samples.column_names
+                available_columns=samples.column_names,
             )
-        
+
         return samples
 
     def _generate(self, sample: Dict[str, Any]) -> Dict[str, Any]:
@@ -146,7 +146,7 @@ class SelectorBlock(BaseBlock):
             Sample with selected values stored in output column.
         """
         choice_value = sample[self.choice_col]
-        
+
         # Check if choice value exists in mapping
         if choice_value not in self.choice_map:
             logger.warning(
@@ -158,7 +158,7 @@ class SelectorBlock(BaseBlock):
             # Get the column name to select from
             source_col = self.choice_map[choice_value]
             sample[self.output_col] = sample[source_col]
-        
+
         return sample
 
     def generate(self, samples: Dataset) -> Dataset:
@@ -176,11 +176,11 @@ class SelectorBlock(BaseBlock):
         """
         # Validate input
         samples = self._validate(samples)
-        
+
         # Log the operation
         unique_choices = set(samples[self.choice_col])
         mapped_choices = set(self.choice_map.keys())
-        
+
         logger.info(
             f"Selecting values based on choice mapping for block '{self.block_name}'",
             extra={
@@ -190,12 +190,12 @@ class SelectorBlock(BaseBlock):
                 "choice_mappings": len(self.choice_map),
                 "unique_choices_in_data": len(unique_choices),
                 "unmapped_choices": len(unique_choices - mapped_choices),
-            }
+            },
         )
-        
+
         # Apply the mapping
         result = samples.map(self._generate, num_proc=self.num_procs)
-        
+
         # Log completion
         logger.info(
             f"Successfully applied choice mapping for block '{self.block_name}'",
@@ -203,8 +203,11 @@ class SelectorBlock(BaseBlock):
                 "block_name": self.block_name,
                 "rows_processed": len(result),
                 "output_column": self.output_col,
-                "mapping_coverage": len(mapped_choices & unique_choices) / len(unique_choices) if unique_choices else 0,
-            }
+                "mapping_coverage": len(mapped_choices & unique_choices)
+                / len(unique_choices)
+                if unique_choices
+                else 0,
+            },
         )
-        
+
         return result
