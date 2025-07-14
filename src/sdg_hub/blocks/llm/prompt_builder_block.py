@@ -98,7 +98,8 @@ class PromptBuilderBlock(BaseBlock):
         filtered_config = {
             k: (v if v is not None else "") for k, v in self.prompt_config.items()
         }
-        self.prompt_template = Template(prompt_struct.format(**filtered_config))
+        self.template_source = prompt_struct.format(**filtered_config)
+        self.prompt_template = Template(self.template_source)
 
     def _load_config(self, config_path: str) -> Optional[Dict[str, Any]]:
         """Load the configuration file for this block."""
@@ -119,7 +120,7 @@ class PromptBuilderBlock(BaseBlock):
     def _validate_custom(self, dataset: Dataset) -> None:
         if len(dataset) > 0:
             # Get required variables directly from template AST
-            ast = self.prompt_template.environment.parse(self.prompt_template.source)
+            ast = self.prompt_template.environment.parse(self.template_source)
             required_vars = meta.find_undeclared_variables(ast)
 
             sample = dataset[0]
