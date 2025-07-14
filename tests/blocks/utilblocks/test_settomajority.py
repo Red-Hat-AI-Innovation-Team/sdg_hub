@@ -5,7 +5,7 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks.utilblocks import SetToMajorityValue
+from sdg_hub.blocks.transform import SetToMajorityValue
 
 
 @pytest.fixture

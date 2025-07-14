@@ -8,14 +8,12 @@ from .block import Block
 from .llmblock import LLMBlock, ConditionalLLMBlock
 from .llm import LLMChatBlock, PromptBuilderBlock, TextParserBlock
 from .filtering import FilterByValueBlock
+from .transform import FlattenColumnsBlock, SelectorBlock, SetToMajorityValue
 from .utilblocks import (
     SamplePopulatorBlock,
-    SelectorBlock,
     CombineColumnsBlock,
-    FlattenColumnsBlock,
     DuplicateColumns,
     RenameColumns,
-    SetToMajorityValue,
     IterBlock,
 )
 from ..registry import BlockRegistry

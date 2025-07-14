@@ -5,7 +5,7 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks.utilblocks import SelectorBlock
+from sdg_hub.blocks.transform import SelectorBlock
 
 
 @pytest.fixture
