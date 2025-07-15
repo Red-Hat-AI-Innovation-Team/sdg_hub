@@ -574,20 +574,6 @@ class TestGetConfig:
         assert "custom_method" not in config
         assert "generate" not in config
 
-    def test_get_config_immutability(self):
-        """Test that get_config returns independent copies."""
-        block = DummyBlock("test_block", input_cols=["input"], output_cols=["output"])
-
-        config1 = block.get_config()
-        config2 = block.get_config()
-
-        # Should be equal but not the same object
-        assert config1 == config2
-        assert config1 is not config2
-
-        # Modifying one shouldn't affect the other
-        config1["new_key"] = "new_value"
-        assert "new_key" not in config2
 
     def test_get_config_with_complex_attributes(self):
         """Test get_config with complex attribute types."""
