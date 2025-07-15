@@ -470,6 +470,37 @@ class BaseBlock(ABC):
             f"input_cols={self.input_cols}, output_cols={self.output_cols})"
         )
 
+    def get_config(self) -> Dict[str, Any]:
+        """Get block configuration suitable for serialization.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Complete block configuration that can be used to recreate the block.
+        """
+        config = {
+            "block_name": self.block_name,
+        }
+
+        # Add input/output columns if they exist
+        if self.input_cols:
+            config["input_cols"] = self.input_cols
+        if self.output_cols:
+            config["output_cols"] = self.output_cols
+
+        # Add block-specific attributes by examining the instance
+        # Skip private attributes, base class attributes, and methods
+        base_attrs = {"kwargs"}  # Attributes from BaseBlock to skip
+        for attr_name, attr_value in vars(self).items():
+            if (
+                not attr_name.startswith("_")
+                and attr_name not in base_attrs
+                and not callable(attr_value)
+            ):
+                config[attr_name] = attr_value
+
+        return config
+
     def get_info(self) -> Dict[str, Any]:
         """Get comprehensive information about the block.
 
@@ -483,4 +514,5 @@ class BaseBlock(ABC):
             "block_type": self.__class__.__name__,
             "input_cols": self.input_cols,
             "output_cols": self.output_cols,
+            "config": self.get_config(),
         }

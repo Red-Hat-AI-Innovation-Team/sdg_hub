@@ -463,6 +463,182 @@ class TestCallMethod:
         assert mock_console.print.call_count == 1
 
 
+class TestGetConfig:
+    """Test the get_config method."""
+
+    def test_get_config_basic(self):
+        """Test basic get_config functionality."""
+        block = DummyBlock("test_block", input_cols=["input"], output_cols=["output"])
+
+        config = block.get_config()
+
+        expected = {
+            "block_name": "test_block",
+            "input_cols": ["input"],
+            "output_cols": ["output"],
+            "generate_called": False,
+            "generate_args": None,
+            "generate_kwargs": None,
+        }
+
+        assert config == expected
+
+    def test_get_config_with_dict_columns(self):
+        """Test get_config with dictionary column specifications."""
+        input_dict = {"input": "prompt1"}
+        output_dict = {"output": "config1"}
+        block = DummyBlock("test_block", input_cols=input_dict, output_cols=output_dict)
+
+        config = block.get_config()
+
+        assert config["block_name"] == "test_block"
+        assert config["input_cols"] == input_dict
+        assert config["output_cols"] == output_dict
+        assert "generate_called" in config
+        assert "generate_args" in config
+        assert "generate_kwargs" in config
+
+    def test_get_config_no_columns(self):
+        """Test get_config with no columns specified."""
+        block = DummyBlock("test_block")
+
+        config = block.get_config()
+
+        assert config["block_name"] == "test_block"
+        assert "input_cols" not in config  # Empty lists are not included
+        assert "output_cols" not in config  # Empty lists are not included
+        assert "generate_called" in config
+
+    def test_get_config_with_custom_attributes(self):
+        """Test get_config includes custom attributes."""
+        class CustomBlock(DummyBlock):
+            def __init__(self, block_name: str, **kwargs):
+                super().__init__(block_name, **kwargs)
+                self.model_id = "test_model"
+                self.temperature = 0.7
+                self.max_tokens = 100
+                self.custom_config = {"param1": "value1", "param2": 42}
+
+        block = CustomBlock("test_block", input_cols=["input"])
+
+        config = block.get_config()
+
+        assert config["block_name"] == "test_block"
+        assert config["input_cols"] == ["input"]
+        assert config["model_id"] == "test_model"
+        assert config["temperature"] == 0.7
+        assert config["max_tokens"] == 100
+        assert config["custom_config"] == {"param1": "value1", "param2": 42}
+
+    def test_get_config_excludes_private_attributes(self):
+        """Test that get_config excludes private attributes."""
+        class BlockWithPrivateAttrs(DummyBlock):
+            def __init__(self, block_name: str, **kwargs):
+                super().__init__(block_name, **kwargs)
+                self.public_attr = "public"
+                self._private_attr = "private"
+                self.__double_private = "double_private"
+
+        block = BlockWithPrivateAttrs("test_block")
+
+        config = block.get_config()
+
+        assert config["public_attr"] == "public"
+        assert "_private_attr" not in config
+        assert "__double_private" not in config
+
+    def test_get_config_excludes_base_attributes(self):
+        """Test that get_config excludes base class attributes."""
+        block = DummyBlock("test_block", custom_param="value")
+
+        config = block.get_config()
+
+        assert "kwargs" not in config  # kwargs is explicitly excluded
+        assert "custom_param" not in config  # kwargs are not included in config
+
+    def test_get_config_excludes_methods(self):
+        """Test that get_config excludes methods."""
+        class BlockWithMethods(DummyBlock):
+            def __init__(self, block_name: str, **kwargs):
+                super().__init__(block_name, **kwargs)
+                self.attribute = "value"
+
+            def custom_method(self):
+                return "method_result"
+
+        block = BlockWithMethods("test_block")
+
+        config = block.get_config()
+
+        assert config["attribute"] == "value"
+        assert "custom_method" not in config
+        assert "generate" not in config
+
+    def test_get_config_immutability(self):
+        """Test that get_config returns independent copies."""
+        block = DummyBlock("test_block", input_cols=["input"], output_cols=["output"])
+
+        config1 = block.get_config()
+        config2 = block.get_config()
+
+        # Should be equal but not the same object
+        assert config1 == config2
+        assert config1 is not config2
+
+        # Modifying one shouldn't affect the other
+        config1["new_key"] = "new_value"
+        assert "new_key" not in config2
+
+    def test_get_config_with_complex_attributes(self):
+        """Test get_config with complex attribute types."""
+        class ComplexBlock(DummyBlock):
+            def __init__(self, block_name: str, **kwargs):
+                super().__init__(block_name, **kwargs)
+                self.list_attr = [1, 2, 3]
+                self.dict_attr = {"key": "value"}
+                self.tuple_attr = (1, 2, 3)
+                self.set_attr = {1, 2, 3}
+                self.none_attr = None
+
+        block = ComplexBlock("test_block")
+
+        config = block.get_config()
+
+        assert config["list_attr"] == [1, 2, 3]
+        assert config["dict_attr"] == {"key": "value"}
+        assert config["tuple_attr"] == (1, 2, 3)
+        assert config["set_attr"] == {1, 2, 3}
+        assert config["none_attr"] is None
+
+    def test_get_config_serialization_ready(self):
+        """Test that get_config output is serialization-ready."""
+        import json
+
+        class SerializableBlock(DummyBlock):
+            def __init__(self, block_name: str, **kwargs):
+                super().__init__(block_name, **kwargs)
+                self.string_attr = "value"
+                self.int_attr = 42
+                self.float_attr = 3.14
+                self.bool_attr = True
+                self.list_attr = [1, "two", 3.0]
+                self.dict_attr = {"key": "value", "number": 123}
+
+        block = SerializableBlock("test_block", input_cols=["input"])
+
+        config = block.get_config()
+
+        # Should be JSON serializable
+        json_str = json.dumps(config)
+        restored_config = json.loads(json_str)
+
+        assert restored_config["block_name"] == "test_block"
+        assert restored_config["string_attr"] == "value"
+        assert restored_config["int_attr"] == 42
+        assert restored_config["float_attr"] == 3.14
+        assert restored_config["bool_attr"] is True
+
+
 class TestGetInfo:
     """Test the get_info method."""
 
@@ -472,14 +648,12 @@ class TestGetInfo:
 
         info = block.get_info()
 
-        expected = {
-            "block_name": "test_block",
-            "block_type": "DummyBlock",
-            "input_cols": ["input"],
-            "output_cols": ["output"],
-        }
-
-        assert info == expected
+        assert info["block_name"] == "test_block"
+        assert info["block_type"] == "DummyBlock"
+        assert info["input_cols"] == ["input"]
+        assert info["output_cols"] == ["output"]
+        assert "config" in info
+        assert isinstance(info["config"], dict)
 
     def test_get_info_with_dict_columns(self):
         """Test get_info with dictionary column specifications."""
@@ -489,14 +663,11 @@ class TestGetInfo:
 
         info = block.get_info()
 
-        expected = {
-            "block_name": "test_block",
-            "block_type": "DummyBlock",
-            "input_cols": input_dict,
-            "output_cols": output_dict,
-        }
-
-        assert info == expected
+        assert info["block_name"] == "test_block"
+        assert info["block_type"] == "DummyBlock"
+        assert info["input_cols"] == input_dict
+        assert info["output_cols"] == output_dict
+        assert "config" in info
 
     def test_get_info_no_columns(self):
         """Test get_info with no columns specified."""
@@ -508,6 +679,23 @@ class TestGetInfo:
         assert info["output_cols"] == []
         assert info["block_name"] == "test_block"
         assert info["block_type"] == "DummyBlock"
+        assert "config" in info
+
+    def test_get_info_includes_config(self):
+        """Test that get_info includes full configuration."""
+        class ConfigurableBlock(DummyBlock):
+            def __init__(self, block_name: str, **kwargs):
+                super().__init__(block_name, **kwargs)
+                self.model_id = "test_model"
+                self.temperature = 0.7
+
+        block = ConfigurableBlock("test_block", input_cols=["input"])
+
+        info = block.get_info()
+
+        assert info["config"]["model_id"] == "test_model"
+        assert info["config"]["temperature"] == 0.7
+        assert info["config"]["block_name"] == "test_block"
 
 
 class TestCustomValidation:
