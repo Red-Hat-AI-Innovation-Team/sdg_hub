@@ -11,6 +11,7 @@ import operator
 
 # Third Party
 from datasets import Dataset
+from pydantic import Field, field_validator
 
 # Local
 from ...logger_config import setup_logger
@@ -31,7 +32,7 @@ class FilterByValueBlock(BaseBlock):
     This block allows filtering of datasets using various operations (e.g., equals, contains)
     on specified column values, with optional data type conversion.
 
-    Parameters
+    Attributes
     ----------
     block_name : str
         Name of the block.
@@ -45,42 +46,45 @@ class FilterByValueBlock(BaseBlock):
     convert_dtype : Optional[Union[Type[float], Type[int]]], optional
         Type to convert the filter column to. Can be either float or int.
         If None, no conversion is performed.
-
-    Raises
-    ------
-    ValueError
-        If the operation is not from the operator module.
     """
 
-    def __init__(
-        self,
-        block_name: str,
-        input_cols: Union[str, List[str]],
-        filter_value: Union[Any, List[Any]],
-        operation: Callable[[Any, Any], bool],
-        convert_dtype: Optional[Union[Type[float], Type[int]]] = None,
-    ) -> None:
-        """Initialize a new FilterByValueBlock instance."""
-        # Initialize BaseBlock - filtering doesn't create new columns, so output_cols=None
-        super().__init__(
-            block_name=block_name,
-            input_cols=input_cols,
-            output_cols=None,
-        )
+    filter_value: Union[Any, List[Any]] = Field(
+        ..., description="The value(s) to filter by"
+    )
+    operation: Callable[[Any, Any], bool] = Field(
+        ..., description="Binary operator from operator module for comparison"
+    )
+    convert_dtype: Optional[Union[Type[float], Type[int]]] = Field(
+        None, description="Type to convert filter column to (float or int)"
+    )
 
-        # Validate that we have at least one input column
-        if len(self.input_cols) == 0:
-            raise ValueError("FilterByValueBlock requires at least one input column")
-
-        # Validate that operation is from operator module
-        if operation.__module__ != "_operator":
-            logger.error("Invalid operation: %s", operation)
+    @field_validator("operation")
+    @classmethod
+    def validate_operation(cls, v):
+        """Validate that operation is from operator module."""
+        if v.__module__ != "_operator":
             raise ValueError("Operation must be from operator module")
+        return v
 
-        self.value = filter_value if isinstance(filter_value, list) else [filter_value]
+    @field_validator("input_cols", mode="after")
+    @classmethod
+    def validate_input_cols_not_empty(cls, v):
+        """Validate that we have at least one input column."""
+        if not v or len(v) == 0:
+            raise ValueError("FilterByValueBlock requires at least one input column")
+        return v
+
+    def model_post_init(self, __context: Any) -> None:
+        """Initialize derived attributes after Pydantic validation."""
+        super().model_post_init(__context) if hasattr(super(), 'model_post_init') else None
+        
+        # Ensure output_cols is empty list for filtering operations (doesn't create new columns)
+        if self.output_cols is None:
+            self.output_cols = []
+        
+        # Set derived attributes
+        self.value = self.filter_value if isinstance(self.filter_value, list) else [self.filter_value]
         self.column_name = self.input_cols[0]  # Use first input column for filtering
-        self.operation = operation
-        self.convert_dtype = convert_dtype
 
     def _convert_dtype(self, sample: Dict[str, Any]) -> Dict[str, Any]:
         """Convert the data type of the filter column.
