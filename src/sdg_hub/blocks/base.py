@@ -308,10 +308,6 @@ class BaseBlock(BaseModel, ABC):
         -------
         Dict[str, Any]
         """
-        return {
-            "block_name": self.block_name,
-            "block_type": self.__class__.__name__,
-            "input_cols": self.input_cols,
-            "output_cols": self.output_cols,
-            "config": self.get_config(),
-        }
+        config = self.get_config()
+        config["block_type"] = self.__class__.__name__
+        return config

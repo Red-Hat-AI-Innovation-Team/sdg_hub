@@ -639,8 +639,7 @@ class TestGetInfo:
         assert info["block_type"] == "DummyBlock"
         assert info["input_cols"] == ["input"]
         assert info["output_cols"] == ["output"]
-        assert "config" in info
-        assert isinstance(info["config"], dict)
+        assert isinstance(info, dict)
 
     def test_get_info_with_dict_columns(self):
         """Test get_info with dictionary column specifications."""
@@ -654,7 +653,6 @@ class TestGetInfo:
         assert info["block_type"] == "DummyBlock"
         assert info["input_cols"] == input_dict
         assert info["output_cols"] == output_dict
-        assert "config" in info
 
     def test_get_info_no_columns(self):
         """Test get_info with no columns specified."""
@@ -666,23 +664,20 @@ class TestGetInfo:
         assert info["output_cols"] is None
         assert info["block_name"] == "test_block"
         assert info["block_type"] == "DummyBlock"
-        assert "config" in info
 
     def test_get_info_includes_config(self):
         """Test that get_info includes full configuration."""
         class ConfigurableBlock(DummyBlock):
-            def __init__(self, **kwargs):
-                super().__init__(**kwargs)
-                self.model_id = "test_model"
-                self.temperature = 0.7
+            model_id: str = "test_model"
+            temperature: float = 0.7
 
         block = ConfigurableBlock(block_name="test_block", input_cols=["input"])
 
         info = block.get_info()
 
-        assert info["config"]["model_id"] == "test_model"
-        assert info["config"]["temperature"] == 0.7
-        assert info["config"]["block_name"] == "test_block"
+        assert info["model_id"] == "test_model"
+        assert info["temperature"] == 0.7
+        assert info["block_name"] == "test_block"
 
 
 class TestCustomValidation:
