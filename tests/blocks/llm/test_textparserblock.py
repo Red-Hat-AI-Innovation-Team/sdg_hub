@@ -14,6 +14,8 @@ def postprocessing_block():
         block_name="test_block",
         input_cols="raw_output",
         output_cols=["output"],
+        start_tags=["<output>"],
+        end_tags=["</output>"],
     )
 
 
@@ -266,6 +268,8 @@ def test_constructor_validation_no_input_cols():
         block_name="test_block",
         input_cols=[],
         output_cols=["output"],
+        start_tags=["<output>"],
+        end_tags=["</output>"],
     )
 
     # Create test dataset
@@ -285,6 +289,8 @@ def test_constructor_validation_multiple_input_cols():
         block_name="test_block",
         input_cols=["col1", "col2"],
         output_cols=["output"],
+        start_tags=["<output>"],
+        end_tags=["</output>"],
     )
 
     assert len(block.input_cols) == 2
@@ -297,6 +303,8 @@ def test_constructor_string_input_cols():
         block_name="test_block",
         input_cols="raw_output",
         output_cols=["output"],
+        start_tags=["<output>"],
+        end_tags=["</output>"],
     )
 
     assert block.input_cols == ["raw_output"]
@@ -308,6 +316,8 @@ def test_constructor_string_output_cols():
         block_name="test_block",
         input_cols="raw_output",
         output_cols="output",
+        start_tags=["<output>"],
+        end_tags=["</output>"],
     )
 
     assert block.output_cols == ["output"]
@@ -315,27 +325,15 @@ def test_constructor_string_output_cols():
 
 def test_parse_uneven_tags():
     """Test parsing with uneven start and end tags."""
-    # Create a block with more start tags than end tags
-    block = TextParserBlock(
-        block_name="test_block",
-        input_cols="raw_output",
-        output_cols=["title", "content", "footer"],
-        start_tags=["<title>", "<content>", "<footer>"],
-        end_tags=["</title>", "</content>"],
-    )
-
-    text = """
-    <title>Header content</title>
-    <content>Main content</content>
-    <footer>Footer content</footer>
-    """
-
-    result = block._parse(text)
-    assert result == {
-        "title": ["Header content"],
-        "content": ["Main content"],
-        "footer": [],
-    }
+    # Creating a block with more start tags than end tags should raise ValidationError
+    with pytest.raises(Exception, match="start_tags and end_tags must have the same length"):
+        TextParserBlock(
+            block_name="test_block",
+            input_cols="raw_output",
+            output_cols=["title", "content", "footer"],
+            start_tags=["<title>", "<content>", "<footer>"],
+            end_tags=["</title>", "</content>"],
+        )
 
 
 def test_parse_more_output_cols_than_tags():
@@ -448,59 +446,25 @@ def test_parse_with_special_characters(postprocessing_block_with_tags):
 
 def test_parse_mismatched_config_tags(postprocessing_block_multi_column):
     """Test parsing with mismatched numbers of start and end tags in configuration."""
-    # Test case 1: More start tags than end tags
-    block1 = TextParserBlock(
-        block_name="test_block",
-        input_cols="raw_output",
-        output_cols=["header", "content", "footer"],
-        start_tags=["<header>", "<content>", "<footer>"],
-        end_tags=["</header>", "</content>"],
-    )
+    # Test case 1: More start tags than end tags should raise ValidationError
+    with pytest.raises(Exception, match="start_tags and end_tags must have the same length"):
+        TextParserBlock(
+            block_name="test_block",
+            input_cols="raw_output",
+            output_cols=["header", "content", "footer"],
+            start_tags=["<header>", "<content>", "<footer>"],
+            end_tags=["</header>", "</content>"],
+        )
 
-    text = """
-    <header>Header content</header>
-    <content>Main content</content>
-    <footer>Footer content</footer>
-    """
-
-    result = block1._parse(text)
-    assert result == {
-        "header": ["Header content"],
-        "content": ["Main content"],
-        "footer": [],
-    }
-
-    # Test case 2: More end tags than start tags
-    block2 = TextParserBlock(
-        block_name="test_block",
-        input_cols="raw_output",
-        output_cols=["header", "content", "footer"],
-        start_tags=["<header>"],
-        end_tags=["</header>", "</content>", "</footer>"],
-    )
-
-    text = """
-    <header>Header content</header>
-    </content>
-    </footer>
-    """
-
-    result = block2._parse(text)
-    assert result == {"header": ["Header content"], "content": [], "footer": []}
-
-    # Test case 3: Empty tags list
-    block3 = TextParserBlock(
-        block_name="test_block",
-        input_cols="raw_output",
-        output_cols=["text"],
-        start_tags=[],
-        end_tags=[],
-    )
-
-    text = "Some text without tags"
-
-    result = block3._parse(text)
-    assert result == {"text": []}
+    # Test case 2: More end tags than start tags should also raise ValidationError
+    with pytest.raises(Exception, match="start_tags and end_tags must have the same length"):
+        TextParserBlock(
+            block_name="test_block",
+            input_cols="raw_output",
+            output_cols=["header", "content", "footer"],
+            start_tags=["<header>"],
+            end_tags=["</header>", "</content>", "</footer>"],
+        )
 
 
 def test_parse_uneven_tags_comprehensive(postprocessing_block_multi_column):

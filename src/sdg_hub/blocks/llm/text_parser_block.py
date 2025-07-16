@@ -6,11 +6,12 @@ start/end tags, custom regex patterns, and cleanup operations.
 """
 
 # Standard
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional
 import re
 
 # Third Party
 from datasets import Dataset
+from pydantic import Field, field_validator, model_validator
 
 # Local
 from ...logger_config import setup_logger
@@ -31,47 +32,90 @@ class TextParserBlock(BaseBlock):
     This block handles output parsing using start/end tags, custom regex patterns,
     and cleanup operations. It expects exactly one input column containing raw LLM output.
 
-    Parameters
+    Attributes
     ----------
     block_name : str
         Unique identifier for this block instance.
-    input_cols : Optional[Union[str, List[str]]], optional
+    input_cols : Union[str, List[str], Dict[str, Any], None]
         Input column name(s) containing raw LLM output. Must specify exactly one column.
-    output_cols : Optional[Union[str, List[str]]], optional
+    output_cols : Union[str, List[str], Dict[str, Any], None]
         Output column name(s) for parsed results.
-    start_tags : List[str], optional
-        List of start tags for tag-based parsing. Default is [].
-    end_tags : List[str], optional
-        List of end tags for tag-based parsing. Default is [].
-    parsing_pattern : Optional[str], optional
-        Regex pattern for custom parsing. Default is None.
-    parser_cleanup_tags : Optional[List[str]], optional
-        List of tags to clean from parsed output. Default is None.
-    **kwargs : Any
-        Additional block-specific parameters passed to BaseBlock.
+    start_tags : List[str]
+        List of start tags for tag-based parsing.
+    end_tags : List[str]
+        List of end tags for tag-based parsing.
+    parsing_pattern : Optional[str]
+        Regex pattern for custom parsing.
+    parser_cleanup_tags : Optional[List[str]]
+        List of tags to clean from parsed output.
     """
 
-    def __init__(
-        self,
-        block_name: str,
-        input_cols: Union[str, List[str]],
-        output_cols: Union[str, List[str]],
-        start_tags: Optional[List[str]] = None,
-        end_tags: Optional[List[str]] = None,
-        parsing_pattern: Optional[str] = None,
-        parser_cleanup_tags: Optional[List[str]] = None,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(
-            block_name=block_name,
-            input_cols=input_cols,
-            output_cols=output_cols,
-            **kwargs,
-        )
-        self.start_tags = start_tags or []
-        self.end_tags = end_tags or []
-        self.parsing_pattern = parsing_pattern
-        self.parser_cleanup_tags = parser_cleanup_tags
+    start_tags: List[str] = Field(
+        default_factory=list,
+        description="List of start tags for tag-based parsing"
+    )
+    end_tags: List[str] = Field(
+        default_factory=list,
+        description="List of end tags for tag-based parsing"
+    )
+    parsing_pattern: Optional[str] = Field(
+        default=None,
+        description="Regex pattern for custom parsing"
+    )
+    parser_cleanup_tags: Optional[List[str]] = Field(
+        default=None,
+        description="List of tags to clean from parsed output"
+    )
+
+    @field_validator("start_tags", "end_tags", mode="before")
+    @classmethod
+    def normalize_tags(cls, v):
+        """Normalize tag lists to ensure they are always lists."""
+        if v is None:
+            return []
+        if isinstance(v, str):
+            return [v]
+        if isinstance(v, list):
+            return v
+        raise ValueError(f"Tags must be a string, list, or None, got {type(v)}")
+
+    @field_validator("parser_cleanup_tags", mode="before")
+    @classmethod
+    def normalize_cleanup_tags(cls, v):
+        """Normalize cleanup tags to ensure they are always lists when not None."""
+        if v is None:
+            return None
+        if isinstance(v, str):
+            return [v]
+        if isinstance(v, list):
+            return v
+        raise ValueError(f"Cleanup tags must be a string, list, or None, got {type(v)}")
+
+    @model_validator(mode="after")
+    def validate_parsing_configuration(self):
+        """Validate that parsing configuration is consistent."""
+        # Validate that at least one parsing method is configured
+        has_regex = self.parsing_pattern is not None
+        has_tags = bool(self.start_tags) or bool(self.end_tags)
+
+        if not has_regex and not has_tags:
+            raise ValueError(
+                "TextParserBlock requires at least one parsing method: "
+                "either 'parsing_pattern' (regex) or 'start_tags'/'end_tags' (tag-based parsing)"
+            )
+
+        # Validate tag parsing configuration
+        if has_tags:
+            if len(self.start_tags) != len(self.end_tags):
+                raise ValueError(
+                    f"start_tags and end_tags must have the same length. "
+                    f"Got {len(self.start_tags)} start_tags and {len(self.end_tags)} end_tags"
+                )
+
+            # We can't validate against output_cols here since they might not be normalized yet
+            # This validation will be moved to _validate_custom
+
+        return self
 
     def _validate_custom(self, dataset: Dataset) -> None:
         """Validate TextParserBlock specific requirements.
@@ -95,29 +139,13 @@ class TextParserBlock(BaseBlock):
                 f"Using the first column: {self.input_cols[0]}"
             )
 
-        # Validate that at least one parsing method is configured
-        has_regex = self.parsing_pattern is not None
+        # Validate tag parsing against output columns (can only be done after model creation)
         has_tags = bool(self.start_tags) or bool(self.end_tags)
-
-        if not has_regex and not has_tags:
+        if has_tags and len(self.start_tags) != len(self.output_cols):
             raise ValueError(
-                "TextParserBlock requires at least one parsing method: "
-                "either 'parsing_pattern' (regex) or 'start_tags'/'end_tags' (tag-based parsing)"
+                f"When using tag-based parsing, the number of tag pairs must match output_cols. "
+                f"Got {len(self.start_tags)} tag pairs and {len(self.output_cols)} output columns"
             )
-
-        # Validate tag parsing configuration
-        if has_tags:
-            if len(self.start_tags) != len(self.end_tags):
-                raise ValueError(
-                    f"start_tags and end_tags must have the same length. "
-                    f"Got {len(self.start_tags)} start_tags and {len(self.end_tags)} end_tags"
-                )
-
-            if len(self.start_tags) != len(self.output_cols):
-                raise ValueError(
-                    f"When using tag-based parsing, the number of tag pairs must match output_cols. "
-                    f"Got {len(self.start_tags)} tag pairs and {len(self.output_cols)} output columns"
-                )
 
     def _extract_matches(
         self, text: str, start_tag: Optional[str], end_tag: Optional[str]
@@ -138,18 +166,18 @@ class TextParserBlock(BaseBlock):
 
         return [match.strip() for match in re.findall(pattern, text, re.DOTALL)]
 
-    def _parse(self, generated_string: str) -> dict[str, list[str]]:
+    def _parse(self, generated_string: str) -> dict[str, List[str]]:
         if self.parsing_pattern is not None:
             return self._parse_with_regex(generated_string)
         return self._parse_with_tags(generated_string)
 
-    def _parse_with_regex(self, generated_string: str) -> dict[str, list[str]]:
+    def _parse_with_regex(self, generated_string: str) -> dict[str, List[str]]:
         """Parse using regex pattern."""
         if self.parsing_pattern is None:
             raise ValueError("parsing_pattern is required for regex parsing")
         pattern = re.compile(self.parsing_pattern, re.DOTALL)
         all_matches = pattern.findall(generated_string)
-        matches: dict[str, list[str]] = {
+        matches: dict[str, List[str]] = {
             column_name: [] for column_name in self.output_cols
         }
 
@@ -161,9 +189,9 @@ class TextParserBlock(BaseBlock):
             return self._process_tuple_matches(all_matches, matches)
         return self._process_single_matches(all_matches, matches)
 
-    def _parse_with_tags(self, generated_string: str) -> dict[str, list[str]]:
+    def _parse_with_tags(self, generated_string: str) -> dict[str, List[str]]:
         """Parse using start/end tags."""
-        matches: dict[str, list[str]] = {
+        matches: dict[str, List[str]] = {
             column_name: [] for column_name in self.output_cols
         }
 
@@ -179,8 +207,8 @@ class TextParserBlock(BaseBlock):
         return matches
 
     def _process_tuple_matches(
-        self, all_matches: list, matches: dict[str, list[str]]
-    ) -> dict[str, list[str]]:
+        self, all_matches: list, matches: dict[str, List[str]]
+    ) -> dict[str, List[str]]:
         """Process regex matches that are tuples."""
         for match in all_matches:
             for column_name, value in zip(self.output_cols, match):
@@ -189,8 +217,8 @@ class TextParserBlock(BaseBlock):
         return matches
 
     def _process_single_matches(
-        self, all_matches: list, matches: dict[str, list[str]]
-    ) -> dict[str, list[str]]:
+        self, all_matches: list, matches: dict[str, List[str]]
+    ) -> dict[str, List[str]]:
         """Process regex matches that are single values."""
         cleaned_matches = [self._clean_value(match.strip()) for match in all_matches]
         matches[self.output_cols[0]] = cleaned_matches
