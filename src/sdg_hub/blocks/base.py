@@ -62,13 +62,13 @@ class BaseBlock(BaseModel, ABC):
     @field_validator("input_cols", mode="before")
     @classmethod
     def normalize_input_cols(cls, v):
-        return cls._normalize_columns(v)
+        return BaseBlock._normalize_columns(v)
 
     # Normalize output columns before model construction
     @field_validator("output_cols", mode="before")
     @classmethod
     def normalize_output_cols(cls, v):
-        return cls._normalize_columns(v)
+        return BaseBlock._normalize_columns(v)
 
     @staticmethod
     def _normalize_columns(

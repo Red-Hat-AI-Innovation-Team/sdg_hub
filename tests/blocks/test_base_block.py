@@ -152,13 +152,13 @@ class TestColumnNormalization:
 
         with pytest.raises(
             ValueError,
-            match="Invalid column specification.*type:",
+            match=r"Invalid column specification.*\(type: <class",
         ):
             block._normalize_columns(123)
 
         with pytest.raises(
             ValueError,
-            match="Invalid column specification.*type:",
+            match=r"Invalid column specification.*\(type: <class",
         ):
             block._normalize_columns(set(["col"]))
 
