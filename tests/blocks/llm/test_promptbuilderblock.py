@@ -7,6 +7,7 @@ import pytest
 
 # First Party
 from sdg_hub.blocks.llm import PromptBuilderBlock
+from sdg_hub.blocks.llm.prompt_builder_block import ChatMessage, MessageTemplate
 
 # Get the absolute paths to test config files
 TEST_CONFIG_WITH_SYSTEM = os.path.join(
@@ -18,6 +19,48 @@ TEST_CONFIG_NO_SYSTEM = os.path.join(
 TEST_CONFIG_STRICT = os.path.join(
     os.path.dirname(__file__), "..", "testdata", "test_prompt_format_strict.yaml"
 )
+TEST_CONFIG_NO_USER_MESSAGES = os.path.join(
+    os.path.dirname(__file__), "..", "testdata", "test_prompt_no_user_messages.yaml"
+)
+TEST_CONFIG_INVALID_FINAL_ROLE = os.path.join(
+    os.path.dirname(__file__), "..", "testdata", "test_prompt_invalid_final_role.yaml"
+)
+
+
+class TestChatMessage:
+    """Test cases for ChatMessage Pydantic model."""
+
+    def test_valid_chat_message(self):
+        """Test creating a valid ChatMessage."""
+        message = ChatMessage(role="user", content="Hello world")
+        assert message.role == "user"
+        assert message.content == "Hello world"
+
+    def test_chat_message_strips_whitespace(self):
+        """Test that ChatMessage strips whitespace from content."""
+        message = ChatMessage(role="system", content="  Hello world  ")
+        assert message.content == "Hello world"
+
+    def test_chat_message_invalid_role(self):
+        """Test that ChatMessage rejects invalid roles."""
+        with pytest.raises(ValueError, match="Input should be 'system'"):
+            ChatMessage(role="invalid", content="Hello")
+
+    def test_chat_message_empty_content(self):
+        """Test that ChatMessage rejects empty content."""
+        with pytest.raises(ValueError, match="Message content cannot be empty"):
+            ChatMessage(role="user", content="")
+
+    def test_chat_message_whitespace_only_content(self):
+        """Test that ChatMessage rejects whitespace-only content."""
+        with pytest.raises(ValueError, match="Message content cannot be empty"):
+            ChatMessage(role="user", content="   ")
+
+    def test_chat_message_serialization(self):
+        """Test that ChatMessage can be serialized to dict."""
+        message = ChatMessage(role="assistant", content="Hello!")
+        serialized = message.model_dump()
+        assert serialized == {"role": "assistant", "content": "Hello!"}
 
 
 class TestPromptBuilderBlock:
@@ -33,10 +76,9 @@ class TestPromptBuilderBlock:
         )
 
         assert block.block_name == "test_block"
-        assert block.input_col_map == {"input_text": "input_text"}
+        assert block.input_cols == ["input_text"]
         assert block.output_cols == ["output"]
         assert block.format_as_messages is True
-        assert block.default_role == "user"
 
     def test_init_with_list_input_cols(self):
         """Test initialization with list input_cols."""
@@ -47,7 +89,7 @@ class TestPromptBuilderBlock:
             prompt_config_path=TEST_CONFIG_WITH_SYSTEM,
         )
 
-        assert block.input_col_map == {"input_text": "input_text", "context": "context"}
+        assert block.input_cols == ["input_text", "context"]
 
     def test_init_with_dict_input_cols(self):
         """Test initialization with dictionary input_cols for column mapping."""
@@ -58,7 +100,7 @@ class TestPromptBuilderBlock:
             prompt_config_path=TEST_CONFIG_WITH_SYSTEM,
         )
 
-        assert block.input_col_map == {
+        assert block.input_cols == {
             "input_text": "user_input",
             "context": "background_info",
         }
@@ -100,7 +142,7 @@ class TestPromptBuilderBlock:
         # Create a file with invalid YAML
         invalid_config = tmp_path / "invalid.yaml"
         invalid_config.write_text("invalid: yaml: content: [unclosed")
-        
+
         with pytest.raises(ValueError, match="Failed to load prompt configuration"):
             PromptBuilderBlock(
                 block_name="test_block",
@@ -109,22 +151,74 @@ class TestPromptBuilderBlock:
                 prompt_config_path=str(invalid_config),
             )
 
-    def test_load_config_with_yaml_error(self, tmp_path):
-        """Test _load_config handles YAML parsing errors."""
-        # Create a temporary invalid YAML file
+    def test_init_with_non_list_config(self, tmp_path):
+        """Test initialization with non-list config raises error."""
+        # Create a file with non-list YAML
         invalid_config = tmp_path / "invalid.yaml"
-        invalid_config.write_text("invalid: yaml: [unclosed")
-        
-        block = PromptBuilderBlock(
-            block_name="test_block",
-            input_cols="input_text",
-            output_cols="output",
-            prompt_config_path=TEST_CONFIG_NO_SYSTEM,
+        invalid_config.write_text("role: user\ncontent: hello")
+
+        with pytest.raises(ValueError):
+            PromptBuilderBlock(
+                block_name="test_block",
+                input_cols="input_text",
+                output_cols="output",
+                prompt_config_path=str(invalid_config),
+            )
+
+    def test_init_with_no_user_messages(self):
+        """Test initialization with no user messages raises error."""
+        with pytest.raises(
+            ValueError,
+            match="Template must contain at least one message with role='user'",
+        ):
+            PromptBuilderBlock(
+                block_name="test_block",
+                input_cols="input_text",
+                output_cols="output",
+                prompt_config_path=TEST_CONFIG_NO_USER_MESSAGES,
+            )
+
+    def test_init_with_invalid_final_role(self):
+        """Test initialization with non-user final message raises error."""
+        with pytest.raises(ValueError, match="The final message must have role='user'"):
+            PromptBuilderBlock(
+                block_name="test_block",
+                input_cols="input_text",
+                output_cols="output",
+                prompt_config_path=TEST_CONFIG_INVALID_FINAL_ROLE,
+            )
+
+    def test_init_with_invalid_message_structure(self, tmp_path):
+        """Test initialization with invalid message structure raises error."""
+        # Create a file with missing required fields
+        invalid_config = tmp_path / "invalid.yaml"
+        invalid_config.write_text("- role: user\n- content: hello")
+
+        with pytest.raises(
+            ValueError, match="Message 0 must have 'role' and 'content' fields"
+        ):
+            PromptBuilderBlock(
+                block_name="test_block",
+                input_cols="input_text",
+                output_cols="output",
+                prompt_config_path=str(invalid_config),
+            )
+
+    def test_init_with_invalid_role(self, tmp_path):
+        """Test initialization with invalid role raises error."""
+        # Create a file with invalid role
+        invalid_config = tmp_path / "invalid.yaml"
+        invalid_config.write_text(
+            "- role: invalid_role\n  content: hello\n- role: user\n  content: world"
         )
-        
-        # Test that _load_config returns None for invalid YAML
-        result = block._load_config(str(invalid_config))
-        assert result is None
+
+        with pytest.raises(ValueError):
+            PromptBuilderBlock(
+                block_name="test_block",
+                input_cols="input_text",
+                output_cols="output",
+                prompt_config_path=str(invalid_config),
+            )
 
     def test_resolve_template_vars_with_string_cols(self):
         """Test _resolve_template_vars with string input_cols."""
@@ -139,6 +233,20 @@ class TestPromptBuilderBlock:
         template_vars = block._resolve_template_vars(sample)
 
         assert template_vars == {"input_text": "Hello world"}
+
+    def test_resolve_template_vars_with_list_cols(self):
+        """Test _resolve_template_vars with list input_cols."""
+        block = PromptBuilderBlock(
+            block_name="test_block",
+            input_cols=["input_text", "context"],
+            output_cols="output",
+            prompt_config_path=TEST_CONFIG_WITH_SYSTEM,
+        )
+
+        sample = {"input_text": "Hello", "context": "friendly", "other_col": "ignored"}
+        template_vars = block._resolve_template_vars(sample)
+
+        assert template_vars == {"input_text": "Hello", "context": "friendly"}
 
     def test_resolve_template_vars_with_dict_mapping(self):
         """Test _resolve_template_vars with dictionary mapping."""
@@ -176,182 +284,6 @@ class TestPromptBuilderBlock:
         assert template_vars == {}
         assert "Dataset column 'missing_col' not found in sample" in caplog.text
 
-    def test_validate_message_role_valid(self):
-        """Test _validate_message_role with valid roles."""
-        block = PromptBuilderBlock(
-            block_name="test_block",
-            input_cols="input_text",
-            output_cols="output",
-            prompt_config_path=TEST_CONFIG_WITH_SYSTEM,
-        )
-
-        assert block._validate_message_role("system") == "system"
-        assert block._validate_message_role("USER") == "user"
-        assert block._validate_message_role("Assistant") == "assistant"
-        assert block._validate_message_role("tool") == "tool"
-
-    def test_validate_message_role_invalid(self, caplog):
-        """Test _validate_message_role with invalid role."""
-        block = PromptBuilderBlock(
-            block_name="test_block",
-            input_cols="input_text",
-            output_cols="output",
-            prompt_config_path=TEST_CONFIG_WITH_SYSTEM,
-        )
-
-        result = block._validate_message_role("invalid_role")
-        assert result == "user"
-        assert "Invalid role 'invalid_role', defaulting to 'user'" in caplog.text
-
-    def test_format_message_content_string(self):
-        """Test _format_message_content with string input."""
-        block = PromptBuilderBlock(
-            block_name="test_block",
-            input_cols="input_text",
-            output_cols="output",
-            prompt_config_path=TEST_CONFIG_WITH_SYSTEM,
-        )
-
-        result = block._format_message_content("  Hello world  ")
-        assert result == "Hello world"
-
-    def test_format_message_content_dict(self):
-        """Test _format_message_content with dict input (structured content)."""
-        block = PromptBuilderBlock(
-            block_name="test_block",
-            input_cols="input_text",
-            output_cols="output",
-            prompt_config_path=TEST_CONFIG_WITH_SYSTEM,
-        )
-
-        content_block = {
-            "type": "image_url",
-            "image_url": {"url": "http://example.com/image.jpg"},
-        }
-        result = block._format_message_content(content_block)
-        assert result == [content_block]
-
-    def test_format_message_content_list(self):
-        """Test _format_message_content with list input (multiple content blocks)."""
-        block = PromptBuilderBlock(
-            block_name="test_block",
-            input_cols="input_text",
-            output_cols="output",
-            prompt_config_path=TEST_CONFIG_WITH_SYSTEM,
-        )
-
-        content_list = [
-            {"type": "text", "text": "Hello"},
-            "Plain text",
-            {"type": "image_url", "image_url": {"url": "http://example.com/img.jpg"}},
-        ]
-        result = block._format_message_content(content_list)
-
-        expected = [
-            {"type": "text", "text": "Hello"},
-            {"type": "text", "text": "Plain text"},
-            {"type": "image_url", "image_url": {"url": "http://example.com/img.jpg"}},
-        ]
-        assert result == expected
-
-    def test_create_openai_message_valid(self):
-        """Test _create_openai_message with valid input."""
-        block = PromptBuilderBlock(
-            block_name="test_block",
-            input_cols="input_text",
-            output_cols="output",
-            prompt_config_path=TEST_CONFIG_WITH_SYSTEM,
-        )
-
-        message = block._create_openai_message("user", "Hello world")
-        assert message == {"role": "user", "content": "Hello world"}
-
-    def test_create_openai_message_empty_content(self):
-        """Test _create_openai_message with empty content."""
-        block = PromptBuilderBlock(
-            block_name="test_block",
-            input_cols="input_text",
-            output_cols="output",
-            prompt_config_path=TEST_CONFIG_WITH_SYSTEM,
-        )
-
-        message = block._create_openai_message("user", "")
-        assert message is None
-
-    def test_create_openai_message_tool_role_warning(self, caplog):
-        """Test _create_openai_message with tool role generates warning."""
-        block = PromptBuilderBlock(
-            block_name="test_block",
-            input_cols="input_text",
-            output_cols="output",
-            prompt_config_path=TEST_CONFIG_WITH_SYSTEM,
-        )
-
-        message = block._create_openai_message("tool", "Tool response")
-        assert message == {"role": "tool", "content": "Tool response"}
-        assert "Tool messages require tool_call_id" in caplog.text
-
-    def test_convert_to_openai_messages_with_system(self):
-        """Test _convert_to_openai_messages with system message in config."""
-        block = PromptBuilderBlock(
-            block_name="test_block",
-            input_cols=["input_text", "context"],
-            output_cols="output",
-            prompt_config_path=TEST_CONFIG_WITH_SYSTEM,
-        )
-
-        template_vars = {"input_text": "Hello", "context": "friendly chat"}
-        rendered_content = "Generate a response based on the following input\nBe accurate and helpful\nExample: Input: Hello. Output: Hi there!\nInput: Hello"
-
-        messages = block._convert_to_openai_messages(rendered_content, template_vars)
-
-        assert len(messages) == 2
-        assert messages[0]["role"] == "system"
-        assert (
-            "You are a helpful assistant. Context: friendly chat"
-            in messages[0]["content"]
-        )
-        assert messages[1]["role"] == "user"
-        assert rendered_content in messages[1]["content"]
-
-    def test_convert_to_openai_messages_no_system(self):
-        """Test _convert_to_openai_messages without system message."""
-        block = PromptBuilderBlock(
-            block_name="test_block",
-            input_cols="text",
-            output_cols="output",
-            prompt_config_path=TEST_CONFIG_NO_SYSTEM,
-        )
-
-        template_vars = {"text": "process this"}
-        rendered_content = (
-            "Generate a response\nBe helpful\nExample provided\nProcess: process this"
-        )
-
-        messages = block._convert_to_openai_messages(rendered_content, template_vars)
-
-        assert len(messages) == 1
-        assert messages[0]["role"] == "user"
-        assert rendered_content in messages[0]["content"]
-
-    def test_convert_to_openai_messages_with_custom_role(self):
-        """Test _convert_to_openai_messages with custom default role."""
-        block = PromptBuilderBlock(
-            block_name="test_block",
-            input_cols="input_text",
-            output_cols="output",
-            prompt_config_path=TEST_CONFIG_NO_SYSTEM,
-            default_role="assistant",
-        )
-
-        template_vars = {"input_text": "Hello"}
-        rendered_content = "Some content"
-
-        messages = block._convert_to_openai_messages(rendered_content, template_vars)
-
-        assert len(messages) == 1
-        assert messages[0]["role"] == "assistant"
-
     def test_generate_with_messages_format(self):
         """Test generate method with format_as_messages=True."""
         block = PromptBuilderBlock(
@@ -380,6 +312,7 @@ class TestPromptBuilderBlock:
         assert messages[0]["role"] == "system"
         assert "casual conversation" in messages[0]["content"]
         assert messages[1]["role"] == "user"
+        assert "Hello" in messages[1]["content"]
 
     def test_generate_with_plain_text_format(self):
         """Test generate method with format_as_messages=False."""
@@ -406,6 +339,7 @@ class TestPromptBuilderBlock:
         # Should be plain strings, not message lists
         assert isinstance(result[0]["formatted_text"], str)
         assert "process this" in result[0]["formatted_text"]
+        assert "user:" in result[0]["formatted_text"]  # Should include role prefix
 
     def test_generate_with_missing_template_vars(self, caplog):
         """Test generate method with missing template variables."""
@@ -437,9 +371,8 @@ class TestPromptBuilderBlock:
         assert "This template requires:" in content
         assert "Must have:" in content
 
-    def test_generate_with_empty_content(self, caplog):
-        """Test generate method with template that produces empty content."""
-        # Create a template that only outputs if a variable is non-empty
+    def test_generate_with_template_render_error(self, caplog):
+        """Test generate method handles template rendering errors gracefully."""
         block = PromptBuilderBlock(
             block_name="test_block",
             input_cols="text",
@@ -447,21 +380,19 @@ class TestPromptBuilderBlock:
             prompt_config_path=TEST_CONFIG_NO_SYSTEM,
         )
 
-        dataset = Dataset.from_list(
-            [
-                {"text": "content"},  # Valid content
-            ]
-        )
+        dataset = Dataset.from_list([{"text": "valid content"}])
+
+        # Mock a template that will fail to render
+        block.message_templates[0].content_template.render = (
+            lambda x: ""
+        )  # Empty render
 
         result = block.generate(dataset)
 
         assert len(result) == 1
-        # Should generate valid content, not empty
-        assert result[0]["output"] != []
-        assert isinstance(result[0]["output"], list)
-        assert len(result[0]["output"]) == 1
-        assert result[0]["output"][0]["role"] == "user"
-        assert "content" in result[0]["output"][0]["content"]
+        # Should have empty output when no messages are generated
+        assert result[0]["output"] == []
+        assert "No valid messages generated" in caplog.text
 
     def test_generate_preserves_original_columns(self):
         """Test that generate preserves original dataset columns."""
@@ -510,3 +441,53 @@ class TestPromptBuilderBlock:
         assert info["block_type"] == "PromptBuilderBlock"
         assert info["input_cols"] == ["input_text"]
         assert info["output_cols"] == ["output"]
+
+    def test_validate_custom_with_missing_variables(self):
+        """Test _validate_custom raises error for missing template variables."""
+        block = PromptBuilderBlock(
+            block_name="test_block",
+            input_cols="wrong_col",
+            output_cols="output",
+            prompt_config_path=TEST_CONFIG_STRICT,
+        )
+
+        dataset = Dataset.from_list([{"wrong_col": "value"}])
+
+        with pytest.raises(Exception):  # Should raise TemplateValidationError
+            block._validate_custom(dataset)
+
+    def test_message_templates_compilation(self):
+        """Test that message templates are properly compiled."""
+        block = PromptBuilderBlock(
+            block_name="test_block",
+            input_cols=["input_text", "context"],
+            output_cols="output",
+            prompt_config_path=TEST_CONFIG_WITH_SYSTEM,
+        )
+
+        assert len(block.message_templates) == 2
+        assert block.message_templates[0].role == "system"
+        assert block.message_templates[1].role == "user"
+        assert hasattr(block.message_templates[0], "content_template")
+        assert hasattr(block.message_templates[1], "content_template")
+
+    def test_chat_message_validation_in_generate(self):
+        """Test that ChatMessage validation works during generation."""
+        block = PromptBuilderBlock(
+            block_name="test_block",
+            input_cols="text",
+            output_cols="output",
+            prompt_config_path=TEST_CONFIG_NO_SYSTEM,
+        )
+
+        dataset = Dataset.from_list([{"text": "Hello world"}])
+        result = block.generate(dataset)
+
+        # Check that generated messages are valid ChatMessage objects when serialized
+        messages = result[0]["output"]
+        assert len(messages) == 1
+        assert messages[0]["role"] == "user"
+        assert "Generate a response" in messages[0]["content"]
+        assert "Be helpful" in messages[0]["content"]
+        assert "Example provided" in messages[0]["content"]
+        assert "Process: Hello world" in messages[0]["content"]

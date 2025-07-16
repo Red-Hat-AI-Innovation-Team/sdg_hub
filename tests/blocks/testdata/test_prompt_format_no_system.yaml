@@ -1,4 +1,6 @@
-introduction: "Generate a response"
-principles: "Be helpful"
-examples: "Example provided"
-generation: "Process: {{text}}"
+- role: user
+  content: |
+    Generate a response
+    Be helpful
+    Example provided
+    Process: {{text}}

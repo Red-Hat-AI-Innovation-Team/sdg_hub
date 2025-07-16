@@ -1,4 +1,6 @@
-introduction: "This template requires: {{required_var}}"
-principles: "Must have: {{required_var}}"
-examples: "Example: {{required_var}}"
-generation: "Process: {{required_var}}"
+- role: user
+  content: |
+    This template requires: {{required_var}}
+    Must have: {{required_var}}
+    Example: {{required_var}}
+    Process: {{required_var}}

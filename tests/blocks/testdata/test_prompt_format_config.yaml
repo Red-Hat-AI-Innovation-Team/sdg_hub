@@ -1,5 +1,9 @@
-system: "You are a helpful assistant. Context: {{context}}"
-introduction: "Generate a response based on the following input"
-principles: "Be accurate and helpful"
-examples: "Example: Input: Hello. Output: Hi there!"
-generation: "Input: {{input_text}}"
+- role: system
+  content: "You are a helpful assistant. Context: {{context}}"
+
+- role: user
+  content: |
+    Generate a response based on the following input
+    Be accurate and helpful
+    Example: Input: Hello. Output: Hi there!
+    Input: {{input_text}}
