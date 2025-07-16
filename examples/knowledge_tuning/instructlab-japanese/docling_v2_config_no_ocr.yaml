@@ -8,9 +8,7 @@ export:
 pipeline:
   ocr:
     enabled: false
-    languages:
-    - en
-    - ja
+    languages: []
   performance:
     device: auto
     threads: 4
