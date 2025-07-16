@@ -7,12 +7,13 @@ import asyncio
 
 # Third Party
 from datasets import Dataset
+from pydantic import Field, field_validator
 
 # Local
 from ...logger_config import setup_logger
-from ..registry import BlockRegistry
 from ...utils.error_handling import BlockValidationError
 from ..base import BaseBlock
+from ..registry import BlockRegistry
 from .client_manager import LLMClientManager
 from .config import LLMConfig
 
@@ -125,77 +126,87 @@ class LLMChatBlock(BaseBlock):
     ... )
     """
 
-    def __init__(
-        self,
-        block_name: str,
-        input_cols: Union[str, List[str]],
-        output_cols: Union[str, List[str]],
-        model: str,
-        api_key: Optional[str] = None,
-        api_base: Optional[str] = None,
-        async_mode: bool = False,
-        timeout: float = 120.0,
-        max_retries: int = 6,
-        # Generation parameters
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        top_p: Optional[float] = None,
-        frequency_penalty: Optional[float] = None,
-        presence_penalty: Optional[float] = None,
-        stop: Optional[Union[str, List[str]]] = None,
-        seed: Optional[int] = None,
-        response_format: Optional[Dict[str, Any]] = None,
-        stream: Optional[bool] = None,
-        n: Optional[int] = None,
-        logprobs: Optional[bool] = None,
-        top_logprobs: Optional[int] = None,
-        user: Optional[str] = None,
-        extra_headers: Optional[Dict[str, str]] = None,
-        extra_body: Optional[Dict[str, Any]] = None,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(
-            block_name=block_name, input_cols=input_cols, output_cols=output_cols
-        )
+    # LLM Configuration
+    model: str = Field(..., description="Model identifier in LiteLLM format")
+    api_key: Optional[str] = Field(None, description="API key for the provider")
+    api_base: Optional[str] = Field(None, description="Base URL for the API")
+    async_mode: bool = Field(False, description="Whether to use async processing")
+    timeout: float = Field(120.0, description="Request timeout in seconds")
+    max_retries: int = Field(6, description="Maximum number of retry attempts")
+    
+    # Generation parameters
+    temperature: Optional[float] = Field(None, description="Sampling temperature (0.0 to 2.0)")
+    max_tokens: Optional[int] = Field(None, description="Maximum tokens to generate")
+    top_p: Optional[float] = Field(None, description="Nucleus sampling parameter (0.0 to 1.0)")
+    frequency_penalty: Optional[float] = Field(None, description="Frequency penalty (-2.0 to 2.0)")
+    presence_penalty: Optional[float] = Field(None, description="Presence penalty (-2.0 to 2.0)")
+    stop: Optional[Union[str, List[str]]] = Field(None, description="Stop sequences")
+    seed: Optional[int] = Field(None, description="Random seed for reproducible outputs")
+    response_format: Optional[Dict[str, Any]] = Field(None, description="Response format specification")
+    stream: Optional[bool] = Field(None, description="Whether to stream responses")
+    n: Optional[int] = Field(None, description="Number of completions to generate")
+    logprobs: Optional[bool] = Field(None, description="Whether to return log probabilities")
+    top_logprobs: Optional[int] = Field(None, description="Number of top log probabilities to return")
+    user: Optional[str] = Field(None, description="End-user identifier")
+    extra_headers: Optional[Dict[str, str]] = Field(None, description="Additional headers")
+    extra_body: Optional[Dict[str, Any]] = Field(None, description="Additional request body parameters")
+    provider_specific: Optional[Dict[str, Any]] = Field(None, description="Provider-specific parameters")
 
-        # BaseBlock handles column normalization and validation
-        # Additional validation for LLMChatBlock requirements
-        if len(self.input_cols) != 1:
-            raise ValueError(
-                f"LLMChatBlock expects exactly one input column, got {len(self.input_cols)}: {self.input_cols}"
-            )
-        if len(self.output_cols) != 1:
-            raise ValueError(
-                f"LLMChatBlock expects exactly one output column, got {len(self.output_cols)}: {self.output_cols}"
-            )
-
+    @field_validator("input_cols")
+    @classmethod
+    def validate_single_input_col(cls, v):
+        """Ensure exactly one input column."""
+        if isinstance(v, str):
+            return [v]
+        if isinstance(v, list) and len(v) == 1:
+            return v
+        if isinstance(v, list) and len(v) != 1:
+            raise ValueError(f"LLMChatBlock expects exactly one input column, got {len(v)}: {v}")
+        raise ValueError(f"Invalid input_cols format: {v}")
+    
+    @field_validator("output_cols")
+    @classmethod
+    def validate_single_output_col(cls, v):
+        """Ensure exactly one output column."""
+        if isinstance(v, str):
+            return [v]
+        if isinstance(v, list) and len(v) == 1:
+            return v
+        if isinstance(v, list) and len(v) != 1:
+            raise ValueError(f"LLMChatBlock expects exactly one output column, got {len(v)}: {v}")
+        raise ValueError(f"Invalid output_cols format: {v}")
+    
+    def model_post_init(self, __context) -> None:
+        """Initialize after Pydantic validation."""
+        super().model_post_init(__context)
+        
+        # Set convenience properties
         self.messages_column = self.input_cols[0]
         self.output_column = self.output_cols[0]
-        self.async_mode = async_mode
 
         # Create configuration
         self.config = LLMConfig(
-            model=model,
-            api_key=api_key,
-            api_base=api_base,
-            timeout=timeout,
-            max_retries=max_retries,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            top_p=top_p,
-            frequency_penalty=frequency_penalty,
-            presence_penalty=presence_penalty,
-            stop=stop,
-            seed=seed,
-            response_format=response_format,
-            stream=stream,
-            n=n,
-            logprobs=logprobs,
-            top_logprobs=top_logprobs,
-            user=user,
-            extra_headers=extra_headers,
-            extra_body=extra_body,
-            provider_specific=kwargs if kwargs else None,
+            model=self.model,
+            api_key=self.api_key,
+            api_base=self.api_base,
+            timeout=self.timeout,
+            max_retries=self.max_retries,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            top_p=self.top_p,
+            frequency_penalty=self.frequency_penalty,
+            presence_penalty=self.presence_penalty,
+            stop=self.stop,
+            seed=self.seed,
+            response_format=self.response_format,
+            stream=self.stream,
+            n=self.n,
+            logprobs=self.logprobs,
+            top_logprobs=self.top_logprobs,
+            user=self.user,
+            extra_headers=self.extra_headers,
+            extra_body=self.extra_body,
+            provider_specific=self.provider_specific,
         )
 
         # Create client manager
@@ -206,13 +217,13 @@ class LLMChatBlock(BaseBlock):
 
         # Log initialization
         logger.info(
-            f"Initialized LLMChatBlock '{block_name}' with model '{model}'",
+            f"Initialized LLMChatBlock '{self.block_name}' with model '{self.model}'",
             extra={
-                "block_name": block_name,
-                "model": model,
+                "block_name": self.block_name,
+                "model": self.model,
                 "provider": self.config.get_provider(),
                 "is_local": self.config.is_local_model(),
-                "async_mode": async_mode,
+                "async_mode": self.async_mode,
                 "generation_params": self.config.get_generation_kwargs(),
             },
         )
@@ -246,7 +257,7 @@ class LLMChatBlock(BaseBlock):
             f"Starting {'async' if self.async_mode else 'sync'} generation for {len(messages_list)} samples",
             extra={
                 "block_name": self.block_name,
-                "model": self.config.model,
+                "model": self.model,
                 "provider": self.config.get_provider(),
                 "batch_size": len(messages_list),
                 "async_mode": self.async_mode,
@@ -267,7 +278,7 @@ class LLMChatBlock(BaseBlock):
             f"Generation completed successfully for {len(responses)} samples",
             extra={
                 "block_name": self.block_name,
-                "model": self.config.model,
+                "model": self.model,
                 "provider": self.config.get_provider(),
                 "batch_size": len(responses),
             },
@@ -316,7 +327,7 @@ class LLMChatBlock(BaseBlock):
 
             except Exception as e:
                 error_msg = self.client_manager.error_handler.format_error_message(
-                    e, {"model": self.config.model, "sample_index": i}
+                    e, {"model": self.model, "sample_index": i}
                 )
                 logger.error(
                     f"Failed to generate response for sample {i}: {error_msg}",
@@ -357,7 +368,7 @@ class LLMChatBlock(BaseBlock):
 
         except Exception as e:
             error_msg = self.client_manager.error_handler.format_error_message(
-                e, {"model": self.config.model}
+                e, {"model": self.model}
             )
             logger.error(
                 f"Failed to generate async responses: {error_msg}",
@@ -461,6 +472,6 @@ class LLMChatBlock(BaseBlock):
     def __repr__(self) -> str:
         """String representation of the block."""
         return (
-            f"LLMChatBlock(name='{self.block_name}', model='{self.config.model}', "
+            f"LLMChatBlock(name='{self.block_name}', model='{self.model}', "
             f"provider='{self.config.get_provider()}', async_mode={self.async_mode})"
         )
