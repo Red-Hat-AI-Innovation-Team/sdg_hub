@@ -127,11 +127,8 @@ def test_flatten_columns_with_invalid_input():
     # Test with non-existent column
     block = FlattenColumnsBlock(
         block_name="test_flatten_invalid",
-        input_cols=["id", "summary_detailed", "non_existent_column"],
-        output_cols=["summary", "dataset_type"],
-        var_cols=["non_existent_column"],
-        value_name="summary",
-        var_name="dataset_type",
+        input_cols=["non_existent_column"],  # Only the columns to be melted
+        output_cols=["summary", "dataset_type"],  # [value_column, variable_column]
     )
 
     # Should raise MissingColumnError for missing columns during validation
