@@ -83,7 +83,15 @@ class SetToMajorityValue(BaseBlock):
         df = samples.to_pandas()
 
         # Find the majority value for logging
-        majority_value = df[self.col_name].mode()[0]
+        # Validate column has data
+        if df.empty:
+            raise ValueError(f"Cannot compute majority value for empty dataset")
+        
+        mode_values = df[self.col_name].mode()
+        if mode_values.empty:
+            raise ValueError(f"Column '{self.col_name}' has no valid values to compute majority")
+        
+        majority_value = mode_values.iloc[0]
         
         # Log the operation
         logger.info(
