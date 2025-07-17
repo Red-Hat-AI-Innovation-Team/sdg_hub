@@ -6,10 +6,11 @@ by melting specified columns into rows.
 """
 
 # Standard
-from typing import Any, List, Optional, Union
+from typing import Any
 
 # Third Party
 from datasets import Dataset
+from pydantic import field_validator
 
 # Local
 from ...logger_config import setup_logger
@@ -31,69 +32,56 @@ class FlattenColumnsBlock(BaseBlock):
     This block transforms a wide dataset format into a long format by melting
     specified columns into rows, creating new variable and value columns.
 
-    Parameters
+    The input_cols should contain the columns to be melted (variable columns).
+    The output_cols must specify exactly two columns: [value_column, variable_column].
+    Any other columns in the dataset will be treated as ID columns and preserved.
+
+    Attributes
     ----------
     block_name : str
         Name of the block.
-    var_cols : List[str]
-        List of column names to be melted into rows.
-    value_name : str
-        Name of the new column that will contain the values.
-    var_name : str
-        Name of the new column that will contain the variable names.
-    input_cols : Optional[Union[str, List[str]]], optional
-        Input column specification. If provided, var_cols must be subset.
-    output_cols : Optional[Union[str, List[str]]], optional
-        Output column specification. Defaults to [value_name, var_name].
+    input_cols : Union[str, List[str], Dict[str, Any], None]
+        Columns to be melted into rows (variable columns).
+    output_cols : Union[str, List[str], Dict[str, Any], None]
+        Output column specification. Must specify exactly two columns: [value_column, variable_column].
     """
 
-    def __init__(
-        self,
-        block_name: str,
-        var_cols: List[str],
-        value_name: str,
-        var_name: str,
-        input_cols: Optional[Union[str, List[str]]] = None,
-        output_cols: Optional[Union[str, List[str]]] = None,
-        **kwargs: Any,
-    ) -> None:
-        # Handle backward compatibility - old style constructor
-        if input_cols is None and output_cols is None:
-            # Legacy mode - derive columns automatically
-            input_cols = var_cols
-            output_cols = [value_name, var_name]
+    @field_validator("input_cols", mode="after")
+    @classmethod
+    def validate_input_cols(cls, v):
+        """Validate that input_cols is not empty."""
+        if not v:
+            raise ValueError("input_cols cannot be empty")
+        return v
 
-        super().__init__(
-            block_name=block_name,
-            input_cols=input_cols,
-            output_cols=output_cols,
-            **kwargs,
-        )
+    @field_validator("output_cols", mode="after")
+    @classmethod
+    def validate_output_cols(cls, v):
+        """Validate that exactly two output columns are specified."""
+        if len(v) != 2:
+            raise ValueError(
+                f"FlattenColumnsBlock expects exactly two output columns (value, variable), got {len(v)}: {v}"
+            )
+        return v
 
-        self.var_cols = var_cols
-        self.value_name = value_name
-        self.var_name = var_name
+    def model_post_init(self, __context: Any) -> None:
+        """Initialize derived attributes after Pydantic validation."""
+        super().model_post_init(__context) if hasattr(super(), "model_post_init") else None
+        
+        # Derive value and variable column names from output_cols
+        self.value_name = self.output_cols[0]  # First output column is value
+        self.var_name = self.output_cols[1]    # Second output column is variable
+        
+        # input_cols contains the columns to be melted (what was var_cols)
+        self.var_cols = self.input_cols if isinstance(self.input_cols, list) else [self.input_cols]
 
-        # Validate var_cols are subset of input_cols if both specified
-        if isinstance(self.input_cols, list) and self.var_cols:
-            missing_cols = set(self.var_cols) - set(self.input_cols)
-            if missing_cols:
-                logger.warning(
-                    f"Variable columns {missing_cols} not found in input_cols {self.input_cols}"
-                )
-
-    def _validate(self, samples: Dataset) -> Dataset:
+    def _validate_custom(self, samples: Dataset) -> None:
         """Validate that required columns exist in the dataset.
 
         Parameters
         ----------
         samples : Dataset
             Input dataset to validate.
-
-        Returns
-        -------
-        Dataset
-            Validated dataset.
 
         Raises
         ------
@@ -109,8 +97,6 @@ class FlattenColumnsBlock(BaseBlock):
                 available_columns=samples.column_names,
             )
 
-        return samples
-
     def generate(self, samples: Dataset) -> Dataset:
         """Generate a flattened dataset in long format.
 
@@ -124,47 +110,13 @@ class FlattenColumnsBlock(BaseBlock):
         Dataset
             Flattened dataset in long format with new variable and value columns.
         """
-        # Validate input
-        samples = self._validate(samples)
-
-        # Log the operation
-        logger.info(
-            f"Flattening {len(self.var_cols)} columns into long format for block '{self.block_name}'",
-            extra={
-                "block_name": self.block_name,
-                "variable_columns": self.var_cols,
-                "value_column": self.value_name,
-                "variable_name_column": self.var_name,
-                "input_rows": len(samples),
-            },
-        )
-
-        # Convert to pandas for melting operation
+        # Use the original simple logic - just adapted to use derived attributes
         df = samples.to_pandas()
         id_cols = [col for col in samples.column_names if col not in self.var_cols]
-
-        # Perform the melt operation
         flatten_df = df.melt(
             id_vars=id_cols,
             value_vars=self.var_cols,
             value_name=self.value_name,
             var_name=self.var_name,
         )
-
-        # Convert back to dataset
-        result = Dataset.from_pandas(flatten_df)
-
-        # Log completion
-        logger.info(
-            f"Successfully flattened dataset for block '{self.block_name}'",
-            extra={
-                "block_name": self.block_name,
-                "output_rows": len(result),
-                "new_columns": [self.value_name, self.var_name],
-                "expansion_factor": len(result) / len(samples)
-                if len(samples) > 0
-                else 0,
-            },
-        )
-
-        return result
+        return Dataset.from_pandas(flatten_df)

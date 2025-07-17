@@ -6,11 +6,11 @@ wide-to-long transformations, value selection, and majority value assignment.
 """
 
 from .flatten_columns import FlattenColumnsBlock
-from .selector import SelectorBlock
+from .index_based_mapper import IndexBasedMapperBlock
 from .set_majority_value import SetToMajorityValue
 
 __all__ = [
     "FlattenColumnsBlock",
-    "SelectorBlock",
+    "IndexBasedMapperBlock",
     "SetToMajorityValue",
 ]

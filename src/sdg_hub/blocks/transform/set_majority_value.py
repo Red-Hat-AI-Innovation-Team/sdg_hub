@@ -6,10 +6,11 @@ frequent value found in that column.
 """
 
 # Standard
-from typing import Any, List, Optional, Union
+from typing import Any
 
 # Third Party
 from datasets import Dataset
+from pydantic import field_validator
 
 # Local
 from ...logger_config import setup_logger
@@ -31,59 +32,46 @@ class SetToMajorityValue(BaseBlock):
     This block finds the most common value (mode) in a specified column and
     replaces all values in that column with this majority value.
 
-    Parameters
+    Attributes
     ----------
     block_name : str
         Name of the block.
-    col_name : str
-        Name of the column to set to majority value.
-    input_cols : Optional[Union[str, List[str]]], optional
-        Input column specification. If provided, col_name must be included.
-    output_cols : Optional[Union[str, List[str]]], optional
-        Output column specification. Defaults to same as input column.
+    input_cols : Union[str, List[str]]
+        Input column name(s). Must specify exactly one column.
+    output_cols : Union[str, List[str]]
+        Output column specification. Defaults to empty list (modifies existing column).
     """
 
-    def __init__(
-        self,
-        block_name: str,
-        col_name: str,
-        input_cols: Optional[Union[str, List[str]]] = None,
-        output_cols: Optional[Union[str, List[str]]] = None,
-        **kwargs: Any,
-    ) -> None:
-        # Handle backward compatibility - old style constructor
-        if input_cols is None and output_cols is None:
-            # Legacy mode - derive columns automatically
-            input_cols = [col_name]
-            output_cols = [col_name]
+    @field_validator("input_cols", mode="after")
+    @classmethod
+    def validate_input_cols_single(cls, v):
+        """Validate that exactly one input column is specified."""
+        if not v or len(v) != 1:
+            raise ValueError("SetToMajorityValue requires exactly one input column")
+        return v
 
-        super().__init__(
-            block_name=block_name,
-            input_cols=input_cols,
-            output_cols=output_cols,
-            **kwargs,
-        )
-
-        self.col_name = col_name
-
-        # Validate that col_name is in input_cols if specified
-        if isinstance(self.input_cols, list) and self.col_name not in self.input_cols:
+    def model_post_init(self, __context: Any) -> None:
+        """Initialize derived attributes after Pydantic validation."""
+        super().model_post_init(__context) if hasattr(super(), "model_post_init") else None
+        
+        # SetToMajorityValue modifies existing columns in-place, should not have output_cols
+        if self.output_cols is not None and len(self.output_cols) > 0:
             logger.warning(
-                f"Column '{self.col_name}' not found in input_cols {self.input_cols}"
+                f"SetToMajorityValue modifies columns in-place. "
+                f"Specified output_cols {self.output_cols} will be ignored."
             )
+        self.output_cols = []
+        
+        # Set derived attributes
+        self.col_name = self.input_cols[0]  # Use first (and only) input column
 
-    def _validate(self, samples: Dataset) -> Dataset:
+    def _validate_custom(self, samples: Dataset) -> None:
         """Validate that the required column exists in the dataset.
 
         Parameters
         ----------
         samples : Dataset
             Input dataset to validate.
-
-        Returns
-        -------
-        Dataset
-            Validated dataset.
 
         Raises
         ------
@@ -96,8 +84,6 @@ class SetToMajorityValue(BaseBlock):
                 missing_columns=[self.col_name],
                 available_columns=samples.column_names,
             )
-
-        return samples
 
     def generate(self, samples: Dataset) -> Dataset:
         """Generate a dataset with column set to majority value.
@@ -112,50 +98,20 @@ class SetToMajorityValue(BaseBlock):
         Dataset
             Dataset with specified column set to its majority value.
         """
-        # Validate input
-        samples = self._validate(samples)
 
         # Convert to pandas for mode calculation
         df = samples.to_pandas()
 
-        # Find the majority value (mode)
-        mode_series = df[self.col_name].mode()
-        if len(mode_series) == 0:
-            logger.warning(
-                f"No mode found for column '{self.col_name}', keeping original values"
-            )
-            return samples
-
-        majority_value = mode_series[0]
-        original_unique_values = df[self.col_name].nunique()
-
+        # Find the majority value for logging
+        majority_value = df[self.col_name].mode()[0]
+        
         # Log the operation
         logger.info(
-            f"Setting column '{self.col_name}' to majority value for block '{self.block_name}'",
-            extra={
-                "block_name": self.block_name,
-                "column_name": self.col_name,
-                "majority_value": str(majority_value),
-                "original_unique_values": original_unique_values,
-                "total_rows": len(df),
-            },
+            f"Setting column '{self.col_name}' to majority value '{majority_value}' for block '{self.block_name}'"
         )
 
-        # Set all values to majority value
+        # Set all values to majority value (original logic)
         df[self.col_name] = majority_value
 
         # Convert back to dataset
-        result = Dataset.from_pandas(df)
-
-        # Log completion
-        logger.info(
-            f"Successfully set column to majority value for block '{self.block_name}'",
-            extra={
-                "block_name": self.block_name,
-                "column_name": self.col_name,
-                "new_value": str(majority_value),
-                "rows_affected": len(result),
-            },
-        )
-
-        return result
+        return Dataset.from_pandas(df)

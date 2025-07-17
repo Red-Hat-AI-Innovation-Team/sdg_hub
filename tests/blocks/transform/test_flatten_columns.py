@@ -27,9 +27,8 @@ def test_flatten_columns_basic():
     # Initialize block
     block = FlattenColumnsBlock(
         block_name="test_flatten",
-        var_cols=["summary_detailed", "summary_extractive"],
-        value_name="summary",
-        var_name="dataset_type",
+        input_cols=["summary_detailed", "summary_extractive"],  # Columns to melt
+        output_cols=["summary", "dataset_type"],  # [value_column, variable_column]
     )
 
     # Generate flattened dataset
@@ -57,9 +56,8 @@ def test_flatten_columns_with_empty_dataset():
 
     block = FlattenColumnsBlock(
         block_name="test_flatten_empty",
-        var_cols=["summary_detailed", "summary_extractive"],
-        value_name="summary",
-        var_name="dataset_type",
+        input_cols=["summary_detailed", "summary_extractive"],  # Columns to melt
+        output_cols=["summary", "dataset_type"],  # [value_column, variable_column]
     )
 
     result = block.generate(dataset)
@@ -82,9 +80,8 @@ def test_flatten_columns_with_missing_values():
 
     block = FlattenColumnsBlock(
         block_name="test_flatten_missing",
-        var_cols=["summary_detailed", "summary_extractive"],
-        value_name="summary",
-        var_name="dataset_type",
+        input_cols=["summary_detailed", "summary_extractive"],  # Columns to melt
+        output_cols=["summary", "dataset_type"],  # [value_column, variable_column]
     )
 
     result = block.generate(dataset)
@@ -105,14 +102,13 @@ def test_flatten_columns_with_all_columns():
 
     block = FlattenColumnsBlock(
         block_name="test_flatten_all",
-        var_cols=[
+        input_cols=[
             "summary_detailed",
             "summary_extractive",
             "summary_atomic_facts",
             "base_document",
-        ],
-        value_name="summary",
-        var_name="dataset_type",
+        ],  # Columns to melt
+        output_cols=["summary", "dataset_type"],  # [value_column, variable_column]
     )
 
     result = block.generate(dataset)
@@ -131,13 +127,16 @@ def test_flatten_columns_with_invalid_input():
     # Test with non-existent column
     block = FlattenColumnsBlock(
         block_name="test_flatten_invalid",
+        input_cols=["id", "summary_detailed", "non_existent_column"],
+        output_cols=["summary", "dataset_type"],
         var_cols=["non_existent_column"],
         value_name="summary",
         var_name="dataset_type",
     )
 
+    # Should raise MissingColumnError for missing columns during validation
     with pytest.raises(MissingColumnError):
-        block.generate(dataset)
+        block(dataset)
 
 
 def test_flatten_columns_with_empty_columns():
@@ -152,9 +151,8 @@ def test_flatten_columns_with_empty_columns():
 
     block = FlattenColumnsBlock(
         block_name="test_flatten_empty_cols",
-        var_cols=["summary_detailed", "summary_extractive"],
-        value_name="summary",
-        var_name="dataset_type",
+        input_cols=["summary_detailed", "summary_extractive"],  # Columns to melt
+        output_cols=["summary", "dataset_type"],  # [value_column, variable_column]
     )
 
     result = block.generate(dataset)
@@ -197,9 +195,8 @@ def test_flatten_columns_verify_column_names():
 
     block = FlattenColumnsBlock(
         block_name="test_flatten_custom_names",
-        var_cols=["summary_detailed", "summary_extractive"],
-        value_name=custom_value_name,
-        var_name=custom_var_name,
+        input_cols=["summary_detailed", "summary_extractive"],  # Columns to melt
+        output_cols=[custom_value_name, custom_var_name],  # [value_column, variable_column]
     )
 
     result = block.generate(dataset)
@@ -216,3 +213,58 @@ def test_flatten_columns_verify_column_names():
     assert "extractive1" in result_dict[custom_value_name]
     assert "summary_detailed" in result_dict[custom_var_name]
     assert "summary_extractive" in result_dict[custom_var_name]
+
+
+def test_flatten_columns_validation_errors():
+    """Test Pydantic validation errors in FlattenColumnsBlock."""
+    
+    # Test empty input_cols
+    with pytest.raises(ValueError, match="input_cols cannot be empty"):
+        FlattenColumnsBlock(
+            block_name="test_flatten_empty_vars",
+            input_cols=[],  # Empty columns to melt
+            output_cols=["value", "variable"],  # [value_column, variable_column]
+        )
+    
+    # Test wrong number of output columns (not exactly 2)
+    with pytest.raises(ValueError, match="FlattenColumnsBlock expects exactly two output columns"):
+        FlattenColumnsBlock(
+            block_name="test_flatten_wrong_outputs",
+            input_cols=["col1"],  # Columns to melt
+            output_cols=["value"],  # Only 1 output column
+        )
+    
+    # Test too many output columns
+    with pytest.raises(ValueError, match="FlattenColumnsBlock expects exactly two output columns"):
+        FlattenColumnsBlock(
+            block_name="test_flatten_too_many_outputs",
+            input_cols=["col1"],  # Columns to melt
+            output_cols=["value", "variable", "extra"],  # 3 output columns
+        )
+
+
+def test_flatten_columns_with_input_output_cols():
+    """Test FlattenColumnsBlock with explicit input_cols and output_cols."""
+    data = {
+        "id": [1, 2],
+        "summary_detailed": ["detailed1", "detailed2"],
+        "summary_extractive": ["extractive1", "extractive2"],
+        "other_col": ["other1", "other2"],
+    }
+    dataset = Dataset.from_dict(data)
+
+    # Test with explicit input_cols and output_cols
+    block = FlattenColumnsBlock(
+        block_name="test_flatten_explicit_cols",
+        input_cols=["summary_detailed", "summary_extractive"],  # Columns to melt
+        output_cols=["summary", "dataset_type"],  # [value_column, variable_column]
+    )
+
+    result = block.generate(dataset)
+
+    # Verify results
+    assert len(result) == 4  # 2 rows * 2 columns to flatten
+    assert "id" in result.column_names
+    assert "other_col" in result.column_names
+    assert "summary" in result.column_names
+    assert "dataset_type" in result.column_names

@@ -6,7 +6,7 @@ import pytest
 
 # First Party
 from sdg_hub.blocks.transform import SetToMajorityValue
-from sdg_hub.utils.error_handling import EmptyDatasetError
+from sdg_hub.utils.error_handling import EmptyDatasetError, MissingColumnError
 
 
 @pytest.fixture
@@ -23,7 +23,11 @@ def sample_dataset():
 
 def test_set_to_majority_basic(sample_dataset):
     """Test basic functionality of setting column to majority value."""
-    block = SetToMajorityValue(block_name="test_block", col_name="category")
+    block = SetToMajorityValue(
+        block_name="test_block",
+        input_cols=["category"],
+        output_cols=[],
+    )
     result = block.generate(sample_dataset)
 
     # Check that all values in category column are now "A" (the majority value)
@@ -35,7 +39,11 @@ def test_set_to_majority_basic(sample_dataset):
 
 def test_set_to_majority_numeric(sample_dataset):
     """Test setting numeric column to majority value."""
-    block = SetToMajorityValue(block_name="test_block", col_name="value")
+    block = SetToMajorityValue(
+        block_name="test_block",
+        input_cols=["value"],
+        output_cols=[],
+    )
     result = block.generate(sample_dataset)
 
     # Since all values are unique, the first value ("1") should be the majority
@@ -47,7 +55,11 @@ def test_set_to_majority_numeric(sample_dataset):
 
 def test_set_to_majority_mixed_types(sample_dataset):
     """Test setting mixed type column to majority value."""
-    block = SetToMajorityValue(block_name="test_block", col_name="mixed")
+    block = SetToMajorityValue(
+        block_name="test_block",
+        input_cols=["mixed"],
+        output_cols=[],
+    )
     result = block.generate(sample_dataset)
 
     # "A" is the majority value in mixed column
@@ -60,7 +72,11 @@ def test_set_to_majority_mixed_types(sample_dataset):
 def test_set_to_majority_empty_column():
     """Test behavior with empty column."""
     dataset = Dataset.from_dict({"empty_col": []})
-    block = SetToMajorityValue(block_name="test_block", col_name="empty_col")
+    block = SetToMajorityValue(
+        block_name="test_block",
+        input_cols=["empty_col"],
+        output_cols=[],
+    )
 
     # BaseBlock raises EmptyDatasetError for empty datasets
     with pytest.raises(EmptyDatasetError):
@@ -70,7 +86,11 @@ def test_set_to_majority_empty_column():
 def test_set_to_majority_single_value():
     """Test behavior with column containing single value."""
     dataset = Dataset.from_dict({"single_col": ["A"]})
-    block = SetToMajorityValue(block_name="test_block", col_name="single_col")
+    block = SetToMajorityValue(
+        block_name="test_block",
+        input_cols=["single_col"],
+        output_cols=[],
+    )
     result = block.generate(dataset)
 
     assert all(x == "A" for x in result["single_col"])
@@ -79,7 +99,11 @@ def test_set_to_majority_single_value():
 def test_set_to_majority_all_unique():
     """Test behavior with column containing all unique values."""
     dataset = Dataset.from_dict({"unique_col": ["A", "B", "C"]})
-    block = SetToMajorityValue(block_name="test_block", col_name="unique_col")
+    block = SetToMajorityValue(
+        block_name="test_block",
+        input_cols=["unique_col"],
+        output_cols=[],
+    )
     result = block.generate(dataset)
 
     # Should use the first value as majority when all values are unique
@@ -94,7 +118,11 @@ def test_set_to_majority_tie_handling():
             "other_col": ["1", "2", "3", "4", "5", "6"],
         }
     )
-    block = SetToMajorityValue(block_name="test_block", col_name="tie_col")
+    block = SetToMajorityValue(
+        block_name="test_block",
+        input_cols=["tie_col"],
+        output_cols=[],
+    )
     result = block.generate(dataset)
 
     # When there's a tie, pandas.mode() returns the first value it encounters
@@ -109,7 +137,11 @@ def test_dataset_structure_preservation():
         {"col1": ["A", "B", "A"], "col2": ["1", "2", "3"], "col3": ["X", "Y", "Z"]}
     )
 
-    block = SetToMajorityValue(block_name="test_block", col_name="col1")
+    block = SetToMajorityValue(
+        block_name="test_block",
+        input_cols=["col1"],
+        output_cols=[],
+    )
     result = block.generate(input_dataset)
 
     # Check column names are preserved
@@ -127,3 +159,50 @@ def test_dataset_structure_preservation():
     # Check other columns remain unchanged
     assert result["col2"] == input_dataset["col2"]
     assert result["col3"] == input_dataset["col3"]
+
+
+def test_set_to_majority_missing_column():
+    """Test behavior with missing column."""
+    dataset = Dataset.from_dict({"col1": ["A", "B", "C"]})
+    block = SetToMajorityValue(
+        block_name="test_block",
+        input_cols=["missing_col"],
+        output_cols=[],
+    )
+
+    with pytest.raises(MissingColumnError):
+        block(dataset)
+
+
+def test_set_to_majority_validation_errors():
+    """Test Pydantic validation errors in SetToMajorityValue."""
+    
+    # Test empty input_cols
+    with pytest.raises(ValueError, match="SetToMajorityValue requires exactly one input column"):
+        SetToMajorityValue(
+            block_name="test_block",
+            input_cols=[],
+            output_cols=[],
+        )
+    
+    # Test multiple input_cols
+    with pytest.raises(ValueError, match="SetToMajorityValue requires exactly one input column"):
+        SetToMajorityValue(
+            block_name="test_block",
+            input_cols=["col1", "col2"],
+            output_cols=[],
+        )
+
+
+def test_set_to_majority_with_none_values():
+    """Test behavior with None values in the column."""
+    dataset = Dataset.from_dict({"col_with_none": ["A", None, "A", "B", None, "A"]})
+    block = SetToMajorityValue(
+        block_name="test_block",
+        input_cols=["col_with_none"],
+        output_cols=[],
+    )
+    result = block.generate(dataset)
+
+    # "A" should be the majority value (appears 3 times)
+    assert all(x == "A" for x in result["col_with_none"])

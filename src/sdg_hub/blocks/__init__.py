@@ -8,7 +8,7 @@ from .block import Block
 from .llmblock import LLMBlock, ConditionalLLMBlock
 from .llm import LLMChatBlock, PromptBuilderBlock, TextParserBlock
 from .filtering import FilterByValueBlock
-from .transform import FlattenColumnsBlock, SelectorBlock, SetToMajorityValue
+from .transform import FlattenColumnsBlock, IndexBasedMapperBlock, SetToMajorityValue
 from .utilblocks import (
     SamplePopulatorBlock,
     CombineColumnsBlock,
@@ -27,7 +27,7 @@ __all__ = [
     "LLMChatBlock",
     "TextParserBlock",
     "SamplePopulatorBlock",
-    "SelectorBlock",
+    "IndexBasedMapperBlock",
     "CombineColumnsBlock",
     "FlattenColumnsBlock",
     "DuplicateColumns",
