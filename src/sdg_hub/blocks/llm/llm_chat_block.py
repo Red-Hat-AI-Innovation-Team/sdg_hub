@@ -151,6 +151,9 @@ class LLMChatBlock(BaseBlock):
     extra_headers: Optional[Dict[str, str]] = Field(None, description="Additional headers")
     extra_body: Optional[Dict[str, Any]] = Field(None, description="Additional request body parameters")
     provider_specific: Optional[Dict[str, Any]] = Field(None, description="Provider-specific parameters")
+    
+    # Exclude from serialization - internal computed field
+    client_manager: Optional[Any] = Field(None, exclude=True, description="Internal client manager")
 
     @field_validator("input_cols")
     @classmethod
@@ -180,12 +183,10 @@ class LLMChatBlock(BaseBlock):
         """Initialize after Pydantic validation."""
         super().model_post_init(__context)
         
-        # Set convenience properties
-        self.messages_column = self.input_cols[0]
-        self.output_column = self.output_cols[0]
+        # Convenience properties removed - use self.input_cols[0] and self.output_cols[0] directly
 
         # Create configuration
-        self.config = LLMConfig(
+        config = LLMConfig(
             model=self.model,
             api_key=self.api_key,
             api_base=self.api_base,
@@ -210,7 +211,7 @@ class LLMChatBlock(BaseBlock):
         )
 
         # Create client manager
-        self.client_manager = LLMClientManager(self.config)
+        self.client_manager = LLMClientManager(config)
 
         # Load client immediately
         self.client_manager.load()
@@ -221,10 +222,10 @@ class LLMChatBlock(BaseBlock):
             extra={
                 "block_name": self.block_name,
                 "model": self.model,
-                "provider": self.config.get_provider(),
-                "is_local": self.config.is_local_model(),
+                "provider": self.client_manager.config.get_provider(),
+                "is_local": self.client_manager.config.is_local_model(),
                 "async_mode": self.async_mode,
-                "generation_params": self.config.get_generation_kwargs(),
+                "generation_params": self.client_manager.config.get_generation_kwargs(),
             },
         )
 
@@ -250,7 +251,7 @@ class LLMChatBlock(BaseBlock):
             Dataset with responses added to the output column.
         """
         # Extract messages
-        messages_list = samples[self.messages_column]
+        messages_list = samples[self.input_cols[0]]
 
         # Log generation start
         logger.info(
@@ -258,7 +259,7 @@ class LLMChatBlock(BaseBlock):
             extra={
                 "block_name": self.block_name,
                 "model": self.model,
-                "provider": self.config.get_provider(),
+                "provider": self.client_manager.config.get_provider(),
                 "batch_size": len(messages_list),
                 "async_mode": self.async_mode,
                 "override_params": override_kwargs,
@@ -279,13 +280,13 @@ class LLMChatBlock(BaseBlock):
             extra={
                 "block_name": self.block_name,
                 "model": self.model,
-                "provider": self.config.get_provider(),
+                "provider": self.client_manager.config.get_provider(),
                 "batch_size": len(responses),
             },
         )
 
         # Add responses as new column
-        return samples.add_column(self.output_column, responses)
+        return samples.add_column(self.output_cols[0], responses)
 
     def _generate_sync(
         self,
@@ -391,8 +392,8 @@ class LLMChatBlock(BaseBlock):
         return {
             **self.client_manager.get_model_info(),
             "block_name": self.block_name,
-            "input_column": self.messages_column,
-            "output_column": self.output_column,
+            "input_column": self.input_cols[0],
+            "output_column": self.output_cols[0],
             "async_mode": self.async_mode,
         }
 
@@ -415,12 +416,12 @@ class LLMChatBlock(BaseBlock):
         def validate_sample(sample_with_index):
             """Validate a single sample's message format."""
             idx, sample = sample_with_index
-            messages = sample[self.messages_column]
+            messages = sample[self.input_cols[0]]
 
             # Validate messages is a list
             if not isinstance(messages, list):
                 raise BlockValidationError(
-                    f"Messages column '{self.messages_column}' must contain a list, "
+                    f"Messages column '{self.input_cols[0]}' must contain a list, "
                     f"got {type(messages)} in row {idx}",
                     details=f"Block: {self.block_name}, Row: {idx}, Value: {messages}",
                 )
@@ -473,5 +474,5 @@ class LLMChatBlock(BaseBlock):
         """String representation of the block."""
         return (
             f"LLMChatBlock(name='{self.block_name}', model='{self.model}', "
-            f"provider='{self.config.get_provider()}', async_mode={self.async_mode})"
+            f"provider='{self.client_manager.config.get_provider()}', async_mode={self.async_mode})"
         )

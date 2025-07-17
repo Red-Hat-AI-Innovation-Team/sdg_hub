@@ -167,10 +167,10 @@ class TestLLMChatBlock:
         )
 
         assert block.block_name == "test_openai"
-        assert block.messages_column == "messages"
-        assert block.output_column == "response"
-        assert block.config.model == "openai/gpt-4"
-        assert block.config.temperature == 0.7
+        assert block.input_cols[0] == "messages"
+        assert block.output_cols[0] == "response"
+        assert block.client_manager.config.model == "openai/gpt-4"
+        assert block.client_manager.config.temperature == 0.7
         assert not block.async_mode
 
     def test_init_anthropic_model(self, mock_litellm_completion):
@@ -183,8 +183,8 @@ class TestLLMChatBlock:
             temperature=0.5,
         )
 
-        assert block.config.model == "anthropic/claude-3-sonnet-20240229"
-        assert block.config.get_provider() == "anthropic"
+        assert block.client_manager.config.model == "anthropic/claude-3-sonnet-20240229"
+        assert block.client_manager.config.get_provider() == "anthropic"
 
     def test_init_local_model(self, mock_litellm_completion):
         """Test initialization with local vLLM model."""
@@ -196,8 +196,8 @@ class TestLLMChatBlock:
             api_base="http://localhost:8000/v1",
         )
 
-        assert block.config.is_local_model()
-        assert block.config.api_base == "http://localhost:8000/v1"
+        assert block.client_manager.config.is_local_model()
+        assert block.client_manager.config.api_base == "http://localhost:8000/v1"
 
     def test_init_async_mode(self, mock_litellm_acompletion):
         """Test initialization with async mode."""
@@ -625,12 +625,12 @@ class TestLLMChatBlockValidation:
         def validate_sample_with_invalid_message(sample_with_index):
             """Validate a single sample's message format with invalid message."""
             idx, sample = sample_with_index
-            messages = sample[block.messages_column]
+            messages = sample[block.input_cols[0]]
 
             # Validate messages is a list
             if not isinstance(messages, list):
                 raise BlockValidationError(
-                    f"Messages column '{block.messages_column}' must contain a list, "
+                    f"Messages column '{block.input_cols[0]}' must contain a list, "
                     f"got {type(messages)} in row {idx}",
                     details=f"Block: {block.block_name}, Row: {idx}, Value: {messages}",
                 )
