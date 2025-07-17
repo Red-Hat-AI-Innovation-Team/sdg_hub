@@ -16,7 +16,6 @@ from pydantic import field_validator
 from ...logger_config import setup_logger
 from ..base import BaseBlock
 from ..registry import BlockRegistry
-from ...utils.error_handling import MissingColumnError
 
 logger = setup_logger(__name__)
 
@@ -65,25 +64,6 @@ class SetToMajorityValue(BaseBlock):
         # Set derived attributes
         self.col_name = self.input_cols[0]  # Use first (and only) input column
 
-    def _validate_custom(self, samples: Dataset) -> None:
-        """Validate that the required column exists in the dataset.
-
-        Parameters
-        ----------
-        samples : Dataset
-            Input dataset to validate.
-
-        Raises
-        ------
-        MissingColumnError
-            If the required column is missing from the dataset.
-        """
-        if self.col_name not in samples.column_names:
-            raise MissingColumnError(
-                block_name=self.block_name,
-                missing_columns=[self.col_name],
-                available_columns=samples.column_names,
-            )
 
     def generate(self, samples: Dataset) -> Dataset:
         """Generate a dataset with column set to majority value.

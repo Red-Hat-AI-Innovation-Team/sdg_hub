@@ -6,8 +6,7 @@ data population, selection, and transformation of datasets.
 """
 
 # Standard
-import operator
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type
 
 # Third Party
 from datasets import Dataset
@@ -19,124 +18,6 @@ from ..logger_config import setup_logger
 
 logger = setup_logger(__name__)
 
-
-@BlockRegistry.register("FilterByValueBlock")
-class FilterByValueBlock(Block):
-    """A block for filtering datasets based on column values.
-
-    This block allows filtering of datasets using various operations (e.g., equals, contains)
-    on specified column values, with optional data type conversion
-    """
-
-    def __init__(
-        self,
-        block_name: str,
-        filter_column: str,
-        filter_value: Union[Any, List[Any]],
-        operation: Callable[[Any, Any], bool],
-        convert_dtype: Optional[Union[Type[float], Type[int]]] = None,
-        **batch_kwargs: Dict[str, Any],
-    ) -> None:
-        """Initialize a new FilterByValueBlock instance.
-
-        Parameters
-        ----------
-        block_name : str
-            Name of the block.
-        filter_column : str
-            The name of the column in the dataset to apply the filter on.
-        filter_value : Union[Any, List[Any]]
-            The value(s) to filter by.
-        operation : Callable[[Any, Any], bool]
-            A binary operator from the operator module (e.g., operator.eq, operator.contains)
-            that takes two arguments and returns a boolean.
-        convert_dtype : Optional[Union[Type[float], Type[int]]], optional
-            Type to convert the filter column to. Can be either float or int.
-            If None, no conversion is performed.
-        **batch_kwargs : Dict[str, Any]
-            Additional kwargs for batch processing.
-
-        Returns
-        -------
-        None
-
-        Raises
-        ------
-        ValueError
-            If the operation is not from the operator module.
-        """
-        super().__init__(block_name=block_name)
-        # Validate that operation is from operator module
-        if operation.__module__ != "_operator":
-            logger.error("Invalid operation: %s", operation)
-            raise ValueError("Operation must be from operator module")
-            
-        self.value = filter_value if isinstance(filter_value, list) else [filter_value]
-        self.column_name = filter_column
-        self.operation = operation
-        self.convert_dtype = convert_dtype
-        self.num_procs = batch_kwargs.get("num_procs", 1)
-
-    def _convert_dtype(self, sample: Dict[str, Any]) -> Dict[str, Any]:
-        """Convert the data type of the filter column.
-
-        Parameters
-        ----------
-        sample : Dict[str, Any]
-            The sample dictionary containing the column to convert.
-
-        Returns
-        -------
-        Dict[str, Any]
-            The sample with converted column value.
-        """
-        try:
-            sample[self.column_name] = self.convert_dtype(sample[self.column_name])
-        except ValueError as e:
-            logger.error(
-                "Error converting dtype: %s, filling with None to be filtered later", e
-            )
-            sample[self.column_name] = None
-        return sample
-
-    def generate(self, samples: Dataset) -> Dataset:
-        """Generate filtered dataset based on specified conditions.
-
-        Parameters
-        ----------
-        samples : Dataset
-            The input dataset to filter.
-
-        Returns
-        -------
-        Dataset
-            The filtered dataset.
-        """
-        if self.convert_dtype:
-            samples = samples.map(
-                self._convert_dtype,
-                num_proc=self.num_procs,
-            )
-
-        if self.operation == operator.contains:
-            samples = samples.filter(
-                lambda x: self.operation(self.value, x[self.column_name]),
-                num_proc=self.num_procs,
-            )
-
-        samples = samples.filter(
-            lambda x: x[self.column_name] is not None,
-            num_proc=self.num_procs,
-        )
-
-        samples = samples.filter(
-            lambda x: any(
-                self.operation(x[self.column_name], value) for value in self.value
-            ),
-            num_proc=self.num_procs,
-        )
-
-        return samples
 
 
 @BlockRegistry.register("SamplePopulatorBlock")
