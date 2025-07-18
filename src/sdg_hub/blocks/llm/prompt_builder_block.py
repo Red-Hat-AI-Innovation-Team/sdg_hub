@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Literal, Optional
 
 # Third Party
 from datasets import Dataset
-from jinja2 import Environment, Template, meta
+from jinja2 import Template, meta
 from pydantic import BaseModel, Field, field_validator
 import yaml
 
@@ -138,9 +138,8 @@ class PromptRenderer:
         required_vars = set()
         for msg_template in self.message_templates:
             # Parse the original source to find undeclared variables
-
-            env = Environment()
-            ast = env.parse(msg_template.original_source)
+            # Use the template's existing environment to ensure consistency
+            ast = msg_template.content_template.environment.parse(msg_template.original_source)
             required_vars.update(meta.find_undeclared_variables(ast))
         return required_vars
 
