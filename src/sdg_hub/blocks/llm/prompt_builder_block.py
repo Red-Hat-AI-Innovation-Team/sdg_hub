@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Literal, Optional
 
 # Third Party
 from datasets import Dataset
-from jinja2 import Template, meta
+from jinja2 import Environment, Template, meta
 from pydantic import BaseModel, Field, field_validator
 import yaml
 
@@ -39,12 +39,179 @@ class ChatMessage(BaseModel):
 
 
 class MessageTemplate(BaseModel):
-    """Template for a chat message with Jinja2 template."""
+    """Template for a chat message with Jinja2 template and original source."""
 
     role: Literal["system", "user", "assistant", "tool"]
     content_template: Template
+    original_source: str
 
     model_config = {"arbitrary_types_allowed": True}
+
+
+class PromptTemplateConfig:
+    """Self-contained class for loading and validating YAML prompt configurations."""
+
+    def __init__(self, config_path: str):
+        """Initialize with path to YAML config file."""
+        self.config_path = config_path
+        self.message_templates: List[MessageTemplate] = []
+        self._load_and_validate()
+
+    def _load_and_validate(self) -> None:
+        """Load YAML config and validate format."""
+        try:
+            with open(self.config_path, "r", encoding="utf-8") as config_file:
+                config = yaml.safe_load(config_file)
+
+                if not isinstance(config, list):
+                    raise ValueError(
+                        "Template config must be a list of message objects"
+                    )
+
+                if not config:
+                    raise ValueError("Prompt configuration cannot be empty")
+
+                self._compile_templates(config)
+                self._validate_message_flow()
+
+        except FileNotFoundError:
+            logger.error(f"Configuration file not found: {self.config_path}")
+            raise
+        except yaml.YAMLError as e:
+            logger.error(f"Error parsing YAML from {self.config_path}: {e}")
+            raise
+        except Exception as e:
+            logger.error(
+                f"Unexpected error reading config file {self.config_path}: {e}"
+            )
+            raise
+
+    def _compile_templates(self, config: List[Dict[str, Any]]) -> None:
+        """Compile Jinja templates for each message in the config."""
+        for i, message in enumerate(config):
+            if "role" not in message or "content" not in message:
+                raise ValueError(
+                    f"Message {i} must have 'role' and 'content' fields. Got: {message.keys()}"
+                )
+
+            try:
+                content_source = message["content"]
+                message_template = MessageTemplate(
+                    role=message["role"],
+                    content_template=Template(content_source),
+                    original_source=content_source,
+                )
+                self.message_templates.append(message_template)
+            except Exception as e:
+                raise ValueError(
+                    f"Failed to compile template for message {i}: {e}"
+                ) from e
+
+    def _validate_message_flow(self) -> None:
+        """Validate that message flow is appropriate for chat completion."""
+        user_messages = [msg for msg in self.message_templates if msg.role == "user"]
+        if not user_messages:
+            raise ValueError(
+                "Template must contain at least one message with role='user' for proper conversation flow."
+            )
+
+        if self.message_templates and self.message_templates[-1].role != "user":
+            raise ValueError(
+                f"The final message must have role='user' for proper chat completion. "
+                f"Got role='{self.message_templates[-1].role}' for the last message."
+            )
+
+    def get_message_templates(self) -> List[MessageTemplate]:
+        """Return the compiled message templates."""
+        return self.message_templates
+
+
+class PromptRenderer:
+    """Handles rendering of message templates with variable substitution."""
+
+    def __init__(self, message_templates: List[MessageTemplate]):
+        """Initialize with a list of message templates."""
+        self.message_templates = message_templates
+
+    def get_required_variables(self) -> set:
+        """Extract all required variables from message templates."""
+        required_vars = set()
+        for msg_template in self.message_templates:
+            # Parse the original source to find undeclared variables
+
+            env = Environment()
+            ast = env.parse(msg_template.original_source)
+            required_vars.update(meta.find_undeclared_variables(ast))
+        return required_vars
+
+    def resolve_template_vars(
+        self, sample: Dict[str, Any], input_cols
+    ) -> Dict[str, Any]:
+        """Resolve template variables from dataset columns based on input_cols.
+
+        Parameters
+        ----------
+        sample : Dict[str, Any]
+            Input sample from dataset.
+        input_cols : Union[str, List[str], Dict[str, str]]
+            Input column specification - now maps dataset columns to template variables.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Template variables mapped from dataset columns.
+        """
+        template_vars = {}
+
+        if isinstance(input_cols, dict):
+            # Map dataset columns to template variables
+            for dataset_col, template_var in input_cols.items():
+                if dataset_col in sample:
+                    template_vars[template_var] = sample[dataset_col]
+                else:
+                    logger.warning(
+                        f"Dataset column '{dataset_col}' not found in sample"
+                    )
+        else:
+            # Use column names directly as template variables
+            for col in input_cols:
+                if col in sample:
+                    template_vars[col] = sample[col]
+                else:
+                    logger.warning(f"Dataset column '{col}' not found in sample")
+
+        return template_vars
+
+    def render_messages(self, template_vars: Dict[str, Any]) -> List[ChatMessage]:
+        """Render all message templates with the given variables.
+
+        Parameters
+        ----------
+        template_vars : Dict[str, Any]
+            Variables to substitute in templates.
+
+        Returns
+        -------
+        List[ChatMessage]
+            List of rendered and validated chat messages.
+        """
+        rendered_messages = []
+
+        for i, msg_template in enumerate(self.message_templates):
+            try:
+                rendered_content = msg_template.content_template.render(
+                    template_vars
+                ).strip()
+                if rendered_content:  # Only add non-empty messages
+                    chat_message = ChatMessage(
+                        role=msg_template.role, content=rendered_content
+                    )
+                    rendered_messages.append(chat_message)
+            except Exception as e:
+                logger.warning(f"Failed to render message {i}: {e}")
+                continue
+
+        return rendered_messages
 
 
 @BlockRegistry.register(
@@ -66,7 +233,7 @@ class PromptBuilderBlock(BaseBlock):
         Input column specification:
         - str: Single column name
         - List[str]: List of column names
-        - Dict[str, str]: Mapping from template variables to dataset column names
+        - Dict[str, str]: Mapping from dataset column names to template variables
     output_cols : str
         Name of the output column where formatted content will be saved.
     prompt_config_path : str
@@ -84,12 +251,12 @@ class PromptBuilderBlock(BaseBlock):
         True, description="Whether to format output as chat messages"
     )
 
-    # Internal fields for loaded config and templates
-    prompt_config: Optional[List[Dict[str, Any]]] = Field(
-        None, description="Loaded prompt configuration", exclude=True
+    # Internal fields for configuration and renderer
+    prompt_template_config: Optional[PromptTemplateConfig] = Field(
+        None, description="Loaded prompt template configuration", exclude=True
     )
-    message_templates: Optional[List[MessageTemplate]] = Field(
-        None, description="Compiled message templates", exclude=True
+    prompt_renderer: Optional[PromptRenderer] = Field(
+        None, description="Prompt renderer instance", exclude=True
     )
 
     @field_validator("output_cols", mode="after")
@@ -104,86 +271,22 @@ class PromptBuilderBlock(BaseBlock):
 
     def model_post_init(self, __context: Any) -> None:
         """Initialize the block after Pydantic validation."""
-        # Load prompt configuration
-        self.prompt_config = self._load_config(self.prompt_config_path)
-        if self.prompt_config is None:
-            raise ValueError(
-                f"Failed to load prompt configuration from {self.prompt_config_path}"
-            )
+        # Load and validate prompt configuration
+        self.prompt_template_config = PromptTemplateConfig(self.prompt_config_path)
 
-        # Compile message templates
-        self._compile_message_templates()
-
-    def _load_config(self, config_path: str) -> Optional[List[Dict[str, Any]]]:
-        """Load the configuration file for this block."""
-        try:
-            with open(config_path, "r", encoding="utf-8") as config_file:
-                try:
-                    config = yaml.safe_load(config_file)
-                    if not isinstance(config, list):
-                        raise ValueError(
-                            "Template config must be a list of message objects"
-                        )
-                    return config
-                except yaml.YAMLError as e:
-                    logger.error(f"Error parsing YAML from {config_path}: {e}")
-                    return None
-        except FileNotFoundError:
-            logger.error(f"Configuration file not found: {config_path}")
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error reading config file {config_path}: {e}")
-            return None
-
-    def _compile_message_templates(self) -> None:
-        """Compile Jinja templates for each message in the config."""
-        self.message_templates = []
-
-        if not self.prompt_config:
-            raise ValueError("Prompt configuration cannot be empty")
-
-        for i, message in enumerate(self.prompt_config):
-            if "role" not in message or "content" not in message:
-                raise ValueError(
-                    f"Message {i} must have 'role' and 'content' fields. Got: {message.keys()}"
-                )
-
-            try:
-                # Validate role using Pydantic's Literal validation
-                message_template = MessageTemplate(
-                    role=message["role"], content_template=Template(message["content"])
-                )
-                self.message_templates.append(message_template)
-            except Exception as e:
-                raise ValueError(
-                    f"Failed to compile template for message {i}: {e}"
-                ) from e
-
-        # Validate that there's at least one user message
-        user_messages = [msg for msg in self.message_templates if msg.role == "user"]
-        if not user_messages:
-            raise ValueError(
-                "Template must contain at least one message with role='user' for proper conversation flow."
-            )
-
-        # Validate that the final message has role="user" for proper chat completion
-        if self.message_templates and self.message_templates[-1].role != "user":
-            raise ValueError(
-                f"The final message must have role='user' for proper chat completion. "
-                f"Got role='{self.message_templates[-1].role}' for the last message."
-            )
+        # Initialize prompt renderer
+        message_templates = self.prompt_template_config.get_message_templates()
+        self.prompt_renderer = PromptRenderer(message_templates)
 
     def _validate_custom(self, dataset: Dataset) -> None:
         if len(dataset) > 0:
             # Get required variables from all message templates
-            required_vars = set()
-            for msg_template in self.message_templates:
-                template = msg_template.content_template
-                ast = template.environment.parse(template.source)
-                required_vars.update(meta.find_undeclared_variables(ast))
+            required_vars = self.prompt_renderer.get_required_variables()
 
             sample = dataset[0]
-            template_vars = self._resolve_template_vars(sample)
+            template_vars = self.prompt_renderer.resolve_template_vars(
+                sample, self.input_cols
+            )
             missing_vars = required_vars - set(template_vars.keys())
 
             if missing_vars:
@@ -192,40 +295,6 @@ class PromptBuilderBlock(BaseBlock):
                     missing_variables=list(missing_vars),
                     available_variables=list(template_vars.keys()),
                 )
-
-    def _resolve_template_vars(self, sample: Dict[str, Any]) -> Dict[str, Any]:
-        """Resolve template variables from dataset columns based on input_cols.
-
-        Parameters
-        ----------
-        sample : Dict[str, Any]
-            Input sample from dataset.
-
-        Returns
-        -------
-        Dict[str, Any]
-            Template variables mapped from dataset columns.
-        """
-        template_vars = {}
-
-        if isinstance(self.input_cols, dict):
-            # Map template variables to dataset columns
-            for template_var, dataset_col in self.input_cols.items():
-                if dataset_col in sample:
-                    template_vars[template_var] = sample[dataset_col]
-                else:
-                    logger.warning(
-                        f"Dataset column '{dataset_col}' not found in sample"
-                    )
-        else:
-            # Use column names directly as template variables
-            for col in self.input_cols:
-                if col in sample:
-                    template_vars[col] = sample[col]
-                else:
-                    logger.warning(f"Dataset column '{col}' not found in sample")
-
-        return template_vars
 
     def _generate(self, sample: Dict[str, Any]) -> Dict[str, Any]:
         """Generate formatted output for a single sample.
@@ -248,24 +317,12 @@ class PromptBuilderBlock(BaseBlock):
 
         try:
             # Step 1: Resolve template variables from dataset columns
-            template_vars = self._resolve_template_vars(sample)
+            template_vars = self.prompt_renderer.resolve_template_vars(
+                sample, self.input_cols
+            )
 
-            # Step 2: Render each message template
-            rendered_messages = []
-            for i, msg_template in enumerate(self.message_templates):
-                try:
-                    rendered_content = msg_template.content_template.render(
-                        template_vars
-                    ).strip()
-                    if rendered_content:  # Only add non-empty messages
-                        # Use Pydantic model for validation
-                        chat_message = ChatMessage(
-                            role=msg_template.role, content=rendered_content
-                        )
-                        rendered_messages.append(chat_message)
-                except Exception as e:
-                    logger.warning(f"Failed to render message {i}: {e}")
-                    continue
+            # Step 2: Render messages using the prompt renderer
+            rendered_messages = self.prompt_renderer.render_messages(template_vars)
 
             # Step 3: Format output based on format_as_messages setting
             if not rendered_messages:
