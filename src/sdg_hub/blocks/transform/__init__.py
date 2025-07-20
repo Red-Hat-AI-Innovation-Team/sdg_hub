@@ -7,10 +7,10 @@ wide-to-long transformations, value selection, and majority value assignment.
 
 from .flatten_columns import FlattenColumnsBlock
 from .index_based_mapper import IndexBasedMapperBlock
-from .set_majority_value import SetToMajorityValue
+from .uniform_col_val_setter import UniformColumnValueSetter
 
 __all__ = [
     "FlattenColumnsBlock",
     "IndexBasedMapperBlock",
-    "SetToMajorityValue",
+    "UniformColumnValueSetter",
 ]
