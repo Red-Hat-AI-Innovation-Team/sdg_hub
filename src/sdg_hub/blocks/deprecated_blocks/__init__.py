@@ -9,9 +9,11 @@ for backwards compatibility. These blocks should not be used in new code.
 from .filter_by_value import FilterByValueBlock
 from .flatten_columns import FlattenColumnsBlock
 from .rename_columns import RenameColumns
+from .set_to_majority_value import SetToMajorityValue
 
 __all__ = [
     "FilterByValueBlock",
     "FlattenColumnsBlock",
     "RenameColumns",
+    "SetToMajorityValue",
 ]
