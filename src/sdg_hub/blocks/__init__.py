@@ -8,6 +8,7 @@ from .block import Block
 from .llmblock import LLMBlock, ConditionalLLMBlock
 from .llm import LLMChatBlock, PromptBuilderBlock, TextParserBlock
 from .filtering import ColumnValueFilterBlock
+from .deprecated_blocks import FilterByValueBlock
 from .utilblocks import (
     SamplePopulatorBlock,
     SelectorBlock,
@@ -22,6 +23,7 @@ from ..registry import BlockRegistry
 __all__ = [
     "Block",
     "ColumnValueFilterBlock",
+    "FilterByValueBlock",  # Deprecated
     "LLMBlock",
     "ConditionalLLMBlock",
     "LLMChatBlock",
