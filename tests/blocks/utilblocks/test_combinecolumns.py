@@ -5,7 +5,7 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks.utilblocks import CombineColumnsBlock
+from sdg_hub.blocks import CombineColumnsBlock
 
 
 @pytest.fixture
@@ -162,5 +162,5 @@ def test_missing_columns():
         output_col="combined",
     )
 
-    with pytest.raises(KeyError):
+    with pytest.raises(ValueError, match="Input column 'missing_col' not found in sample"):
         block.generate(dataset)
