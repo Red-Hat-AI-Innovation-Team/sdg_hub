@@ -22,11 +22,11 @@ logger = setup_logger(__name__)
 
 
 @BlockRegistry.register(
-    "FilterByValueBlock",
+    "ColumnValueFilterBlock",
     "filtering",
     "Filters datasets based on column values using various comparison operations",
 )
-class FilterByValueBlock(BaseBlock):
+class ColumnValueFilterBlock(BaseBlock):
     """A block for filtering datasets based on column values.
 
     This block allows filtering of datasets using various operations (e.g., equals, contains)
@@ -71,7 +71,7 @@ class FilterByValueBlock(BaseBlock):
     def validate_input_cols_not_empty(cls, v):
         """Validate that we have at least one input column."""
         if not v or len(v) == 0:
-            raise ValueError("FilterByValueBlock requires at least one input column")
+            raise ValueError("ColumnValueFilterBlock requires at least one input column")
         return v
 
     def model_post_init(self, __context: Any) -> None:

@@ -7,7 +7,7 @@ This package provides various block implementations for data generation, process
 from .block import Block
 from .llmblock import LLMBlock, ConditionalLLMBlock
 from .llm import LLMChatBlock, PromptBuilderBlock, TextParserBlock
-from .filtering import FilterByValueBlock
+from .filtering import ColumnValueFilterBlock
 from .utilblocks import (
     SamplePopulatorBlock,
     SelectorBlock,
@@ -21,7 +21,7 @@ from ..registry import BlockRegistry
 
 __all__ = [
     "Block",
-    "FilterByValueBlock",
+    "ColumnValueFilterBlock",
     "LLMBlock",
     "ConditionalLLMBlock",
     "LLMChatBlock",

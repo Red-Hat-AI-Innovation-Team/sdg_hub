@@ -1,4 +1,4 @@
-"""Tests for the FilterByValueBlock implementation."""
+"""Tests for the ColumnValueFilterBlock implementation."""
 
 # Standard
 import operator
@@ -8,7 +8,7 @@ from datasets import Dataset, Features, Value
 import pytest
 
 # First Party
-from sdg_hub.blocks import FilterByValueBlock
+from sdg_hub.blocks import ColumnValueFilterBlock
 from sdg_hub.utils.error_handling import EmptyDatasetError, MissingColumnError
 
 
@@ -23,8 +23,8 @@ def sample_dataset():
 
 @pytest.fixture
 def filter_block():
-    """Create a basic FilterByValueBlock instance."""
-    return FilterByValueBlock(
+    """Create a basic ColumnValueFilterBlock instance."""
+    return ColumnValueFilterBlock(
         block_name="test_filter",
         input_cols="age",
         filter_value=30,
@@ -35,8 +35,8 @@ def filter_block():
 
 @pytest.fixture
 def filter_block_with_list():
-    """Create a FilterByValueBlock instance that filters against a list of values."""
-    return FilterByValueBlock(
+    """Create a ColumnValueFilterBlock instance that filters against a list of values."""
+    return ColumnValueFilterBlock(
         block_name="test_filter_list",
         input_cols="age",
         filter_value=[30, 35],
@@ -46,8 +46,8 @@ def filter_block_with_list():
 
 
 def test_filter_block_initialization():
-    """Test FilterByValueBlock initialization."""
-    block = FilterByValueBlock(
+    """Test ColumnValueFilterBlock initialization."""
+    block = ColumnValueFilterBlock(
         block_name="test_init",
         input_cols="age",
         filter_value=30,
@@ -61,9 +61,9 @@ def test_filter_block_initialization():
 
 
 def test_filter_block_with_invalid_operation():
-    """Test FilterByValueBlock initialization with invalid operation."""
+    """Test ColumnValueFilterBlock initialization with invalid operation."""
     with pytest.raises(ValueError, match="Operation must be from operator module"):
-        FilterByValueBlock(
+        ColumnValueFilterBlock(
             block_name="test_invalid_op",
             input_cols="age",
             filter_value=30,
@@ -90,7 +90,7 @@ def test_filter_block_with_list_values(filter_block_with_list, sample_dataset, c
 
 def test_filter_block_with_greater_than():
     """Test filtering with greater than operation."""
-    block = FilterByValueBlock(
+    block = ColumnValueFilterBlock(
         block_name="test_gt",
         input_cols="age",
         filter_value=30,
@@ -108,7 +108,7 @@ def test_filter_block_with_greater_than():
 
 def test_filter_block_with_less_than():
     """Test filtering with less than operation."""
-    block = FilterByValueBlock(
+    block = ColumnValueFilterBlock(
         block_name="test_lt",
         input_cols="age",
         filter_value=35,
@@ -126,7 +126,7 @@ def test_filter_block_with_less_than():
 
 def test_filter_block_with_invalid_column():
     """Test filtering with non-existent column."""
-    block = FilterByValueBlock(
+    block = ColumnValueFilterBlock(
         block_name="test_invalid_col",
         input_cols="nonexistent",
         filter_value=30,
@@ -143,7 +143,7 @@ def test_filter_block_with_invalid_column():
 
 def test_filter_block_with_empty_dataset():
     """Test filtering with an empty dataset."""
-    block = FilterByValueBlock(
+    block = ColumnValueFilterBlock(
         block_name="test_empty",
         input_cols="age",
         filter_value=30,
@@ -160,8 +160,8 @@ def test_filter_block_with_empty_dataset():
 
 
 def test_filter_block_with_multiple_input_cols():
-    """Test FilterByValueBlock with multiple input columns specified."""
-    block = FilterByValueBlock(
+    """Test ColumnValueFilterBlock with multiple input columns specified."""
+    block = ColumnValueFilterBlock(
         block_name="test_multi_input",
         input_cols=["age", "metadata"],  # Filter column is first
         filter_value=30,
@@ -176,7 +176,7 @@ def test_filter_block_with_multiple_input_cols():
 
 def test_filter_block_single_input_col():
     """Test that input_cols works with single column specified."""
-    block = FilterByValueBlock(
+    block = ColumnValueFilterBlock(
         block_name="test_single",
         input_cols="score",
         filter_value=2.0,
@@ -188,9 +188,9 @@ def test_filter_block_single_input_col():
 
 
 def test_filter_block_empty_input_cols():
-    """Test FilterByValueBlock raises error with empty input columns."""
+    """Test ColumnValueFilterBlock raises error with empty input columns."""
     with pytest.raises(ValueError, match="requires at least one input column"):
-        FilterByValueBlock(
+        ColumnValueFilterBlock(
             block_name="test_empty_input",
             input_cols=[],
             filter_value=2.0,
@@ -201,7 +201,7 @@ def test_filter_block_empty_input_cols():
 
 def test_filter_block_with_contains():
     """Test filtering with operator.contains."""
-    block = FilterByValueBlock(
+    block = ColumnValueFilterBlock(
         block_name="test_contains",
         input_cols="text",
         filter_value="world",
@@ -218,7 +218,7 @@ def test_filter_block_with_contains():
 
 def test_filter_block_with_contains_multiple_values():
     """Test filtering with operator.contains and multiple filter values."""
-    block = FilterByValueBlock(
+    block = ColumnValueFilterBlock(
         block_name="test_contains_multi",
         input_cols="text",
         filter_value=["world", "moon"],

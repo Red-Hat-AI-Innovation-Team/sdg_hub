@@ -5,8 +5,8 @@ This module provides blocks for filtering datasets based on various criteria.
 """
 
 # Local
-from .filter_by_value import FilterByValueBlock
+from .column_value_filter import ColumnValueFilterBlock
 
 __all__ = [
-    "FilterByValueBlock",
+    "ColumnValueFilterBlock",
 ]
