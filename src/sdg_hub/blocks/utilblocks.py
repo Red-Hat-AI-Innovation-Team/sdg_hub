@@ -232,48 +232,6 @@ class CombineColumnsBlock(Block):
         return samples
 
 
-@BlockRegistry.register("DuplicateColumns")
-class DuplicateColumns(Block):
-    """Block for duplicating existing columns with new names.
-
-    This block creates copies of existing columns with new names as specified
-    in the columns mapping dictionary.
-
-    Parameters
-    ----------
-    block_name : str
-        Name of the block.
-    columns_map : Dict[str, str]
-        Dictionary mapping existing column names to new column names.
-        Keys are existing column names, values are new column names.
-    """
-
-    def __init__(
-        self,
-        block_name: str,
-        columns_map: Dict[str, str],
-    ) -> None:
-        super().__init__(block_name=block_name)
-        self.columns_map = columns_map
-
-    def generate(self, samples: Dataset) -> Dataset:
-        """Generate a dataset with duplicated columns.
-
-        Parameters
-        ----------
-        samples : Dataset
-            Input dataset to duplicate columns from.
-
-        Returns
-        -------
-        Dataset
-            Dataset with additional duplicated columns.
-        """
-        for col_to_dup in self.columns_map:
-            samples = samples.add_column(
-                self.columns_map[col_to_dup], samples[col_to_dup]
-            )
-        return samples
 
 
 
