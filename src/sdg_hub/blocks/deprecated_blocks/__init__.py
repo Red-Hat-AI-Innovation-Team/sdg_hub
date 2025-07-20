@@ -11,6 +11,8 @@ from .duplicate_columns import DuplicateColumns
 from .filter_by_value import FilterByValueBlock
 from .flatten_columns import FlattenColumnsBlock
 from .rename_columns import RenameColumns
+from .sample_populator import SamplePopulatorBlock
+from .selector import SelectorBlock
 from .set_to_majority_value import SetToMajorityValue
 
 __all__ = [
@@ -19,5 +21,7 @@ __all__ = [
     "FilterByValueBlock",
     "FlattenColumnsBlock",
     "RenameColumns",
+    "SamplePopulatorBlock",
+    "SelectorBlock",
     "SetToMajorityValue",
 ]
