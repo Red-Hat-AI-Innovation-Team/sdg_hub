@@ -16,14 +16,12 @@ from .utilblocks import (
     DuplicateColumns,
     RenameColumns,
     SetToMajorityValue,
-    IterBlock,
 )
 from ..registry import BlockRegistry
 
 __all__ = [
     "Block",
     "FilterByValueBlock",
-    "IterBlock",
     "LLMBlock",
     "ConditionalLLMBlock",
     "LLMChatBlock",
