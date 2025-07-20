@@ -19,7 +19,6 @@ from ..logger_config import setup_logger
 logger = setup_logger(__name__)
 
 
-
 @BlockRegistry.register("SamplePopulatorBlock")
 class SamplePopulatorBlock(Block):
     """Block for populating dataset with data from configuration files.
@@ -233,61 +232,6 @@ class CombineColumnsBlock(Block):
         return samples
 
 
-@BlockRegistry.register("FlattenColumnsBlock")
-class FlattenColumnsBlock(Block):
-    """Block for flattening multiple columns into a long format.
-
-    This block transforms a wide dataset format into a long format by melting
-    specified columns into rows, creating new variable and value columns.
-
-    Parameters
-    ----------
-    block_name : str
-        Name of the block.
-    var_cols : List[str]
-        List of column names to be melted into rows.
-    value_name : str
-        Name of the new column that will contain the values.
-    var_name : str
-        Name of the new column that will contain the variable names.
-    """
-
-    def __init__(
-        self,
-        block_name: str,
-        var_cols: List[str],
-        value_name: str,
-        var_name: str,
-    ) -> None:
-        super().__init__(block_name=block_name)
-        self.var_cols = var_cols
-        self.value_name = value_name
-        self.var_name = var_name
-
-    def generate(self, samples: Dataset) -> Dataset:
-        """Generate a flattened dataset in long format.
-
-        Parameters
-        ----------
-        samples : Dataset
-            Input dataset to flatten.
-
-        Returns
-        -------
-        Dataset
-            Flattened dataset in long format with new variable and value columns.
-        """
-        df = samples.to_pandas()
-        id_cols = [col for col in samples.column_names if col not in self.var_cols]
-        flatten_df = df.melt(
-            id_vars=id_cols,
-            value_vars=self.var_cols,
-            value_name=self.value_name,
-            var_name=self.var_name,
-        )
-        return Dataset.from_pandas(flatten_df)
-
-
 @BlockRegistry.register("DuplicateColumns")
 class DuplicateColumns(Block):
     """Block for duplicating existing columns with new names.
@@ -412,4 +356,3 @@ class SetToMajorityValue(Block):
         samples = samples.to_pandas()
         samples[self.col_name] = samples[self.col_name].mode()[0]
         return Dataset.from_pandas(samples)
-    

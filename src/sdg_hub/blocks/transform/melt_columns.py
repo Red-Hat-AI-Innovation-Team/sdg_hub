@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Flatten columns block for wide-to-long format transformation.
+"""Melt columns block for wide-to-long format transformation.
 
 This module provides a block for transforming wide dataset format into long format
 by melting specified columns into rows.
@@ -22,11 +22,11 @@ logger = setup_logger(__name__)
 
 
 @BlockRegistry.register(
-    "FlattenColumnsBlock",
+    "MeltColumnsBlock",
     "transform",
     "Transforms wide dataset format into long format by melting columns into rows",
 )
-class FlattenColumnsBlock(BaseBlock):
+class MeltColumnsBlock(BaseBlock):
     """Block for flattening multiple columns into a long format.
 
     This block transforms a wide dataset format into a long format by melting
@@ -60,7 +60,7 @@ class FlattenColumnsBlock(BaseBlock):
         """Validate that exactly two output columns are specified."""
         if len(v) != 2:
             raise ValueError(
-                f"FlattenColumnsBlock expects exactly two output columns (value, variable), got {len(v)}: {v}"
+                f"MeltColumnsBlock expects exactly two output columns (value, variable), got {len(v)}: {v}"
             )
         return v
 
@@ -97,7 +97,7 @@ class FlattenColumnsBlock(BaseBlock):
                 available_columns=samples.column_names,
             )
 
-    def generate(self, samples: Dataset) -> Dataset:
+    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
         """Generate a flattened dataset in long format.
 
         Parameters

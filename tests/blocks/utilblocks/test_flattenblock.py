@@ -9,7 +9,7 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks.utilblocks import FlattenColumnsBlock
+from sdg_hub.blocks import FlattenColumnsBlock
 
 
 def test_flatten_columns_basic():
