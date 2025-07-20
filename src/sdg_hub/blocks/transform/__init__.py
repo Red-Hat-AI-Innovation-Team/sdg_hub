@@ -7,10 +7,12 @@ wide-to-long transformations, value selection, and majority value assignment.
 
 from .melt_columns import MeltColumnsBlock
 from .index_based_mapper import IndexBasedMapperBlock
+from .rename_columns import RenameColumnsBlock
 from .uniform_col_val_setter import UniformColumnValueSetter
 
 __all__ = [
     "MeltColumnsBlock",
     "IndexBasedMapperBlock",
+    "RenameColumnsBlock",
     "UniformColumnValueSetter",
 ]

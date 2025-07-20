@@ -276,45 +276,6 @@ class DuplicateColumns(Block):
         return samples
 
 
-@BlockRegistry.register("RenameColumns")
-class RenameColumns(Block):
-    """Block for renaming columns in a dataset.
-
-    This block renames columns in a dataset according to a mapping dictionary,
-    where keys are existing column names and values are new column names.
-
-    Parameters
-    ----------
-    block_name : str
-        Name of the block.
-    columns_map : Dict[str, str]
-        Dictionary mapping existing column names to new column names.
-        Keys are existing column names, values are new column names.
-    """
-
-    def __init__(
-        self,
-        block_name: str,
-        columns_map: Dict[str, str],
-    ) -> None:
-        super().__init__(block_name=block_name)
-        self.columns_map = columns_map
-
-    def generate(self, samples: Dataset) -> Dataset:
-        """Generate a dataset with renamed columns.
-
-        Parameters
-        ----------
-        samples : Dataset
-            Input dataset to rename columns in.
-
-        Returns
-        -------
-        Dataset
-            Dataset with renamed columns.
-        """
-        samples = samples.rename_columns(self.columns_map)
-        return samples
 
 
 @BlockRegistry.register("SetToMajorityValue")

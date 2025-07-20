@@ -6,15 +6,14 @@ This package provides various block implementations for data generation, process
 # Local
 from ..registry import BlockRegistry
 from .block import Block
-from .deprecated_blocks import FilterByValueBlock, FlattenColumnsBlock
+from .deprecated_blocks import FilterByValueBlock, FlattenColumnsBlock, RenameColumns
 from .filtering import ColumnValueFilterBlock
 from .llm import LLMChatBlock, PromptBuilderBlock, TextParserBlock
 from .llmblock import ConditionalLLMBlock, LLMBlock
-from .transform import MeltColumnsBlock
+from .transform import MeltColumnsBlock, RenameColumnsBlock
 from .utilblocks import (
     CombineColumnsBlock,
     DuplicateColumns,
-    RenameColumns,
     SamplePopulatorBlock,
     SelectorBlock,
     SetToMajorityValue,
@@ -24,8 +23,10 @@ __all__ = [
     "Block",
     "ColumnValueFilterBlock",
     "MeltColumnsBlock",
+    "RenameColumnsBlock",
     "FilterByValueBlock",  # Deprecated
     "FlattenColumnsBlock",  # Deprecated
+    "RenameColumns",  # Deprecated
     "LLMBlock",
     "ConditionalLLMBlock",
     "LLMChatBlock",
@@ -34,7 +35,6 @@ __all__ = [
     "SelectorBlock",
     "CombineColumnsBlock",
     "DuplicateColumns",
-    "RenameColumns",
     "SetToMajorityValue",
     "BlockRegistry",
     "PromptBuilderBlock",
