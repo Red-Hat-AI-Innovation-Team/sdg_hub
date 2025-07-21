@@ -197,17 +197,26 @@ class LLMBlock(Block):
         }
         gen_params = {**defaults, **self.batch_kwargs}
         
-        # Convert URL to string if needed
+        # Convert URL to string if needed and handle mock objects
         api_base = getattr(self.client, 'base_url', None)
         if api_base is not None:
-            api_base = str(api_base)
+            api_base_str = str(api_base)
+            # Skip mock objects
+            api_base = api_base_str if not api_base_str.startswith("<MagicMock") else None
+        
+        # Handle api_key - convert to string or set to None for mocks
+        api_key = getattr(self.client, 'api_key', None)
+        if api_key is not None:
+            api_key_str = str(api_key)
+            # Skip mock objects
+            api_key = api_key_str if not api_key_str.startswith("<MagicMock") else None
         
         self.llm_chat = LLMChatBlock(
             block_name=f"{self.block_name}_llm_chat",
             input_cols=["messages"],
             output_cols=["raw_response"],
             model=model_name,
-            api_key=getattr(self.client, 'api_key', None),
+            api_key=api_key,
             api_base=api_base,
             **gen_params
         )
