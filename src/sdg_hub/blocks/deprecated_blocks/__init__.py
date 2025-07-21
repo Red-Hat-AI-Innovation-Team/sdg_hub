@@ -10,6 +10,7 @@ from .combine_columns import CombineColumnsBlock
 from .duplicate_columns import DuplicateColumns
 from .filter_by_value import FilterByValueBlock
 from .flatten_columns import FlattenColumnsBlock
+from .llmblock import LLMBlock
 from .rename_columns import RenameColumns
 from .sample_populator import SamplePopulatorBlock
 from .selector import SelectorBlock
@@ -20,6 +21,7 @@ __all__ = [
     "DuplicateColumns",
     "FilterByValueBlock",
     "FlattenColumnsBlock",
+    "LLMBlock",
     "RenameColumns",
     "SamplePopulatorBlock",
     "SelectorBlock",
