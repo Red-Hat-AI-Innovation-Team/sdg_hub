@@ -18,11 +18,11 @@ import openai
 import yaml
 
 # Local
-from ..block import Block
 from ...logger_config import setup_logger
 from ...registry import BlockRegistry
-from ..llm.prompt_builder_block import PromptBuilderBlock
+from ..block import Block
 from ..llm.llm_chat_block import LLMChatBlock
+from ..llm.prompt_builder_block import PromptBuilderBlock
 from ..llm.text_parser_block import TextParserBlock
 
 logger = setup_logger(__name__)
@@ -54,7 +54,9 @@ def server_supports_batched(client: Any, model_id: str) -> bool:
     except openai.InternalServerError:
         supported = False
     setattr(client, "server_supports_batched", supported)
-    logger.info(f"LLM server supports batched inputs: {getattr(client, 'server_supports_batched', False)}")
+    logger.info(
+        f"LLM server supports batched inputs: {getattr(client, 'server_supports_batched', False)}"
+    )
     return supported
 
 
@@ -101,11 +103,11 @@ class LLMBlock(Block):
             "LLMBlock is deprecated and will be removed in a future version. "
             "Use the new modular approach with PromptBuilderBlock, LLMChatBlock, and TextParserBlock instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
-        
+
         super().__init__(block_name)
-        
+
         # Store original parameters for compatibility
         self.config_path = config_path
         self.client = client
@@ -113,10 +115,10 @@ class LLMBlock(Block):
         self.parser_kwargs = parser_kwargs or {}
         self.model_prompt = model_prompt
         self.batch_kwargs = batch_kwargs.get("batch_kwargs", {})
-        
+
         # Load original config
         self.block_config = self._load_config(config_path)
-        
+
         # Set model
         if model_id:
             self.model = model_id
@@ -126,7 +128,7 @@ class LLMBlock(Block):
 
         # Create temporary config file for new prompt builder
         self._temp_prompt_config = self._create_prompt_config()
-        
+
         # Initialize the three new blocks
         self._setup_internal_blocks()
 
@@ -134,15 +136,12 @@ class LLMBlock(Block):
         """Create a temporary YAML config file for the new PromptBuilderBlock format."""
         # Convert old config format to new message-based format
         messages = []
-        
+
         # Add system message if present
         system_content = self.block_config.get("system")
         if system_content:
-            messages.append({
-                "role": "system",
-                "content": system_content
-            })
-        
+            messages.append({"role": "system", "content": system_content})
+
         # Create user message with the structured prompt
         user_content_parts = []
         for field in ["introduction", "principles", "examples", "generation"]:
@@ -156,13 +155,12 @@ class LLMBlock(Block):
                     user_content_parts.append(f"Examples:\n{field_content}")
                 elif field == "generation":
                     user_content_parts.append(f"Task:\n{field_content}")
-        
+
         if user_content_parts:
-            messages.append({
-                "role": "user",
-                "content": "\n\n".join(user_content_parts)
-            })
-        
+            messages.append(
+                {"role": "user", "content": "\n\n".join(user_content_parts)}
+            )
+
         # Write to temporary file
         temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)
         yaml.safe_dump(messages, temp_file, default_flow_style=False)
@@ -179,9 +177,9 @@ class LLMBlock(Block):
             prompt_config_path=self._temp_prompt_config,
             format_as_messages=True,
             prompt_template_config=None,
-            prompt_renderer=None
+            prompt_renderer=None,
         )
-        
+
         # 2. LLMChatBlock
         # Convert client to LiteLLM format - support OpenAI and hosted_vllm
         if self.model.startswith("openai/") or self.model.startswith("hosted_vllm/"):
@@ -189,28 +187,30 @@ class LLMBlock(Block):
         else:
             # Local/hosted model
             model_name = f"hosted_vllm/{self.model}"
-        
+
         # Extract generation parameters from batch_kwargs and defaults
         defaults = {
             "temperature": 0,
             "max_tokens": 4096,
         }
         gen_params = {**defaults, **self.batch_kwargs}
-        
+
         # Convert URL to string if needed and handle mock objects
-        api_base = getattr(self.client, 'base_url', None)
+        api_base = getattr(self.client, "base_url", None)
         if api_base is not None:
             api_base_str = str(api_base)
             # Skip mock objects
-            api_base = api_base_str if not api_base_str.startswith("<MagicMock") else None
-        
+            api_base = (
+                api_base_str if not api_base_str.startswith("<MagicMock") else None
+            )
+
         # Handle api_key - convert to string or set to None for mocks
-        api_key = getattr(self.client, 'api_key', None)
+        api_key = getattr(self.client, "api_key", None)
         if api_key is not None:
             api_key_str = str(api_key)
             # Skip mock objects
             api_key = api_key_str if not api_key_str.startswith("<MagicMock") else None
-        
+
         self.llm_chat = LLMChatBlock(
             block_name=f"{self.block_name}_llm_chat",
             input_cols=["messages"],
@@ -218,12 +218,12 @@ class LLMBlock(Block):
             model=model_name,
             api_key=api_key,
             api_base=api_base,
-            **gen_params
+            **gen_params,
         )
-        
+
         # 3. TextParserBlock
         parser_config = {}
-        
+
         # Handle parsing configuration
         parser_name = self.parser_kwargs.get("parser_name")
         if parser_name == "custom":
@@ -240,14 +240,14 @@ class LLMBlock(Block):
             if start_tags or end_tags:
                 parser_config["start_tags"] = start_tags
                 parser_config["end_tags"] = end_tags
-        
+
         # Only create parser if we have parsing configuration
         if parser_config:
             self.text_parser: Optional[TextParserBlock] = TextParserBlock(
                 block_name=f"{self.block_name}_text_parser",
                 input_cols=["raw_response"],
                 output_cols=self.output_cols,
-                **parser_config
+                **parser_config,
             )
         else:
             self.text_parser = None
@@ -257,13 +257,17 @@ class LLMBlock(Block):
 
         This method maintains backwards compatibility by internally using the three new blocks.
         """
-        logger.debug("Generating outputs for {} samples using deprecated LLMBlock".format(len(samples)))
-        
+        logger.debug(
+            "Generating outputs for {} samples using deprecated LLMBlock".format(
+                len(samples)
+            )
+        )
+
         # Validate num_samples handling
         num_samples = self.block_config.get("num_samples")
         if (num_samples is not None) and ("num_samples" not in samples.column_names):
             samples = samples.add_column("num_samples", [num_samples] * len(samples))
-        
+
         try:
             # Step 1: Format prompts using PromptBuilderBlock
             # Create a single sample with all column data for template rendering
@@ -272,43 +276,110 @@ class LLMBlock(Block):
                 # Create a sample_data column that contains the entire sample
                 sample_with_data = {"sample_data": sample}
                 formatted_samples.append(sample_with_data)
-            
+
             prompt_dataset = Dataset.from_list(formatted_samples)
             prompt_result = self.prompt_builder.generate(prompt_dataset)
-            
+
             # Step 2: Generate responses using LLMChatBlock
             chat_result = self.llm_chat.generate(prompt_result, **gen_kwargs)
-            
-            # Step 3: Parse responses using TextParserBlock (if configured)
-            if self.text_parser:
-                final_result = self.text_parser.generate(chat_result)
-            else:
-                # If no parser, just rename the raw_response column to the first output column
-                if self.output_cols:
-                    final_result = chat_result.rename_column("raw_response", self.output_cols[0])
-                else:
-                    final_result = chat_result
-            
-            # Step 4: Merge back with original samples and handle num_parallel_samples
+
+            # Step 3: Handle n parameter before parsing
             num_parallel_samples = gen_kwargs.get("n", 1)
-            extended_samples = []
-            
-            # Duplicate each input sample n times
-            for item in samples:
-                extended_samples.extend([item] * num_parallel_samples)
-            
-            # Merge original data with generated outputs
-            merged_data = []
-            for orig_sample, result_sample in zip(extended_samples, final_result):
-                # Combine original sample with generated outputs
-                merged_sample = {**orig_sample}
-                for output_col in self.output_cols:
-                    if output_col in result_sample:
-                        merged_sample[output_col] = result_sample[output_col]
-                merged_data.append(merged_sample)
-            
-            return Dataset.from_list(merged_data)
-            
+
+            if num_parallel_samples > 1:
+                # When n > 1, we need to expand the list responses before parsing
+                # TextParserBlock expects individual strings, not lists
+                expanded_chat_data = []
+
+                for sample in chat_result:
+                    raw_responses = sample["raw_response"]
+                    if isinstance(raw_responses, list):
+                        # Create one row per response
+                        for response in raw_responses:
+                            expanded_sample = {**sample}
+                            expanded_sample["raw_response"] = response
+                            expanded_chat_data.append(expanded_sample)
+                    else:
+                        # Single response (fallback)
+                        expanded_chat_data.append(sample)
+
+                expanded_chat_result = Dataset.from_list(expanded_chat_data)
+
+                # Step 4: Parse the expanded responses using TextParserBlock (if configured)
+                if self.text_parser:
+                    final_result = self.text_parser.generate(expanded_chat_result)
+                else:
+                    # If no parser, just rename the raw_response column to the first output column
+                    if self.output_cols:
+                        final_result = expanded_chat_result.rename_column(
+                            "raw_response", self.output_cols[0]
+                        )
+                    else:
+                        final_result = expanded_chat_result
+
+                # Step 5: Merge with original samples (each original sample maps to n result samples)
+                merged_data = []
+                result_idx = 0
+
+                for orig_sample in samples:
+                    # Each original sample should have n corresponding results
+                    for i in range(num_parallel_samples):
+                        if result_idx < len(final_result):
+                            result_sample = final_result[result_idx]
+                            merged_sample = {**orig_sample}
+                            for output_col in self.output_cols:
+                                if output_col in result_sample:
+                                    merged_sample[output_col] = result_sample[
+                                        output_col
+                                    ]
+                                else:
+                                    merged_sample[output_col] = ""
+                            merged_data.append(merged_sample)
+                            result_idx += 1
+                        else:
+                            # Missing result - create empty
+                            merged_sample = {**orig_sample}
+                            for output_col in self.output_cols:
+                                merged_sample[output_col] = ""
+                            merged_data.append(merged_sample)
+
+                return Dataset.from_list(merged_data)
+
+            else:
+                # Step 4: Parse responses using TextParserBlock (if configured) - n=1 case
+                if self.text_parser:
+                    final_result = self.text_parser.generate(chat_result)
+                else:
+                    # If no parser, just rename the raw_response column to the first output column
+                    if self.output_cols:
+                        final_result = chat_result.rename_column(
+                            "raw_response", self.output_cols[0]
+                        )
+                    else:
+                        final_result = chat_result
+                # Step 5: Merge with original samples for n=1 case
+                merged_data = []
+                for orig_sample, result_sample in zip(samples, final_result):
+                    merged_sample = {**orig_sample}
+                    for output_col in self.output_cols:
+                        if output_col in result_sample:
+                            response = result_sample[output_col]
+                            # Handle case where response might still be a list with 1 item
+                            if isinstance(response, list) and len(response) == 1:
+                                merged_sample[output_col] = response[0]
+                            elif isinstance(response, list):
+                                # Multiple responses but n=1 - take first one
+                                merged_sample[output_col] = (
+                                    response[0] if response else ""
+                                )
+                            else:
+                                merged_sample[output_col] = response
+                        else:
+                            merged_sample[output_col] = ""
+                    merged_data.append(merged_sample)
+
+                return Dataset.from_list(merged_data)
+
         except Exception as e:
             logger.error(f"Error in deprecated LLMBlock generation: {e}")
             # Fall back to empty dataset with proper structure
@@ -323,10 +394,10 @@ class LLMBlock(Block):
     def __del__(self):
         """Clean up temporary files."""
         try:
+            # Standard
             import os
-            if hasattr(self, '_temp_prompt_config'):
+
+            if hasattr(self, "_temp_prompt_config"):
                 os.unlink(self._temp_prompt_config)
         except Exception:
             pass
-
-
