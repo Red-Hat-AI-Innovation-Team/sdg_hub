@@ -6,7 +6,7 @@ using various operations with optional data type conversion.
 """
 
 # Standard
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Union
 import operator
 
 # Third Party
@@ -19,6 +19,24 @@ from ..registry import BlockRegistry
 from ..base import BaseBlock
 
 logger = setup_logger(__name__)
+
+# Supported operations mapping
+OPERATION_MAP = {
+    "eq": operator.eq,
+    "ne": operator.ne,
+    "lt": operator.lt,
+    "le": operator.le,
+    "gt": operator.gt,
+    "ge": operator.ge,
+    "contains": operator.contains,
+    "in": lambda x, y: x in y,  # Reverse contains for "x in y" semantics
+}
+
+# Supported data types mapping
+DTYPE_MAP = {
+    "float": float,
+    "int": int,
+}
 
 
 @BlockRegistry.register(
@@ -40,30 +58,38 @@ class ColumnValueFilterBlock(BaseBlock):
         Input column name(s). The first column will be used for filtering.
     filter_value : Union[Any, List[Any]]
         The value(s) to filter by.
-    operation : Callable[[Any, Any], bool]
-        A binary operator from the operator module (e.g., operator.eq, operator.contains)
-        that takes two arguments and returns a boolean.
-    convert_dtype : Optional[Union[Type[float], Type[int]]], optional
-        Type to convert the filter column to. Can be either float or int.
+    operation : str
+        A string representing the binary operation to perform (e.g., "eq", "contains", "gt").
+        Supported operations: "eq", "ne", "lt", "le", "gt", "ge", "contains", "in".
+    convert_dtype : Optional[str], optional
+        String representation of type to convert the filter column to. Can be "float" or "int".
         If None, no conversion is performed.
     """
 
     filter_value: Union[Any, List[Any]] = Field(
         ..., description="The value(s) to filter by"
     )
-    operation: Callable[[Any, Any], bool] = Field(
-        ..., description="Binary operator from operator module for comparison"
+    operation: str = Field(
+        ..., description="String name of binary operator for comparison (e.g., 'eq', 'contains')"
     )
-    convert_dtype: Optional[Union[Type[float], Type[int]]] = Field(
-        None, description="Type to convert filter column to (float or int)"
+    convert_dtype: Optional[str] = Field(
+        None, description="String name of type to convert filter column to ('float' or 'int')"
     )
 
     @field_validator("operation")
     @classmethod
     def validate_operation(cls, v):
-        """Validate that operation is from operator module."""
-        if v.__module__ != "_operator":
-            raise ValueError("Operation must be from operator module")
+        """Validate that operation is a supported operation string."""
+        if v not in OPERATION_MAP:
+            raise ValueError(f"Unsupported operation '{v}'. Supported operations: {list(OPERATION_MAP.keys())}")
+        return v
+    
+    @field_validator("convert_dtype")
+    @classmethod
+    def validate_convert_dtype(cls, v):
+        """Validate that convert_dtype is a supported type string."""
+        if v is not None and v not in DTYPE_MAP:
+            raise ValueError(f"Unsupported dtype '{v}'. Supported dtypes: {list(DTYPE_MAP.keys())}")
         return v
 
     @field_validator("input_cols", mode="after")
@@ -85,6 +111,12 @@ class ColumnValueFilterBlock(BaseBlock):
         # Set derived attributes
         self.value = self.filter_value if isinstance(self.filter_value, list) else [self.filter_value]
         self.column_name = self.input_cols[0]  # Use first input column for filtering
+        
+        # Convert string operation to actual callable
+        self._operation_func = OPERATION_MAP[self.operation]
+        
+        # Convert string dtype to actual type if specified
+        self._convert_dtype_func = DTYPE_MAP[self.convert_dtype] if self.convert_dtype else None
 
     def _convert_dtype(self, sample: Dict[str, Any]) -> Dict[str, Any]:
         """Convert the data type of the filter column.
@@ -100,7 +132,7 @@ class ColumnValueFilterBlock(BaseBlock):
             The sample with converted column value.
         """
         try:
-            sample[self.column_name] = self.convert_dtype(sample[self.column_name])
+            sample[self.column_name] = self._convert_dtype_func(sample[self.column_name])
         except ValueError as e:
             logger.error(
                 "Error converting dtype: %s, filling with None to be filtered later", e
@@ -108,7 +140,7 @@ class ColumnValueFilterBlock(BaseBlock):
             sample[self.column_name] = None
         return sample
 
-    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
+    def generate(self, samples: Dataset, **_kwargs: Any) -> Dataset:
         """Generate filtered dataset based on specified conditions.
 
         Parameters
@@ -121,7 +153,7 @@ class ColumnValueFilterBlock(BaseBlock):
         Dataset
             The filtered dataset.
         """
-        if self.convert_dtype:
+        if self._convert_dtype_func:
             samples = samples.map(self._convert_dtype)
 
         samples = samples.filter(
@@ -131,7 +163,7 @@ class ColumnValueFilterBlock(BaseBlock):
         # Apply filter operation
         samples = samples.filter(
             lambda x: any(
-                self.operation(x[self.column_name], value) for value in self.value
+                self._operation_func(x[self.column_name], value) for value in self.value
             )
         )
 
