@@ -93,7 +93,7 @@ class TestFlowRegistry:
         
         # Register search path and discover
         FlowRegistry.register_search_path(str(self.test_flow_path))
-        FlowRegistry.discover_flows(force_refresh=True)
+        FlowRegistry._discover_flows(force_refresh=True)
         
         # Should have found the flows
         flows = FlowRegistry.list_flows()
@@ -123,7 +123,7 @@ class TestFlowRegistry:
             yaml.dump(nested_config, f)
         
         FlowRegistry.register_search_path(str(self.test_flow_path))
-        FlowRegistry.discover_flows(force_refresh=True)
+        FlowRegistry._discover_flows(force_refresh=True)
         
         flows = FlowRegistry.list_flows()
         assert len(flows) == 2
@@ -139,7 +139,7 @@ class TestFlowRegistry:
         self.create_test_flow("Valid Flow")
         
         FlowRegistry.register_search_path(str(self.test_flow_path))
-        FlowRegistry.discover_flows(force_refresh=True)
+        FlowRegistry._discover_flows(force_refresh=True)
         
         # Should only find the valid flow
         flows = FlowRegistry.list_flows()
@@ -157,7 +157,7 @@ class TestFlowRegistry:
         self.create_test_flow("Valid Flow")
         
         FlowRegistry.register_search_path(str(self.test_flow_path))
-        FlowRegistry.discover_flows(force_refresh=True)
+        FlowRegistry._discover_flows(force_refresh=True)
         
         # Should only find the valid flow
         flows = FlowRegistry.list_flows()
@@ -170,7 +170,7 @@ class TestFlowRegistry:
         FlowRegistry.register_search_path("/nonexistent/path")
         
         # Should not crash
-        FlowRegistry.discover_flows(force_refresh=True)
+        FlowRegistry._discover_flows(force_refresh=True)
         flows = FlowRegistry.list_flows()
         assert len(flows) == 0
 
@@ -180,7 +180,7 @@ class TestFlowRegistry:
         flow_path = self.create_test_flow("Test Flow")
         
         FlowRegistry.register_search_path(str(self.test_flow_path))
-        FlowRegistry.discover_flows(force_refresh=True)
+        FlowRegistry._discover_flows(force_refresh=True)
         
         # Should return the correct path
         retrieved_path = FlowRegistry.get_flow_path("Test Flow")
@@ -195,7 +195,7 @@ class TestFlowRegistry:
         self.create_test_flow("Test Flow", author="Test Author", tags=["test", "example"])
         
         FlowRegistry.register_search_path(str(self.test_flow_path))
-        FlowRegistry.discover_flows(force_refresh=True)
+        FlowRegistry._discover_flows(force_refresh=True)
         
         # Should return metadata
         metadata = FlowRegistry.get_flow_metadata("Test Flow")
@@ -218,7 +218,7 @@ class TestFlowRegistry:
         self.create_test_flow("Flow B")
         
         FlowRegistry.register_search_path(str(self.test_flow_path))
-        FlowRegistry.discover_flows(force_refresh=True)
+        FlowRegistry._discover_flows(force_refresh=True)
         
         flows = FlowRegistry.list_flows()
         assert len(flows) == 2
@@ -233,7 +233,7 @@ class TestFlowRegistry:
         self.create_test_flow("Mixed Flow", tags=["qa", "summarization"])
         
         FlowRegistry.register_search_path(str(self.test_flow_path))
-        FlowRegistry.discover_flows(force_refresh=True)
+        FlowRegistry._discover_flows(force_refresh=True)
         
         # Search by tag
         qa_flows = FlowRegistry.search_flows(tag="qa")
@@ -256,7 +256,7 @@ class TestFlowRegistry:
         self.create_test_flow("Flow 3", author="Alice Johnson")
         
         FlowRegistry.register_search_path(str(self.test_flow_path))
-        FlowRegistry.discover_flows(force_refresh=True)
+        FlowRegistry._discover_flows(force_refresh=True)
         
         # Search by author (case-insensitive partial match)
         alice_flows = FlowRegistry.search_flows(author="alice")
@@ -280,7 +280,7 @@ class TestFlowRegistry:
         self.create_test_flow("Flow 3", author="Alice", tags=["summarization"])
         
         FlowRegistry.register_search_path(str(self.test_flow_path))
-        FlowRegistry.discover_flows(force_refresh=True)
+        FlowRegistry._discover_flows(force_refresh=True)
         
         # Search with both criteria
         results = FlowRegistry.search_flows(tag="qa", author="Alice")
@@ -296,7 +296,7 @@ class TestFlowRegistry:
         self.create_test_flow("Uncategorized Flow", tags=[])
         
         FlowRegistry.register_search_path(str(self.test_flow_path))
-        FlowRegistry.discover_flows(force_refresh=True)
+        FlowRegistry._discover_flows(force_refresh=True)
         
         categories = FlowRegistry.get_flows_by_category()
         
@@ -339,7 +339,7 @@ class TestFlowRegistry:
         assert len(flows2) == 1
         
         # Force refresh should pick up new flow
-        FlowRegistry.discover_flows(force_refresh=True)
+        FlowRegistry._discover_flows(force_refresh=True)
         flows3 = FlowRegistry.list_flows()
         
         assert len(flows3) == 2
@@ -374,7 +374,7 @@ class TestFlowRegistry:
         FlowRegistry.register_search_path(str(dir1))
         FlowRegistry.register_search_path(str(dir2))
         
-        FlowRegistry.discover_flows(force_refresh=True)
+        FlowRegistry._discover_flows(force_refresh=True)
         
         # Should find flows from both directories
         flows = FlowRegistry.list_flows()

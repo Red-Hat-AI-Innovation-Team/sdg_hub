@@ -205,7 +205,7 @@ class TestFlowIntegration:
         FlowRegistry.register_search_path(str(flows_dir))
         
         # Discover flows
-        FlowRegistry.discover_flows(force_refresh=True)
+        FlowRegistry._discover_flows(force_refresh=True)
         
         # Test listing flows
         flows = FlowRegistry.list_flows()
