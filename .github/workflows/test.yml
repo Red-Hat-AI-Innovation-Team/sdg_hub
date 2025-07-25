@@ -104,6 +104,10 @@ jobs:
         run: |
           tox -e py3-unitcov
 
+      - name: Run integration tests with tox
+        run: |
+          tox -e py3-integration
+
       - name: Remove llama-cpp-python from cache
         if: always()
         run: |
