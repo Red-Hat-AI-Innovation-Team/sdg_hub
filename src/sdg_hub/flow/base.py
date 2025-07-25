@@ -17,6 +17,7 @@ from ..logger_config import setup_logger
 from ..utils.error_handling import EmptyDatasetError, FlowValidationError
 from ..utils.path_resolution import resolve_path
 from .metadata import FlowMetadata, FlowParameter
+from .migration import FlowMigration
 from .validation import FlowValidator
 
 logger = setup_logger(__name__)
@@ -52,6 +53,10 @@ class Flow(BaseModel):
     )
 
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
+    
+    # Private attributes (not serialized)
+    _migrated_runtime_params: Dict[str, Dict[str, Any]] = {}
+    _llm_client: Any = None  # Only used for backward compatibility with old YAMLs
 
     @field_validator("blocks")
     @classmethod
@@ -112,13 +117,16 @@ class Flow(BaseModel):
         return self
 
     @classmethod
-    def from_yaml(cls, yaml_path: str) -> "Flow":
+    def from_yaml(cls, yaml_path: str, client: Any = None) -> "Flow":
         """Load flow from YAML configuration file.
 
         Parameters
         ----------
         yaml_path : str
             Path to the YAML flow configuration file.
+        client : Any, optional
+            LLM client instance. Required for backward compatibility with old format YAMLs
+            that use deprecated LLMBlocks. Ignored for new format YAMLs.
 
         Returns
         -------
@@ -138,6 +146,15 @@ class Flow(BaseModel):
             raise FileNotFoundError(f"Flow file not found: {yaml_path}") from exc
         except yaml.YAMLError as exc:
             raise FlowValidationError(f"Invalid YAML in {yaml_path}: {exc}") from exc
+
+        # Check if this is an old format flow and migrate if necessary
+        migrated_runtime_params = None
+        is_old_format = FlowMigration.is_old_format(flow_config)
+        if is_old_format:
+            logger.info(f"Detected old format flow, migrating: {yaml_path}")
+            if client is None:
+                logger.warning("Old format YAML detected but no client provided. LLMBlocks may fail.")
+            flow_config, migrated_runtime_params = FlowMigration.migrate_to_new_format(flow_config, yaml_path)
 
         # Validate YAML structure
         validator = FlowValidator()
@@ -190,6 +207,13 @@ class Flow(BaseModel):
 
         for i, block_config in enumerate(block_configs):
             try:
+                # Inject client for deprecated LLMBlocks if this is an old format flow
+                if is_old_format and block_config.get("block_type") == "LLMBlock" and client is not None:
+                    if "block_config" not in block_config:
+                        block_config["block_config"] = {}
+                    block_config["block_config"]["client"] = client
+                    logger.debug(f"Injected client for deprecated LLMBlock: {block_config['block_config'].get('block_name')}")
+                
                 block = cls._create_block_from_config(block_config, yaml_dir)
                 blocks.append(block)
             except Exception as exc:
@@ -199,7 +223,13 @@ class Flow(BaseModel):
 
         # Create and validate the flow
         try:
-            return cls(blocks=blocks, metadata=metadata, parameters=parameters)
+            flow = cls(blocks=blocks, metadata=metadata, parameters=parameters)
+            # Store migrated runtime params and client for backward compatibility
+            if migrated_runtime_params:
+                flow._migrated_runtime_params = migrated_runtime_params
+            if is_old_format and client is not None:
+                flow._llm_client = client
+            return flow
         except Exception as exc:
             raise FlowValidationError(f"Flow validation failed: {exc}") from exc
 
@@ -329,7 +359,11 @@ class Flow(BaseModel):
         )
 
         current_dataset = dataset
-        runtime_params = runtime_params or {}
+        # Merge migrated runtime params with provided ones (provided ones take precedence)
+        merged_runtime_params = self._migrated_runtime_params.copy()
+        if runtime_params:
+            merged_runtime_params.update(runtime_params)
+        runtime_params = merged_runtime_params
 
         # Execute blocks in sequence
         for i, block in enumerate(self.blocks):
