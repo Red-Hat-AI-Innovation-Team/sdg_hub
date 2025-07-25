@@ -7,7 +7,7 @@
 - block_type: LLMBlock
   block_config:
     block_name: gen_detailed_summary
-    config_path: configs/knowledge_ja/detailed_summary_ja.yaml
+    config_path: configs/prompts/detailed_summary_ja.yaml
     model_id: microsoft/phi-4
     output_cols:
       - summary_detailed
@@ -17,7 +17,7 @@
 - block_type: LLMBlock
   block_config:
     block_name: gen_atomic_facts
-    config_path: configs/knowledge_ja/atomic_facts_ja.yaml
+    config_path: configs/prompts/atomic_facts_ja.yaml
     model_id: microsoft/phi-4
     output_cols:
       - summary_atomic_facts
@@ -27,7 +27,7 @@
 - block_type: LLMBlock
   block_config:
     block_name: gen_extractive_summary
-    config_path: configs/knowledge_ja/extractive_summary_ja.yaml
+    config_path: configs/prompts/extractive_summary_ja.yaml
     model_id: microsoft/phi-4
     output_cols:
       - summary_extractive
@@ -55,7 +55,7 @@
 - block_type: LLMBlock
   block_config:
     block_name: knowledge generation
-    config_path: configs/knowledge_ja/generate_questions_responses_ja.yaml
+    config_path: configs/prompts/generate_questions_responses_ja.yaml
     model_id: microsoft/phi-4
     output_cols:
       - question
