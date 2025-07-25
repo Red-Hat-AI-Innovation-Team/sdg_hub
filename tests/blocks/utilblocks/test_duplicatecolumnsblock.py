@@ -5,7 +5,7 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks.utilblocks import DuplicateColumns
+from sdg_hub.blocks import DuplicateColumns
 
 
 @pytest.fixture
@@ -51,19 +51,15 @@ def test_duplicate_multiple_columns(sample_dataset):
     assert result["document"] == result["base_document"]
     assert result["other_col"] == result["duplicate_other_col"]
     # Check that the mapping is exact (no extra columns)
-    assert len(result.column_names) == len(sample_dataset.column_names) + len(block.columns_map)
+    columns_map = {"document": "base_document", "other_col": "duplicate_other_col"}
+    assert len(result.column_names) == len(sample_dataset.column_names) + len(columns_map)
 
 
-def test_empty_columns_map(sample_dataset):
+def test_empty_columns_map():
     """Test with empty columns map."""
-    block = DuplicateColumns(block_name="test_empty", columns_map={})
-
-    result = block.generate(sample_dataset)
-
-    # Check that dataset remains unchanged
-    assert set(result.column_names) == set(sample_dataset.column_names)
-    assert result["document"] == sample_dataset["document"]
-    assert result["other_col"] == sample_dataset["other_col"]
+    # New implementation doesn't allow empty columns_map
+    with pytest.raises(Exception):  # ValidationError or similar
+        DuplicateColumns(block_name="test_empty", columns_map={})
 
 
 def test_nonexistent_column():
@@ -73,7 +69,7 @@ def test_nonexistent_column():
         block_name="test_nonexistent", columns_map={"nonexistent_col": "new_col"}
     )
 
-    with pytest.raises(KeyError):
+    with pytest.raises(ValueError, match="Source column 'nonexistent_col' not found in dataset"):
         block.generate(dataset)
 
 

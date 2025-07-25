@@ -2,7 +2,7 @@
 """Client manager for LLM operations supporting all providers via LiteLLM."""
 
 # Standard
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import asyncio
 
 # Third Party
@@ -107,7 +107,7 @@ class LLMClientManager:
 
     def create_completion(
         self, messages: List[Dict[str, Any]], **overrides: Any
-    ) -> str:
+    ) -> Union[str, List[str]]:
         """Create a completion using LiteLLM.
 
         Parameters
@@ -119,8 +119,9 @@ class LLMClientManager:
 
         Returns
         -------
-        str
-            The completion text.
+        Union[str, List[str]]
+            The completion text(s). Returns a single string when n=1 or n is None,
+            returns a list of strings when n>1.
 
         Raises
         ------
@@ -149,11 +150,16 @@ class LLMClientManager:
         response = completion_func(kwargs)
 
         # Extract content from response
-        return response.choices[0].message.content
+        # Check if n > 1 to determine return type
+        n_value = final_config.n or 1
+        if n_value > 1:
+            return [choice.message.content for choice in response.choices]
+        else:
+            return response.choices[0].message.content
 
     async def acreate_completion(
         self, messages: List[Dict[str, Any]], **overrides: Any
-    ) -> str:
+    ) -> Union[str, List[str]]:
         """Create an async completion using LiteLLM.
 
         Parameters
@@ -165,8 +171,9 @@ class LLMClientManager:
 
         Returns
         -------
-        str
-            The completion text.
+        Union[str, List[str]]
+            The completion text(s). Returns a single string when n=1 or n is None,
+            returns a list of strings when n>1.
 
         Raises
         ------
@@ -195,11 +202,16 @@ class LLMClientManager:
         response = await completion_func(kwargs)
 
         # Extract content from response
-        return response.choices[0].message.content
+        # Check if n > 1 to determine return type
+        n_value = final_config.n or 1
+        if n_value > 1:
+            return [choice.message.content for choice in response.choices]
+        else:
+            return response.choices[0].message.content
 
     def create_completions_batch(
         self, messages_list: List[List[Dict[str, Any]]], **overrides: Any
-    ) -> List[str]:
+    ) -> List[Union[str, List[str]]]:
         """Create multiple completions in batch.
 
         Parameters
@@ -211,8 +223,9 @@ class LLMClientManager:
 
         Returns
         -------
-        List[str]
-            List of completion texts.
+        List[Union[str, List[str]]]
+            List of completion texts. Each element is a single string when n=1 or n is None,
+            or a list of strings when n>1.
         """
         results = []
         for messages in messages_list:
@@ -222,7 +235,7 @@ class LLMClientManager:
 
     async def acreate_completions_batch(
         self, messages_list: List[List[Dict[str, Any]]], **overrides: Any
-    ) -> List[str]:
+    ) -> List[Union[str, List[str]]]:
         """Create multiple completions in batch asynchronously.
 
         Parameters
@@ -234,8 +247,9 @@ class LLMClientManager:
 
         Returns
         -------
-        List[str]
-            List of completion texts.
+        List[Union[str, List[str]]]
+            List of completion texts. Each element is a single string when n=1 or n is None,
+            or a list of strings when n>1.
         """
         tasks = [
             self.acreate_completion(messages, **overrides) for messages in messages_list

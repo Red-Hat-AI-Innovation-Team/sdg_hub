@@ -6,27 +6,223 @@ including conversion to OpenAI Messages format and template rendering.
 """
 
 # Standard
-import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional
 
 # Third Party
 from datasets import Dataset
-from jinja2 import Template
+from jinja2 import Template, meta
+from pydantic import BaseModel, Field, field_validator
+import yaml
 
 # Local
 from ...logger_config import setup_logger
-from ...registry import BlockRegistry
-from ..block import Block
+from ...utils.error_handling import TemplateValidationError
+from ..base import BaseBlock
+from ..registry import BlockRegistry
 
 logger = setup_logger(__name__)
 
 
-@BlockRegistry.register("PromptBuilderBlock")
-class PromptBuilderBlock(Block):
+class ChatMessage(BaseModel):
+    """Pydantic model for chat messages with proper validation."""
+
+    role: Literal["system", "user", "assistant", "tool"]
+    content: str
+
+    @field_validator("content")
+    @classmethod
+    def validate_content_not_empty(cls, v: str) -> str:
+        """Ensure content is not empty or just whitespace."""
+        if not v or not v.strip():
+            raise ValueError("Message content cannot be empty")
+        return v.strip()
+
+
+class MessageTemplate(BaseModel):
+    """Template for a chat message with Jinja2 template and original source."""
+
+    role: Literal["system", "user", "assistant", "tool"]
+    content_template: Template
+    original_source: str
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class PromptTemplateConfig:
+    """Self-contained class for loading and validating YAML prompt configurations."""
+
+    def __init__(self, config_path: str):
+        """Initialize with path to YAML config file."""
+        self.config_path = config_path
+        self.message_templates: List[MessageTemplate] = []
+        self._load_and_validate()
+
+    def _load_and_validate(self) -> None:
+        """Load YAML config and validate format."""
+        try:
+            with open(self.config_path, "r", encoding="utf-8") as config_file:
+                config = yaml.safe_load(config_file)
+
+                if not isinstance(config, list):
+                    raise ValueError(
+                        "Template config must be a list of message objects"
+                    )
+
+                if not config:
+                    raise ValueError("Prompt configuration cannot be empty")
+
+                self._compile_templates(config)
+                self._validate_message_flow()
+
+        except FileNotFoundError:
+            logger.error(f"Configuration file not found: {self.config_path}")
+            raise
+        except yaml.YAMLError as e:
+            logger.error(f"Error parsing YAML from {self.config_path}: {e}")
+            raise
+        except Exception as e:
+            logger.error(
+                f"Unexpected error reading config file {self.config_path}: {e}"
+            )
+            raise
+
+    def _compile_templates(self, config: List[Dict[str, Any]]) -> None:
+        """Compile Jinja templates for each message in the config."""
+        for i, message in enumerate(config):
+            if "role" not in message or "content" not in message:
+                raise ValueError(
+                    f"Message {i} must have 'role' and 'content' fields. Got: {message.keys()}"
+                )
+
+            try:
+                content_source = message["content"]
+                message_template = MessageTemplate(
+                    role=message["role"],
+                    content_template=Template(content_source),
+                    original_source=content_source,
+                )
+                self.message_templates.append(message_template)
+            except Exception as e:
+                raise ValueError(
+                    f"Failed to compile template for message {i}: {e}"
+                ) from e
+
+    def _validate_message_flow(self) -> None:
+        """Validate that message flow is appropriate for chat completion."""
+        user_messages = [msg for msg in self.message_templates if msg.role == "user"]
+        if not user_messages:
+            raise ValueError(
+                "Template must contain at least one message with role='user' for proper conversation flow."
+            )
+
+        if self.message_templates and self.message_templates[-1].role != "user":
+            raise ValueError(
+                f"The final message must have role='user' for proper chat completion. "
+                f"Got role='{self.message_templates[-1].role}' for the last message."
+            )
+
+    def get_message_templates(self) -> List[MessageTemplate]:
+        """Return the compiled message templates."""
+        return self.message_templates
+
+
+class PromptRenderer:
+    """Handles rendering of message templates with variable substitution."""
+
+    def __init__(self, message_templates: List[MessageTemplate]):
+        """Initialize with a list of message templates."""
+        self.message_templates = message_templates
+
+    def get_required_variables(self) -> set:
+        """Extract all required variables from message templates."""
+        required_vars = set()
+        for msg_template in self.message_templates:
+            # Parse the original source to find undeclared variables
+            # Use the template's existing environment to ensure consistency
+            ast = msg_template.content_template.environment.parse(msg_template.original_source)
+            required_vars.update(meta.find_undeclared_variables(ast))
+        return required_vars
+
+    def resolve_template_vars(
+        self, sample: Dict[str, Any], input_cols
+    ) -> Dict[str, Any]:
+        """Resolve template variables from dataset columns based on input_cols.
+
+        Parameters
+        ----------
+        sample : Dict[str, Any]
+            Input sample from dataset.
+        input_cols : Union[str, List[str], Dict[str, str]]
+            Input column specification - now maps dataset columns to template variables.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Template variables mapped from dataset columns.
+        """
+        template_vars = {}
+
+        if isinstance(input_cols, dict):
+            # Map dataset columns to template variables
+            for dataset_col, template_var in input_cols.items():
+                if dataset_col in sample:
+                    template_vars[template_var] = sample[dataset_col]
+                else:
+                    logger.warning(
+                        f"Dataset column '{dataset_col}' not found in sample"
+                    )
+        else:
+            # Use column names directly as template variables
+            for col in input_cols:
+                if col in sample:
+                    template_vars[col] = sample[col]
+                else:
+                    logger.warning(f"Dataset column '{col}' not found in sample")
+
+        return template_vars
+
+    def render_messages(self, template_vars: Dict[str, Any]) -> List[ChatMessage]:
+        """Render all message templates with the given variables.
+
+        Parameters
+        ----------
+        template_vars : Dict[str, Any]
+            Variables to substitute in templates.
+
+        Returns
+        -------
+        List[ChatMessage]
+            List of rendered and validated chat messages.
+        """
+        rendered_messages = []
+
+        for i, msg_template in enumerate(self.message_templates):
+            try:
+                rendered_content = msg_template.content_template.render(
+                    template_vars
+                ).strip()
+                if rendered_content:  # Only add non-empty messages
+                    chat_message = ChatMessage(
+                        role=msg_template.role, content=rendered_content
+                    )
+                    rendered_messages.append(chat_message)
+            except Exception as e:
+                logger.warning(f"Failed to render message {i}: {e}")
+                continue
+
+        return rendered_messages
+
+
+@BlockRegistry.register(
+    "PromptBuilderBlock",
+    "llm",
+    "Formats prompts into structured chat messages or plain text using Jinja templates",
+)
+class PromptBuilderBlock(BaseBlock):
     """Block for formatting prompts into structured chat messages or plain text.
 
-    This block takes input from dataset columns, applies a Jinja template from a YAML config,
-    and outputs either structured chat messages or formatted text.
+    This block takes input from dataset columns, applies Jinja templates from a YAML config
+    containing a list of messages, and outputs either structured chat messages or formatted text.
 
     Parameters
     ----------
@@ -36,235 +232,75 @@ class PromptBuilderBlock(Block):
         Input column specification:
         - str: Single column name
         - List[str]: List of column names
-        - Dict[str, str]: Mapping from template variables to dataset column names
+        - Dict[str, str]: Mapping from dataset column names to template variables
     output_cols : str
         Name of the output column where formatted content will be saved.
     prompt_config_path : str
-        Path to YAML file containing the Jinja template configuration.
+        Path to YAML file containing list of message objects with 'role' and 'content' fields.
     format_as_messages : bool, optional
         Whether to format output as chat messages (default True).
         If True, outputs List[Dict[str, str]] with 'role' and 'content' keys.
-        If False, outputs the rendered template as a plain string.
-    default_role : str, optional
-        Default role for messages when format_as_messages=True, by default "user".
+        If False, outputs concatenated string with role prefixes.
     """
 
-    def __init__(
-        self,
-        block_name: str,
-        input_cols: Union[str, List[str], Dict[str, str]],
-        output_cols: str,
-        prompt_config_path: str,
-        format_as_messages: bool = True,
-        default_role: str = "user",
-    ) -> None:
-        super().__init__(block_name)
-        self.input_cols = input_cols
-        # Process input column specifications
-        self._process_input_cols()
-        self.output_cols = (
-            output_cols if isinstance(output_cols, str) else output_cols[0]
-        )
+    prompt_config_path: str = Field(
+        ..., description="Path to YAML file containing the Jinja template configuration"
+    )
+    format_as_messages: bool = Field(
+        True, description="Whether to format output as chat messages"
+    )
 
-        self.prompt_config_path = prompt_config_path
-        self.format_as_messages = format_as_messages
-        self.default_role = default_role
+    # Internal fields for configuration and renderer
+    prompt_template_config: Optional[PromptTemplateConfig] = Field(
+        None, description="Loaded prompt template configuration", exclude=True
+    )
+    prompt_renderer: Optional[PromptRenderer] = Field(
+        None, description="Prompt renderer instance", exclude=True
+    )
 
-        # Load prompt configuration
-        self.prompt_config = self._load_config(prompt_config_path)
-
-        # Build the prompt structure from config
-        prompt_struct = """{introduction}\n{principles}\n{examples}\n{generation}"""
-
-        # Filter out None values and create the template
-        filtered_config = {
-            k: (v if v is not None else "") for k, v in self.prompt_config.items()
-        }
-        self.prompt_template = Template(prompt_struct.format(**filtered_config))
-
-    def _process_input_cols(self) -> None:
-        """Process input column specifications into standardized format."""
-        if isinstance(self.input_cols, str):
-            self.input_col_map = {self.input_cols: self.input_cols}
-        elif isinstance(self.input_cols, list):
-            self.input_col_map = {col: col for col in self.input_cols}
-        elif isinstance(self.input_cols, dict):
-            self.input_col_map = self.input_cols
-        else:
-            raise ValueError("input_cols must be str, list, or dict")
-
-    def _resolve_template_vars(self, sample: Dict[str, Any]) -> Dict[str, Any]:
-        """Resolve template variables from dataset columns based on input_col_map.
-
-        Parameters
-        ----------
-        sample : Dict[str, Any]
-            Input sample from dataset.
-
-        Returns
-        -------
-        Dict[str, Any]
-            Template variables mapped from dataset columns.
-        """
-        template_vars = {}
-        for template_var, dataset_col in self.input_col_map.items():
-            if dataset_col in sample:
-                template_vars[template_var] = sample[dataset_col]
-            else:
-                logger.warning(f"Dataset column '{dataset_col}' not found in sample")
-        return template_vars
-
-    def _validate_message_role(self, role: str) -> str:
-        """Validate and normalize message role.
-
-        Parameters
-        ----------
-        role : str
-            The role to validate.
-
-        Returns
-        -------
-        str
-            Validated role, defaults to 'user' if invalid.
-        """
-        valid_roles = {"system", "user", "assistant", "tool"}
-        if role.lower() in valid_roles:
-            return role.lower()
-        else:
-            logger.warning(f"Invalid role '{role}', defaulting to 'user'")
-            return "user"
-
-    def _format_message_content(self, content: Any) -> Union[str, List[Dict[str, Any]]]:
-        """Format message content for OpenAI API.
-
-        Parameters
-        ----------
-        content : Any
-            Content to format (string, dict, or list).
-
-        Returns
-        -------
-        Union[str, List[Dict[str, Any]]]
-            Formatted content compatible with OpenAI API.
-        """
-        if isinstance(content, str):
-            return content.strip()
-        elif isinstance(content, dict):
-            # Handle structured content blocks (e.g., images, tool calls)
-            return [content]
-        elif isinstance(content, list):
-            # Handle multiple content blocks
-            formatted_blocks = []
-            for block in content:
-                if isinstance(block, dict):
-                    formatted_blocks.append(block)
-                elif isinstance(block, str) and block.strip():
-                    formatted_blocks.append({"type": "text", "text": block.strip()})
-            return formatted_blocks if formatted_blocks else ""
-        else:
-            # Convert other types to string
-            return str(content).strip()
-
-    def _create_openai_message(
-        self, role: str, content: Any
-    ) -> Optional[Dict[str, Any]]:
-        """Create a single OpenAI message with proper validation.
-
-        Parameters
-        ----------
-        role : str
-            Message role (system, user, assistant, tool).
-        content : Any
-            Message content.
-
-        Returns
-        -------
-        Optional[Dict[str, Any]]
-            OpenAI message dict or None if content is empty.
-        """
-        validated_role = self._validate_message_role(role)
-        formatted_content = self._format_message_content(content)
-
-        # Skip empty content
-        if not formatted_content:
-            return None
-
-        message = {"role": validated_role, "content": formatted_content}
-
-        # Add additional fields for specific roles if needed
-        if validated_role == "tool":
-            # Tool messages require tool_call_id (would need to be provided)
-            logger.warning(
-                "Tool messages require tool_call_id - this may cause API errors"
+    @field_validator("output_cols", mode="after")
+    @classmethod
+    def validate_single_output_col(cls, v):
+        """Validate that exactly one output column is specified."""
+        if len(v) != 1:
+            raise ValueError(
+                f"PromptBuilderBlock expects exactly one output column, got {len(v)}: {v}"
             )
+        return v
 
-        return message
+    def model_post_init(self, __context: Any) -> None:
+        """Initialize the block after Pydantic validation."""
+        # Load and validate prompt configuration
+        self.prompt_template_config = PromptTemplateConfig(self.prompt_config_path)
 
-    def _convert_to_openai_messages(
-        self,
-        rendered_content: str,
-        template_vars: Dict[str, Any],
-        system_message: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
-        """Convert rendered content to OpenAI Messages format with robust handling.
+        # Initialize prompt renderer
+        message_templates = self.prompt_template_config.get_message_templates()
+        self.prompt_renderer = PromptRenderer(message_templates)
 
-        This function creates a properly formatted list of OpenAI messages with:
-        - Validation of roles and content
-        - Support for complex content blocks
-        - Proper handling of system messages
-        - Error handling and logging
+    def _validate_custom(self, dataset: Dataset) -> None:
+        if len(dataset) > 0:
+            # Get required variables from all message templates
+            required_vars = self.prompt_renderer.get_required_variables()
 
-        Parameters
-        ----------
-        rendered_content : str
-            The rendered template content.
-        template_vars : Dict[str, Any]
-            Template variables used for rendering.
-        system_message : Optional[str], optional
-            Optional system message to prepend.
+            sample = dataset[0]
+            template_vars = self.prompt_renderer.resolve_template_vars(
+                sample, self.input_cols
+            )
+            missing_vars = required_vars - set(template_vars.keys())
 
-        Returns
-        -------
-        List[Dict[str, Any]]
-            List of OpenAI-compatible message dictionaries.
-        """
-        messages = []
-
-        # Handle system message from config or parameter
-        system_content = system_message or self.prompt_config.get("system", "")
-        if system_content and system_content.strip():
-            try:
-                # Render system message with template variables if it contains template syntax
-                if "{{" in system_content or "{%" in system_content:
-                    system_template = Template(system_content)
-                    rendered_system = system_template.render(template_vars)
-                else:
-                    rendered_system = system_content
-
-                system_msg = self._create_openai_message("system", rendered_system)
-                if system_msg:
-                    messages.append(system_msg)
-            except Exception as e:
-                logger.warning(f"Failed to render system message: {e}")
-
-        # Handle main content
-        if rendered_content and rendered_content.strip():
-            main_msg = self._create_openai_message(self.default_role, rendered_content)
-            if main_msg:
-                messages.append(main_msg)
-
-        # Validate final message list
-        if not messages:
-            logger.warning("No valid messages generated")
-
-        return messages
+            if missing_vars:
+                raise TemplateValidationError(
+                    block_name=self.block_name,
+                    missing_variables=list(missing_vars),
+                    available_variables=list(template_vars.keys()),
+                )
 
     def _generate(self, sample: Dict[str, Any]) -> Dict[str, Any]:
         """Generate formatted output for a single sample.
 
         1. Resolve columns needed for prompt templating
-        2. Populate template with values to get formatted string
-        3. Convert to OpenAI Messages format if required
+        2. Render each message template with the variables
+        3. Format as messages or concatenated string based on format_as_messages
 
         Parameters
         ----------
@@ -276,47 +312,44 @@ class PromptBuilderBlock(Block):
         Dict[str, Any]
             Sample with formatted output added to specified output column.
         """
+        output_col = self.output_cols[0]
+
         try:
             # Step 1: Resolve template variables from dataset columns
-            template_vars = self._resolve_template_vars(sample)
+            template_vars = self.prompt_renderer.resolve_template_vars(
+                sample, self.input_cols
+            )
 
-            # Step 2: Validate and render the template
-            if self._validate(self.prompt_template, template_vars):
-                rendered_content = self.prompt_template.render(template_vars).strip()
+            # Step 2: Render messages using the prompt renderer
+            rendered_messages = self.prompt_renderer.render_messages(template_vars)
 
-                if rendered_content:
-                    # Step 3: Format output based on format_as_messages setting
-                    if self.format_as_messages:
-                        # Convert to OpenAI Messages format with robust handling
-                        formatted_output = self._convert_to_openai_messages(
-                            rendered_content, template_vars
-                        )
-                    else:
-                        # Keep as plain string
-                        formatted_output = rendered_content
-
-                    sample[self.output_cols] = formatted_output
-                else:
-                    logger.warning(f"Sample produced no content: {sample}")
-                    sample[self.output_cols] = [] if self.format_as_messages else ""
+            # Step 3: Format output based on format_as_messages setting
+            if not rendered_messages:
+                logger.warning(f"No valid messages generated for sample: {sample}")
+                sample[output_col] = [] if self.format_as_messages else ""
+            elif self.format_as_messages:
+                # Convert to dict format for serialization
+                sample[output_col] = [msg.model_dump() for msg in rendered_messages]
             else:
-                logger.warning(f"Sample failed template validation: {sample}")
-                sample[self.output_cols] = [] if self.format_as_messages else ""
+                # Concatenate all messages into a single string
+                sample[output_col] = "\n\n".join(
+                    [f"{msg.role}: {msg.content}" for msg in rendered_messages]
+                )
 
         except Exception as e:
-            logger.warning(f"Failed to format sample: {sample}. Error: {e}")
-            sample[self.output_cols] = [] if self.format_as_messages else ""
+            logger.error(f"Failed to format sample: {e}")
+            sample[output_col] = [] if self.format_as_messages else ""
 
         return sample
 
-    def generate(self, samples: Dataset) -> Dataset:
+    def generate(self, samples: Dataset, **_kwargs: Any) -> Dataset:
         """Generate formatted output for all samples using dataset map.
 
         Parameters
         ----------
         samples : Dataset
             Input dataset containing samples to be formatted.
-        **gen_kwargs : Dict[str, Any]
+        **kwargs : Dict[str, Any]
             Additional keyword arguments (unused in this block).
 
         Returns

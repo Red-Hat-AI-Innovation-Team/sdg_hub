@@ -160,6 +160,33 @@ class OutputColumnCollisionError(BlockValidationError):
         super().__init__(message, details)
 
 
+class TemplateValidationError(BlockValidationError):
+    """Raised when template validation fails due to missing variables."""
+
+    def __init__(
+        self, block_name: str, missing_variables: List[str], available_variables: List[str]
+    ):
+        """Initialize TemplateValidationError.
+
+        Parameters
+        ----------
+        block_name : str
+            Name of the block that failed template validation.
+        missing_variables : List[str]
+            List of missing template variable names.
+        available_variables : List[str]
+            List of available template variable names.
+        """
+        self.block_name = block_name
+        self.missing_variables = missing_variables
+        self.available_variables = available_variables
+
+        message = f"Block '{block_name}' template validation failed - missing required variables: {missing_variables}"
+        details = f"Available variables: {available_variables}"
+
+        super().__init__(message, details)
+
+
 class FlowError(SDGHubError):
     """Base exception class for flow-related errors."""
 

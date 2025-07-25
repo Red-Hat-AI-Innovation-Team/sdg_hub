@@ -1,6 +1,7 @@
 # Third Party
 from datasets import Dataset
 import pytest
+from unittest.mock import patch
 
 # First Party
 from sdg_hub.blocks.llm import TextParserBlock
@@ -13,6 +14,8 @@ def postprocessing_block():
         block_name="test_block",
         input_cols="raw_output",
         output_cols=["output"],
+        start_tags=["<output>"],
+        end_tags=["</output>"],
     )
 
 
@@ -206,13 +209,15 @@ def test_generate_multiple_matches_per_input(postprocessing_block_multi_column):
 
 
 def test_generate_missing_input_column(postprocessing_block):
-    """Test generate functionality when input column is missing."""
+    """Test that missing input column is handled by BaseBlock validation."""
+    from sdg_hub.utils.error_handling import MissingColumnError
+
     data = [{"other_column": "some text"}]
     dataset = Dataset.from_list(data)
 
-    result = postprocessing_block.generate(dataset)
-
-    assert len(result) == 0
+    # BaseBlock should handle validation and raise MissingColumnError
+    with pytest.raises(MissingColumnError):
+        postprocessing_block(dataset)  # Use __call__ to trigger validation
 
 
 def test_generate_empty_dataset(postprocessing_block):
@@ -258,15 +263,23 @@ def test_generate_all_empty_parsed_outputs_custom_parser(
 
 
 def test_constructor_validation_no_input_cols():
-    """Test constructor validation with no input columns."""
+    """Test validation with no input columns during execution."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols=[],
+        output_cols=["output"],
+        start_tags=["<output>"],
+        end_tags=["</output>"],
+    )
+
+    # Create test dataset
+    test_data = Dataset.from_list([{"test": "value"}])
+
+    # Validation should fail during execution
     with pytest.raises(
         ValueError, match="TextParserBlock expects at least one input column"
     ):
-        TextParserBlock(
-            block_name="test_block",
-            input_cols=[],
-            output_cols=["output"],
-        )
+        block(test_data)
 
 
 def test_constructor_validation_multiple_input_cols():
@@ -276,6 +289,8 @@ def test_constructor_validation_multiple_input_cols():
         block_name="test_block",
         input_cols=["col1", "col2"],
         output_cols=["output"],
+        start_tags=["<output>"],
+        end_tags=["</output>"],
     )
 
     assert len(block.input_cols) == 2
@@ -288,6 +303,8 @@ def test_constructor_string_input_cols():
         block_name="test_block",
         input_cols="raw_output",
         output_cols=["output"],
+        start_tags=["<output>"],
+        end_tags=["</output>"],
     )
 
     assert block.input_cols == ["raw_output"]
@@ -299,45 +316,43 @@ def test_constructor_string_output_cols():
         block_name="test_block",
         input_cols="raw_output",
         output_cols="output",
+        start_tags=["<output>"],
+        end_tags=["</output>"],
     )
 
     assert block.output_cols == ["output"]
 
 
-def test_parse_uneven_tags(postprocessing_block_multi_column):
+def test_parse_uneven_tags():
     """Test parsing with uneven start and end tags."""
-    # Test with more start tags than end tags
-    postprocessing_block_multi_column.start_tags = ["<title>", "<content>", "<footer>"]
-    postprocessing_block_multi_column.end_tags = ["</title>", "</content>"]
-    postprocessing_block_multi_column.output_cols = ["title", "content", "footer"]
-
-    text = """
-    <title>Header content</title>
-    <content>Main content</content>
-    <footer>Footer content</footer>
-    """
-
-    result = postprocessing_block_multi_column._parse(text)
-    assert result == {
-        "title": ["Header content"],
-        "content": ["Main content"],
-        "footer": [],
-    }
+    # Creating a block with more start tags than end tags should raise ValidationError
+    with pytest.raises(Exception, match="start_tags and end_tags must have the same length"):
+        TextParserBlock(
+            block_name="test_block",
+            input_cols="raw_output",
+            output_cols=["title", "content", "footer"],
+            start_tags=["<title>", "<content>", "<footer>"],
+            end_tags=["</title>", "</content>"],
+        )
 
 
-def test_parse_more_output_cols_than_tags(postprocessing_block_multi_column):
+def test_parse_more_output_cols_than_tags():
     """Test parsing when there are more output columns than tag pairs."""
-    # Configure with 3 output columns but only 2 tag pairs
-    postprocessing_block_multi_column.start_tags = ["<title>", "<content>"]
-    postprocessing_block_multi_column.end_tags = ["</title>", "</content>"]
-    postprocessing_block_multi_column.output_cols = ["title", "content", "footer"]
+    # Create a block with 3 output columns but only 2 tag pairs
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["title", "content", "footer"],
+        start_tags=["<title>", "<content>"],
+        end_tags=["</title>", "</content>"],
+    )
 
     text = """
     <title>Header content</title>
     <content>Main content</content>
     """
 
-    result = postprocessing_block_multi_column._parse(text)
+    result = block._parse(text)
     # All output columns should be present, with footer having empty list
     assert result == {
         "title": ["Header content"],
@@ -379,9 +394,14 @@ def test_extract_matches_cascading_tags(postprocessing_block):
 
 def test_parse_mixed_tag_types(postprocessing_block_multi_column):
     """Test parsing with mixed tag types (XML-style and custom markers)."""
-    postprocessing_block_multi_column.start_tags = ["<header>", "START"]
-    postprocessing_block_multi_column.end_tags = ["</header>", "END"]
-    postprocessing_block_multi_column.output_cols = ["header", "body"]
+    # Create a new block with the desired configuration
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["header", "body"],
+        start_tags=["<header>", "START"],
+        end_tags=["</header>", "END"],
+    )
 
     text = """
     <header>XML Style Header</header>
@@ -390,7 +410,7 @@ def test_parse_mixed_tag_types(postprocessing_block_multi_column):
     START Another Custom Body END
     """
 
-    result = postprocessing_block_multi_column._parse(text)
+    result = block._parse(text)
     assert result == {
         "header": ["XML Style Header", "Another XML Header"],
         "body": ["Custom Style Body", "Another Custom Body"],
@@ -399,9 +419,14 @@ def test_parse_mixed_tag_types(postprocessing_block_multi_column):
 
 def test_parse_with_special_characters(postprocessing_block_with_tags):
     """Test parsing with special characters in tags and content."""
-    postprocessing_block_with_tags.start_tags = ["<special>"]
-    postprocessing_block_with_tags.end_tags = ["</special>"]
-    postprocessing_block_with_tags.output_cols = ["special"]
+    # Create a new block with the desired configuration
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["special"],
+        start_tags=["<special>"],
+        end_tags=["</special>"],
+    )
 
     text = """
     <special>Content with &amp; entities</special>
@@ -409,7 +434,7 @@ def test_parse_with_special_characters(postprocessing_block_with_tags):
     <special>Content with "quotes" and 'apostrophes'</special>
     """
 
-    result = postprocessing_block_with_tags._parse(text)
+    result = block._parse(text)
     assert result == {
         "special": [
             "Content with &amp; entities",
@@ -421,58 +446,37 @@ def test_parse_with_special_characters(postprocessing_block_with_tags):
 
 def test_parse_mismatched_config_tags(postprocessing_block_multi_column):
     """Test parsing with mismatched numbers of start and end tags in configuration."""
-    # Test case 1: More start tags than end tags
-    postprocessing_block_multi_column.start_tags = ["<header>", "<content>", "<footer>"]
-    postprocessing_block_multi_column.end_tags = ["</header>", "</content>"]
-    postprocessing_block_multi_column.output_cols = ["header", "content", "footer"]
+    # Test case 1: More start tags than end tags should raise ValidationError
+    with pytest.raises(Exception, match="start_tags and end_tags must have the same length"):
+        TextParserBlock(
+            block_name="test_block",
+            input_cols="raw_output",
+            output_cols=["header", "content", "footer"],
+            start_tags=["<header>", "<content>", "<footer>"],
+            end_tags=["</header>", "</content>"],
+        )
 
-    text = """
-    <header>Header content</header>
-    <content>Main content</content>
-    <footer>Footer content</footer>
-    """
-
-    result = postprocessing_block_multi_column._parse(text)
-    assert result == {
-        "header": ["Header content"],
-        "content": ["Main content"],
-        "footer": [],
-    }
-
-    # Test case 2: More end tags than start tags
-    postprocessing_block_multi_column.start_tags = ["<header>"]
-    postprocessing_block_multi_column.end_tags = [
-        "</header>",
-        "</content>",
-        "</footer>",
-    ]
-    postprocessing_block_multi_column.output_cols = ["header", "content", "footer"]
-
-    text = """
-    <header>Header content</header>
-    </content>
-    </footer>
-    """
-
-    result = postprocessing_block_multi_column._parse(text)
-    assert result == {"header": ["Header content"], "content": [], "footer": []}
-
-    # Test case 3: Empty tags list
-    postprocessing_block_multi_column.start_tags = []
-    postprocessing_block_multi_column.end_tags = []
-    postprocessing_block_multi_column.output_cols = ["text"]
-
-    text = "Some text without tags"
-
-    result = postprocessing_block_multi_column._parse(text)
-    assert result == {"text": []}
+    # Test case 2: More end tags than start tags should also raise ValidationError
+    with pytest.raises(Exception, match="start_tags and end_tags must have the same length"):
+        TextParserBlock(
+            block_name="test_block",
+            input_cols="raw_output",
+            output_cols=["header", "content", "footer"],
+            start_tags=["<header>"],
+            end_tags=["</header>", "</content>", "</footer>"],
+        )
 
 
 def test_parse_uneven_tags_comprehensive(postprocessing_block_multi_column):
     """Test parsing with uneven or mismatched start and end tags - comprehensive test cases."""
-    postprocessing_block_multi_column.start_tags = ["<section>", "<subsection>"]
-    postprocessing_block_multi_column.end_tags = ["</section>", "</subsection>"]
-    postprocessing_block_multi_column.output_cols = ["section", "subsection"]
+    # Create a new block with the desired configuration
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["section", "subsection"],
+        start_tags=["<section>", "<subsection>"],
+        end_tags=["</section>", "</subsection>"],
+    )
 
     # Test cases with various uneven tag scenarios
     test_cases = [
@@ -521,15 +525,20 @@ def test_parse_uneven_tags_comprehensive(postprocessing_block_multi_column):
     ]
 
     for text, expected in test_cases:
-        result = postprocessing_block_multi_column._parse(text)
+        result = block._parse(text)
         assert result == expected, f"Failed for text: {text}"
 
 
 def test_parse_with_whitespace_comprehensive(postprocessing_block_with_tags):
     """Test parsing with various whitespace patterns - comprehensive test."""
-    postprocessing_block_with_tags.start_tags = ["<text>"]
-    postprocessing_block_with_tags.end_tags = ["</text>"]
-    postprocessing_block_with_tags.output_cols = ["text"]
+    # Create a new block with the desired configuration
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["text"],
+        start_tags=["<text>"],
+        end_tags=["</text>"],
+    )
 
     text = """
     <text>  Leading and trailing spaces  </text>
@@ -540,7 +549,212 @@ def test_parse_with_whitespace_comprehensive(postprocessing_block_with_tags):
     <text>\tTabbed content\t</text>
     """
 
-    result = postprocessing_block_with_tags._parse(text)
+    result = block._parse(text)
     assert result == {
         "text": ["Leading and trailing spaces", "Multiple\n    Lines", "Tabbed content"]
     }
+
+
+# New validation tests
+def test_validation_no_parsing_method_configured():
+    """Test validation failure when no parsing method is configured."""
+    with pytest.raises(ValueError, match="at least one parsing method"):
+        block = TextParserBlock(
+            block_name="test_block",
+            input_cols="raw_output",
+            output_cols=["output"],
+            # No parsing_pattern, start_tags, or end_tags
+        )
+        test_data = Dataset.from_list([{"raw_output": "test"}])
+        block(test_data)
+
+
+def test_validation_mismatched_tag_lengths():
+    """Test validation failure when start_tags and end_tags have different lengths."""
+    with pytest.raises(
+        ValueError, match="start_tags and end_tags must have the same length"
+    ):
+        block = TextParserBlock(
+            block_name="test_block",
+            input_cols="raw_output",
+            output_cols=["output"],
+            start_tags=["<start1>", "<start2>"],
+            end_tags=["<end1>"],  # Missing second end tag
+        )
+        test_data = Dataset.from_list([{"raw_output": "test"}])
+        block(test_data)
+
+
+def test_validation_tag_pairs_output_cols_mismatch():
+    """Test validation failure when tag pairs don't match output columns."""
+    with pytest.raises(ValueError, match="number of tag pairs must match output_cols"):
+        block = TextParserBlock(
+            block_name="test_block",
+            input_cols="raw_output",
+            output_cols=["col1", "col2", "col3"],  # 3 output columns
+            start_tags=["<start1>", "<start2>"],  # Only 2 tag pairs
+            end_tags=["<end1>", "<end2>"],
+        )
+        test_data = Dataset.from_list([{"raw_output": "test"}])
+        block(test_data)
+
+
+def test_validation_regex_only_configuration():
+    """Test that regex-only configuration is valid."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        parsing_pattern=r"Answer: (.*)",
+        # No tags specified - this should be valid
+    )
+
+    data = [{"raw_output": "Answer: test response"}]
+    dataset = Dataset.from_list(data)
+
+    # Should not raise validation errors
+    result = block(dataset)
+    assert len(result) == 1
+    assert result[0]["output"] == "test response"
+
+
+def test_validation_tags_only_configuration():
+    """Test that tags-only configuration is valid."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+        # No parsing_pattern - this should be valid
+    )
+
+    data = [{"raw_output": "<answer>test response</answer>"}]
+    dataset = Dataset.from_list(data)
+
+    # Should not raise validation errors
+    result = block(dataset)
+    assert len(result) == 1
+    assert result[0]["output"] == "test response"
+
+
+def test_enhanced_error_handling_invalid_input_data():
+    """Test enhanced error handling for invalid input data types."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        parsing_pattern=r"Answer: (.*)",
+    )
+
+    # Test with non-string input (separate datasets to avoid PyArrow issues)
+    test_cases = [
+        [{"raw_output": None}],
+        [{"raw_output": 123}],
+        [{"raw_output": ""}],  # Empty string instead of list to avoid PyArrow issues
+    ]
+
+    warning_count = 0
+    for data in test_cases:
+        dataset = Dataset.from_list(data)
+
+        with patch("sdg_hub.blocks.llm.text_parser_block.logger") as mock_logger:
+            result = block.generate(dataset)
+
+            # Should log warnings for invalid data
+            if mock_logger.warning.called:
+                warning_count += 1
+            assert len(result) == 0  # Should return empty dataset
+
+    assert warning_count >= 2  # At least None and 123 should trigger warnings
+
+
+def test_enhanced_logging_for_parsing_failures():
+    """Test enhanced logging when parsing fails."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+    )
+
+    # Test with input that won't match the pattern
+    data = [{"raw_output": "No tags in this text"}]
+    dataset = Dataset.from_list(data)
+
+    with patch("sdg_hub.blocks.llm.text_parser_block.logger") as mock_logger:
+        result = block.generate(dataset)
+
+        # Should log warning about parsing failure
+        mock_logger.warning.assert_called()
+        warning_call = mock_logger.warning.call_args[0][0]
+        assert "Failed to parse any content" in warning_call
+        assert "parsing method: tags" in warning_call
+
+
+def test_enhanced_logging_missing_input_column():
+    """Test that BaseBlock handles missing input columns with proper validation."""
+    # BaseBlock should handle missing column validation, so this should raise an error
+    # during validation, not during generate()
+    from sdg_hub.utils.error_handling import MissingColumnError
+
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="missing_column",
+        output_cols=["output"],
+        parsing_pattern=r"Answer: (.*)",
+    )
+
+    data = [{"other_column": "test"}]
+    dataset = Dataset.from_list(data)
+
+    # BaseBlock should validate and raise MissingColumnError
+    with pytest.raises(MissingColumnError):
+        result = block(dataset)  # Use __call__ to trigger validation
+
+
+def test_enhanced_logging_regex_parsing():
+    """Test enhanced debug logging for regex parsing."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        parsing_pattern=r"Answer: (.*)",
+    )
+
+    data = [{"raw_output": "Answer: test response"}]
+    dataset = Dataset.from_list(data)
+
+    with patch("sdg_hub.blocks.llm.text_parser_block.logger") as mock_logger:
+        result = block.generate(dataset)
+
+        # Should log debug info about matches found
+        mock_logger.debug.assert_called()
+        debug_call = mock_logger.debug.call_args[0][0]
+        assert "Regex parsing found" in debug_call
+        assert "matches with pattern" in debug_call
+
+
+def test_enhanced_logging_tag_parsing():
+    """Test enhanced debug logging for tag parsing."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+    )
+
+    data = [{"raw_output": "<answer>test response</answer>"}]
+    dataset = Dataset.from_list(data)
+
+    with patch("sdg_hub.blocks.llm.text_parser_block.logger") as mock_logger:
+        result = block.generate(dataset)
+
+        # Should log debug info about tag parsing
+        mock_logger.debug.assert_called()
+        debug_call = mock_logger.debug.call_args[0][0]
+        assert "Tag parsing for" in debug_call
+        assert "found" in debug_call
+        assert "matches" in debug_call

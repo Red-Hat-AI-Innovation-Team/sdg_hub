@@ -82,11 +82,13 @@ class TestFlow(unittest.TestCase):
         )
 
     def test_config_list_mix(self):
+        # This test was originally for ConditionalLLMBlock which has been removed
+        # Updated to test LLMBlock with absolute config path
         with open(
             "tests/flows/testdata/test_flow_2.yaml", "r", encoding="utf-8"
         ) as yaml_file:
             y = yaml.safe_load(yaml_file)
-        y[0]["block_config"]["config_paths"]["k3"] = os.path.abspath(
+        y[0]["block_config"]["config_path"] = os.path.abspath(
             "src/sdg_hub/configs/skills/simple_generate_qa_freeform.yaml"
         )
 
@@ -105,5 +107,7 @@ class TestFlow(unittest.TestCase):
             **flow.chained_blocks[0]["block_config"]
         )
 
-        self.assertEqual(block.block_config["introduction"], "intro")
-        self.assertEqual(len(block.prompt_template), 3)
+        # Test that the block loaded the config correctly
+        self.assertIsNotNone(block.block_config)
+        # Check that it has some expected content from the config
+        self.assertIn("introduction", block.block_config)

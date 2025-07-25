@@ -5,7 +5,7 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks.utilblocks import RenameColumns
+from sdg_hub.blocks import RenameColumns
 
 
 def test_rename_columns_basic():
@@ -38,20 +38,6 @@ def test_rename_columns_basic():
     assert result["document"] == ["sum1", "sum2"]
     assert result["other"] == ["other1", "other2"]
 
-
-def test_rename_columns_empty_mapping():
-    """Test behavior with empty column mapping."""
-    data = {"col1": [1, 2], "col2": [3, 4]}
-    dataset = Dataset.from_dict(data)
-
-    block = RenameColumns(block_name="test_empty", columns_map={})
-
-    result = block.generate(dataset)
-
-    # Dataset should remain unchanged
-    assert result.column_names == dataset.column_names
-    assert result["col1"] == dataset["col1"]
-    assert result["col2"] == dataset["col2"]
 
 
 def test_rename_columns_nonexistent_column():

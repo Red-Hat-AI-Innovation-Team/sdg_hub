@@ -1,6 +1,6 @@
-"""Tests for the FlattenColumnsBlock functionality.
+"""Tests for the MeltColumnsBlock functionality.
 
-This module contains tests that verify the correct behavior of the FlattenColumnsBlock,
+This module contains tests that verify the correct behavior of the MeltColumnsBlock,
 including column melting, value mapping, and edge case handling.
 """
 
@@ -9,7 +9,8 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks import FlattenColumnsBlock
+from sdg_hub.blocks.transform import MeltColumnsBlock
+from sdg_hub.utils.error_handling import MissingColumnError
 
 
 def test_flatten_columns_basic():
@@ -24,11 +25,10 @@ def test_flatten_columns_basic():
     dataset = Dataset.from_dict(data)
 
     # Initialize block
-    block = FlattenColumnsBlock(
+    block = MeltColumnsBlock(
         block_name="test_flatten",
-        var_cols=["summary_detailed", "summary_extractive"],
-        value_name="summary",
-        var_name="dataset_type",
+        input_cols=["summary_detailed", "summary_extractive"],  # Columns to melt
+        output_cols=["summary", "dataset_type"],  # [value_column, variable_column]
     )
 
     # Generate flattened dataset
@@ -54,11 +54,10 @@ def test_flatten_columns_with_empty_dataset():
     data = {"id": [], "summary_detailed": [], "summary_extractive": [], "other_col": []}
     dataset = Dataset.from_dict(data)
 
-    block = FlattenColumnsBlock(
+    block = MeltColumnsBlock(
         block_name="test_flatten_empty",
-        var_cols=["summary_detailed", "summary_extractive"],
-        value_name="summary",
-        var_name="dataset_type",
+        input_cols=["summary_detailed", "summary_extractive"],  # Columns to melt
+        output_cols=["summary", "dataset_type"],  # [value_column, variable_column]
     )
 
     result = block.generate(dataset)
@@ -79,11 +78,10 @@ def test_flatten_columns_with_missing_values():
     }
     dataset = Dataset.from_dict(data)
 
-    block = FlattenColumnsBlock(
+    block = MeltColumnsBlock(
         block_name="test_flatten_missing",
-        var_cols=["summary_detailed", "summary_extractive"],
-        value_name="summary",
-        var_name="dataset_type",
+        input_cols=["summary_detailed", "summary_extractive"],  # Columns to melt
+        output_cols=["summary", "dataset_type"],  # [value_column, variable_column]
     )
 
     result = block.generate(dataset)
@@ -102,16 +100,15 @@ def test_flatten_columns_with_all_columns():
     }
     dataset = Dataset.from_dict(data)
 
-    block = FlattenColumnsBlock(
+    block = MeltColumnsBlock(
         block_name="test_flatten_all",
-        var_cols=[
+        input_cols=[
             "summary_detailed",
             "summary_extractive",
             "summary_atomic_facts",
             "base_document",
-        ],
-        value_name="summary",
-        var_name="dataset_type",
+        ],  # Columns to melt
+        output_cols=["summary", "dataset_type"],  # [value_column, variable_column]
     )
 
     result = block.generate(dataset)
@@ -128,15 +125,15 @@ def test_flatten_columns_with_invalid_input():
     dataset = Dataset.from_dict(data)
 
     # Test with non-existent column
-    block = FlattenColumnsBlock(
+    block = MeltColumnsBlock(
         block_name="test_flatten_invalid",
-        var_cols=["non_existent_column"],
-        value_name="summary",
-        var_name="dataset_type",
+        input_cols=["non_existent_column"],  # Only the columns to be melted
+        output_cols=["summary", "dataset_type"],  # [value_column, variable_column]
     )
 
-    with pytest.raises(KeyError):
-        block.generate(dataset)
+    # Should raise MissingColumnError for missing columns during validation
+    with pytest.raises(MissingColumnError):
+        block(dataset)
 
 
 def test_flatten_columns_with_empty_columns():
@@ -149,11 +146,10 @@ def test_flatten_columns_with_empty_columns():
     }
     dataset = Dataset.from_dict(data)
 
-    block = FlattenColumnsBlock(
+    block = MeltColumnsBlock(
         block_name="test_flatten_empty_cols",
-        var_cols=["summary_detailed", "summary_extractive"],
-        value_name="summary",
-        var_name="dataset_type",
+        input_cols=["summary_detailed", "summary_extractive"],  # Columns to melt
+        output_cols=["summary", "dataset_type"],  # [value_column, variable_column]
     )
 
     result = block.generate(dataset)
@@ -194,11 +190,10 @@ def test_flatten_columns_verify_column_names():
     custom_value_name = "custom_value"
     custom_var_name = "custom_var"
 
-    block = FlattenColumnsBlock(
+    block = MeltColumnsBlock(
         block_name="test_flatten_custom_names",
-        var_cols=["summary_detailed", "summary_extractive"],
-        value_name=custom_value_name,
-        var_name=custom_var_name,
+        input_cols=["summary_detailed", "summary_extractive"],  # Columns to melt
+        output_cols=[custom_value_name, custom_var_name],  # [value_column, variable_column]
     )
 
     result = block.generate(dataset)
@@ -215,3 +210,58 @@ def test_flatten_columns_verify_column_names():
     assert "extractive1" in result_dict[custom_value_name]
     assert "summary_detailed" in result_dict[custom_var_name]
     assert "summary_extractive" in result_dict[custom_var_name]
+
+
+def test_flatten_columns_validation_errors():
+    """Test Pydantic validation errors in MeltColumnsBlock."""
+    
+    # Test empty input_cols
+    with pytest.raises(ValueError, match="input_cols cannot be empty"):
+        MeltColumnsBlock(
+            block_name="test_flatten_empty_vars",
+            input_cols=[],  # Empty columns to melt
+            output_cols=["value", "variable"],  # [value_column, variable_column]
+        )
+    
+    # Test wrong number of output columns (not exactly 2)
+    with pytest.raises(ValueError, match="MeltColumnsBlock expects exactly two output columns"):
+        MeltColumnsBlock(
+            block_name="test_flatten_wrong_outputs",
+            input_cols=["col1"],  # Columns to melt
+            output_cols=["value"],  # Only 1 output column
+        )
+    
+    # Test too many output columns
+    with pytest.raises(ValueError, match="MeltColumnsBlock expects exactly two output columns"):
+        MeltColumnsBlock(
+            block_name="test_flatten_too_many_outputs",
+            input_cols=["col1"],  # Columns to melt
+            output_cols=["value", "variable", "extra"],  # 3 output columns
+        )
+
+
+def test_flatten_columns_with_input_output_cols():
+    """Test MeltColumnsBlock with explicit input_cols and output_cols."""
+    data = {
+        "id": [1, 2],
+        "summary_detailed": ["detailed1", "detailed2"],
+        "summary_extractive": ["extractive1", "extractive2"],
+        "other_col": ["other1", "other2"],
+    }
+    dataset = Dataset.from_dict(data)
+
+    # Test with explicit input_cols and output_cols
+    block = MeltColumnsBlock(
+        block_name="test_flatten_explicit_cols",
+        input_cols=["summary_detailed", "summary_extractive"],  # Columns to melt
+        output_cols=["summary", "dataset_type"],  # [value_column, variable_column]
+    )
+
+    result = block.generate(dataset)
+
+    # Verify results
+    assert len(result) == 4  # 2 rows * 2 columns to flatten
+    assert "id" in result.column_names
+    assert "other_col" in result.column_names
+    assert "summary" in result.column_names
+    assert "dataset_type" in result.column_names

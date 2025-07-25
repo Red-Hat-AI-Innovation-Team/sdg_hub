@@ -5,7 +5,7 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks.utilblocks import SetToMajorityValue
+from sdg_hub.blocks import SetToMajorityValue
 
 
 @pytest.fixture
@@ -61,7 +61,7 @@ def test_set_to_majority_empty_column():
     dataset = Dataset.from_dict({"empty_col": []})
     block = SetToMajorityValue(block_name="test_block", col_name="empty_col")
 
-    with pytest.raises(KeyError):
+    with pytest.raises(ValueError, match="Cannot compute reduction for empty dataset"):
         block.generate(dataset)
 
 
