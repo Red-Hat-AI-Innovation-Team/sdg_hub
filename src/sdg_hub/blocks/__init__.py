@@ -26,6 +26,7 @@ from .transform import (
     TextConcatBlock,
     UniformColumnValueSetter,
 )
+from .evaluation import EvaluateFaithfulnessBlock
 # All blocks moved to deprecated_blocks or transform modules
 
 __all__ = [
@@ -49,4 +50,5 @@ __all__ = [
     "TextParserBlock",
     "BlockRegistry",
     "PromptBuilderBlock",
+    "EvaluateFaithfulnessBlock",
 ]

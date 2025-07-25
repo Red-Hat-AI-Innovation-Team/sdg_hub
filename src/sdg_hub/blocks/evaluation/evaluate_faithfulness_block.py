@@ -1,0 +1,455 @@
+# SPDX-License-Identifier: Apache-2.0
+"""Composite block for faithfulness evaluation of question-answer pairs.
+
+This module provides the EvaluateFaithfulnessBlock that encapsulates the complete
+faithfulness evaluation workflow, combining prompt building, LLM chat, text parsing,
+and filtering into a single block for simplified configuration.
+"""
+
+# Standard
+from typing import Any, Dict, List, Optional, Union
+
+# Third Party
+from datasets import Dataset
+from pydantic import Field, field_validator
+
+# Local
+from ...logger_config import setup_logger
+from ..base import BaseBlock
+from ..registry import BlockRegistry
+from ..llm.prompt_builder_block import PromptBuilderBlock
+from ..llm.llm_chat_block import LLMChatBlock
+from ..llm.text_parser_block import TextParserBlock
+from ..filtering.column_value_filter import ColumnValueFilterBlock
+
+logger = setup_logger(__name__)
+
+
+@BlockRegistry.register(
+    "EvaluateFaithfulnessBlock",
+    "evaluation",
+    "Composite block for faithfulness evaluation of question-answer pairs",
+)
+class EvaluateFaithfulnessBlock(BaseBlock):
+    """Composite block for faithfulness evaluation workflow.
+
+    This block combines four separate blocks into a single cohesive evaluation block:
+    1. PromptBuilderBlock - builds evaluation prompt from document and response
+    2. LLMChatBlock - generates faithfulness evaluation using LLM
+    3. TextParserBlock - parses explanation and judgment from raw output
+    4. ColumnValueFilterBlock - filters based on faithfulness judgment
+
+    Parameters
+    ----------
+    block_name : str
+        Name of the block.
+    input_cols : List[str]
+        Input columns: ["document", "response"]
+    output_cols : List[str]
+        Output columns: ["faithfulness_explanation", "faithfulness_judgment", "filtered_faithfulness"]
+    prompt_config_path : str
+        Path to YAML file containing the faithfulness evaluation prompt template.
+    model : str
+        Model identifier in LiteLLM format (e.g., "hosted_vllm/meta-llama/Llama-3.3-70B-Instruct")
+    api_base : Optional[str]
+        Base URL for the API. Required for local models.
+    api_key : Optional[str]
+        API key for the provider. Falls back to environment variables.
+    filter_value : str, optional
+        Value to filter on for faithfulness judgment (default: "YES")
+    operation : str, optional
+        Filter operation (default: "eq")
+    convert_dtype : Optional[str], optional
+        Data type conversion for filter column (default: None)
+    async_mode : bool, optional
+        Whether to use async processing (default: True)
+    format_as_messages : bool, optional
+        Whether to format prompt as messages (default: True)
+    start_tags : List[str], optional
+        Start tags for parsing (default: ["[Start of Explanation]", "[Start of Answer]"])
+    end_tags : List[str], optional
+        End tags for parsing (default: ["[End of Explanation]", "[End of Answer]"])
+
+    ### LLM Generation Parameters ###
+    temperature : Optional[float], optional
+        Sampling temperature (0.0 to 2.0).
+    max_tokens : Optional[int], optional
+        Maximum tokens to generate.
+    top_p : Optional[float], optional
+        Nucleus sampling parameter (0.0 to 1.0).
+    frequency_penalty : Optional[float], optional
+        Frequency penalty (-2.0 to 2.0).
+    presence_penalty : Optional[float], optional
+        Presence penalty (-2.0 to 2.0).
+    stop : Optional[Union[str, List[str]]], optional
+        Stop sequences.
+    seed : Optional[int], optional
+        Random seed for reproducible outputs.
+    timeout : float, optional
+        Request timeout in seconds (default: 120.0).
+    max_retries : int, optional
+        Maximum number of retry attempts (default: 6).
+    """
+
+    # Core configuration
+    prompt_config_path: str = Field(
+        ...,
+        description="Path to YAML file containing the faithfulness evaluation prompt template",
+    )
+    model: str = Field(..., description="Model identifier in LiteLLM format")
+    api_base: Optional[str] = Field(None, description="Base URL for the API")
+    api_key: Optional[str] = Field(
+        None,
+        description="API key for the provider. Falls back to environment variables.",
+    )
+
+    # Filter configuration
+    filter_value: str = Field(
+        "YES", description="Value to filter on for faithfulness judgment"
+    )
+    operation: str = Field("eq", description="Filter operation")
+    convert_dtype: Optional[str] = Field(
+        None, description="Data type conversion for filter column"
+    )
+
+    # Processing configuration
+    async_mode: bool = Field(True, description="Whether to use async processing")
+    format_as_messages: bool = Field(
+        True, description="Whether to format prompt as messages"
+    )
+
+    # Parser configuration
+    start_tags: List[str] = Field(
+        ["[Start of Explanation]", "[Start of Answer]"],
+        description="Start tags for parsing explanation and judgment",
+    )
+    end_tags: List[str] = Field(
+        ["[End of Explanation]", "[End of Answer]"],
+        description="End tags for parsing explanation and judgment",
+    )
+
+    # LLM generation parameters
+    temperature: Optional[float] = Field(
+        None, description="Sampling temperature (0.0 to 2.0)"
+    )
+    max_tokens: Optional[int] = Field(None, description="Maximum tokens to generate")
+    top_p: Optional[float] = Field(
+        None, description="Nucleus sampling parameter (0.0 to 1.0)"
+    )
+    frequency_penalty: Optional[float] = Field(
+        None, description="Frequency penalty (-2.0 to 2.0)"
+    )
+    presence_penalty: Optional[float] = Field(
+        None, description="Presence penalty (-2.0 to 2.0)"
+    )
+    stop: Optional[Union[str, List[str]]] = Field(None, description="Stop sequences")
+    seed: Optional[int] = Field(
+        None, description="Random seed for reproducible outputs"
+    )
+    timeout: float = Field(120.0, description="Request timeout in seconds")
+    max_retries: int = Field(6, description="Maximum number of retry attempts")
+
+    # Internal blocks - excluded from serialization
+    prompt_builder: Optional[PromptBuilderBlock] = Field(None, exclude=True)
+    llm_chat: Optional[LLMChatBlock] = Field(None, exclude=True)
+    text_parser: Optional[TextParserBlock] = Field(None, exclude=True)
+    filter_block: Optional[ColumnValueFilterBlock] = Field(None, exclude=True)
+
+    @field_validator("input_cols")
+    @classmethod
+    def validate_input_cols(cls, v):
+        """Validate that input columns are exactly ["document", "response"]."""
+        expected = ["document", "response"]
+        if v != expected:
+            raise ValueError(
+                f"EvaluateFaithfulnessBlock expects input_cols={expected}, got {v}"
+            )
+        return v
+
+    @field_validator("output_cols")
+    @classmethod
+    def validate_output_cols(cls, v):
+        """Validate that output columns are exactly ["faithfulness_explanation", "faithfulness_judgment", "filtered_faithfulness"]."""
+        expected = [
+            "faithfulness_explanation",
+            "faithfulness_judgment",
+            "filtered_faithfulness",
+        ]
+        if v != expected:
+            raise ValueError(
+                f"EvaluateFaithfulnessBlock expects output_cols={expected}, got {v}"
+            )
+        return v
+
+    def model_post_init(self, __context: Any) -> None:
+        """Initialize the internal blocks after Pydantic validation."""
+        super().model_post_init(__context)
+
+        # Create internal blocks
+        self._create_internal_blocks()
+
+        logger.info(
+            f"Initialized EvaluateFaithfulnessBlock '{self.block_name}' with model '{self.model}'",
+            extra={
+                "block_name": self.block_name,
+                "model": self.model,
+                "async_mode": self.async_mode,
+                "filter_value": self.filter_value,
+            },
+        )
+
+    def _create_internal_blocks(self) -> None:
+        """Create and configure the internal blocks."""
+        # 1. PromptBuilderBlock
+        self.prompt_builder = PromptBuilderBlock(
+            block_name=f"{self.block_name}_prompt_builder",
+            input_cols=["document", "response"],
+            output_cols=["eval_faithfulness_prompt"],
+            prompt_config_path=self.prompt_config_path,
+            format_as_messages=self.format_as_messages,
+        )
+
+        # 2. LLMChatBlock
+        llm_kwargs = {
+            "block_name": f"{self.block_name}_llm_chat",
+            "input_cols": ["eval_faithfulness_prompt"],
+            "output_cols": ["raw_eval_faithfulness"],
+            "model": self.model,
+            "api_base": self.api_base,
+            "api_key": self.api_key,
+            "async_mode": self.async_mode,
+            "timeout": self.timeout,
+            "max_retries": self.max_retries,
+        }
+
+        # Add generation parameters if specified
+        if self.temperature is not None:
+            llm_kwargs["temperature"] = self.temperature
+        if self.max_tokens is not None:
+            llm_kwargs["max_tokens"] = self.max_tokens
+        if self.top_p is not None:
+            llm_kwargs["top_p"] = self.top_p
+        if self.frequency_penalty is not None:
+            llm_kwargs["frequency_penalty"] = self.frequency_penalty
+        if self.presence_penalty is not None:
+            llm_kwargs["presence_penalty"] = self.presence_penalty
+        if self.stop is not None:
+            llm_kwargs["stop"] = self.stop
+        if self.seed is not None:
+            llm_kwargs["seed"] = self.seed
+
+        self.llm_chat = LLMChatBlock(**llm_kwargs)
+
+        # 3. TextParserBlock
+        self.text_parser = TextParserBlock(
+            block_name=f"{self.block_name}_text_parser",
+            input_cols=["raw_eval_faithfulness"],
+            output_cols=["faithfulness_explanation", "faithfulness_judgment"],
+            start_tags=self.start_tags,
+            end_tags=self.end_tags,
+        )
+
+        # 4. ColumnValueFilterBlock
+        filter_kwargs = {
+            "block_name": f"{self.block_name}_filter",
+            "input_cols": ["faithfulness_judgment"],
+            "output_cols": [],  # Filter blocks don't create new columns
+            "filter_value": self.filter_value,
+            "operation": self.operation,
+        }
+
+        if self.convert_dtype is not None:
+            filter_kwargs["convert_dtype"] = self.convert_dtype
+
+        self.filter_block = ColumnValueFilterBlock(**filter_kwargs)
+
+    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
+        """Generate faithfulness evaluation for all samples.
+
+        This method chains the four internal blocks in sequence:
+        1. Build faithfulness evaluation prompts
+        2. Generate LLM responses
+        3. Parse explanation and judgment
+        4. Filter based on judgment
+
+        Parameters
+        ----------
+        samples : Dataset
+            Input dataset containing 'document' and 'response' columns.
+        **kwargs : Any
+            Additional keyword arguments passed to internal blocks.
+
+        Returns
+        -------
+        Dataset
+            Dataset with faithfulness evaluation results and filtering applied.
+        """
+        logger.info(
+            f"Starting faithfulness evaluation for {len(samples)} samples",
+            extra={
+                "block_name": self.block_name,
+                "model": self.model,
+                "batch_size": len(samples),
+            },
+        )
+
+        current_dataset = samples
+
+        try:
+            # Step 1: Build prompts
+            logger.debug(f"Step 1: Building faithfulness evaluation prompts")
+            current_dataset = self.prompt_builder.generate(current_dataset, **kwargs)
+
+            # Step 2: Generate LLM responses
+            logger.debug(f"Step 2: Generating LLM responses")
+            current_dataset = self.llm_chat.generate(current_dataset, **kwargs)
+
+            # Step 3: Parse responses
+            logger.debug(f"Step 3: Parsing faithfulness evaluation responses")
+            current_dataset = self.text_parser.generate(current_dataset, **kwargs)
+
+            # Step 4: Filter based on judgment
+            logger.debug(f"Step 4: Filtering based on faithfulness judgment")
+            original_count = len(current_dataset)
+            current_dataset = self.filter_block.generate(current_dataset, **kwargs)
+            filtered_count = len(current_dataset)
+
+            # Add filtered_faithfulness column to indicate filtering was applied
+            current_dataset = current_dataset.add_column(
+                "filtered_faithfulness", [True] * filtered_count
+            )
+
+            logger.info(
+                f"Faithfulness evaluation completed: {original_count} → {filtered_count} samples "
+                f"(filtered {original_count - filtered_count} samples)",
+                extra={
+                    "block_name": self.block_name,
+                    "original_count": original_count,
+                    "filtered_count": filtered_count,
+                    "filter_rate": (original_count - filtered_count) / original_count
+                    if original_count > 0
+                    else 0,
+                },
+            )
+
+            return current_dataset
+
+        except Exception as e:
+            logger.error(
+                f"Error during faithfulness evaluation: {e}",
+                extra={
+                    "block_name": self.block_name,
+                    "model": self.model,
+                    "error": str(e),
+                },
+            )
+            raise
+
+    def _validate_custom(self, dataset: Dataset) -> None:
+        """Custom validation for faithfulness evaluation.
+
+        This method validates the entire chain of internal blocks by simulating
+        the data flow through each block to ensure they can all process the data correctly.
+        """
+        # Validate that required columns exist
+        required_columns = ["document", "response"]
+        missing_columns = [
+            col for col in required_columns if col not in dataset.column_names
+        ]
+        if missing_columns:
+            raise ValueError(
+                f"EvaluateFaithfulnessBlock requires columns {required_columns}, "
+                f"missing: {missing_columns}"
+            )
+
+        # Validate the entire chain of internal blocks
+        if not all(
+            [self.prompt_builder, self.llm_chat, self.text_parser, self.filter_block]
+        ):
+            raise ValueError(
+                "All internal blocks must be initialized before validation"
+            )
+
+        # Simulate data flow through the chain to validate each block
+        current_dataset = dataset
+
+        try:
+            # 1. Validate PromptBuilderBlock
+            logger.debug("Validating prompt builder block")
+            self.prompt_builder._validate_custom(current_dataset)
+
+            # Simulate prompt builder output for next validation
+            # Add the expected output column temporarily for validation
+            if "eval_faithfulness_prompt" not in current_dataset.column_names:
+                # Create a temporary dataset with the expected column for validation
+                temp_data = []
+                for sample in current_dataset:
+                    temp_sample = dict(sample)
+                    temp_sample["eval_faithfulness_prompt"] = [
+                        {"role": "user", "content": "test"}
+                    ]
+                    temp_data.append(temp_sample)
+                current_dataset = Dataset.from_list(temp_data)
+
+            # 2. Validate LLMChatBlock
+            logger.debug("Validating LLM chat block")
+            self.llm_chat._validate_custom(current_dataset)
+
+            # Simulate LLM chat output for next validation
+            if "raw_eval_faithfulness" not in current_dataset.column_names:
+                temp_data = []
+                for sample in current_dataset:
+                    temp_sample = dict(sample)
+                    temp_sample["raw_eval_faithfulness"] = (
+                        "[Start of Explanation]Test explanation[End of Explanation]\n[Start of Answer]YES[End of Answer]"
+                    )
+                    temp_data.append(temp_sample)
+                current_dataset = Dataset.from_list(temp_data)
+
+            # 3. Validate TextParserBlock
+            logger.debug("Validating text parser block")
+            self.text_parser._validate_custom(current_dataset)
+
+            # Simulate text parser output for final validation
+            if "faithfulness_judgment" not in current_dataset.column_names:
+                temp_data = []
+                for sample in current_dataset:
+                    temp_sample = dict(sample)
+                    temp_sample["faithfulness_explanation"] = "Test explanation"
+                    temp_sample["faithfulness_judgment"] = "YES"
+                    temp_data.append(temp_sample)
+                current_dataset = Dataset.from_list(temp_data)
+
+            # 4. Validate ColumnValueFilterBlock
+            logger.debug("Validating filter block")
+            self.filter_block._validate_custom(current_dataset)
+
+            logger.debug("All internal blocks validated successfully")
+
+        except Exception as e:
+            logger.error(f"Validation failed in internal blocks: {e}")
+            raise ValueError(f"Internal block validation failed: {e}") from e
+
+    def get_internal_blocks_info(self) -> Dict[str, Any]:
+        """Get information about the internal blocks.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Information about each internal block.
+        """
+        return {
+            "prompt_builder": self.prompt_builder.get_info()
+            if self.prompt_builder
+            else None,
+            "llm_chat": self.llm_chat.get_info() if self.llm_chat else None,
+            "text_parser": self.text_parser.get_info() if self.text_parser else None,
+            "filter": self.filter_block.get_info() if self.filter_block else None,
+        }
+
+    def __repr__(self) -> str:
+        """String representation of the block."""
+        return (
+            f"EvaluateFaithfulnessBlock(name='{self.block_name}', "
+            f"model='{self.model}', filter_value='{self.filter_value}')"
+        )
