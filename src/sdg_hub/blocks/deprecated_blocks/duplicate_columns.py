@@ -23,7 +23,7 @@ logger = setup_logger(__name__)
 
 @BlockRegistry.register(
     "DuplicateColumns",
-    "transform",
+    "deprecated",
     "DEPRECATED: Use DuplicateColumnsBlock instead. Duplicates existing columns with new names according to a mapping dictionary",
 )
 class DuplicateColumns(BaseBlock):

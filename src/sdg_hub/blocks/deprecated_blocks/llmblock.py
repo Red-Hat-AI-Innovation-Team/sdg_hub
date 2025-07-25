@@ -20,7 +20,7 @@ from jinja2 import Environment, meta
 
 # Local
 from ...logger_config import setup_logger
-from ...registry import BlockRegistry
+from ..registry import BlockRegistry
 from ..base import BaseBlock
 from ..llm.llm_chat_block import LLMChatBlock
 from ..llm.prompt_builder_block import PromptBuilderBlock
@@ -61,7 +61,11 @@ def server_supports_batched(client: Any, model_id: str) -> bool:
     return supported
 
 
-@BlockRegistry.register("LLMBlock")
+@BlockRegistry.register(
+    block_name="LLMBlock",
+    category="deprecated", 
+    description="DEPRECATED: Use the new modular approach with PromptBuilderBlock, LLMChatBlock, and TextParserBlock instead"
+)
 class LLMBlock(BaseBlock):
     """DEPRECATED: Block for generating text using language models.
 

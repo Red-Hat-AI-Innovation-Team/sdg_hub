@@ -21,22 +21,26 @@ from ..transform.text_concat import TextConcatBlock
 logger = setup_logger(__name__)
 
 
-@BlockRegistry.register("CombineColumnsBlock", "deprecated")
+@BlockRegistry.register(
+    "CombineColumnsBlock",
+    "deprecated",
+    "DEPRECATED: Use TextConcatBlock instead. Combines multiple columns into a single column using a separator",
+)
 class CombineColumnsBlock(BaseBlock):
     """DEPRECATED: Combine multiple columns into a single column using a separator.
-    
-    .. deprecated:: 
+
+    .. deprecated::
         Use `sdg_hub.blocks.transform.CombineColumnsBlock` instead.
         This class will be removed in a future version.
-    
+
     This block concatenates values from multiple columns into a single output column,
     using a specified separator between values.
-    
+
     Parameters
     ----------
     block_name : str
         Name of the block.
-    columns : List[str] 
+    columns : List[str]
         List of column names to combine.
     output_col : str
         Name of the column to store combined values.
@@ -59,14 +63,12 @@ class CombineColumnsBlock(BaseBlock):
             DeprecationWarning,
             stacklevel=2,
         )
-        
+
         # Initialize with dummy values for BaseBlock validation
         super().__init__(
-            block_name=block_name,
-            input_cols=columns,
-            output_cols=[output_col]
+            block_name=block_name, input_cols=columns, output_cols=[output_col]
         )
-        
+
         # Create the new implementation
         self._impl = TextConcatBlock(
             block_name=block_name,
@@ -77,12 +79,12 @@ class CombineColumnsBlock(BaseBlock):
 
     def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
         """Generate a dataset with combined columns.
-        
+
         Parameters
         ----------
         samples : Dataset
             Input dataset to process.
-            
+
         Returns
         -------
         Dataset

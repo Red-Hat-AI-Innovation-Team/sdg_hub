@@ -23,7 +23,7 @@ logger = setup_logger(__name__)
 
 @BlockRegistry.register(
     "FilterByValueBlock",
-    "filtering",
+    "deprecated",
     "DEPRECATED: Use ColumnValueFilterBlock instead. Filters datasets based on column values using various comparison operations",
 )
 class FilterByValueBlock(BaseBlock):
