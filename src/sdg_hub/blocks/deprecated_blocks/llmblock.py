@@ -307,8 +307,6 @@ class LLMBlock(BaseBlock):
             # Pass the original dataset directly so template variables can be accessed
             prompt_result = self.prompt_builder.generate(samples)
 
-            print(prompt_result[0])
-
             # Step 2: Generate responses using LLMChatBlock
             chat_result = self.llm_chat.generate(prompt_result, **gen_kwargs)
 
