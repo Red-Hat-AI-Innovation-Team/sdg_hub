@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Union
 
 # Third Party
 from datasets import Dataset
-from pydantic import Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
 # Local
 from ...logger_config import setup_logger
@@ -69,6 +69,10 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         Start tags for parsing (default: ["[Start of Explanation]", "[Start of Answer]"])
     end_tags : List[str], optional
         End tags for parsing (default: ["[End of Explanation]", "[End of Answer]"])
+    parsing_pattern : Optional[str], optional
+        Regex pattern for custom parsing. If provided, takes precedence over tag-based parsing.
+    parser_cleanup_tags : Optional[List[str]], optional
+        List of tags to clean from parsed output.
 
     ### LLM Generation Parameters ###
     temperature : Optional[float], optional
@@ -85,11 +89,32 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         Stop sequences.
     seed : Optional[int], optional
         Random seed for reproducible outputs.
+    response_format : Optional[Dict[str, Any]], optional
+        Response format specification (e.g., JSON mode).
+    stream : Optional[bool], optional
+        Whether to stream responses.
+    n : Optional[int], optional
+        Number of completions to generate. When n > 1, the output column will contain
+        a list of responses for each input sample.
+    logprobs : Optional[bool], optional
+        Whether to return log probabilities.
+    top_logprobs : Optional[int], optional
+        Number of top log probabilities to return.
+    user : Optional[str], optional
+        End-user identifier.
+    extra_headers : Optional[Dict[str, str]], optional
+        Additional headers to send with requests.
+    extra_body : Optional[Dict[str, Any]], optional
+        Additional parameters for the request body.
     timeout : float, optional
         Request timeout in seconds (default: 120.0).
     max_retries : int, optional
         Maximum number of retry attempts (default: 6).
+    **kwargs : Any
+        Additional provider-specific parameters.
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     # Core configuration
     prompt_config_path: str = Field(
@@ -127,6 +152,12 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         ["[End of Explanation]", "[End of Answer]"],
         description="End tags for parsing explanation and judgment",
     )
+    parsing_pattern: Optional[str] = Field(
+        None, description="Regex pattern for custom parsing. If provided, takes precedence over tag-based parsing"
+    )
+    parser_cleanup_tags: Optional[List[str]] = Field(
+        None, description="List of tags to clean from parsed output"
+    )
 
     # LLM generation parameters
     temperature: Optional[float] = Field(
@@ -146,8 +177,34 @@ class EvaluateFaithfulnessBlock(BaseBlock):
     seed: Optional[int] = Field(
         None, description="Random seed for reproducible outputs"
     )
+    response_format: Optional[Dict[str, Any]] = Field(
+        None, description="Response format specification (e.g., JSON mode)"
+    )
+    stream: Optional[bool] = Field(None, description="Whether to stream responses")
+    n: Optional[int] = Field(
+        None,
+        description="Number of completions to generate. When n > 1, the output column will contain a list of responses for each input sample",
+    )
+    logprobs: Optional[bool] = Field(
+        None, description="Whether to return log probabilities"
+    )
+    top_logprobs: Optional[int] = Field(
+        None, description="Number of top log probabilities to return"
+    )
+    user: Optional[str] = Field(None, description="End-user identifier")
+    extra_headers: Optional[Dict[str, str]] = Field(
+        None, description="Additional headers to send with requests"
+    )
+    extra_body: Optional[Dict[str, Any]] = Field(
+        None, description="Additional parameters for the request body"
+    )
     timeout: float = Field(120.0, description="Request timeout in seconds")
     max_retries: int = Field(6, description="Maximum number of retry attempts")
+
+    # Additional provider-specific parameters
+    llm_kwargs: Dict[str, Any] = Field(
+        default_factory=dict, description="Additional provider-specific parameters"
+    )
 
     # Internal blocks - excluded from serialization
     prompt_builder: Optional[PromptBuilderBlock] = Field(None, exclude=True)
@@ -237,17 +294,44 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             llm_kwargs["stop"] = self.stop
         if self.seed is not None:
             llm_kwargs["seed"] = self.seed
+        if self.response_format is not None:
+            llm_kwargs["response_format"] = self.response_format
+        if self.stream is not None:
+            llm_kwargs["stream"] = self.stream
+        if self.n is not None:
+            llm_kwargs["n"] = self.n
+        if self.logprobs is not None:
+            llm_kwargs["logprobs"] = self.logprobs
+        if self.top_logprobs is not None:
+            llm_kwargs["top_logprobs"] = self.top_logprobs
+        if self.user is not None:
+            llm_kwargs["user"] = self.user
+        if self.extra_headers is not None:
+            llm_kwargs["extra_headers"] = self.extra_headers
+        if self.extra_body is not None:
+            llm_kwargs["extra_body"] = self.extra_body
+        
+        # Add any additional kwargs
+        llm_kwargs.update(self.llm_kwargs)
 
         self.llm_chat = LLMChatBlock(**llm_kwargs)
 
         # 3. TextParserBlock
-        self.text_parser = TextParserBlock(
-            block_name=f"{self.block_name}_text_parser",
-            input_cols=["raw_eval_faithfulness"],
-            output_cols=["faithfulness_explanation", "faithfulness_judgment"],
-            start_tags=self.start_tags,
-            end_tags=self.end_tags,
-        )
+        text_parser_kwargs = {
+            "block_name": f"{self.block_name}_text_parser",
+            "input_cols": ["raw_eval_faithfulness"],
+            "output_cols": ["faithfulness_explanation", "faithfulness_judgment"],
+            "start_tags": self.start_tags,
+            "end_tags": self.end_tags,
+        }
+        
+        # Add optional TextParserBlock parameters if specified
+        if self.parsing_pattern is not None:
+            text_parser_kwargs["parsing_pattern"] = self.parsing_pattern
+        if self.parser_cleanup_tags is not None:
+            text_parser_kwargs["parser_cleanup_tags"] = self.parser_cleanup_tags
+            
+        self.text_parser = TextParserBlock(**text_parser_kwargs)
 
         # 4. ColumnValueFilterBlock
         filter_kwargs = {
