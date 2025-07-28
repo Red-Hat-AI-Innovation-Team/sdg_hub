@@ -8,7 +8,7 @@ Use the new modular approach with PromptBuilderBlock, LLMChatBlock, and TextPars
 """
 
 # Standard
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 import tempfile
 import warnings
 
@@ -16,11 +16,12 @@ import warnings
 from datasets import Dataset
 import openai
 import yaml
+from jinja2 import Environment, meta
 
 # Local
 from ...logger_config import setup_logger
 from ...registry import BlockRegistry
-from ..block import Block
+from ..base import BaseBlock
 from ..llm.llm_chat_block import LLMChatBlock
 from ..llm.prompt_builder_block import PromptBuilderBlock
 from ..llm.text_parser_block import TextParserBlock
@@ -61,7 +62,7 @@ def server_supports_batched(client: Any, model_id: str) -> bool:
 
 
 @BlockRegistry.register("LLMBlock")
-class LLMBlock(Block):
+class LLMBlock(BaseBlock):
     """DEPRECATED: Block for generating text using language models.
 
     This block maintains backwards compatibility with the old LLMBlock interface
@@ -106,18 +107,23 @@ class LLMBlock(Block):
             stacklevel=2,
         )
 
-        super().__init__(block_name)
+        # Load config and extract input columns before calling super().__init__()
+        block_config = self._load_config_static(config_path)
+        input_cols = self._extract_template_variables_static(block_config)
+
+        super().__init__(
+            block_name=block_name, input_cols=input_cols, output_cols=output_cols
+        )
+
+        # Now we can set instance attributes
+        self.config_path = config_path
+        self.block_config = block_config
 
         # Store original parameters for compatibility
-        self.config_path = config_path
         self.client = client
-        self.output_cols = output_cols
         self.parser_kwargs = parser_kwargs or {}
         self.model_prompt = model_prompt
         self.batch_kwargs = batch_kwargs.get("batch_kwargs", {})
-
-        # Load original config
-        self.block_config = self._load_config(config_path)
 
         # Set model
         if model_id:
@@ -132,37 +138,67 @@ class LLMBlock(Block):
         # Initialize the three new blocks
         self._setup_internal_blocks()
 
+    def _load_config(self, config_path: str) -> Dict[str, Any]:
+        """Load configuration from YAML file."""
+        return self._load_config_static(config_path)
+
+    @staticmethod
+    def _load_config_static(config_path: str) -> Dict[str, Any]:
+        """Load configuration from YAML file (static version)."""
+        try:
+            with open(config_path, "r", encoding="utf-8") as file:
+                return yaml.safe_load(file) or {}
+        except Exception as e:
+            logger.error(f"Failed to load config from {config_path}: {e}")
+            return {}
+
+    def _extract_template_variables(self) -> List[str]:
+        """Extract Jinja2 template variables from all config fields."""
+        return self._extract_template_variables_static(self.block_config)
+
+    @staticmethod
+    def _extract_template_variables_static(block_config: Dict[str, Any]) -> List[str]:
+        """Extract Jinja2 template variables from all config fields (static version)."""
+        variables: Set[str] = set()
+        env = Environment()
+
+        # Extract variables from all string fields in config
+        for field in ["system", "introduction", "principles", "examples", "generation"]:
+            field_content = block_config.get(field, "")
+            if isinstance(field_content, str) and field_content.strip():
+                try:
+                    ast = env.parse(field_content)
+                    field_vars = meta.find_undeclared_variables(ast)
+                    variables.update(field_vars)
+                except Exception as e:
+                    logger.debug(
+                        f"Could not parse template variables from {field}: {e}"
+                    )
+
+        return list(variables)
+
     def _create_prompt_config(self) -> str:
         """Create a temporary YAML config file for the new PromptBuilderBlock format."""
         # Convert old config format to new message-based format
         messages = []
 
-        # Add system message if present
-        system_content = self.block_config.get("system")
-        if system_content:
-            messages.append({"role": "system", "content": system_content})
+        # Create user message with the structured prompt (matching old format)
+        # Build prompt using the original structure: {system}\n{introduction}\n{principles}\n{examples}\n{generation}
+        prompt_parts = []
+        for field in ["system", "introduction", "principles", "examples", "generation"]:
+            field_content = self.block_config.get(field, "")
+            prompt_parts.append(field_content)
 
-        # Create user message with the structured prompt
-        user_content_parts = []
-        for field in ["introduction", "principles", "examples", "generation"]:
-            field_content = self.block_config.get(field)
-            if field_content:
-                if field == "introduction":
-                    user_content_parts.append(field_content)
-                elif field == "principles":
-                    user_content_parts.append(f"Requirements:\n{field_content}")
-                elif field == "examples":
-                    user_content_parts.append(f"Examples:\n{field_content}")
-                elif field == "generation":
-                    user_content_parts.append(f"Task:\n{field_content}")
+        # Join with single newlines to match original prompt_struct
+        user_content = "\n".join(prompt_parts)
 
-        if user_content_parts:
-            messages.append(
-                {"role": "user", "content": "\n\n".join(user_content_parts)}
-            )
+        if user_content.strip():
+            messages.append({"role": "user", "content": user_content})
 
         # Write to temporary file
-        temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)
+        temp_file = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".yaml.j2", delete=False
+        )
         yaml.safe_dump(messages, temp_file, default_flow_style=False)
         temp_file.flush()
         return temp_file.name
@@ -172,12 +208,10 @@ class LLMBlock(Block):
         # 1. PromptBuilderBlock
         self.prompt_builder = PromptBuilderBlock(
             block_name=f"{self.block_name}_prompt_builder",
-            input_cols="sample_data",  # Will map all columns
+            input_cols=self.input_cols,  # Pass through original input columns for template access
             output_cols=["messages"],
             prompt_config_path=self._temp_prompt_config,
             format_as_messages=True,
-            prompt_template_config=None,
-            prompt_renderer=None,
         )
 
         # 2. LLMChatBlock
@@ -270,15 +304,10 @@ class LLMBlock(Block):
 
         try:
             # Step 1: Format prompts using PromptBuilderBlock
-            # Create a single sample with all column data for template rendering
-            formatted_samples = []
-            for sample in samples:
-                # Create a sample_data column that contains the entire sample
-                sample_with_data = {"sample_data": sample}
-                formatted_samples.append(sample_with_data)
+            # Pass the original dataset directly so template variables can be accessed
+            prompt_result = self.prompt_builder.generate(samples)
 
-            prompt_dataset = Dataset.from_list(formatted_samples)
-            prompt_result = self.prompt_builder.generate(prompt_dataset)
+            print(prompt_result[0])
 
             # Step 2: Generate responses using LLMChatBlock
             chat_result = self.llm_chat.generate(prompt_result, **gen_kwargs)
@@ -323,7 +352,7 @@ class LLMBlock(Block):
 
                 for orig_sample in samples:
                     # Each original sample should have n corresponding results
-                    for i in range(num_parallel_samples):
+                    for _ in range(num_parallel_samples):
                         if result_idx < len(final_result):
                             result_sample = final_result[result_idx]
                             merged_sample = {**orig_sample}
