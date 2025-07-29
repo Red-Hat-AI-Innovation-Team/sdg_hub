@@ -378,8 +378,20 @@ class Flow(BaseModel):
             block_kwargs = self._prepare_block_kwargs(block, runtime_params)
 
             try:
-                # Execute block with validation and logging
-                current_dataset = block(current_dataset, **block_kwargs)
+                # Check if this is a deprecated block and skip validations
+                is_deprecated_block = (
+                    hasattr(block, '__class__') and 
+                    hasattr(block.__class__, '__module__') and
+                    'deprecated_blocks' in block.__class__.__module__
+                )
+                
+                if is_deprecated_block:
+                    logger.debug(f"Skipping validations for deprecated block: {block.block_name}")
+                    # Call generate() directly to skip validations, but keep the runtime params
+                    current_dataset = block.generate(current_dataset, **block_kwargs)
+                else:
+                    # Execute block with validation and logging
+                    current_dataset = block(current_dataset, **block_kwargs)
 
                 # Validate output
                 if len(current_dataset) == 0:
@@ -513,8 +525,20 @@ class Flow(BaseModel):
                 # Prepare block execution parameters
                 block_kwargs = self._prepare_block_kwargs(block, runtime_params)
 
-                # Execute block
-                current_dataset = block(current_dataset, **block_kwargs)
+                # Check if this is a deprecated block and skip validations
+                is_deprecated_block = (
+                    hasattr(block, '__class__') and 
+                    hasattr(block.__class__, '__module__') and
+                    'deprecated_blocks' in block.__class__.__module__
+                )
+                
+                if is_deprecated_block:
+                    logger.debug(f"Dry run: Skipping validations for deprecated block: {block.block_name}")
+                    # Call generate() directly to skip validations, but keep the runtime params
+                    current_dataset = block.generate(current_dataset, **block_kwargs)
+                else:
+                    # Execute block with validation and logging
+                    current_dataset = block(current_dataset, **block_kwargs)
 
                 block_execution_time = time.time() - block_start_time
 
