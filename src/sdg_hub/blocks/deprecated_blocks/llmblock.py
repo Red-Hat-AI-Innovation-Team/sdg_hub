@@ -295,6 +295,7 @@ class LLMBlock(BaseBlock):
 
         This method maintains backwards compatibility by internally using the three new blocks.
         """
+        logger.info(f"DEPRECATED LLMBlock '{self.block_name}' starting with {len(samples)} samples")
         logger.debug(
             "Generating outputs for {} samples using deprecated LLMBlock".format(
                 len(samples)
@@ -310,9 +311,39 @@ class LLMBlock(BaseBlock):
             # Step 1: Format prompts using PromptBuilderBlock
             # Pass the original dataset directly so template variables can be accessed
             prompt_result = self.prompt_builder.generate(samples)
+            logger.info(f"DEPRECATED LLMBlock '{self.block_name}' after prompt building: {len(prompt_result)} samples")
 
             # Step 2: Generate responses using LLMChatBlock
             chat_result = self.llm_chat.generate(prompt_result, **gen_kwargs)
+            logger.info(f"DEPRECATED LLMBlock '{self.block_name}' after LLM generation: {len(chat_result)} samples")
+            
+            # Debug: Log sample raw response for knowledge generation block
+            if self.block_name == "knowledge generation" and len(chat_result) > 0:
+                sample_response = chat_result[0]["raw_response"]
+                if isinstance(sample_response, list):
+                    sample_response = sample_response[0] if sample_response else ""
+                logger.info(f"KNOWLEDGE GEN DEBUG - Raw response sample (first 500 chars): {str(sample_response)[:500]}...")
+                
+                # Count how many Q&A pairs are in the response
+                import re
+                pattern = r"\[(?:Question|QUESTION)\].*?\[(?:Answer|ANSWER)\]"
+                matches = re.findall(pattern, str(sample_response), re.DOTALL | re.IGNORECASE)
+                logger.info(f"KNOWLEDGE GEN DEBUG - Found {len(matches)} Q&A pairs in sample response")
+            
+            # Debug: Log faithfulness evaluation input and output
+            if self.block_name == "eval_faithfulness_qa_pair" and len(chat_result) > 0:
+                sample_response = chat_result[0]["raw_response"]
+                if isinstance(sample_response, list):
+                    sample_response = sample_response[0] if sample_response else ""
+                logger.info(f"FAITHFULNESS DEBUG - Raw LLM response sample (first 800 chars): {str(sample_response)[:800]}...")
+                
+                # Log the input that was sent to the LLM (document + response being evaluated)
+                if len(samples) > 0:
+                    sample_input = samples[0]
+                    document_preview = str(sample_input.get('document', 'N/A'))[:200]
+                    response_preview = str(sample_input.get('response', 'N/A'))[:200]
+                    logger.info(f"FAITHFULNESS DEBUG - Input document (first 200 chars): {document_preview}...")
+                    logger.info(f"FAITHFULNESS DEBUG - Input response being evaluated (first 200 chars): {response_preview}...")
 
             # Step 3: Handle n parameter before parsing
             num_parallel_samples = gen_kwargs.get("n", 1)
@@ -338,7 +369,9 @@ class LLMBlock(BaseBlock):
 
                 # Step 4: Parse the expanded responses using TextParserBlock (if configured)
                 if self.text_parser:
+                    logger.info(f"DEPRECATED LLMBlock '{self.block_name}' before parsing (n>1): {len(expanded_chat_result)} samples")
                     final_result = self.text_parser.generate(expanded_chat_result)
+                    logger.info(f"DEPRECATED LLMBlock '{self.block_name}' after parsing (n>1): {len(final_result)} samples")
                 else:
                     # If no parser, just rename the raw_response column to the first output column
                     if self.output_cols:
@@ -347,6 +380,7 @@ class LLMBlock(BaseBlock):
                         )
                     else:
                         final_result = expanded_chat_result
+                    logger.info(f"DEPRECATED LLMBlock '{self.block_name}' no parser (n>1): {len(final_result)} samples")
 
                 # Step 5: Merge with original samples (each original sample maps to n result samples)
                 merged_data = []
@@ -379,7 +413,25 @@ class LLMBlock(BaseBlock):
             else:
                 # Step 4: Parse responses using TextParserBlock (if configured) - n=1 case
                 if self.text_parser:
+                    logger.info(f"DEPRECATED LLMBlock '{self.block_name}' before parsing (n=1): {len(chat_result)} samples")
                     final_result = self.text_parser.generate(chat_result)
+                    logger.info(f"DEPRECATED LLMBlock '{self.block_name}' after parsing (n=1): {len(final_result)} samples")
+                    
+                    # Debug: Log parsed faithfulness results  
+                    if self.block_name == "eval_faithfulness_qa_pair" and len(final_result) > 0:
+                        sample_parsed = final_result[0]
+                        explanation_val = sample_parsed.get('explanation', 'N/A')
+                        judgment_val = sample_parsed.get('judgment', 'N/A')
+                        logger.info(f"FAITHFULNESS DEBUG - Parsed explanation: {str(explanation_val)[:300]}...")
+                        logger.info(f"FAITHFULNESS DEBUG - Parsed judgment: '{judgment_val}' (type: {type(judgment_val)})")
+                        
+                        # Check all judgment values in the batch
+                        judgment_values = []
+                        for sample in final_result:
+                            judgment_values.append(sample.get('judgment', 'MISSING'))
+                        unique_judgments = set(judgment_values)
+                        logger.info(f"FAITHFULNESS DEBUG - All judgment values in batch: {list(unique_judgments)}")
+                        logger.info(f"FAITHFULNESS DEBUG - Count of each judgment: {[(val, judgment_values.count(val)) for val in unique_judgments]}")
                 else:
                     # If no parser, just rename the raw_response column to the first output column
                     if self.output_cols:
@@ -388,28 +440,58 @@ class LLMBlock(BaseBlock):
                         )
                     else:
                         final_result = chat_result
+                    logger.info(f"DEPRECATED LLMBlock '{self.block_name}' no parser (n=1): {len(final_result)} samples")
                 # Step 5: Merge with original samples for n=1 case
-                merged_data = []
-                for orig_sample, result_sample in zip(samples, final_result):
-                    merged_sample = {**orig_sample}
-                    for output_col in self.output_cols:
-                        if output_col in result_sample:
-                            response = result_sample[output_col]
-                            # Handle case where response might still be a list with 1 item
-                            if isinstance(response, list) and len(response) == 1:
-                                merged_sample[output_col] = response[0]
-                            elif isinstance(response, list):
-                                # Multiple responses but n=1 - take first one
-                                merged_sample[output_col] = (
-                                    response[0] if response else ""
-                                )
+                # Handle different parsing outcomes: expansion, contraction, or 1:1
+                if len(final_result) != len(samples):
+                    # Row count changed - parsing found different number of results than inputs
+                    if len(final_result) > len(samples):
+                        logger.info(f"DEPRECATED LLMBlock '{self.block_name}' detected row expansion: {len(samples)} -> {len(final_result)}")
+                    else:
+                        logger.info(f"DEPRECATED LLMBlock '{self.block_name}' detected row contraction: {len(samples)} -> {len(final_result)}")
+                    
+                    # For both expansion and contraction, return parsed results
+                    # Keep only the expected output columns plus any preserved input columns
+                    # Remove intermediate processing columns to avoid duplicates
+                    desired_columns = set(self.output_cols)  # Required output columns
+                    available_columns = set(final_result.column_names)
+                    
+                    # Add input columns that were preserved (excluding processing columns like raw_response, messages)
+                    processing_columns = {'raw_response', 'messages'}  # Common intermediate columns
+                    for col in available_columns:
+                        if col not in processing_columns and col not in desired_columns:
+                            # This is likely a preserved input column
+                            desired_columns.add(col)
+                    
+                    # Filter to only the columns we want
+                    columns_to_keep = [col for col in final_result.column_names if col in desired_columns]
+                    final_dataset = final_result.select_columns(columns_to_keep)
+                else:
+                    # Normal 1:1 case - merge with original samples to preserve all input columns
+                    logger.info(f"DEPRECATED LLMBlock '{self.block_name}' 1:1 mapping: {len(samples)} -> {len(final_result)}")
+                    merged_data = []
+                    for orig_sample, result_sample in zip(samples, final_result):
+                        merged_sample = {**orig_sample}
+                        for output_col in self.output_cols:
+                            if output_col in result_sample:
+                                response = result_sample[output_col]
+                                # Handle case where response might still be a list with 1 item
+                                if isinstance(response, list) and len(response) == 1:
+                                    merged_sample[output_col] = response[0]
+                                elif isinstance(response, list):
+                                    # Multiple responses but n=1 - take first one
+                                    merged_sample[output_col] = (
+                                        response[0] if response else ""
+                                    )
+                                else:
+                                    merged_sample[output_col] = response
                             else:
-                                merged_sample[output_col] = response
-                        else:
-                            merged_sample[output_col] = ""
-                    merged_data.append(merged_sample)
+                                merged_sample[output_col] = ""
+                        merged_data.append(merged_sample)
+                    final_dataset = Dataset.from_list(merged_data)
 
-                return Dataset.from_list(merged_data)
+                logger.info(f"DEPRECATED LLMBlock '{self.block_name}' final result: {len(final_dataset)} samples")
+                return final_dataset
 
         except Exception as e:
             logger.error(f"Error in deprecated LLMBlock generation: {e}")
