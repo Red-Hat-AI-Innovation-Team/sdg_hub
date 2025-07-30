@@ -35,7 +35,7 @@ from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.models.ocr_mac_model import OcrMacOptions
 from docling.models.tesseract_ocr_cli_model import TesseractCliOcrOptions
 from docling.models.tesseract_ocr_model import TesseractOcrOptions
-from sdg_hub.logger_config import setup_logger
+from logger_config import setup_logger
 import click
 
 logger = setup_logger(__name__)
