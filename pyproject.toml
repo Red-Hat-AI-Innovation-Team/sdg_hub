@@ -37,6 +37,8 @@ dependencies = [
     "litellm>=1.61.15",
     "openai>=1.13.3,<2.0.0",
     "rich",
+    "pydantic",
+    "python-dotenv",
     "tenacity>=8.3.0,!=8.4.0",
     "tqdm>=4.66.2,<5.0.0",
 ]
@@ -75,7 +77,6 @@ examples = [
     "nltk",
     "sentence-transformers",
     "instructor",
-    "pydantic",
     "fastapi",
 ]
 dev = [
