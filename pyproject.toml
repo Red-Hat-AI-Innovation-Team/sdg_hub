@@ -67,6 +67,16 @@ examples = [
     "transformers>=4.37.0",
     "langchain-text-splitters",
     "docling>=2.3.0",
+    "scikit-learn",
+    "pandas",
+    "polars",
+    "matplotlib",
+    "spacy",
+    "nltk",
+    "sentence-transformers",
+    "instructor",
+    "pydantic",
+    "fastapi",
 ]
 dev = [
     "pre-commit>=3.0.4,<4.0",
