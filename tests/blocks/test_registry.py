@@ -64,9 +64,23 @@ class TestBlockRegistry:
     """Test BlockRegistry functionality."""
 
     def setup_method(self):
-        """Clear registry before each test."""
+        """Save current registry state and clear for isolated testing."""
+        # Save current state
+        self._saved_metadata = BlockRegistry._metadata.copy()
+        self._saved_categories = {k: v.copy() for k, v in BlockRegistry._categories.items()}
+        
+        # Clear for isolated testing
         BlockRegistry._metadata.clear()
         BlockRegistry._categories.clear()
+    
+    def teardown_method(self):
+        """Restore registry state after each test."""
+        # Restore saved state
+        BlockRegistry._metadata.clear()
+        BlockRegistry._metadata.update(self._saved_metadata)
+        
+        BlockRegistry._categories.clear()
+        BlockRegistry._categories.update(self._saved_categories)
 
     def test_register_valid_block(self):
         """Test registering a valid block."""

@@ -21,17 +21,21 @@ from ..transform.index_based_mapper import IndexBasedMapperBlock
 logger = setup_logger(__name__)
 
 
-@BlockRegistry.register("SelectorBlock", "deprecated")
+@BlockRegistry.register(
+    "SelectorBlock",
+    "deprecated",
+    "DEPRECATED: Use IndexBasedMapperBlock instead. Selects and maps values from one column to another",
+)
 class SelectorBlock(BaseBlock):
     """DEPRECATED: Block for selecting and mapping values from one column to another.
-    
-    .. deprecated:: 
+
+    .. deprecated::
         Use `sdg_hub.blocks.transform.IndexBasedMapperBlock` instead.
         This class will be removed in a future version.
-    
+
     This block uses a mapping dictionary to select values from one column and
     store them in a new output column based on a choice column's value.
-    
+
     Parameters
     ----------
     block_name : str
@@ -59,17 +63,15 @@ class SelectorBlock(BaseBlock):
             DeprecationWarning,
             stacklevel=2,
         )
-        
+
         # Initialize with dummy values for BaseBlock validation
         # We need all columns referenced in choice_map as input, plus the choice column
         all_input_cols = list(choice_map.values()) + [choice_col]
-        
+
         super().__init__(
-            block_name=block_name,
-            input_cols=all_input_cols,
-            output_cols=[output_col]
+            block_name=block_name, input_cols=all_input_cols, output_cols=[output_col]
         )
-        
+
         # Create the new implementation
         self._impl = IndexBasedMapperBlock(
             block_name=block_name,
@@ -81,12 +83,12 @@ class SelectorBlock(BaseBlock):
 
     def generate(self, samples: Dataset) -> Dataset:
         """Generate a new dataset with selected values.
-        
+
         Parameters
         ----------
         samples : Dataset
             Input dataset to process.
-            
+
         Returns
         -------
         Dataset

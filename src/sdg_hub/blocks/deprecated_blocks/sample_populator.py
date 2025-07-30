@@ -20,11 +20,15 @@ from ..registry import BlockRegistry
 logger = setup_logger(__name__)
 
 
-@BlockRegistry.register("SamplePopulatorBlock", "deprecated")
+@BlockRegistry.register(
+    "SamplePopulatorBlock",
+    "deprecated",
+    "DEPRECATED: Use a router block instead. Populates dataset with data from configuration files",
+)
 class SamplePopulatorBlock(BaseBlock):
     """DEPRECATED: Block for populating dataset with data from configuration files.
-    
-    .. deprecated:: 
+
+    .. deprecated::
         This block is deprecated and will be replaced with a router block.
     """
 
@@ -41,15 +45,13 @@ class SamplePopulatorBlock(BaseBlock):
             DeprecationWarning,
             stacklevel=2,
         )
-        
+
         # Initialize with dummy values for BaseBlock validation
         super().__init__(
-            block_name=block_name,
-            input_cols=[column_name],
-            output_cols=[column_name]
+            block_name=block_name, input_cols=[column_name], output_cols=[column_name]
         )
 
-    def generate(self, samples: Dataset) -> Dataset:
+    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
         """Generate method - raises error as block is deprecated."""
         raise NotImplementedError(
             "SamplePopulatorBlock is deprecated and will be replaced with a router block."

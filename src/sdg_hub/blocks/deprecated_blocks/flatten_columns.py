@@ -23,7 +23,7 @@ logger = setup_logger(__name__)
 
 @BlockRegistry.register(
     "FlattenColumnsBlock",
-    "transform",
+    "deprecated",
     "DEPRECATED: Use MeltColumnsBlock instead. Transforms wide dataset format into long format by melting columns into rows",
 )
 class FlattenColumnsBlock(BaseBlock):
