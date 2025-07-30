@@ -4,7 +4,7 @@ This package provides various block implementations for data generation, process
 """
 
 # Local
-from ..registry import BlockRegistry
+from .registry import BlockRegistry
 from .deprecated_blocks import (
     CombineColumnsBlock,
     DuplicateColumns,
