@@ -114,3 +114,61 @@ def extract_notebook_outputs(notebook_path: Path, cell_tags: Optional[list] = No
                     outputs[f"cell_{len(outputs)}"] = cell_outputs
     
     return outputs
+
+
+def execute_notebook_with_cell_injection(
+    notebook_path: Path,
+    injected_cells: list,
+    parameters: Dict[str, Any] = None,
+    injection_position: int = 2,
+    output_dir: Optional[Path] = None,
+    kernel_name: str = "python3"
+) -> Path:
+    """
+    Execute a notebook with cells injected at a specific position.
+    
+    Args:
+        notebook_path: Path to the input notebook
+        injected_cells: List of cell dictionaries to inject
+        parameters: Dictionary of parameters to inject
+        injection_position: Position to insert cells (default: 2, after imports)
+        output_dir: Directory to save the executed notebook (temp if None)
+        kernel_name: Jupyter kernel name to use
+        
+    Returns:
+        Path to the executed notebook
+    """
+    if output_dir is None:
+        output_dir = Path(tempfile.mkdtemp())
+    if parameters is None:
+        parameters = {}
+    
+    # Load notebook
+    with open(notebook_path, 'r') as f:
+        notebook = json.load(f)
+    
+    # Insert cells at specified position
+    for i, cell in enumerate(injected_cells):
+        notebook['cells'].insert(injection_position + i, cell)
+    
+    # Create temporary notebook file in the same directory as original notebook
+    # This ensures relative paths work correctly
+    notebook_dir = notebook_path.parent
+    temp_notebook_path = notebook_dir / f"temp_{notebook_path.name}"
+    with open(temp_notebook_path, 'w') as f:
+        json.dump(notebook, f, indent=2)
+    
+    try:
+        # Execute using standard function
+        executed_path = execute_notebook_with_params(
+            temp_notebook_path,
+            parameters,
+            output_dir,
+            kernel_name
+        )
+    finally:
+        # Clean up temp notebook
+        if temp_notebook_path.exists():
+            temp_notebook_path.unlink()
+    
+    return executed_path
