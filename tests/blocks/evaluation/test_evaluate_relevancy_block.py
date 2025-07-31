@@ -80,7 +80,6 @@ class TestEvaluateRelevancyBlock:
             output_cols=[
                 "relevancy_explanation",
                 "relevancy_score",
-                "filtered_relevancy",
             ],
             prompt_config_path=test_yaml_config,
             model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
@@ -93,7 +92,6 @@ class TestEvaluateRelevancyBlock:
         assert block.output_cols == [
             "relevancy_explanation",
             "relevancy_score",
-            "filtered_relevancy",
         ]
         assert block.model == "hosted_vllm/meta-llama/Llama-3.3-70B-Instruct"
         assert block.filter_value == 2.0  # default
@@ -114,7 +112,6 @@ class TestEvaluateRelevancyBlock:
             output_cols=[
                 "relevancy_explanation",
                 "relevancy_score",
-                "filtered_relevancy",
             ],
             prompt_config_path=test_yaml_config,
             model="openai/gpt-4",
@@ -148,7 +145,6 @@ class TestEvaluateRelevancyBlock:
                 output_cols=[
                     "relevancy_explanation",
                     "relevancy_score",
-                    "filtered_relevancy",
                 ],
                 prompt_config_path=test_yaml_config,
                 model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
@@ -176,7 +172,6 @@ class TestEvaluateRelevancyBlock:
                 output_cols=[
                     "relevancy_explanation",
                     "relevancy_score",
-                    "filtered_relevancy",
                 ],
                 prompt_config_path="/nonexistent/path.yaml",
                 model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
@@ -190,7 +185,6 @@ class TestEvaluateRelevancyBlock:
             output_cols=[
                 "relevancy_explanation",
                 "relevancy_score",
-                "filtered_relevancy",
             ],
             prompt_config_path=test_yaml_config,
             model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
@@ -209,7 +203,6 @@ class TestEvaluateRelevancyBlock:
             output_cols=[
                 "relevancy_explanation",
                 "relevancy_score",
-                "filtered_relevancy",
             ],
             prompt_config_path=test_yaml_config,
             model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
@@ -235,7 +228,6 @@ class TestEvaluateRelevancyBlock:
             output_cols=[
                 "relevancy_explanation",
                 "relevancy_score",
-                "filtered_relevancy",
             ],
             prompt_config_path=test_yaml_config,
             model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
@@ -321,7 +313,6 @@ class TestEvaluateRelevancyBlock:
             output_cols=[
                 "relevancy_explanation",
                 "relevancy_score",
-                "filtered_relevancy",
             ],
             prompt_config_path=test_yaml_config,
             model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
@@ -337,9 +328,9 @@ class TestEvaluateRelevancyBlock:
         mock_parser_instance.generate.assert_called_once()
         mock_filter_instance.generate.assert_called_once()
 
-        # Verify result contains the filtered_relevancy column
-        assert "filtered_relevancy" in result.column_names
-        assert all(result["filtered_relevancy"])  # Should all be True
+        # Verify result contains expected columns
+        assert "relevancy_explanation" in result.column_names
+        assert "relevancy_score" in result.column_names
 
     def test_get_internal_blocks_info(self, test_yaml_config):
         """Test get_internal_blocks_info method."""
@@ -349,7 +340,6 @@ class TestEvaluateRelevancyBlock:
             output_cols=[
                 "relevancy_explanation",
                 "relevancy_score",
-                "filtered_relevancy",
             ],
             prompt_config_path=test_yaml_config,
             model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
@@ -378,7 +368,6 @@ class TestEvaluateRelevancyBlock:
             output_cols=[
                 "relevancy_explanation",
                 "relevancy_score",
-                "filtered_relevancy",
             ],
             prompt_config_path=test_yaml_config,
             model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
@@ -394,7 +383,6 @@ class TestEvaluateRelevancyBlock:
         assert info["output_cols"] == [
             "relevancy_explanation",
             "relevancy_score",
-            "filtered_relevancy",
         ]
         assert info["model"] == "hosted_vllm/meta-llama/Llama-3.3-70B-Instruct"
 
@@ -406,7 +394,6 @@ class TestEvaluateRelevancyBlock:
             output_cols=[
                 "relevancy_explanation",
                 "relevancy_score",
-                "filtered_relevancy",
             ],
             prompt_config_path=test_yaml_config,
             model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
@@ -426,7 +413,6 @@ class TestEvaluateRelevancyBlock:
             output_cols=[
                 "relevancy_explanation",
                 "relevancy_score",
-                "filtered_relevancy",
             ],
             prompt_config_path=test_yaml_config,
             model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
@@ -471,7 +457,6 @@ class TestEvaluateRelevancyBlock:
             output_cols=[
                 "relevancy_explanation",
                 "relevancy_score",
-                "filtered_relevancy",
             ],
             prompt_config_path=test_yaml_config,
             model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
@@ -494,7 +479,6 @@ class TestEvaluateRelevancyBlock:
             output_cols=[
                 "relevancy_explanation",
                 "relevancy_score",
-                "filtered_relevancy",
             ],
             prompt_config_path=test_yaml_config,
             model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",

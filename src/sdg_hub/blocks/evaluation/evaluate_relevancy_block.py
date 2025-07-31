@@ -46,7 +46,7 @@ class EvaluateRelevancyBlock(BaseBlock):
     input_cols : List[str]
         Input columns: ["question", "response"]
     output_cols : List[str]
-        Output columns: ["relevancy_explanation", "relevancy_score", "filtered_relevancy"]
+        Output columns: ["relevancy_explanation", "relevancy_score"]
     prompt_config_path : str
         Path to YAML file containing the relevancy evaluation prompt template.
     model : str
@@ -226,11 +226,10 @@ class EvaluateRelevancyBlock(BaseBlock):
     @field_validator("output_cols")
     @classmethod
     def validate_output_cols(cls, v):
-        """Validate that output columns are exactly ["relevancy_explanation", "relevancy_score", "filtered_relevancy"]."""
+        """Validate that output columns are exactly ["relevancy_explanation", "relevancy_score"]."""
         expected = [
             "relevancy_explanation",
             "relevancy_score",
-            "filtered_relevancy",
         ]
         if v != expected:
             raise ValueError(
@@ -397,11 +396,6 @@ class EvaluateRelevancyBlock(BaseBlock):
             original_count = len(current_dataset)
             current_dataset = self.filter_block.generate(current_dataset, **kwargs)
             filtered_count = len(current_dataset)
-
-            # Add filtered_relevancy column to indicate filtering was applied
-            current_dataset = current_dataset.add_column(
-                "filtered_relevancy", [True] * filtered_count
-            )
 
             logger.info(
                 f"Relevancy evaluation completed: {original_count} → {filtered_count} samples "
