@@ -7,7 +7,7 @@ from typing import Any, Optional, Union
 import time
 
 # Third Party
-from datasets import Dataset
+from datasets import Dataset, concatenate_datasets
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from rich.console import Console
 from rich.panel import Panel
@@ -22,6 +22,7 @@ from ..utils.error_handling import EmptyDatasetError, FlowValidationError
 from ..utils.logger_config import setup_logger
 from ..utils.path_resolution import resolve_path
 from ..utils.yaml_utils import save_flow_yaml
+from .checkpointer import FlowCheckpointer
 from .metadata import FlowMetadata, FlowParameter
 from .migration import FlowMigration
 from .validation import FlowValidator
@@ -353,6 +354,8 @@ class Flow(BaseModel):
         self,
         dataset: Dataset,
         runtime_params: Optional[dict[str, dict[str, Any]]] = None,
+        checkpoint_dir: Optional[str] = None,
+        save_freq: Optional[int] = None,
     ) -> Dataset:
         """Execute the flow blocks in sequence to generate data.
 
@@ -369,6 +372,11 @@ class Flow(BaseModel):
                 "block_name": {"param1": value1, "param2": value2},
                 "other_block": {"param3": value3}
             }
+        checkpoint_dir : Optional[str], optional
+            Directory to save/load checkpoints. If provided, enables checkpointing.
+        save_freq : Optional[int], optional
+            Number of completed samples after which to save a checkpoint.
+            If None, only saves final results when checkpointing is enabled.
 
         Returns
         -------
@@ -382,6 +390,12 @@ class Flow(BaseModel):
         FlowValidationError
             If flow validation fails or if model configuration is required but not set.
         """
+        # Validate save_freq parameter early to prevent range() errors
+        if save_freq is not None and save_freq <= 0:
+            raise FlowValidationError(
+                f"save_freq must be greater than 0, got {save_freq}"
+            )
+
         # Validate preconditions
         if not self.blocks:
             raise FlowValidationError("Cannot generate with empty flow")
@@ -405,17 +419,112 @@ class Flow(BaseModel):
                 "Dataset validation failed:\n" + "\n".join(dataset_errors)
             )
 
+        # Initialize checkpointer if enabled
+        checkpointer = None
+        completed_dataset = None
+        if checkpoint_dir:
+            checkpointer = FlowCheckpointer(
+                checkpoint_dir=checkpoint_dir,
+                save_freq=save_freq,
+                flow_name=self.metadata.name,
+            )
+
+            # Load existing progress
+            remaining_dataset, completed_dataset = checkpointer.load_existing_progress(
+                dataset
+            )
+
+            if len(remaining_dataset) == 0:
+                logger.info("All samples already completed, returning existing results")
+                return completed_dataset
+
+            dataset = remaining_dataset
+            logger.info(f"Resuming with {len(dataset)} remaining samples")
+
         logger.info(
             f"Starting flow '{self.metadata.name}' v{self.metadata.version} "
             f"with {len(dataset)} samples across {len(self.blocks)} blocks"
         )
 
-        current_dataset = dataset
         # Merge migrated runtime params with provided ones (provided ones take precedence)
         merged_runtime_params = self._migrated_runtime_params.copy()
         if runtime_params:
             merged_runtime_params.update(runtime_params)
         runtime_params = merged_runtime_params
+
+        # Process dataset in chunks if checkpointing with save_freq
+        if checkpointer and save_freq:
+            all_processed = []
+
+            # Process in chunks of save_freq
+            for i in range(0, len(dataset), save_freq):
+                chunk_end = min(i + save_freq, len(dataset))
+                chunk_dataset = dataset.select(range(i, chunk_end))
+
+                logger.info(
+                    f"Processing chunk {i // save_freq + 1}: samples {i} to {chunk_end - 1}"
+                )
+
+                # Execute all blocks on this chunk
+                processed_chunk = self._execute_blocks_on_dataset(
+                    chunk_dataset, runtime_params
+                )
+                all_processed.append(processed_chunk)
+
+                # Save checkpoint after chunk completion
+                checkpointer.add_completed_samples(processed_chunk)
+
+            # Save final checkpoint for any remaining samples
+            checkpointer.save_final_checkpoint()
+
+            # Combine all processed chunks
+            final_dataset = concatenate_datasets(all_processed)
+
+            # Combine with previously completed samples if any
+            if checkpointer and completed_dataset:
+                final_dataset = concatenate_datasets([completed_dataset, final_dataset])
+
+        else:
+            # Process entire dataset at once
+            final_dataset = self._execute_blocks_on_dataset(dataset, runtime_params)
+
+            # Save final checkpoint if checkpointing enabled
+            if checkpointer:
+                checkpointer.add_completed_samples(final_dataset)
+                checkpointer.save_final_checkpoint()
+
+                # Combine with previously completed samples if any
+                if completed_dataset:
+                    final_dataset = concatenate_datasets(
+                        [completed_dataset, final_dataset]
+                    )
+
+        logger.info(
+            f"Flow '{self.metadata.name}' completed successfully: "
+            f"{len(final_dataset)} final samples, "
+            f"{len(final_dataset.column_names)} final columns"
+        )
+
+        return final_dataset
+
+    def _execute_blocks_on_dataset(
+        self, dataset: Dataset, runtime_params: dict[str, dict[str, Any]]
+    ) -> Dataset:
+        """Execute all blocks in sequence on the given dataset.
+
+        Parameters
+        ----------
+        dataset : Dataset
+            Dataset to process through all blocks.
+        runtime_params : Dict[str, Dict[str, Any]]
+            Runtime parameters for block execution.
+
+        Returns
+        -------
+        Dataset
+            Dataset after processing through all blocks.
+        """
+        current_dataset = dataset
 
         # Execute blocks in sequence
         for i, block in enumerate(self.blocks):
@@ -464,12 +573,6 @@ class Flow(BaseModel):
                 raise FlowValidationError(
                     f"Block '{block.block_name}' execution failed: {exc}"
                 ) from exc
-
-        logger.info(
-            f"Flow '{self.metadata.name}' completed successfully: "
-            f"{len(current_dataset)} final samples, "
-            f"{len(current_dataset.column_names)} final columns"
-        )
 
         return current_dataset
 
