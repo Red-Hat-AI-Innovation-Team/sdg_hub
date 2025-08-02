@@ -139,7 +139,9 @@ class PromptRenderer:
         for msg_template in self.message_templates:
             # Parse the original source to find undeclared variables
             # Use the template's existing environment to ensure consistency
-            ast = msg_template.content_template.environment.parse(msg_template.original_source)
+            ast = msg_template.content_template.environment.parse(
+                msg_template.original_source
+            )
             required_vars.update(meta.find_undeclared_variables(ast))
         return required_vars
 

@@ -1,0 +1,17 @@
+- role: "user"
+  content: |
+    Please evaluate the relevancy of the following response to the given question.
+
+    Question: {{ question }}
+
+    Response: {{ response }}
+
+    Please provide your evaluation in the following format:
+
+    [Start of Feedback]
+    Provide a detailed explanation of why the response is or is not relevant to the question.
+    [End of Feedback]
+
+    [Start of Score]
+    2.0 (for relevant) or 1.0 (for not relevant)
+    [End of Score]

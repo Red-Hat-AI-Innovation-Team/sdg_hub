@@ -1,0 +1,17 @@
+- role: "user"
+  content: |
+    Please evaluate the faithfulness of the following response to the given document.
+    
+    Document: {{ document }}
+    
+    Response: {{ response }}
+    
+    Please provide your evaluation in the following format:
+    
+    [Start of Explanation]
+    Provide a detailed explanation of why the response is or is not faithful to the document.
+    [End of Explanation]
+    
+    [Start of Answer]
+    YES or NO
+    [End of Answer] 

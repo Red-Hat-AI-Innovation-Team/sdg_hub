@@ -23,7 +23,7 @@ logger = setup_logger(__name__)
 
 @BlockRegistry.register(
     "SetToMajorityValue",
-    "transform",
+    "deprecated",
     "DEPRECATED: Use UniformColumnValueSetter with reduction_strategy='mode' instead. Sets all values in a column to the most frequent value",
 )
 class SetToMajorityValue(BaseBlock):
@@ -55,16 +55,16 @@ class SetToMajorityValue(BaseBlock):
             "SetToMajorityValue is deprecated and will be removed in a future version. "
             "Please use UniformColumnValueSetter with reduction_strategy='mode' instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
-        
+
         # Map old signature to new signature
         super().__init__(
             block_name=block_name,
             input_cols=[col_name],
             output_cols=[],
         )
-        
+
         # Create the new block instance with mapped parameters
         self._new_block = UniformColumnValueSetter(
             block_name=block_name,

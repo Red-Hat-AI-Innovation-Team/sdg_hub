@@ -23,7 +23,7 @@ logger = setup_logger(__name__)
 
 @BlockRegistry.register(
     "RenameColumns",
-    "transform",
+    "deprecated",
     "DEPRECATED: Use RenameColumnsBlock instead. Renames columns in a dataset according to a mapping dictionary",
 )
 class RenameColumns(BaseBlock):

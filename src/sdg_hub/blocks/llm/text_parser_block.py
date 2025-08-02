@@ -15,8 +15,8 @@ from pydantic import Field, field_validator, model_validator
 
 # Local
 from ...logger_config import setup_logger
-from ..registry import BlockRegistry
 from ..base import BaseBlock
+from ..registry import BlockRegistry
 
 logger = setup_logger(__name__)
 
@@ -51,20 +51,16 @@ class TextParserBlock(BaseBlock):
     """
 
     start_tags: List[str] = Field(
-        default_factory=list,
-        description="List of start tags for tag-based parsing"
+        default_factory=list, description="List of start tags for tag-based parsing"
     )
     end_tags: List[str] = Field(
-        default_factory=list,
-        description="List of end tags for tag-based parsing"
+        default_factory=list, description="List of end tags for tag-based parsing"
     )
     parsing_pattern: Optional[str] = Field(
-        default=None,
-        description="Regex pattern for custom parsing"
+        default=None, description="Regex pattern for custom parsing"
     )
     parser_cleanup_tags: Optional[List[str]] = Field(
-        default=None,
-        description="List of tags to clean from parsed output"
+        default=None, description="List of tags to clean from parsed output"
     )
 
     @field_validator("start_tags", "end_tags", mode="before")
@@ -234,28 +230,73 @@ class TextParserBlock(BaseBlock):
     def _generate(self, sample: dict) -> List[dict]:
         input_column = self.input_cols[0]
         raw_output = sample[input_column]
-        if not raw_output or not isinstance(raw_output, str):
+
+        # Handle list inputs (e.g., from LLMChatBlock with n > 1)
+        if isinstance(raw_output, list):
+            if not raw_output:
+                logger.warning(f"Input column '{input_column}' contains empty list")
+                return []
+
+            all_results = []
+            for i, response in enumerate(raw_output):
+                if not response or not isinstance(response, str):
+                    logger.warning(
+                        f"List item {i} in column '{input_column}' contains invalid data "
+                        f"(empty or non-string): {type(response)}"
+                    )
+                    continue
+
+                parsed_outputs = self._parse(response)
+
+                if not parsed_outputs or not any(
+                    len(value) > 0 for value in parsed_outputs.values()
+                ):
+                    logger.warning(
+                        f"Failed to parse content from list item {i}. Raw output length: {len(response)}, "
+                        f"parsing method: {'regex' if self.parsing_pattern else 'tags'}"
+                    )
+                    continue
+
+                # Create output rows for this response
+                max_length = max(len(value) for value in parsed_outputs.values())
+                for values in zip(
+                    *(lst[:max_length] for lst in parsed_outputs.values())
+                ):
+                    all_results.append(
+                        {**sample, **dict(zip(parsed_outputs.keys(), values))}
+                    )
+
+            return all_results
+
+        # Handle string inputs (existing logic)
+        elif isinstance(raw_output, str):
+            if not raw_output:
+                logger.warning(f"Input column '{input_column}' contains empty string")
+                return []
+
+            parsed_outputs = self._parse(raw_output)
+
+            if not parsed_outputs or not any(
+                len(value) > 0 for value in parsed_outputs.values()
+            ):
+                logger.warning(
+                    f"Failed to parse any content from input. Raw output length: {len(raw_output)}, "
+                    f"parsing method: {'regex' if self.parsing_pattern else 'tags'}"
+                )
+                return []
+
+            result = []
+            max_length = max(len(value) for value in parsed_outputs.values())
+            for values in zip(*(lst[:max_length] for lst in parsed_outputs.values())):
+                result.append({**sample, **dict(zip(parsed_outputs.keys(), values))})
+            return result
+
+        else:
             logger.warning(
-                f"Input column '{input_column}' contains invalid data (empty or non-string): {type(raw_output)}"
+                f"Input column '{input_column}' contains invalid data type: {type(raw_output)}. "
+                f"Expected str or List[str]"
             )
             return []
-
-        parsed_outputs = self._parse(raw_output)
-
-        if not parsed_outputs or not any(
-            len(value) > 0 for value in parsed_outputs.values()
-        ):
-            logger.warning(
-                f"Failed to parse any content from input. Raw output length: {len(raw_output)}, "
-                f"parsing method: {'regex' if self.parsing_pattern else 'tags'}"
-            )
-            return []
-
-        result = []
-        max_length = max(len(value) for value in parsed_outputs.values())
-        for values in zip(*(lst[:max_length] for lst in parsed_outputs.values())):
-            result.append({**sample, **dict(zip(parsed_outputs.keys(), values))})
-        return result
 
     def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
         logger.debug(f"Parsing outputs for {len(samples)} samples")
