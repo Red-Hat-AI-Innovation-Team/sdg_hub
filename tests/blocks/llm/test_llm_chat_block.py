@@ -9,14 +9,14 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks.llm import LLMChatBlock, LLMConfig
-from sdg_hub.utils.error_handling import BlockValidationError
+from sdg_hub.core.blocks.llm import LLMChatBlock, LLMConfig
+from sdg_hub.core.utils.error_handling import BlockValidationError
 
 
 @pytest.fixture
 def mock_litellm_completion():
     """Mock LiteLLM completion function."""
-    with patch("sdg_hub.blocks.llm.client_manager.completion") as mock_completion:
+    with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
         mock_response.choices[0].message.content = "Test response"
@@ -27,7 +27,7 @@ def mock_litellm_completion():
 @pytest.fixture
 def mock_litellm_completion_multiple():
     """Mock LiteLLM completion function for multiple responses (n > 1)."""
-    with patch("sdg_hub.blocks.llm.client_manager.completion") as mock_completion:
+    with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
         mock_response = MagicMock()
         # Mock 3 choices for n=3
         mock_response.choices = [MagicMock(), MagicMock(), MagicMock()]
@@ -41,7 +41,7 @@ def mock_litellm_completion_multiple():
 @pytest.fixture
 def mock_litellm_acompletion():
     """Mock LiteLLM async completion function."""
-    with patch("sdg_hub.blocks.llm.client_manager.acompletion") as mock_acompletion:
+    with patch("sdg_hub.core.blocks.llm.client_manager.acompletion") as mock_acompletion:
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
         mock_response.choices[0].message.content = "Test async response"
@@ -454,9 +454,9 @@ class TestErrorHandling:
 
     def test_litellm_rate_limit_error(self, sample_dataset):
         """Test handling of LiteLLM rate limit errors."""
-        with patch("sdg_hub.blocks.llm.client_manager.completion") as mock_completion:
+        with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
             # First Party
-            from sdg_hub.blocks.llm.error_handler import RateLimitError
+            from sdg_hub.core.blocks.llm.error_handler import RateLimitError
 
             # Mock successful response for retry
             mock_response = MagicMock()
@@ -488,9 +488,9 @@ class TestErrorHandling:
 
     def test_litellm_authentication_error(self, sample_dataset):
         """Test handling of authentication errors (non-retryable)."""
-        with patch("sdg_hub.blocks.llm.client_manager.completion") as mock_completion:
+        with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
             # First Party
-            from sdg_hub.blocks.llm.error_handler import AuthenticationError
+            from sdg_hub.core.blocks.llm.error_handler import AuthenticationError
 
             mock_completion.side_effect = AuthenticationError(
                 "Invalid API key", llm_provider="openai", model="gpt-4"
@@ -513,9 +513,9 @@ class TestErrorHandling:
 
     def test_litellm_context_window_error(self, sample_dataset):
         """Test handling of context window exceeded errors."""
-        with patch("sdg_hub.blocks.llm.client_manager.completion") as mock_completion:
+        with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
             # First Party
-            from sdg_hub.blocks.llm.error_handler import ContextWindowExceededError
+            from sdg_hub.core.blocks.llm.error_handler import ContextWindowExceededError
 
             mock_completion.side_effect = ContextWindowExceededError(
                 "Context window exceeded", llm_provider="openai", model="gpt-4"
@@ -543,7 +543,7 @@ class TestRegistration:
     def test_llm_chat_block_registered(self):
         """Test that LLMChatBlock is properly registered."""
         # First Party
-        from sdg_hub.blocks.registry import BlockRegistry
+        from sdg_hub import BlockRegistry
 
         assert "LLMChatBlock" in BlockRegistry._metadata
         assert BlockRegistry._metadata["LLMChatBlock"].block_class == LLMChatBlock

@@ -8,9 +8,9 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks.base import BaseBlock
-from sdg_hub.logger_config import setup_logger
-from sdg_hub.utils.error_handling import (
+from sdg_hub import BaseBlock
+from sdg_hub.core.utils.logger_config import setup_logger
+from sdg_hub.core.utils.error_handling import (
     BlockValidationError,
     EmptyDatasetError,
     MissingColumnError,
@@ -335,7 +335,7 @@ class TestLogging:
             ]
         return Dataset.from_list(data)
 
-    @patch("sdg_hub.blocks.base.console")
+    @patch("sdg_hub.core.blocks.base.console")
     def test_log_input_data(self, mock_console):
         """Test input data logging."""
         dataset = self.create_test_dataset()
@@ -354,7 +354,7 @@ class TestLogging:
         assert "test_block" in str(panel.title)
         assert panel.border_style == "blue"
 
-    @patch("sdg_hub.blocks.base.console")
+    @patch("sdg_hub.core.blocks.base.console")
     def test_log_output_data(self, mock_console):
         """Test output data logging."""
         input_dataset = self.create_test_dataset()
@@ -394,7 +394,7 @@ class TestCallMethod:
             ]
         return Dataset.from_list(data)
 
-    @patch("sdg_hub.blocks.base.console")
+    @patch("sdg_hub.core.blocks.base.console")
     def test_call_success(self, mock_console):
         """Test successful __call__ execution."""
         dataset = self.create_test_dataset()
@@ -415,7 +415,7 @@ class TestCallMethod:
         # Verify logging was called (input and output panels)
         assert mock_console.print.call_count == 2
 
-    @patch("sdg_hub.blocks.base.console")
+    @patch("sdg_hub.core.blocks.base.console")
     def test_call_validation_failure(self, mock_console):
         """Test __call__ with validation failure."""
         dataset = self.create_test_dataset()
@@ -430,7 +430,7 @@ class TestCallMethod:
         # Verify input logging was called but not output logging
         assert mock_console.print.call_count == 1
 
-    @patch("sdg_hub.blocks.base.console")
+    @patch("sdg_hub.core.blocks.base.console")
     def test_call_empty_dataset(self, mock_console):
         """Test __call__ with empty dataset."""
         empty_dataset = Dataset.from_list([])
@@ -445,7 +445,7 @@ class TestCallMethod:
         # Verify input logging was called
         assert mock_console.print.call_count == 1
 
-    @patch("sdg_hub.blocks.base.console")
+    @patch("sdg_hub.core.blocks.base.console")
     def test_call_column_collision(self, mock_console):
         """Test __call__ with output column collision."""
         dataset = self.create_test_dataset()
@@ -775,7 +775,7 @@ class TestCustomValidation:
         ):
             block(dataset)
 
-    @patch("sdg_hub.blocks.base.console")
+    @patch("sdg_hub.core.blocks.base.console")
     def test_custom_validation_with_logging(self, mock_console):
         """Test that custom validation works with Rich logging."""
         dataset = self.create_test_dataset()
@@ -922,7 +922,7 @@ class TestEdgeCases:
         result = block._normalize_columns("")
         assert result == [""]
 
-    @patch("sdg_hub.blocks.base.console")
+    @patch("sdg_hub.core.blocks.base.console")
     def test_logging_with_many_columns(self, mock_console):
         """Test logging with datasets that have many columns."""
         # Create dataset with many columns

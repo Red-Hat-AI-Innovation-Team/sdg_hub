@@ -5,8 +5,8 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks.transform import UniformColumnValueSetter
-from sdg_hub.utils.error_handling import EmptyDatasetError, MissingColumnError
+from sdg_hub.core.blocks.transform import UniformColumnValueSetter
+from sdg_hub.core.utils.error_handling import EmptyDatasetError, MissingColumnError
 
 
 @pytest.fixture

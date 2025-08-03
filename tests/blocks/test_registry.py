@@ -5,8 +5,9 @@ import pytest
 from unittest.mock import patch, MagicMock
 from io import StringIO
 
-from sdg_hub.blocks.registry import BlockRegistry, BlockMetadata
-from sdg_hub.blocks.base import BaseBlock
+from sdg_hub import BlockRegistry
+from sdg_hub.core.blocks.registry import BlockMetadata
+from sdg_hub import BaseBlock
 from datasets import Dataset
 
 
@@ -104,7 +105,7 @@ class TestBlockRegistry:
 
     def test_register_deprecated_block(self):
         """Test registering a deprecated block."""
-        with patch("sdg_hub.blocks.registry.logger") as mock_logger:
+        with patch("sdg_hub.core.blocks.registry.logger") as mock_logger:
 
             @BlockRegistry.register(
                 "OldBlock", "test", deprecated=True, replacement="NewBlock"
@@ -183,7 +184,7 @@ class TestBlockRegistry:
 
     def test_get_block_class_deprecated_warning(self):
         """Test warning when retrieving deprecated block."""
-        with patch("sdg_hub.blocks.registry.logger") as mock_logger:
+        with patch("sdg_hub.core.blocks.registry.logger") as mock_logger:
 
             @BlockRegistry.register(
                 "OldBlock", "test", deprecated=True, replacement="NewBlock"
@@ -292,7 +293,7 @@ class TestBlockRegistry:
 
     def test_print_blocks_empty_registry(self):
         """Test printing blocks when registry is empty."""
-        with patch("sdg_hub.blocks.registry.console") as mock_console:
+        with patch("sdg_hub.core.blocks.registry.console") as mock_console:
             BlockRegistry.show()
             mock_console.print.assert_called_once_with(
                 "[yellow]No blocks registered yet.[/yellow]"
@@ -313,7 +314,7 @@ class TestBlockRegistry:
             def generate(self, samples: Dataset, **kwargs) -> Dataset:
                 return samples
 
-        with patch("sdg_hub.blocks.registry.console") as mock_console:
+        with patch("sdg_hub.core.blocks.registry.console") as mock_console:
             BlockRegistry.show()
 
             # Check that console.print was called (for table and summary)

@@ -12,7 +12,7 @@ import pytest
 import yaml
 
 # Local
-from src.sdg_hub.flow.registry import FlowRegistry
+from sdg_hub import FlowRegistry
 
 
 class TestFlowRegistry:

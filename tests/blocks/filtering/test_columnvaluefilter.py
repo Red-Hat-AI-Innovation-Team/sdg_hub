@@ -7,8 +7,8 @@ from datasets import Dataset, Features, Value
 import pytest
 
 # First Party
-from sdg_hub.blocks import ColumnValueFilterBlock
-from sdg_hub.utils.error_handling import EmptyDatasetError, MissingColumnError
+from sdg_hub.core.blocks import ColumnValueFilterBlock
+from sdg_hub.core.utils.error_handling import EmptyDatasetError, MissingColumnError
 
 
 @pytest.fixture

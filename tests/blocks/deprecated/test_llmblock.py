@@ -3,7 +3,7 @@ import pytest
 import warnings
 from unittest.mock import MagicMock
 from datasets import Dataset
-from sdg_hub.blocks.deprecated_blocks.llmblock import LLMBlock
+from sdg_hub.core.blocks.deprecated_blocks.llmblock import LLMBlock
 
 # Get the absolute path to the test config file
 TEST_CONFIG_PATH = os.path.join(

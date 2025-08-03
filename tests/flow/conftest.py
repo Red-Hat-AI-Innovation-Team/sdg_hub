@@ -12,8 +12,9 @@ import yaml
 from datasets import Dataset
 
 # Local
-from src.sdg_hub.flow.metadata import FlowMetadata, ModelOption, ModelCompatibility
-from src.sdg_hub.blocks.base import BaseBlock
+from sdg_hub import FlowMetadata
+from sdg_hub.core.flow.metadata import ModelOption, ModelCompatibility
+from sdg_hub import BaseBlock
 
 
 @pytest.fixture

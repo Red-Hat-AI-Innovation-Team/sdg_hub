@@ -6,8 +6,8 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks.llm import PromptBuilderBlock
-from sdg_hub.blocks.llm.prompt_builder_block import ChatMessage, MessageTemplate
+from sdg_hub.core.blocks.llm import PromptBuilderBlock
+from sdg_hub.core.blocks.llm.prompt_builder_block import ChatMessage, MessageTemplate
 
 # Get the absolute paths to test config files
 TEST_CONFIG_WITH_SYSTEM = os.path.join(

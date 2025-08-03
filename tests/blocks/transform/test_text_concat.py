@@ -5,7 +5,7 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks.transform import TextConcatBlock
+from sdg_hub.core.blocks.transform import TextConcatBlock
 
 
 @pytest.fixture

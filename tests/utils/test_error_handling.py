@@ -4,7 +4,7 @@
 import pytest
 
 # First Party
-from sdg_hub.utils.error_handling import (
+from sdg_hub.core.utils.error_handling import (
     APIConnectionError,
     BlockConfigurationError,
     BlockError,

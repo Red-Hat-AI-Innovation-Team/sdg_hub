@@ -6,7 +6,7 @@ import pytest
 import warnings
 
 # First Party
-from sdg_hub.blocks import SamplePopulatorBlock
+from sdg_hub.core.blocks.deprecated_blocks import SamplePopulatorBlock
 
 
 def test_sample_populator_deprecation():

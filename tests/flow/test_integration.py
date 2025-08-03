@@ -11,8 +11,9 @@ import yaml
 from datasets import Dataset
 
 # Local
-from src.sdg_hub.flow import Flow, FlowRegistry
-from src.sdg_hub.flow.metadata import FlowMetadata, ModelOption, ModelCompatibility
+from sdg_hub import Flow, FlowRegistry
+from sdg_hub import FlowMetadata
+from sdg_hub.core.flow.metadata import ModelOption, ModelCompatibility
 
 
 class TestFlowIntegration:
@@ -75,7 +76,7 @@ class TestFlowIntegration:
             yaml.dump(flow_config, f)
         
         # Mock the block registry
-        with patch('src.sdg_hub.flow.base.BlockRegistry') as mock_registry:
+        with patch('sdg_hub.core.flow.base.BlockRegistry') as mock_registry:
             def mock_get(block_type):
                 mock_class = Mock()
                 if block_type == "LLMChatBlock":
@@ -342,7 +343,7 @@ class TestFlowIntegration:
             yaml.dump(flow_config, f)
         
         # Mock the block registry
-        with patch('src.sdg_hub.flow.base.BlockRegistry') as mock_registry:
+        with patch('sdg_hub.core.flow.base.BlockRegistry') as mock_registry:
             def mock_get(block_type):
                 mock_class = Mock()
                 if block_type == "ContextProcessor":

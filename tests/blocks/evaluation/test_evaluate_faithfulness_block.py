@@ -11,10 +11,10 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks.evaluation.evaluate_faithfulness_block import (
+from sdg_hub.core.blocks.evaluation.evaluate_faithfulness_block import (
     EvaluateFaithfulnessBlock,
 )
-from sdg_hub.blocks.registry import BlockRegistry
+from sdg_hub import BlockRegistry
 
 
 class TestEvaluateFaithfulnessBlock:
@@ -248,11 +248,11 @@ class TestEvaluateFaithfulnessBlock:
         with pytest.raises(ValueError, match="All internal blocks must be initialized"):
             block._validate_custom(sample_dataset)
 
-    @patch("sdg_hub.blocks.evaluation.evaluate_faithfulness_block.LLMChatBlock")
-    @patch("sdg_hub.blocks.evaluation.evaluate_faithfulness_block.PromptBuilderBlock")
-    @patch("sdg_hub.blocks.evaluation.evaluate_faithfulness_block.TextParserBlock")
+    @patch("sdg_hub.core.blocks.evaluation.evaluate_faithfulness_block.LLMChatBlock")
+    @patch("sdg_hub.core.blocks.evaluation.evaluate_faithfulness_block.PromptBuilderBlock")
+    @patch("sdg_hub.core.blocks.evaluation.evaluate_faithfulness_block.TextParserBlock")
     @patch(
-        "sdg_hub.blocks.evaluation.evaluate_faithfulness_block.ColumnValueFilterBlock"
+        "sdg_hub.core.blocks.evaluation.evaluate_faithfulness_block.ColumnValueFilterBlock"
     )
     def test_generate_method_calls_internal_blocks(
         self,

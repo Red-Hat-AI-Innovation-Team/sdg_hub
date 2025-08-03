@@ -14,7 +14,7 @@ import tempfile
 import pytest
 
 # First Party
-from sdg_hub.utils.path_resolution import resolve_path
+from sdg_hub.core.utils.path_resolution import resolve_path
 
 
 class TestPathResolution:

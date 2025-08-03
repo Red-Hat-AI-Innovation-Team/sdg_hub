@@ -8,7 +8,7 @@ import pytest
 from datasets import Dataset
 
 # Local
-from src.sdg_hub.flow.validation import FlowValidator
+from sdg_hub import FlowValidator
 
 
 class TestFlowValidator:

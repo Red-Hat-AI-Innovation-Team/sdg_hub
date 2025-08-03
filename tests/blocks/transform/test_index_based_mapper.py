@@ -5,8 +5,8 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks.transform import IndexBasedMapperBlock
-from sdg_hub.utils.error_handling import MissingColumnError
+from sdg_hub.core.blocks.transform import IndexBasedMapperBlock
+from sdg_hub.core.utils.error_handling import MissingColumnError
 
 
 @pytest.fixture

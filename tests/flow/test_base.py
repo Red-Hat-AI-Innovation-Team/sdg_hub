@@ -14,9 +14,10 @@ from datasets import Dataset
 from pydantic import ValidationError
 
 # Local
-from src.sdg_hub.flow.base import Flow
-from src.sdg_hub.flow.metadata import FlowMetadata, FlowParameter, ModelOption, ModelCompatibility, DatasetRequirements
-from src.sdg_hub.utils.error_handling import FlowValidationError, EmptyDatasetError
+from sdg_hub import Flow
+from sdg_hub import FlowMetadata, FlowParameter
+from sdg_hub.core.flow.metadata import ModelOption, ModelCompatibility, DatasetRequirements
+from sdg_hub.core.utils.error_handling import FlowValidationError, EmptyDatasetError
 
 
 class TestFlow:
@@ -156,7 +157,7 @@ class TestFlow:
             yaml.dump(flow_config, f)
         
         # Mock the block creation
-        with patch('src.sdg_hub.flow.base.BlockRegistry.get') as mock_get:
+        with patch('sdg_hub.core.flow.base.BlockRegistry.get') as mock_get:
             mock_block_class = Mock()
             mock_block_instance = self.create_mock_block("test_block")
             mock_block_class.return_value = mock_block_instance
@@ -208,7 +209,7 @@ class TestFlow:
             yaml.dump(flow_config, f)
         
         # Mock the block creation
-        with patch('src.sdg_hub.flow.base.BlockRegistry.get') as mock_get:
+        with patch('sdg_hub.core.flow.base.BlockRegistry.get') as mock_get:
             mock_block_class = Mock()
             mock_block_instance = self.create_mock_block("test_block")
             mock_block_class.return_value = mock_block_instance

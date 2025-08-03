@@ -9,9 +9,8 @@ from datetime import datetime
 from pydantic import ValidationError
 
 # Local
-from src.sdg_hub.flow.metadata import (
-    FlowMetadata,
-    FlowParameter,
+from sdg_hub import FlowMetadata, FlowParameter
+from sdg_hub.core.flow.metadata import (
     ModelOption,
     ModelCompatibility,
     DatasetRequirements,

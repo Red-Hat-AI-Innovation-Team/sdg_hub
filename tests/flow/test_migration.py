@@ -11,7 +11,7 @@ import pytest
 import yaml
 
 # Local
-from sdg_hub.flow.migration import FlowMigration
+from sdg_hub.core.flow.migration import FlowMigration
 
 
 class TestFlowMigration:
@@ -267,7 +267,7 @@ class TestFlowMigrationIntegration:
     def test_flow_from_yaml_with_old_format(self):
         """Test loading an old format YAML through Flow.from_yaml."""
         # Standard
-        from sdg_hub.flow.base import Flow
+        from sdg_hub import Flow
         
         old_flow_config = [
             {
@@ -298,7 +298,7 @@ class TestFlowMigrationIntegration:
     def test_flow_from_yaml_with_llm_client_injection(self):
         """Test that client is properly injected for LLMBlocks."""
         # Standard
-        from sdg_hub.flow.base import Flow
+        from sdg_hub import Flow
         
         # Create a simple config file for LLMBlock
         config_content = """
@@ -350,7 +350,7 @@ introduction: "Generate text"
     def test_flow_from_yaml_new_format_ignores_client(self):
         """Test that new format YAMLs ignore the client parameter."""
         # Standard
-        from sdg_hub.flow.base import Flow
+        from sdg_hub import Flow
         
         new_flow_config = {
             "metadata": {

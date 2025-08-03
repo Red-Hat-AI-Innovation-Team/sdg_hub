@@ -5,7 +5,7 @@ from datasets import Dataset
 import pytest
 
 # First Party
-from sdg_hub.blocks import RenameColumns
+from sdg_hub.core.blocks import RenameColumns
 
 
 def test_rename_columns_basic():
