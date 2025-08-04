@@ -25,7 +25,16 @@ logger = setup_logger(__name__)
 _DEFAULT_CHUNK_OVERLAP = 100
 
 
-def create_auxiliary_dataset(generated_dataset: Dataset):
+def create_summary_task_dataset(generated_dataset: Dataset):
+    """
+    Create auxiliary dataset from non-base documents using predefined instructions.
+    
+    Args:
+        generated_dataset (Dataset): Input dataset containing documents and metadata
+        
+    Returns:
+        Dataset: Auxiliary dataset with chat messages, or None if requirements not met
+    """
     if "dataset_type" not in generated_dataset.column_names:
         return None
 
@@ -89,16 +98,19 @@ def create_auxiliary_dataset(generated_dataset: Dataset):
 
 
 def _conv_pretrain(rec):
-    rec["messages"] = [
-        {
-            "role": "pretraining",
-            "content": f"<|user|>\n{rec['messages'][0]['content']}\n<|assistant|>\n{rec['messages'][1]['content']}",
-        }
-    ]
-    return rec
+    """
+    Convert messages to pretraining format using unmask flag. 
+    
+    Args:
+        rec (dict): Record containing messages
+        
+    Returns:
+        dict: Modified record
+    """
+    return {'unmask': True}
 
 
-def mask_qa_per_doc(ds: Dataset, keep_no_qa_per_doc: int = 3) -> Dataset:
+def mask_qa_per_doc(ds: Dataset, keep_no_qa_per_doc: int = None) -> Dataset:
     """
     Mark QA entries per document for pre-training vs fine-tuning.
 
@@ -114,6 +126,8 @@ def mask_qa_per_doc(ds: Dataset, keep_no_qa_per_doc: int = 3) -> Dataset:
     Dataset
         Dataset with added 'unmask' boolean column indicating pre-training entries
     """
+    if keep_no_qa_per_doc is None:
+        return ds
 
     unmask_entries = []
     mask_entries = []
@@ -144,9 +158,22 @@ def generate_knowledge_qa_dataset(
     keep_context_separate: bool = False,
     keep_document_outline: bool = False,
     keep_columns: List[str] = None,
-    filter_non_pre_training: bool = True,
-    keep_no_qa_per_doc: int = 3,
+    filter_non_pre_training: bool = False,
+    keep_no_qa_per_doc: int = None,
 ):
+    """
+    Generate a knowledge QA dataset from the input dataset by transforming document/question/response pairs into a chat format.
+    
+    Args:
+        generated_dataset (Dataset): Input dataset containing documents, questions and responses
+        keep_context_separate (bool): If True, keeps context separate from the messages. If False, includes context in user message
+        keep_document_outline (bool): If True, includes document outline in user message when context is not separate
+        filter_non_pre_training (bool): Filters out rows where unmask is False. Used with keep_no_qa_per_doc option
+        keep_no_qa_per_doc (int): Number of QA entries per document to mark as unmask (pre-training)
+        
+    Returns:
+        Dataset: Transformed dataset with chat messages format
+    """
     generated_dataset = generated_dataset.map(
         lambda x: {
             "response": x["response"]
@@ -289,9 +316,9 @@ def create_knowledge_regular_ds(generated_dataset: Dataset):
     )
     knowledge_ds = build_raft_dataset(knowledge_ds, p=0.4)
 
-    auxiliary_dataset = create_auxiliary_dataset(generated_dataset)
-    if auxiliary_dataset is not None:
-        knowledge_ds = safe_concatenate_datasets([knowledge_ds, auxiliary_dataset])
+    summary_task_dataset = create_summary_task_dataset(generated_dataset)
+    if summary_task_dataset is not None:
+        knowledge_ds = safe_concatenate_datasets([knowledge_ds, summary_task_dataset])
     return knowledge_ds
 
 
@@ -316,7 +343,7 @@ def create_knowledge_pretraining_ds(generated_dataset: Dataset, add_auxiliary_da
         generated_dataset, keep_context_separate=False)
     knowledge_ds = knowledge_ds.map(_conv_pretrain)
 
-    auxiliary_dataset = create_auxiliary_dataset(generated_dataset)
+    auxiliary_dataset = create_summary_task_dataset(generated_dataset)
     if auxiliary_dataset is not None and add_auxiliary_dataset:
         auxiliary_dataset = auxiliary_dataset.map(_conv_pretrain)
         knowledge_ds = safe_concatenate_datasets([knowledge_ds, auxiliary_dataset])

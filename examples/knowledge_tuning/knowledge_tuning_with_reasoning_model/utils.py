@@ -9,7 +9,7 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from knowledge_utils import (
-    create_auxiliary_dataset,
+    create_summary_task_dataset,
     generate_knowledge_qa_dataset
 )
 
@@ -34,7 +34,7 @@ def create_training_mix(ds, tokenizer, thinking="on", create_summary=True, nemot
     if nemotron_format:
         knowl_train_pretrain = knowl_train_pretrain.map(lambda x: {'messages': [{'content': f'detailed thinking {thinking}', 'role': 'system'}] + x['messages']})
     if create_summary:
-        summary_ds = create_auxiliary_dataset(ds)
+        summary_ds = create_summary_task_dataset(ds)
         if no_pretrain and summary_ds:
             summary_ds_pretrain = summary_ds
         else:
