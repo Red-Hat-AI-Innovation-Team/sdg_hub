@@ -50,11 +50,6 @@ source = "https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub"
 issues = "https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/issues"
 
 [project.optional-dependencies]
-web_interface = [
-    "flask>=3.0.2",
-    "pyyaml>=6.0.1",
-    "flask-wtf>=1.2.2",
-]
 vllm = [
     "vllm>=0.9.1",
     "torch>=2.0.0",

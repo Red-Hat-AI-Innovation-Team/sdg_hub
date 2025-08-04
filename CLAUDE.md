@@ -27,7 +27,6 @@ SDG Hub is a modular synthetic data generation toolkit for LLMs. The framework i
 
 ### Build and Install
 - Install for development: `pip install -e .[dev]`
-- Install with web interface: `pip install -e .[web_interface]`
 - Install with examples dependencies: `pip install -e .[examples]`
 
 ### Git Workflow
