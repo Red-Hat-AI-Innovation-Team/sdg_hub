@@ -1,0 +1,27 @@
+- role: "user"
+  content: |
+    Please evaluate the quality and validity of the following question.
+
+    Question: {{ question }}
+
+    Please provide your evaluation in the following format:
+
+    [Start of Explanation]
+    Provide a detailed explanation of why the question is or is not well-formed and valid.
+    Consider factors such as:
+    - Clarity and specificity
+    - Answerable nature of the question
+    - Grammatical correctness
+    - Appropriate scope and complexity
+    [End of Explanation]
+
+    [Start of Rating]
+    2.0
+    [End of Rating]
+
+    IMPORTANT: You must use EXACTLY one of these three ratings:
+    - 2.0 (for high quality questions)
+    - 1.0 (for acceptable quality questions)  
+    - 0.0 (for poor quality questions)
+    
+    Do not use any other numbers. Only use 2.0, 1.0, or 0.0.

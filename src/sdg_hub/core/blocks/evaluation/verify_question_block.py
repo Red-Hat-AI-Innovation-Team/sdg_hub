@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Composite block for faithfulness evaluation of question-answer pairs.
+"""Composite block for question verification and quality assessment.
 
-This module provides the EvaluateFaithfulnessBlock that encapsulates the complete
-faithfulness evaluation workflow, combining prompt building, LLM chat, text parsing,
+This module provides the VerifyQuestionBlock that encapsulates the complete
+question verification workflow, combining prompt building, LLM chat, text parsing,
 and filtering into a single block for simplified configuration.
 """
 
@@ -26,49 +26,49 @@ logger = setup_logger(__name__)
 
 
 @BlockRegistry.register(
-    "EvaluateFaithfulnessBlock",
+    "VerifyQuestionBlock",
     "evaluation",
-    "Composite block for faithfulness evaluation of question-answer pairs",
+    "Composite block for question verification and quality assessment",
 )
-class EvaluateFaithfulnessBlock(BaseBlock):
-    """Composite block for faithfulness evaluation workflow.
+class VerifyQuestionBlock(BaseBlock):
+    """Composite block for question verification workflow.
 
-    This block combines four separate blocks into a single cohesive evaluation block:
-    1. PromptBuilderBlock - builds evaluation prompt from document and response
-    2. LLMChatBlock - generates faithfulness evaluation using LLM
-    3. TextParserBlock - parses explanation and judgment from raw output
-    4. ColumnValueFilterBlock - filters based on faithfulness judgment
+    This block combines four separate blocks into a single cohesive verification block:
+    1. PromptBuilderBlock - builds verification prompt from question
+    2. LLMChatBlock - generates question quality assessment using LLM
+    3. TextParserBlock - parses explanation and rating from raw output
+    4. ColumnValueFilterBlock - filters based on verification rating
 
     Parameters
     ----------
     block_name : str
         Name of the block.
     input_cols : List[str]
-        Input columns: ["document", "response"]
+        Input columns: ["question"]
     output_cols : List[str]
-        Output columns: ["faithfulness_explanation", "faithfulness_judgment"]
+        Output columns: ["verification_explanation", "verification_rating"]
     prompt_config_path : str
-        Path to YAML file containing the faithfulness evaluation prompt template.
+        Path to YAML file containing the question verification prompt template.
     model : str
         Model identifier in LiteLLM format (e.g., "hosted_vllm/meta-llama/Llama-3.3-70B-Instruct")
     api_base : Optional[str]
         Base URL for the API. Required for local models.
     api_key : Optional[str]
         API key for the provider. Falls back to environment variables.
-    filter_value : str, optional
-        Value to filter on for faithfulness judgment (default: "YES")
+    filter_value : Union[str, int, float], optional
+        Value to filter on for verification rating (default: 1.0)
     operation : str, optional
-        Filter operation (default: "eq")
+        Filter operation (default: "ge")
     convert_dtype : Optional[str], optional
-        Data type conversion for filter column (default: None)
+        Data type conversion for filter column (default: "float")
     async_mode : bool, optional
         Whether to use async processing (default: True)
     format_as_messages : bool, optional
         Whether to format prompt as messages (default: True)
     start_tags : List[str], optional
-        Start tags for parsing (default: ["[Start of Explanation]", "[Start of Answer]"])
+        Start tags for parsing (default: ["[Start of Explanation]", "[Start of Rating]"])
     end_tags : List[str], optional
-        End tags for parsing (default: ["[End of Explanation]", "[End of Answer]"])
+        End tags for parsing (default: ["[End of Explanation]", "[End of Rating]"])
     parsing_pattern : Optional[str], optional
         Regex pattern for custom parsing. If provided, takes precedence over tag-based parsing.
     parser_cleanup_tags : Optional[List[str]], optional
@@ -119,7 +119,7 @@ class EvaluateFaithfulnessBlock(BaseBlock):
     # Core configuration
     prompt_config_path: str = Field(
         ...,
-        description="Path to YAML file containing the faithfulness evaluation prompt template",
+        description="Path to YAML file containing the question verification prompt template",
     )
     model: str = Field(..., description="Model identifier in LiteLLM format")
     api_base: Optional[str] = Field(None, description="Base URL for the API")
@@ -129,12 +129,12 @@ class EvaluateFaithfulnessBlock(BaseBlock):
     )
 
     # Filter configuration
-    filter_value: str = Field(
-        "YES", description="Value to filter on for faithfulness judgment"
+    filter_value: Union[str, int, float] = Field(
+        1.0, description="Value to filter on for verification rating"
     )
-    operation: str = Field("eq", description="Filter operation")
+    operation: str = Field("ge", description="Filter operation")
     convert_dtype: Optional[str] = Field(
-        None, description="Data type conversion for filter column"
+        "float", description="Data type conversion for filter column"
     )
 
     # Processing configuration
@@ -145,15 +145,16 @@ class EvaluateFaithfulnessBlock(BaseBlock):
 
     # Parser configuration
     start_tags: List[str] = Field(
-        ["[Start of Explanation]", "[Start of Answer]"],
-        description="Start tags for parsing explanation and judgment",
+        ["[Start of Explanation]", "[Start of Rating]"],
+        description="Start tags for parsing explanation and rating",
     )
     end_tags: List[str] = Field(
-        ["[End of Explanation]", "[End of Answer]"],
-        description="End tags for parsing explanation and judgment",
+        ["[End of Explanation]", "[End of Rating]"],
+        description="End tags for parsing explanation and rating",
     )
     parsing_pattern: Optional[str] = Field(
-        None, description="Regex pattern for custom parsing. If provided, takes precedence over tag-based parsing"
+        None,
+        description="Regex pattern for custom parsing. If provided, takes precedence over tag-based parsing",
     )
     parser_cleanup_tags: Optional[List[str]] = Field(
         None, description="List of tags to clean from parsed output"
@@ -215,25 +216,25 @@ class EvaluateFaithfulnessBlock(BaseBlock):
     @field_validator("input_cols")
     @classmethod
     def validate_input_cols(cls, v):
-        """Validate that input columns are exactly ["document", "response"]."""
-        expected = ["document", "response"]
+        """Validate that input columns are exactly ["question"]."""
+        expected = ["question"]
         if v != expected:
             raise ValueError(
-                f"EvaluateFaithfulnessBlock expects input_cols={expected}, got {v}"
+                f"VerifyQuestionBlock expects input_cols={expected}, got {v}"
             )
         return v
 
     @field_validator("output_cols")
     @classmethod
     def validate_output_cols(cls, v):
-        """Validate that output columns are exactly ["faithfulness_explanation", "faithfulness_judgment"]."""
+        """Validate that output columns are exactly ["verification_explanation", "verification_rating"]."""
         expected = [
-            "faithfulness_explanation",
-            "faithfulness_judgment",
+            "verification_explanation",
+            "verification_rating",
         ]
         if v != expected:
             raise ValueError(
-                f"EvaluateFaithfulnessBlock expects output_cols={expected}, got {v}"
+                f"VerifyQuestionBlock expects output_cols={expected}, got {v}"
             )
         return v
 
@@ -245,7 +246,7 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         self._create_internal_blocks()
 
         logger.info(
-            f"Initialized EvaluateFaithfulnessBlock '{self.block_name}' with model '{self.model}'",
+            f"Initialized VerifyQuestionBlock '{self.block_name}' with model '{self.model}'",
             extra={
                 "block_name": self.block_name,
                 "model": self.model,
@@ -259,8 +260,8 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         # 1. PromptBuilderBlock
         self.prompt_builder = PromptBuilderBlock(
             block_name=f"{self.block_name}_prompt_builder",
-            input_cols=["document", "response"],
-            output_cols=["eval_faithfulness_prompt"],
+            input_cols=["question"],
+            output_cols=["verify_question_prompt"],
             prompt_config_path=self.prompt_config_path,
             format_as_messages=self.format_as_messages,
         )
@@ -268,8 +269,8 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         # 2. LLMChatBlock
         llm_kwargs = {
             "block_name": f"{self.block_name}_llm_chat",
-            "input_cols": ["eval_faithfulness_prompt"],
-            "output_cols": ["raw_eval_faithfulness"],
+            "input_cols": ["verify_question_prompt"],
+            "output_cols": ["raw_verify_question"],
             "model": self.model,
             "api_base": self.api_base,
             "api_key": self.api_key,
@@ -309,7 +310,7 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             llm_kwargs["extra_headers"] = self.extra_headers
         if self.extra_body is not None:
             llm_kwargs["extra_body"] = self.extra_body
-        
+
         # Add any additional kwargs
         llm_kwargs.update(self.llm_kwargs)
 
@@ -318,24 +319,24 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         # 3. TextParserBlock
         text_parser_kwargs = {
             "block_name": f"{self.block_name}_text_parser",
-            "input_cols": ["raw_eval_faithfulness"],
-            "output_cols": ["faithfulness_explanation", "faithfulness_judgment"],
+            "input_cols": ["raw_verify_question"],
+            "output_cols": ["verification_explanation", "verification_rating"],
             "start_tags": self.start_tags,
             "end_tags": self.end_tags,
         }
-        
+
         # Add optional TextParserBlock parameters if specified
         if self.parsing_pattern is not None:
             text_parser_kwargs["parsing_pattern"] = self.parsing_pattern
         if self.parser_cleanup_tags is not None:
             text_parser_kwargs["parser_cleanup_tags"] = self.parser_cleanup_tags
-            
+
         self.text_parser = TextParserBlock(**text_parser_kwargs)
 
         # 4. ColumnValueFilterBlock
         filter_kwargs = {
             "block_name": f"{self.block_name}_filter",
-            "input_cols": ["faithfulness_judgment"],
+            "input_cols": ["verification_rating"],
             "output_cols": [],  # Filter blocks don't create new columns
             "filter_value": self.filter_value,
             "operation": self.operation,
@@ -347,28 +348,28 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         self.filter_block = ColumnValueFilterBlock(**filter_kwargs)
 
     def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
-        """Generate faithfulness evaluation for all samples.
+        """Generate question verification for all samples.
 
         This method chains the four internal blocks in sequence:
-        1. Build faithfulness evaluation prompts
+        1. Build question verification prompts
         2. Generate LLM responses
-        3. Parse explanation and judgment
-        4. Filter based on judgment
+        3. Parse explanation and rating
+        4. Filter based on rating
 
         Parameters
         ----------
         samples : Dataset
-            Input dataset containing 'document' and 'response' columns.
+            Input dataset containing 'question' column.
         **kwargs : Any
             Additional keyword arguments passed to internal blocks.
 
         Returns
         -------
         Dataset
-            Dataset with faithfulness evaluation results and filtering applied.
+            Dataset with question verification results and filtering applied.
         """
         logger.info(
-            f"Starting faithfulness evaluation for {len(samples)} samples",
+            f"Starting question verification for {len(samples)} samples",
             extra={
                 "block_name": self.block_name,
                 "model": self.model,
@@ -380,7 +381,7 @@ class EvaluateFaithfulnessBlock(BaseBlock):
 
         try:
             # Step 1: Build prompts
-            logger.debug(f"Step 1: Building faithfulness evaluation prompts")
+            logger.debug(f"Step 1: Building question verification prompts")
             current_dataset = self.prompt_builder.generate(current_dataset, **kwargs)
 
             # Step 2: Generate LLM responses
@@ -388,18 +389,17 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             current_dataset = self.llm_chat.generate(current_dataset, **kwargs)
 
             # Step 3: Parse responses
-            logger.debug(f"Step 3: Parsing faithfulness evaluation responses")
+            logger.debug(f"Step 3: Parsing question verification responses")
             current_dataset = self.text_parser.generate(current_dataset, **kwargs)
 
-            # Step 4: Filter based on judgment
-            logger.debug(f"Step 4: Filtering based on faithfulness judgment")
+            # Step 4: Filter based on rating
+            logger.debug(f"Step 4: Filtering based on verification rating")
             original_count = len(current_dataset)
             current_dataset = self.filter_block.generate(current_dataset, **kwargs)
             filtered_count = len(current_dataset)
 
-
             logger.info(
-                f"Faithfulness evaluation completed: {original_count} → {filtered_count} samples "
+                f"Question verification completed: {original_count} → {filtered_count} samples "
                 f"(filtered {original_count - filtered_count} samples)",
                 extra={
                     "block_name": self.block_name,
@@ -415,7 +415,7 @@ class EvaluateFaithfulnessBlock(BaseBlock):
 
         except Exception as e:
             logger.error(
-                f"Error during faithfulness evaluation: {e}",
+                f"Error during question verification: {e}",
                 extra={
                     "block_name": self.block_name,
                     "model": self.model,
@@ -425,19 +425,19 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             raise
 
     def _validate_custom(self, dataset: Dataset) -> None:
-        """Custom validation for faithfulness evaluation.
+        """Custom validation for question verification.
 
         This method validates the entire chain of internal blocks by simulating
         the data flow through each block to ensure they can all process the data correctly.
         """
         # Validate that required columns exist
-        required_columns = ["document", "response"]
+        required_columns = ["question"]
         missing_columns = [
             col for col in required_columns if col not in dataset.column_names
         ]
         if missing_columns:
             raise ValueError(
-                f"EvaluateFaithfulnessBlock requires columns {required_columns}, "
+                f"VerifyQuestionBlock requires columns {required_columns}, "
                 f"missing: {missing_columns}"
             )
 
@@ -459,12 +459,12 @@ class EvaluateFaithfulnessBlock(BaseBlock):
 
             # Simulate prompt builder output for next validation
             # Add the expected output column temporarily for validation
-            if "eval_faithfulness_prompt" not in current_dataset.column_names:
+            if "verify_question_prompt" not in current_dataset.column_names:
                 # Create a temporary dataset with the expected column for validation
                 temp_data = []
                 for sample in current_dataset:
                     temp_sample = dict(sample)
-                    temp_sample["eval_faithfulness_prompt"] = [
+                    temp_sample["verify_question_prompt"] = [
                         {"role": "user", "content": "test"}
                     ]
                     temp_data.append(temp_sample)
@@ -475,12 +475,12 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             self.llm_chat._validate_custom(current_dataset)
 
             # Simulate LLM chat output for next validation
-            if "raw_eval_faithfulness" not in current_dataset.column_names:
+            if "raw_verify_question" not in current_dataset.column_names:
                 temp_data = []
                 for sample in current_dataset:
                     temp_sample = dict(sample)
-                    temp_sample["raw_eval_faithfulness"] = (
-                        "[Start of Explanation]Test explanation[End of Explanation]\n[Start of Answer]YES[End of Answer]"
+                    temp_sample["raw_verify_question"] = (
+                        "[Start of Explanation]Test explanation[End of Explanation]\n[Start of Rating]1.0[End of Rating]"
                     )
                     temp_data.append(temp_sample)
                 current_dataset = Dataset.from_list(temp_data)
@@ -490,12 +490,12 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             self.text_parser._validate_custom(current_dataset)
 
             # Simulate text parser output for final validation
-            if "faithfulness_judgment" not in current_dataset.column_names:
+            if "verification_rating" not in current_dataset.column_names:
                 temp_data = []
                 for sample in current_dataset:
                     temp_sample = dict(sample)
-                    temp_sample["faithfulness_explanation"] = "Test explanation"
-                    temp_sample["faithfulness_judgment"] = "YES"
+                    temp_sample["verification_explanation"] = "Test explanation"
+                    temp_sample["verification_rating"] = "1.0"
                     temp_data.append(temp_sample)
                 current_dataset = Dataset.from_list(temp_data)
 
@@ -529,6 +529,6 @@ class EvaluateFaithfulnessBlock(BaseBlock):
     def __repr__(self) -> str:
         """String representation of the block."""
         return (
-            f"EvaluateFaithfulnessBlock(name='{self.block_name}', "
+            f"VerifyQuestionBlock(name='{self.block_name}', "
             f"model='{self.model}', filter_value='{self.filter_value}')"
         )
