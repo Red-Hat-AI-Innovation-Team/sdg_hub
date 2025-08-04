@@ -1,0 +1,19 @@
+export:
+  formats:
+    doctags: false
+    html: false
+    json: false
+    markdown: true
+    text: false
+pipeline:
+  ocr:
+    enabled: true
+    languages:
+    - en
+    - ja
+  performance:
+    device: auto
+    threads: 4
+  tables:
+    cell_matching: true
+    enabled: true
