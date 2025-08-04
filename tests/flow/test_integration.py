@@ -203,10 +203,11 @@ class TestFlowIntegration:
         # Clear registry and add search path
         FlowRegistry._entries.clear()
         FlowRegistry._search_paths.clear()
+        FlowRegistry._initialized = False  # Prevent auto-discovery of built-in flows
         FlowRegistry.register_search_path(str(flows_dir))
         
-        # Discover flows
-        FlowRegistry._discover_flows(force_refresh=True)
+        # Manually discover flows in test directory only (bypass auto-discovery)
+        FlowRegistry._discover_flows_in_directory(str(flows_dir))
         
         # Test listing flows
         flows = FlowRegistry.list_flows()
