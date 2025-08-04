@@ -37,8 +37,8 @@ dependencies = [
     "litellm>=1.61.15",
     "openai>=1.13.3,<2.0.0",
     "rich",
-    "pydantic",
-    "python-dotenv",
+    "pydantic>=2.0.0,<3.0.0",         # cap before v3; adjust the lower bound to the minimum v2.x you’ve tested
+    "python-dotenv>=1.0.0,<2.0.0",    # cap before v2 to avoid breaking changes
     "tenacity>=8.3.0,!=8.4.0",
     "tqdm>=4.66.2,<5.0.0",
 ]
