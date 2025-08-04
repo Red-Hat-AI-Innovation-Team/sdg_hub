@@ -38,6 +38,33 @@ class FlowRegistry:
 
     _entries: Dict[str, FlowRegistryEntry] = {}
     _search_paths: List[str] = []
+    _initialized: bool = False
+
+    @classmethod
+    def _ensure_initialized(cls) -> None:
+        """Ensure the registry is initialized with built-in flows."""
+        if cls._initialized:
+            return
+        
+        try:
+            # Find the sdg_hub package directory
+            import sdg_hub
+            package_path = Path(sdg_hub.__file__).parent
+            flows_dir = package_path / "flows"
+            
+            # Register built-in flows directory if it exists
+            if flows_dir.exists():
+                flows_dir_str = str(flows_dir)
+                if flows_dir_str not in cls._search_paths:
+                    cls._search_paths.append(flows_dir_str)
+                    logger.debug(f"Auto-registered built-in flows directory: {flows_dir}")
+            else:
+                logger.debug(f"Built-in flows directory not found: {flows_dir}")
+                
+        except Exception as exc:
+            logger.warning(f"Failed to auto-register built-in flows: {exc}")
+        
+        cls._initialized = True
 
     @classmethod
     def register_search_path(cls, path: str) -> None:
@@ -61,6 +88,9 @@ class FlowRegistry:
         force_refresh : bool, optional
             Whether to force refresh the registry.
         """
+        # Ensure built-in flows are registered
+        cls._ensure_initialized()
+        
         if cls._entries and not force_refresh:
             return
 
@@ -112,6 +142,7 @@ class FlowRegistry:
         Optional[str]
             Path to the flow file, or None if not found.
         """
+        cls._ensure_initialized()
         cls._discover_flows()
 
         if flow_name in cls._entries:
@@ -132,6 +163,7 @@ class FlowRegistry:
         Optional[FlowMetadata]
             Flow metadata, or None if not found.
         """
+        cls._ensure_initialized()
         cls._discover_flows()
 
         if flow_name in cls._entries:
@@ -147,6 +179,7 @@ class FlowRegistry:
         List[str]
             List of flow names.
         """
+        cls._ensure_initialized()
         cls._discover_flows()
         return list(cls._entries.keys())
 
@@ -168,6 +201,7 @@ class FlowRegistry:
         List[str]
             List of matching flow names.
         """
+        cls._ensure_initialized()
         cls._discover_flows()
 
         matching_flows = []
@@ -196,6 +230,7 @@ class FlowRegistry:
         Dict[str, List[str]]
             Dictionary mapping tags to flow names.
         """
+        cls._ensure_initialized()
         cls._discover_flows()
 
         categories = {}
@@ -225,6 +260,7 @@ class FlowRegistry:
         show_all_columns : bool, optional
             Whether to show extended table with all columns, by default False
         """
+        cls._ensure_initialized()
         cls._discover_flows()
         
         if not cls._entries:

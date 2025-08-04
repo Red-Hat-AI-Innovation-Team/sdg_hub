@@ -1,0 +1,215 @@
+metadata:
+  name: "Advanced Document Grounded Question-Answer Generation Flow for Knowledge Tuning"
+  description: "A comprehensive flow that generates high-quality question-answer pairs from input documents using multiple LLM blocks for question generation, answer synthesis, and quality evaluation."
+  version: "1.0.0"
+  author: "SDG Hub Contributors"
+  
+  recommended_models:
+    - name: "mistralai/Mixtral-8x7B-Instruct-v0.1"
+      compatibility: "compatible"
+    - name: "meta-llama/Llama-3.3-70B-Instruct"
+      compatibility: "recommended"
+    - name: "microsoft/phi-4"
+      compatibility: "compatible"
+  
+  tags:
+    - "question-generation"
+    - "knowledge-extraction"
+    - "qa-pairs"
+    - "document-processing"
+    - "educational"
+  
+  license: "Apache-2.0"
+  min_sdg_hub_version: "0.2.0"
+  
+  dataset_requirements:
+    required_columns:
+      - "document"
+      - "document_outline"
+      - "domain"
+      - "icl_document"
+      - "icl_query_1"
+      - "icl_response_1"
+      - "icl_query_2"
+      - "icl_response_2"
+      - "icl_query_3"
+      - "icl_response_3"
+    description: "Input dataset should contain documents with text content and domain classification. Each document should be substantial enough for meaningful question generation (minimum 100 words recommended)."
+
+blocks:
+  - block_type: DuplicateColumnsBlock
+    block_config:
+      block_name: duplicate_document_col
+      input_cols: {document: base_document}
+
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: detailed_summary_prompt
+      input_cols: [document, document_outline]
+      output_cols: summary_prompt
+      prompt_config_path: detailed_summary.yaml
+      format_as_messages: true
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: gen_detailed_summary
+      input_cols: summary_prompt
+      output_cols: raw_summary_detailed
+      model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
+      api_base: http://localhost:8000/v1
+      api_key: EMPTY
+      max_tokens: 2048
+      async_mode: true
+
+  - block_type: TextParserBlock
+    block_config:
+      block_name: parse_detailed_summary
+      input_cols: raw_summary_detailed
+      output_cols: summary_detailed
+      start_tags: [""]
+      end_tags: [""]
+
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: atomic_facts_prompt
+      input_cols: [document, document_outline, domain]
+      output_cols: atomic_facts_prompt
+      prompt_config_path: atomic_facts.yaml
+      format_as_messages: true
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: gen_atomic_facts
+      input_cols: atomic_facts_prompt
+      output_cols: raw_atomic_facts
+      model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
+      api_base: http://localhost:8000/v1
+      api_key: EMPTY
+      max_tokens: 2048
+      async_mode: true
+
+  - block_type: TextParserBlock
+    block_config:
+      block_name: parse_atomic_facts
+      input_cols: raw_atomic_facts
+      output_cols: summary_atomic_facts
+      start_tags: [""]
+      end_tags: [""]
+
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: extractive_summary_prompt
+      input_cols: [document, document_outline]
+      output_cols: extractive_summary_prompt
+      prompt_config_path: extractive_summary.yaml
+      format_as_messages: true
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: gen_extractive_summary
+      input_cols: extractive_summary_prompt
+      output_cols: raw_summary_extractive
+      model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
+      api_base: http://localhost:8000/v1
+      api_key: EMPTY
+      max_tokens: 2048
+      async_mode: true
+
+  - block_type: TextParserBlock
+    block_config:
+      block_name: parse_extractive_summary
+      input_cols: raw_summary_extractive
+      output_cols: summary_extractive
+      start_tags: [""]
+      end_tags: [""]
+
+  - block_type: MeltColumnsBlock
+    block_config:
+      block_name: melt_summary_columns
+      input_cols: [summary_detailed, summary_extractive, summary_atomic_facts, base_document]
+      output_cols: [summary, dataset_type]
+
+  - block_type: RenameColumnsBlock
+    block_config:
+      block_name: rename_to_document_column
+      input_cols: {document: raw_document, summary: document}
+
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: knowledge_generation_prompt
+      input_cols: [domain, document, document_outline, icl_document, icl_query_1, icl_response_1, icl_query_2, icl_response_2, icl_query_3, icl_response_3]
+      output_cols: knowledge_generation_prompt
+      prompt_config_path: generate_questions_responses.yaml
+      format_as_messages: true
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: knowledge_generation
+      input_cols: knowledge_generation_prompt
+      output_cols: raw_knowledge_generation
+      model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
+      api_base: http://localhost:8000/v1
+      api_key: EMPTY
+      temperature: 0.0
+      max_tokens: 2048
+      async_mode: true
+
+  - block_type: TextParserBlock
+    block_config:
+      block_name: parse_knowledge_generation
+      input_cols: raw_knowledge_generation
+      output_cols: [question, response]
+      parsing_pattern: "\\[(?:Question|QUESTION)\\]\\s*(.*?)\\s*\\[(?:Answer|ANSWER)\\]\\s*(.*?)\\s*(?=\\[(?:Question|QUESTION)\\]|$)"
+      parser_cleanup_tags: ["[END]"]
+
+  - block_type: EvaluateFaithfulnessBlock
+    block_config:
+      block_name: eval_faithfulness
+      input_cols: [document, response]
+      output_cols: [faithfulness_explanation, faithfulness_judgment]
+      prompt_config_path: evaluate_faithfulness.yaml
+      model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
+      api_base: http://localhost:8000/v1
+      api_key: EMPTY
+      filter_value: "YES"
+      operation: eq
+      async_mode: true
+      format_as_messages: true
+      start_tags: ["[Start of Explanation]", "[Start of Answer]"]
+      end_tags: ["[End of Explanation]", "[End of Answer]"]
+
+  - block_type: EvaluateRelevancyBlock
+    block_config:
+      block_name: eval_relevancy
+      input_cols: [question, response]
+      output_cols: [relevancy_explanation, relevancy_score]
+      prompt_config_path: evaluate_relevancy.yaml
+      model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
+      api_base: http://localhost:8000/v1
+      api_key: EMPTY
+      filter_value: 2.0
+      operation: eq
+      convert_dtype: float
+      max_tokens: 2048
+      async_mode: true
+      format_as_messages: true
+      start_tags: ["[Start of Feedback]", "[Start of Score]"]
+      end_tags: ["[End of Feedback]", "[End of Score]"]
+
+  - block_type: VerifyQuestionBlock
+    block_config:
+      block_name: verify_question
+      input_cols: [question]
+      output_cols: [verification_explanation, verification_rating]
+      prompt_config_path: evaluate_question.yaml
+      model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
+      api_base: http://localhost:8000/v1
+      api_key: EMPTY
+      filter_value: 1.0
+      operation: ge
+      convert_dtype: float
+      max_tokens: 2048
+      async_mode: true
+      format_as_messages: true
+      start_tags: ["[Start of Explanation]", "[Start of Rating]"]
+      end_tags: ["[End of Explanation]", "[End of Rating]"]
