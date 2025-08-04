@@ -1,7 +1,0 @@
-fastapi
-uvicorn
-openai
-transformers
-rich
-datasets
-tabulate
