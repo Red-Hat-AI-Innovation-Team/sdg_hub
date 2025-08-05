@@ -78,6 +78,7 @@ examples = [
     "sentence-transformers",
     "instructor",
     "fastapi",
+    "nest-asyncio",
 ]
 dev = [
     "pre-commit>=3.0.4,<4.0",
