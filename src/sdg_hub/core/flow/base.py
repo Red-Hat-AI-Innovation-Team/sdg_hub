@@ -53,7 +53,7 @@ class Flow(BaseModel):
     )
 
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
-    
+
     # Private attributes (not serialized)
     _migrated_runtime_params: Dict[str, Dict[str, Any]] = {}
     _llm_client: Any = None  # Only used for backward compatibility with old YAMLs
@@ -153,8 +153,12 @@ class Flow(BaseModel):
         if is_old_format:
             logger.info(f"Detected old format flow, migrating: {yaml_path}")
             if client is None:
-                logger.warning("Old format YAML detected but no client provided. LLMBlocks may fail.")
-            flow_config, migrated_runtime_params = FlowMigration.migrate_to_new_format(flow_config, yaml_path)
+                logger.warning(
+                    "Old format YAML detected but no client provided. LLMBlocks may fail."
+                )
+            flow_config, migrated_runtime_params = FlowMigration.migrate_to_new_format(
+                flow_config, yaml_path
+            )
 
         # Validate YAML structure
         validator = FlowValidator()
@@ -208,12 +212,18 @@ class Flow(BaseModel):
         for i, block_config in enumerate(block_configs):
             try:
                 # Inject client for deprecated LLMBlocks if this is an old format flow
-                if is_old_format and block_config.get("block_type") == "LLMBlock" and client is not None:
+                if (
+                    is_old_format
+                    and block_config.get("block_type") == "LLMBlock"
+                    and client is not None
+                ):
                     if "block_config" not in block_config:
                         block_config["block_config"] = {}
                     block_config["block_config"]["client"] = client
-                    logger.debug(f"Injected client for deprecated LLMBlock: {block_config['block_config'].get('block_name')}")
-                
+                    logger.debug(
+                        f"Injected client for deprecated LLMBlock: {block_config['block_config'].get('block_name')}"
+                    )
+
                 block = cls._create_block_from_config(block_config, yaml_dir)
                 blocks.append(block)
             except Exception as exc:
@@ -272,7 +282,9 @@ class Flow(BaseModel):
         except KeyError as exc:
             # Get all available blocks from all categories
             all_blocks = BlockRegistry.all()
-            available_blocks = ", ".join([block for blocks in all_blocks.values() for block in blocks])
+            available_blocks = ", ".join(
+                [block for blocks in all_blocks.values() for block in blocks]
+            )
             raise FlowValidationError(
                 f"Block type '{block_type_name}' not found in registry. "
                 f"Available blocks: {available_blocks}"
@@ -380,13 +392,15 @@ class Flow(BaseModel):
             try:
                 # Check if this is a deprecated block and skip validations
                 is_deprecated_block = (
-                    hasattr(block, '__class__') and 
-                    hasattr(block.__class__, '__module__') and
-                    'deprecated_blocks' in block.__class__.__module__
+                    hasattr(block, "__class__")
+                    and hasattr(block.__class__, "__module__")
+                    and "deprecated_blocks" in block.__class__.__module__
                 )
-                
+
                 if is_deprecated_block:
-                    logger.debug(f"Skipping validations for deprecated block: {block.block_name}")
+                    logger.debug(
+                        f"Skipping validations for deprecated block: {block.block_name}"
+                    )
                     # Call generate() directly to skip validations, but keep the runtime params
                     current_dataset = block.generate(current_dataset, **block_kwargs)
                 else:
@@ -426,6 +440,173 @@ class Flow(BaseModel):
     ) -> Dict[str, Any]:
         """Prepare execution parameters for a block."""
         return runtime_params.get(block.block_name, {})
+
+    def model_override(
+        self,
+        model: Optional[str] = None,
+        api_base: Optional[str] = None,
+        api_key: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        blocks: Optional[List[str]] = None,
+        **kwargs: Any,
+    ) -> None:
+        """Override model configurations for LLM blocks in this flow (in-place).
+
+        By default, auto-detects all LLM blocks in the flow and applies overrides to them.
+        Optionally allows targeting specific blocks only.
+
+        Parameters
+        ----------
+        model : Optional[str]
+            Model name to override (e.g., "hosted_vllm/openai/gpt-oss-120b").
+        api_base : Optional[str]
+            API base URL to override (e.g., "http://localhost:8101/v1").
+        api_key : Optional[str]
+            API key to override.
+        temperature : Optional[float]
+            Temperature parameter to override.
+        max_tokens : Optional[int]
+            Max tokens parameter to override.
+        blocks : Optional[List[str]]
+            Specific block names to target. If None, auto-detects all LLM blocks.
+        **kwargs : Any
+            Additional parameters to override for the blocks.
+
+        Examples
+        --------
+        >>> # Override model for all detected LLM blocks
+        >>> flow.model_override(
+        ...     model="hosted_vllm/openai/gpt-oss-120b",
+        ...     api_base="http://localhost:8101/v1"
+        ... )
+        >>> result = flow.generate(dataset)
+
+        >>> # Override only specific blocks
+        >>> flow.model_override(
+        ...     model="hosted_vllm/openai/gpt-oss-120b",
+        ...     api_base="http://localhost:8101/v1",
+        ...     blocks=["gen_detailed_summary", "knowledge_generation"]
+        ... )
+
+        >>> # Reset by reloading from YAML
+        >>> flow = Flow.from_yaml(flow_path)
+
+        Raises
+        ------
+        ValueError
+            If no override parameters are provided or if specified blocks don't exist.
+        """
+        # Build the override parameters dictionary
+        override_params = {}
+        if model is not None:
+            override_params["model"] = model
+        if api_base is not None:
+            override_params["api_base"] = api_base
+        if api_key is not None:
+            override_params["api_key"] = api_key
+        if temperature is not None:
+            override_params["temperature"] = temperature
+        if max_tokens is not None:
+            override_params["max_tokens"] = max_tokens
+
+        # Add any additional kwargs
+        override_params.update(kwargs)
+
+        # Validate that at least one parameter is provided
+        if not override_params:
+            raise ValueError(
+                "At least one override parameter must be provided "
+                "(model, api_base, api_key, temperature, max_tokens, or **kwargs)"
+            )
+
+        # Determine target blocks
+        if blocks is not None:
+            # Validate that specified blocks exist in the flow
+            existing_block_names = {block.block_name for block in self.blocks}
+            invalid_blocks = set(blocks) - existing_block_names
+            if invalid_blocks:
+                raise ValueError(
+                    f"Specified blocks not found in flow: {sorted(invalid_blocks)}. "
+                    f"Available blocks: {sorted(existing_block_names)}"
+                )
+            target_block_names = set(blocks)
+            logger.info(
+                f"Targeting specific blocks for override: {sorted(target_block_names)}"
+            )
+        else:
+            # Auto-detect LLM blocks
+            target_block_names = set(self._detect_llm_blocks())
+            logger.info(
+                f"Auto-detected {len(target_block_names)} LLM blocks for override: {sorted(target_block_names)}"
+            )
+
+        # Apply overrides to target blocks
+        modified_count = 0
+        for block in self.blocks:
+            if block.block_name in target_block_names:
+                for param_name, param_value in override_params.items():
+                    if hasattr(block, param_name):
+                        old_value = getattr(block, param_name)
+                        setattr(block, param_name, param_value)
+                        logger.debug(
+                            f"Block '{block.block_name}': {param_name} "
+                            f"'{old_value}' -> '{param_value}'"
+                        )
+                    else:
+                        logger.warning(
+                            f"Block '{block.block_name}' ({block.__class__.__name__}) "
+                            f"does not have attribute '{param_name}' - skipping"
+                        )
+                modified_count += 1
+
+        if modified_count > 0:
+            logger.info(
+                f"Successfully overrode {len(override_params)} parameters "
+                f"for {modified_count} blocks: {list(override_params.keys())}"
+            )
+        else:
+            logger.warning(
+                "No blocks were modified - check block names or LLM block detection"
+            )
+
+    def _detect_llm_blocks(self) -> List[str]:
+        """Detect LLM blocks in the flow by checking for model-related attributes.
+
+        Returns
+        -------
+        List[str]
+            List of block names that have LLM-related attributes (model, api_base, or api_key).
+        """
+        llm_blocks = []
+
+        for block in self.blocks:
+            block_type = block.__class__.__name__
+            block_name = block.block_name
+
+            # Check by attributes (has model-related configuration)
+            has_model_attr = (
+                hasattr(block, "model") and getattr(block, "model", None) is not None
+            )
+            has_api_base_attr = (
+                hasattr(block, "api_base")
+                and getattr(block, "api_base", None) is not None
+            )
+            has_api_key_attr = (
+                hasattr(block, "api_key") and getattr(block, "api_key", None) is not None
+            )
+
+            # A block is considered an LLM block if it has any LLM-related attributes
+            is_llm_block = has_model_attr or has_api_base_attr or has_api_key_attr
+
+            if is_llm_block:
+                llm_blocks.append(block_name)
+                logger.debug(
+                    f"Detected LLM block '{block_name}' ({block_type}): "
+                    f"model={has_model_attr}, api_base={has_api_base_attr}, api_key={has_api_key_attr}"
+                )
+
+        return llm_blocks
 
     def validate_dataset(self, dataset: Dataset) -> List[str]:
         """Validate dataset against flow requirements."""
@@ -527,13 +708,15 @@ class Flow(BaseModel):
 
                 # Check if this is a deprecated block and skip validations
                 is_deprecated_block = (
-                    hasattr(block, '__class__') and 
-                    hasattr(block.__class__, '__module__') and
-                    'deprecated_blocks' in block.__class__.__module__
+                    hasattr(block, "__class__")
+                    and hasattr(block.__class__, "__module__")
+                    and "deprecated_blocks" in block.__class__.__module__
                 )
-                
+
                 if is_deprecated_block:
-                    logger.debug(f"Dry run: Skipping validations for deprecated block: {block.block_name}")
+                    logger.debug(
+                        f"Dry run: Skipping validations for deprecated block: {block.block_name}"
+                    )
                     # Call generate() directly to skip validations, but keep the runtime params
                     current_dataset = block.generate(current_dataset, **block_kwargs)
                 else:

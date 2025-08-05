@@ -497,3 +497,271 @@ class TestFlow:
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         assert len(flow) == 1
+
+    def create_mock_llm_block(self, name="llm_block", model="test-model", api_base="http://localhost:8000/v1", api_key="EMPTY"):
+        """Create a mock LLM block with model attributes."""
+        from tests.flow.conftest import MockBlock
+        block = MockBlock(
+            block_name=name,
+            input_cols=["input"],
+            output_cols=["output"]
+        )
+        # Add LLM-related attributes
+        block.model = model
+        block.api_base = api_base
+        block.api_key = api_key
+        block.temperature = 0.0
+        block.max_tokens = 1024
+        return block
+
+    def test_detect_llm_blocks_by_model_attribute(self):
+        """Test detecting LLM blocks by model attribute."""
+        regular_block = self.create_mock_block("regular_block")
+        llm_block = self.create_mock_llm_block("llm_block", model="test-model")
+        
+        flow = Flow(blocks=[regular_block, llm_block], metadata=self.test_metadata)
+        
+        detected_blocks = flow._detect_llm_blocks()
+        
+        assert len(detected_blocks) == 1
+        assert "llm_block" in detected_blocks
+        assert "regular_block" not in detected_blocks
+
+    def test_detect_llm_blocks_by_api_base_attribute(self):
+        """Test detecting LLM blocks by api_base attribute."""
+        regular_block = self.create_mock_block("regular_block")
+        llm_block = self.create_mock_llm_block("llm_block", model=None)
+        llm_block.model = None  # Remove model but keep api_base
+        
+        flow = Flow(blocks=[regular_block, llm_block], metadata=self.test_metadata)
+        
+        detected_blocks = flow._detect_llm_blocks()
+        
+        assert len(detected_blocks) == 1
+        assert "llm_block" in detected_blocks
+
+    def test_detect_llm_blocks_by_api_key_attribute(self):
+        """Test detecting LLM blocks by api_key attribute."""
+        regular_block = self.create_mock_block("regular_block")
+        llm_block = self.create_mock_llm_block("llm_block", model=None, api_base=None)
+        llm_block.model = None
+        llm_block.api_base = None
+        # Only api_key remains
+        
+        flow = Flow(blocks=[regular_block, llm_block], metadata=self.test_metadata)
+        
+        detected_blocks = flow._detect_llm_blocks()
+        
+        assert len(detected_blocks) == 1
+        assert "llm_block" in detected_blocks
+
+    def test_detect_llm_blocks_none_found(self):
+        """Test detecting LLM blocks when none exist."""
+        regular_block1 = self.create_mock_block("regular_block1")
+        regular_block2 = self.create_mock_block("regular_block2")
+        
+        flow = Flow(blocks=[regular_block1, regular_block2], metadata=self.test_metadata)
+        
+        detected_blocks = flow._detect_llm_blocks()
+        
+        assert len(detected_blocks) == 0
+
+    def test_detect_llm_blocks_multiple(self):
+        """Test detecting multiple LLM blocks."""
+        regular_block = self.create_mock_block("regular_block")
+        llm_block1 = self.create_mock_llm_block("llm_block1", model="model1")
+        llm_block2 = self.create_mock_llm_block("llm_block2", model="model2")
+        llm_block3 = self.create_mock_llm_block("llm_block3", model=None, api_base="http://localhost:8001/v1")
+        llm_block3.model = None  # Only has api_base
+        
+        flow = Flow(blocks=[regular_block, llm_block1, llm_block2, llm_block3], metadata=self.test_metadata)
+        
+        detected_blocks = flow._detect_llm_blocks()
+        
+        assert len(detected_blocks) == 3
+        assert "llm_block1" in detected_blocks
+        assert "llm_block2" in detected_blocks
+        assert "llm_block3" in detected_blocks
+        assert "regular_block" not in detected_blocks
+
+    def test_model_override_all_llm_blocks(self):
+        """Test model override with auto-detection of all LLM blocks."""
+        regular_block = self.create_mock_block("regular_block")
+        llm_block1 = self.create_mock_llm_block("llm_block1", model="old-model1")
+        llm_block2 = self.create_mock_llm_block("llm_block2", model="old-model2")
+        
+        flow = Flow(blocks=[regular_block, llm_block1, llm_block2], metadata=self.test_metadata)
+        
+        # Override model for all LLM blocks
+        flow.model_override(
+            model="new-model",
+            api_base="http://localhost:8101/v1",
+            api_key="NEW_KEY",
+            temperature=0.7,
+            max_tokens=2048
+        )
+        
+        # Check that LLM blocks were modified
+        assert flow.blocks[1].model == "new-model"  # llm_block1
+        assert flow.blocks[1].api_base == "http://localhost:8101/v1"
+        assert flow.blocks[1].api_key == "NEW_KEY"
+        assert flow.blocks[1].temperature == 0.7
+        assert flow.blocks[1].max_tokens == 2048
+        
+        assert flow.blocks[2].model == "new-model"  # llm_block2
+        assert flow.blocks[2].api_base == "http://localhost:8101/v1"
+        
+        # Check that regular block was not modified (doesn't have these attributes)
+        assert not hasattr(flow.blocks[0], "model")
+
+    def test_model_override_specific_blocks(self):
+        """Test model override with specific block targeting."""
+        llm_block1 = self.create_mock_llm_block("llm_block1", model="old-model1")
+        llm_block2 = self.create_mock_llm_block("llm_block2", model="old-model2")
+        llm_block3 = self.create_mock_llm_block("llm_block3", model="old-model3")
+        
+        flow = Flow(blocks=[llm_block1, llm_block2, llm_block3], metadata=self.test_metadata)
+        
+        # Override only specific blocks
+        flow.model_override(
+            model="new-model",
+            api_base="http://localhost:8101/v1",
+            blocks=["llm_block1", "llm_block3"]
+        )
+        
+        # Check that only specified blocks were modified
+        assert flow.blocks[0].model == "new-model"  # llm_block1
+        assert flow.blocks[0].api_base == "http://localhost:8101/v1"
+        
+        assert flow.blocks[1].model == "old-model2"  # llm_block2 unchanged
+        assert flow.blocks[1].api_base == "http://localhost:8000/v1"  # unchanged
+        
+        assert flow.blocks[2].model == "new-model"  # llm_block3
+        assert flow.blocks[2].api_base == "http://localhost:8101/v1"
+
+    def test_model_override_partial_parameters(self):
+        """Test model override with only some parameters."""
+        llm_block = self.create_mock_llm_block("llm_block", 
+                                               model="old-model", 
+                                               api_base="http://localhost:8000/v1",
+                                               api_key="OLD_KEY")
+        llm_block.temperature = 0.0
+        llm_block.max_tokens = 1024
+        
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+        
+        # Override only model and temperature
+        flow.model_override(
+            model="new-model",
+            temperature=0.8
+        )
+        
+        # Check that only specified parameters were changed
+        assert flow.blocks[0].model == "new-model"
+        assert flow.blocks[0].temperature == 0.8
+        
+        # Other parameters should remain unchanged
+        assert flow.blocks[0].api_base == "http://localhost:8000/v1"
+        assert flow.blocks[0].api_key == "OLD_KEY"
+        assert flow.blocks[0].max_tokens == 1024
+
+    def test_model_override_with_kwargs(self):
+        """Test model override with additional kwargs."""
+        llm_block = self.create_mock_llm_block("llm_block")
+        llm_block.top_p = 1.0
+        llm_block.frequency_penalty = 0.0
+        
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+        
+        # Override with additional parameters via kwargs
+        flow.model_override(
+            model="new-model",
+            top_p=0.9,
+            frequency_penalty=0.1
+        )
+        
+        assert flow.blocks[0].model == "new-model"
+        assert flow.blocks[0].top_p == 0.9
+        assert flow.blocks[0].frequency_penalty == 0.1
+
+    def test_model_override_no_parameters(self):
+        """Test model override with no parameters raises error."""
+        llm_block = self.create_mock_llm_block("llm_block")
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+        
+        with pytest.raises(ValueError) as exc_info:
+            flow.model_override()
+        
+        assert "At least one override parameter must be provided" in str(exc_info.value)
+
+    def test_model_override_invalid_block_names(self):
+        """Test model override with invalid block names raises error."""
+        llm_block = self.create_mock_llm_block("llm_block")
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+        
+        with pytest.raises(ValueError) as exc_info:
+            flow.model_override(
+                model="new-model",
+                blocks=["nonexistent_block", "another_missing_block"]
+            )
+        
+        assert "Specified blocks not found in flow" in str(exc_info.value)
+        assert "nonexistent_block" in str(exc_info.value)
+        assert "another_missing_block" in str(exc_info.value)
+
+    def test_model_override_no_llm_blocks_detected(self):
+        """Test model override when no LLM blocks are detected."""
+        regular_block1 = self.create_mock_block("regular_block1")
+        regular_block2 = self.create_mock_block("regular_block2")
+        
+        flow = Flow(blocks=[regular_block1, regular_block2], metadata=self.test_metadata)
+        
+        # Should not raise error but log warning
+        flow.model_override(model="new-model")
+        
+        # Blocks should remain unchanged
+        assert not hasattr(flow.blocks[0], "model")
+        assert not hasattr(flow.blocks[1], "model")
+
+    def test_model_override_missing_attributes_warning(self):
+        """Test model override logs warning for missing attributes."""
+        # Create a block that has model but not other attributes
+        llm_block = self.create_mock_llm_block("llm_block")
+        delattr(llm_block, "api_base")  # Remove api_base attribute
+        
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+        
+        # This should work for model but log warning for api_base
+        flow.model_override(
+            model="new-model",
+            api_base="http://localhost:8101/v1"
+        )
+        
+        # Model should be changed
+        assert flow.blocks[0].model == "new-model"
+        # api_base should not be set since attribute doesn't exist
+
+    def test_model_override_preserves_unspecified_attributes(self):
+        """Test that model override preserves attributes not specified."""
+        llm_block = self.create_mock_llm_block("llm_block",
+                                               model="original-model",
+                                               api_base="http://localhost:8000/v1",
+                                               api_key="ORIGINAL_KEY")
+        llm_block.temperature = 0.5
+        llm_block.max_tokens = 1024
+        llm_block.custom_param = "custom_value"
+        
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+        
+        # Override only model
+        flow.model_override(model="new-model")
+        
+        # Only model should change
+        assert flow.blocks[0].model == "new-model"
+        
+        # Everything else should remain the same
+        assert flow.blocks[0].api_base == "http://localhost:8000/v1"
+        assert flow.blocks[0].api_key == "ORIGINAL_KEY"
+        assert flow.blocks[0].temperature == 0.5
+        assert flow.blocks[0].max_tokens == 1024
+        assert flow.blocks[0].custom_param == "custom_value"
