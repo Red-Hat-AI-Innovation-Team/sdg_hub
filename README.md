@@ -1,4 +1,4 @@
-# SDG Hub: Synthetic Data Generation Toolkit
+# `sdg_hub`: Synthetic Data Generation Toolkit
 
 [![Build](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/pypi.yaml/badge.svg?branch=main)](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/pypi.yaml)
 [![Release](https://img.shields.io/github/v/release/Red-Hat-AI-Innovation-Team/sdg_hub)](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/releases)
@@ -6,125 +6,132 @@
 [![Tests](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml/badge.svg)](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub/graph/badge.svg?token=SP75BCXWO2)](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub)
 
-<html>
-    <h3 align="center">
-      A modular, scalable, and efficient solution for creating synthetic data generation flows in a "low-code" manner.
-    </h3>
-    <h3 align="center">
-      <a href="http://ai-innovation.team/sdg_hub">Documentation</a> |
-      <a href="examples/">Examples</a> |
-      <a href="https://www.youtube.com/watch?v=aGKCViWjAmA">Video Tutorial</a>
-    </h3>
-</html>
 
-SDG Hub is designed to simplify data creation for LLMs, allowing users to chain computational units and build powerful flows for generating data and processing tasks. Define complex workflows using nothing but YAML configuration files.
 
-**📖 Full documentation available at: [https://ai-innovation.team/sdg_hub](https://ai-innovation.team/sdg_hub)**
+A modular Python framework for building synthetic data generation pipelines using composable blocks and flows. Transform datasets through **building-block composition** - mix and match LLM-powered and traditional processing blocks to create sophisticated data generation workflows.
 
----
+## 🧱 Core Concepts
+
+**Blocks** are composable units that transform datasets - think of them as data processing Lego pieces. Each block performs a specific task: LLM chat, text parsing, evaluation, or transformation.
+
+**Flows** orchestrate multiple blocks into complete pipelines defined in YAML. Chain blocks together to create complex data generation workflows with validation and parameter management.
+
+```python
+# Simple concept: Blocks transform data, Flows chain blocks together
+dataset → Block₁ → Block₂ → Block₃ → enriched_dataset
+```
 
 ## ✨ Key Features
 
-- **Low-Code Flow Creation**: Build sophisticated data generation pipelines using
-  simple YAML configuration files without writing any code.
+**🔧 Modular Composability** - Mix and match blocks like Lego pieces. Build simple transformations or complex multi-stage pipelines with YAML-configured flows.
 
-- **Modular Block System**: Compose workflows from reusable, self-contained
-  blocks that handle LLM calls, data transformations, and filtering.
+**⚡ Async Performance** - High-throughput LLM processing with built-in error handling.
 
-- **LLM-Agnostic**: Works with any language model through configurable
-  prompt templates and generation parameters.
+**🛡️ Built-in Validation** - Pydantic-based type safety ensures your configurations and data are correct before execution.
 
-- **Prompt Engineering Friendly**: Tune LLM behavior by editing declarative YAML prompts.
+**🔍 Auto-Discovery** - Automatic block and flow registration. No manual imports or complex setup.
 
-## 🚀 Installation
+**📊 Rich Monitoring** - Detailed logging with progress bars and execution summaries.
 
-### Stable Release (Recommended)
+**🧩 Easily Extensible** - Create custom blocks with simple inheritance. Rich logging and monitoring built-in.
+
+## 📚 Documentation
+
+For comprehensive documentation, including detailed API references, tutorials, and advanced usage examples, visit our **[documentation site](https://ai-innovation.team/)**.
+
+## 📦 Installation
+
 
 ```bash
+# Production
 pip install sdg-hub
+
+# Development
+git clone https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
+cd sdg_hub
+pip install .[dev]
+# or with uv: uv sync --extra dev
 ```
 
-### Development Version
-
+### Optional Dependencies
 ```bash
-pip install git+https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
+# For vLLM support
+pip install sdg-hub[vllm]
+# or with uv: uv pip install sdg-hub[vllm]
+
+# For examples
+pip install sdg-hub[examples]
+# or with uv: uv pip install sdg-hub[examples]
 ```
 
-## 🏁 Quick Start
+## 🚀 Quick Start
 
-### Prerequisites
-
-Before getting started, make sure you have:
-- Python 3.8 or higher
-- LLM Inference Endpoint exposed through OpenAI API
-
-### Simple Example
-
-Here's the simplest way to get started:
-
+### Flow Discovery
 ```python
-from sdg_hub.flow_runner import run_flow
+from sdg_hub.core.flow import FlowRegistry
 
-# Run a basic knowledge generation flow
-run_flow(
-    ds_path="my_data.jsonl",
-    save_path="output.jsonl", 
-    endpoint="http://0.0.0.0:8000/v1",
-    flow_path="flows/generation/knowledge/synth_knowledge.yaml"
-)
+# Auto-discover all available flows (no setup needed!)
+FlowRegistry.discover_flows()
+
+# List available flows
+flows = FlowRegistry.list_flows()
+print(f"Available flows: {flows}")
+
+# Search for specific types
+qa_flows = FlowRegistry.search_flows(tag="question-generation")
+print(f"QA flows: {qa_flows}")
 ```
 
-### Advanced Configuration
-You can invoke any built-in flow using run_flow:
+### Using Flows
 ```python
-from sdg_hub.flow_runner import run_flow
+from sdg_hub.core.flow import FlowRegistry, Flow
+from datasets import Dataset
 
-run_flow(
-    ds_path="path/to/dataset.jsonl",
-    save_path="path/to/output.jsonl",
-    endpoint="http://0.0.0.0:8000/v1",
-    flow_path="path/to/flow.yaml",
-    checkpoint_dir="path/to/checkpoints",
-    batch_size=8,
-    num_workers=32,
-    save_freq=2,
-)
+# Load the flow by name
+flow_name = "Advanced Document Grounded Question-Answer Generation Flow for Knowledge Tuning"
+flow_path = FlowRegistry.get_flow_path(flow_name)
+flow = Flow.from_yaml(flow_path)
+
+# Create your dataset with required columns
+dataset = Dataset.from_dict({
+    'document': ['Your document text here...'],
+    'document_outline': ['1. Topic A; 2. Topic B; 3. Topic C'],
+    'domain': ['Computer Science'],
+    'icl_document': ['Example document for in-context learning...'],
+    'icl_query_1': ['Example question 1?'],
+    'icl_response_1': ['Example answer 1'],
+    'icl_query_2': ['Example question 2?'], 
+    'icl_response_2': ['Example answer 2'],
+    'icl_query_3': ['Example question 3?'],
+    'icl_response_3': ['Example answer 3']
+})
+
+# Generate high-quality QA pairs
+result = flow.generate(dataset)
+
+# Access generated content
+questions = result['question']
+answers = result['response']
+faithfulness_scores = result['faithfulness_judgment']
+relevancy_scores = result['relevancy_score']
 ```
 
-### 📂 Available Built-in Flows
+### Quick Testing with Dry Run
+```python
+# Test the flow with a small sample first
+dry_result = flow.dry_run(dataset, sample_size=1)
+print(f"Dry run completed in {dry_result['execution_time_seconds']:.2f}s")
+print(f"Output columns: {dry_result['final_dataset']['columns']}")
+```
 
-You can start with any of these YAML flows out of the box:
-
-#### 🔎 **Knowledge Flows**
-
-| Flow | Description |
-|------|-------------|
-| `synth_knowledge.yaml` | Produces document-grounded questions and answers for factual memorization |
-| `synth_knowledge1.5.yaml` | Improved version that builds intermediate representations for better recall |
-
-#### 🧠 **Skills Flows**
-
-| Flow | Description |
-|------|-------------|
-| `synth_skills.yaml` | Freeform skills QA generation (eg: "Create a new github issue to add type hints") |
-| `synth_grounded_skills.yaml` | Domain-specific skill generation (eg: "From the given conversation create a table for feature requests") |
-| `improve_responses.yaml` | Uses planning and critique-based refinement to improve generated answers |
-
-All these can be found here: [flows](src/sdg_hub/flows)
-
-## 📺 Video Tutorial
-
-For a comprehensive walkthrough of sdg_hub:
-
-[![SDG Hub Tutorial](https://img.youtube.com/vi/aGKCViWjAmA/0.jpg)](https://www.youtube.com/watch?v=aGKCViWjAmA)
-
-## 🤝 Contributing
-
-We welcome contributions from the community! Whether it's bug reports, feature requests, documentation improvements, or code contributions, please check out our [contribution guidelines](CONTRIBUTING.md).
 
 ## 📄 License
 
-This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## 🤝 Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project.
 
 ---
 
