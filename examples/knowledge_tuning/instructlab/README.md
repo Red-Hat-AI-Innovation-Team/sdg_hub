@@ -79,7 +79,7 @@ from knowledge_utils import create_knowledge_pretraining_ds
 knowledge_data = create_knowledge_pretraining_ds(generated_dataset=generated_data)
 ```
 
-### 2\. Skills Dataset (for Phase 2)
+### 2\. Instruction Tuning/Skills Dataset (for Phase 2)
 
 This dataset combines the knowledge-specific data with RAFT-style examples for the second phase of tuning. It can also be mixed with general instruction-tuning data to grant the model broad instruction-following abilities while retaining the specialized knowledge.
 
@@ -96,6 +96,8 @@ knowledge_data = create_knowledge_pretraining_ds(generated_dataset=generated_dat
 
 # Combine the datasets for the skills tuning phase
 knowledge_skills_data = concatenate_datasets([raft_and_summary_data, knowledge_data])
+
+# You can alternatly use create_knowledge_regular_ds function too. 
 ```
 
 ---
@@ -103,7 +105,7 @@ knowledge_skills_data = concatenate_datasets([raft_and_summary_data, knowledge_d
 ## Generation Statistics
 
 Default generation parameters (based on `llama-3.3-70B`) are defined in:
-[`synth_knowledge1.5.yaml`](../../src/sdg_hub/flows/generation/knowledge/synth_knowledge1.5.yaml)
+[`summary_based_document_grounded_qa`](../../../src/sdg_hub/flows/qa_generation/document_grounded_qa/multi_summary_qa/instructlab/flow.yaml)
 
 * The pipeline converts each input document into **3 summaries** 
 * Outputs vary based on teacher model and generation parameters (e.g. `temperature`, `top_p`, `top_k`) and can be entered in the `gen_kwargs` section of the flow.
