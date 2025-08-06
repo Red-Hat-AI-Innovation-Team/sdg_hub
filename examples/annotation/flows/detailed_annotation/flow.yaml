@@ -9,7 +9,7 @@ blocks:
     - text
     output_cols:
     - annotation_prompt
-    prompt_config_path: ../../../../examples/annotation/flows/detailed_annotation/prompt.yaml
+    prompt_config_path: prompt.yaml
     format_as_messages: true
 - block_type: LLMChatBlock
   block_config:
