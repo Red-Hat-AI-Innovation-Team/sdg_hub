@@ -18,8 +18,6 @@ blocks:
     - annotation_prompt
     output_cols:
     - raw_output
-    model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
-    api_base: http://localhost:8000/v1
     temperature: 0.0
     max_tokens: 5
     extra_body:
