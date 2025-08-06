@@ -139,7 +139,7 @@ class LLMChatBlock(BaseBlock):
     """
 
     # LLM Configuration
-    model: str = Field(..., description="Model identifier in LiteLLM format")
+    model: Optional[str] = Field(None, description="Model identifier in LiteLLM format")
     api_key: Optional[str] = Field(None, description="API key for the provider")
     api_base: Optional[str] = Field(None, description="Base URL for the API")
     async_mode: bool = Field(False, description="Whether to use async processing")
@@ -256,18 +256,19 @@ class LLMChatBlock(BaseBlock):
         # Load client immediately
         self.client_manager.load()
 
-        # Log initialization
-        logger.info(
-            f"Initialized LLMChatBlock '{self.block_name}' with model '{self.model}'",
-            extra={
-                "block_name": self.block_name,
-                "model": self.model,
-                "provider": self.client_manager.config.get_provider(),
-                "is_local": self.client_manager.config.is_local_model(),
-                "async_mode": self.async_mode,
-                "generation_params": self.client_manager.config.get_generation_kwargs(),
-            },
-        )
+        # Log initialization only when model is configured
+        if self.model:
+            logger.info(
+                f"Initialized LLMChatBlock '{self.block_name}' with model '{self.model}'",
+                extra={
+                    "block_name": self.block_name,
+                    "model": self.model,
+                    "provider": self.client_manager.config.get_provider(),
+                    "is_local": self.client_manager.config.is_local_model(),
+                    "async_mode": self.async_mode,
+                    "generation_params": self.client_manager.config.get_generation_kwargs(),
+                },
+            )
 
     def generate(self, samples: Dataset, **override_kwargs: Dict[str, Any]) -> Dataset:
         """Generate responses from the LLM.
@@ -289,7 +290,19 @@ class LLMChatBlock(BaseBlock):
         -------
         Dataset
             Dataset with responses added to the output column.
+        
+        Raises
+        ------
+        BlockValidationError
+            If model is not configured before calling generate().
         """
+        # Validate that model is configured
+        if not self.model:
+            raise BlockValidationError(
+                f"Model not configured for block '{self.block_name}'. "
+                f"Call flow.set_model_config() before generating."
+            )
+        
         # Extract messages
         messages_list = samples[self.input_cols[0]]
 

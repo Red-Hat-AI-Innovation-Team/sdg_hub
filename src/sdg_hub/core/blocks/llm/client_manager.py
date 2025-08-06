@@ -56,15 +56,17 @@ class LLMClientManager:
 
         self._is_loaded = True
 
-        logger.info(
-            f"Loaded LLM client for model '{self.config.model}'",
-            extra={
-                "model": self.config.model,
-                "provider": self.config.get_provider(),
-                "is_local": self.config.is_local_model(),
-                "api_base": self.config.api_base,
-            },
-        )
+        # Only log when model is actually configured
+        if self.config.model:
+            logger.info(
+                f"Loaded LLM client for model '{self.config.model}'",
+                extra={
+                    "model": self.config.model,
+                    "provider": self.config.get_provider(),
+                    "is_local": self.config.is_local_model(),
+                    "api_base": self.config.api_base,
+                },
+            )
 
     def unload(self) -> None:
         """Unload the client and clean up resources."""

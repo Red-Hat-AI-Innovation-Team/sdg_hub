@@ -121,7 +121,7 @@ class EvaluateRelevancyBlock(BaseBlock):
         ...,
         description="Path to YAML file containing the relevancy evaluation prompt template",
     )
-    model: str = Field(..., description="Model identifier in LiteLLM format")
+    model: Optional[str] = Field(None, description="Model identifier in LiteLLM format")
     api_base: Optional[str] = Field(None, description="Base URL for the API")
     api_key: Optional[str] = Field(
         None,
@@ -244,15 +244,17 @@ class EvaluateRelevancyBlock(BaseBlock):
         # Create internal blocks
         self._create_internal_blocks()
 
-        logger.info(
-            f"Initialized EvaluateRelevancyBlock '{self.block_name}' with model '{self.model}'",
-            extra={
-                "block_name": self.block_name,
-                "model": self.model,
-                "async_mode": self.async_mode,
-                "filter_value": self.filter_value,
-            },
-        )
+        # Log initialization only when model is configured
+        if self.model:
+            logger.info(
+                f"Initialized EvaluateRelevancyBlock '{self.block_name}' with model '{self.model}'",
+                extra={
+                    "block_name": self.block_name,
+                    "model": self.model,
+                    "async_mode": self.async_mode,
+                    "filter_value": self.filter_value,
+                },
+            )
 
     def _create_internal_blocks(self) -> None:
         """Create and configure the internal blocks."""
@@ -366,7 +368,19 @@ class EvaluateRelevancyBlock(BaseBlock):
         -------
         Dataset
             Dataset with relevancy evaluation results and filtering applied.
+            
+        Raises
+        ------
+        BlockValidationError
+            If model is not configured before calling generate().
         """
+        # Validate that model is configured
+        if not self.model:
+            from ...utils.error_handling import BlockValidationError
+            raise BlockValidationError(
+                f"Model not configured for block '{self.block_name}'. "
+                f"Call flow.set_model_config() before generating."
+            )
         logger.info(
             f"Starting relevancy evaluation for {len(samples)} samples",
             extra={

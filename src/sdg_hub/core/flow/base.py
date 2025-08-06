@@ -568,10 +568,23 @@ class Flow(BaseModel):
                 modified_count += 1
 
         if modified_count > 0:
+            # Enhanced logging showing what was configured
+            param_summary = []
+            for param_name, param_value in config_params.items():
+                if param_name == "model":
+                    param_summary.append(f"model: '{param_value}'")
+                elif param_name == "api_base":
+                    param_summary.append(f"api_base: '{param_value}'")
+                else:
+                    param_summary.append(f"{param_name}: {param_value}")
+            
             logger.info(
-                f"Successfully configured {len(config_params)} parameters "
-                f"for {modified_count} blocks: {list(config_params.keys())}"
+                f"Successfully configured {modified_count} LLM blocks with: {', '.join(param_summary)}"
             )
+            logger.info(
+                f"Configured blocks: {sorted(target_block_names)}"
+            )
+            
             # Mark that model configuration has been set
             self._model_config_set = True
         else:
