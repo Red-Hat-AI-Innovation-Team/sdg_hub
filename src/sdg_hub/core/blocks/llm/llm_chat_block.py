@@ -223,9 +223,12 @@ class LLMChatBlock(BaseBlock):
         """Initialize after Pydantic validation."""
         super().model_post_init(__context)
 
-        # Convenience properties removed - use self.input_cols[0] and self.output_cols[0] directly
+        # Initialize client manager
+        self._setup_client_manager()
 
-        # Create configuration
+    def _setup_client_manager(self) -> None:
+        """Set up the LLM client manager with current configuration."""
+        # Create configuration with current values
         config = LLMConfig(
             model=self.model,
             api_key=self.api_key,
@@ -270,6 +273,14 @@ class LLMChatBlock(BaseBlock):
                 },
             )
 
+    def _reinitialize_client_manager(self) -> None:
+        """Reinitialize the client manager with updated model configuration.
+
+        This should be called after model configuration changes to ensure
+        the client manager uses the updated model, api_base, api_key, etc.
+        """
+        self._setup_client_manager()
+
     def generate(self, samples: Dataset, **override_kwargs: Dict[str, Any]) -> Dataset:
         """Generate responses from the LLM.
 
@@ -290,7 +301,7 @@ class LLMChatBlock(BaseBlock):
         -------
         Dataset
             Dataset with responses added to the output column.
-        
+
         Raises
         ------
         BlockValidationError
@@ -302,7 +313,7 @@ class LLMChatBlock(BaseBlock):
                 f"Model not configured for block '{self.block_name}'. "
                 f"Call flow.set_model_config() before generating."
             )
-        
+
         # Extract messages
         messages_list = samples[self.input_cols[0]]
 

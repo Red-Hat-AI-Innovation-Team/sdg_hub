@@ -348,6 +348,20 @@ class EvaluateFaithfulnessBlock(BaseBlock):
 
         self.filter_block = ColumnValueFilterBlock(**filter_kwargs)
 
+    def _reinitialize_client_manager(self) -> None:
+        """Reinitialize the internal LLM chat block's client manager.
+        
+        This should be called after model configuration changes to ensure
+        the internal LLM chat block uses the updated model configuration.
+        """
+        if self.llm_chat and hasattr(self.llm_chat, '_reinitialize_client_manager'):
+            # Update the internal LLM chat block's model config
+            self.llm_chat.model = self.model
+            self.llm_chat.api_base = self.api_base
+            self.llm_chat.api_key = self.api_key
+            # Reinitialize its client manager
+            self.llm_chat._reinitialize_client_manager()
+
     def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
         """Generate faithfulness evaluation for all samples.
 
