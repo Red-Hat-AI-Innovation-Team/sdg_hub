@@ -13,8 +13,8 @@ import yaml
 # Local
 from ..blocks.base import BaseBlock
 from ..blocks.registry import BlockRegistry
-from ..utils.logger_config import setup_logger
 from ..utils.error_handling import EmptyDatasetError, FlowValidationError
+from ..utils.logger_config import setup_logger
 from ..utils.path_resolution import resolve_path
 from .metadata import FlowMetadata, FlowParameter
 from .migration import FlowMigration
@@ -57,6 +57,7 @@ class Flow(BaseModel):
     # Private attributes (not serialized)
     _migrated_runtime_params: Dict[str, Dict[str, Any]] = {}
     _llm_client: Any = None  # Only used for backward compatibility with old YAMLs
+    _model_config_set: bool = False  # Track if model configuration has been set
 
     @field_validator("blocks")
     @classmethod
@@ -173,21 +174,7 @@ class Flow(BaseModel):
         if "name" not in metadata_dict:
             metadata_dict["name"] = Path(yaml_path).stem
 
-        # Handle backward compatibility for recommended_model -> recommended_models
-        if (
-            "recommended_model" in metadata_dict
-            and "recommended_models" not in metadata_dict
-        ):
-            old_model = metadata_dict.pop("recommended_model")
-            if old_model:
-                # Local
-                from .metadata import ModelCompatibility, ModelOption
-
-                metadata_dict["recommended_models"] = [
-                    ModelOption(
-                        name=old_model, compatibility=ModelCompatibility.RECOMMENDED
-                    )
-                ]
+        # Note: Old format compatibility removed - only new RecommendedModels format supported
 
         try:
             metadata = FlowMetadata(**metadata_dict)
@@ -239,6 +226,16 @@ class Flow(BaseModel):
                 flow._migrated_runtime_params = migrated_runtime_params
             if is_old_format and client is not None:
                 flow._llm_client = client
+
+            # Check if this is a flow without LLM blocks
+            llm_blocks = flow._detect_llm_blocks()
+            if not llm_blocks:
+                # No LLM blocks, so no model config needed
+                flow._model_config_set = True
+            else:
+                # LLM blocks present - user must call set_model_config()
+                flow._model_config_set = False
+
             return flow
         except Exception as exc:
             raise FlowValidationError(f"Flow validation failed: {exc}") from exc
@@ -330,6 +327,9 @@ class Flow(BaseModel):
     ) -> Dataset:
         """Execute the flow blocks in sequence to generate data.
 
+        Note: For flows with LLM blocks, set_model_config() must be called first
+        to configure model settings before calling generate().
+
         Parameters
         ----------
         dataset : Dataset
@@ -351,7 +351,7 @@ class Flow(BaseModel):
         EmptyDatasetError
             If input dataset is empty or any block produces an empty dataset.
         FlowValidationError
-            If flow validation fails.
+            If flow validation fails or if model configuration is required but not set.
         """
         # Validate preconditions
         if not self.blocks:
@@ -359,6 +359,15 @@ class Flow(BaseModel):
 
         if len(dataset) == 0:
             raise EmptyDatasetError("Input dataset is empty")
+
+        # Check if model configuration has been set for flows with LLM blocks
+        llm_blocks = self._detect_llm_blocks()
+        if llm_blocks and not self._model_config_set:
+            raise FlowValidationError(
+                f"Model configuration required before generate(). "
+                f"Found {len(llm_blocks)} LLM blocks: {sorted(llm_blocks)}. "
+                f"Call flow.set_model_config() first."
+            )
 
         # Validate dataset requirements
         dataset_errors = self.validate_dataset(dataset)
@@ -441,83 +450,81 @@ class Flow(BaseModel):
         """Prepare execution parameters for a block."""
         return runtime_params.get(block.block_name, {})
 
-    def model_override(
+    def set_model_config(
         self,
         model: Optional[str] = None,
         api_base: Optional[str] = None,
         api_key: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
         blocks: Optional[List[str]] = None,
         **kwargs: Any,
     ) -> None:
-        """Override model configurations for LLM blocks in this flow (in-place).
+        """Configure model settings for LLM blocks in this flow (in-place).
 
-        By default, auto-detects all LLM blocks in the flow and applies overrides to them.
+        This method is designed to work with model-agnostic flow definitions where
+        LLM blocks don't have hardcoded model configurations in the YAML. Instead,
+        model settings are configured at runtime using this method.
+
+        Based on LiteLLM's basic usage pattern, this method focuses on the core
+        parameters (model, api_base, api_key) with additional parameters passed via kwargs.
+
+        By default, auto-detects all LLM blocks in the flow and applies configuration to them.
         Optionally allows targeting specific blocks only.
 
         Parameters
         ----------
         model : Optional[str]
-            Model name to override (e.g., "hosted_vllm/openai/gpt-oss-120b").
+            Model name to configure (e.g., "hosted_vllm/openai/gpt-oss-120b").
         api_base : Optional[str]
-            API base URL to override (e.g., "http://localhost:8101/v1").
+            API base URL to configure (e.g., "http://localhost:8101/v1").
         api_key : Optional[str]
-            API key to override.
-        temperature : Optional[float]
-            Temperature parameter to override.
-        max_tokens : Optional[int]
-            Max tokens parameter to override.
+            API key to configure.
         blocks : Optional[List[str]]
             Specific block names to target. If None, auto-detects all LLM blocks.
         **kwargs : Any
-            Additional parameters to override for the blocks.
+            Additional model parameters (e.g., temperature, max_tokens, top_p, etc.).
 
         Examples
         --------
-        >>> # Override model for all detected LLM blocks
-        >>> flow.model_override(
+        >>> # Recommended workflow: discover -> initialize -> set_model_config -> generate
+        >>> flow = Flow.from_yaml("path/to/flow.yaml")  # Initialize flow
+        >>> flow.set_model_config(  # Configure model settings
         ...     model="hosted_vllm/openai/gpt-oss-120b",
-        ...     api_base="http://localhost:8101/v1"
+        ...     api_base="http://localhost:8101/v1",
+        ...     api_key="your_key",
+        ...     temperature=0.7,
+        ...     max_tokens=2048
         ... )
-        >>> result = flow.generate(dataset)
+        >>> result = flow.generate(dataset)  # Generate data
 
-        >>> # Override only specific blocks
-        >>> flow.model_override(
+        >>> # Configure only specific blocks
+        >>> flow.set_model_config(
         ...     model="hosted_vllm/openai/gpt-oss-120b",
         ...     api_base="http://localhost:8101/v1",
         ...     blocks=["gen_detailed_summary", "knowledge_generation"]
         ... )
 
-        >>> # Reset by reloading from YAML
-        >>> flow = Flow.from_yaml(flow_path)
-
         Raises
         ------
         ValueError
-            If no override parameters are provided or if specified blocks don't exist.
+            If no configuration parameters are provided or if specified blocks don't exist.
         """
-        # Build the override parameters dictionary
-        override_params = {}
+        # Build the configuration parameters dictionary
+        config_params = {}
         if model is not None:
-            override_params["model"] = model
+            config_params["model"] = model
         if api_base is not None:
-            override_params["api_base"] = api_base
+            config_params["api_base"] = api_base
         if api_key is not None:
-            override_params["api_key"] = api_key
-        if temperature is not None:
-            override_params["temperature"] = temperature
-        if max_tokens is not None:
-            override_params["max_tokens"] = max_tokens
+            config_params["api_key"] = api_key
 
-        # Add any additional kwargs
-        override_params.update(kwargs)
+        # Add any additional kwargs (temperature, max_tokens, etc.)
+        config_params.update(kwargs)
 
         # Validate that at least one parameter is provided
-        if not override_params:
+        if not config_params:
             raise ValueError(
-                "At least one override parameter must be provided "
-                "(model, api_base, api_key, temperature, max_tokens, or **kwargs)"
+                "At least one configuration parameter must be provided "
+                "(model, api_base, api_key, or **kwargs)"
             )
 
         # Determine target blocks
@@ -532,20 +539,20 @@ class Flow(BaseModel):
                 )
             target_block_names = set(blocks)
             logger.info(
-                f"Targeting specific blocks for override: {sorted(target_block_names)}"
+                f"Targeting specific blocks for configuration: {sorted(target_block_names)}"
             )
         else:
             # Auto-detect LLM blocks
             target_block_names = set(self._detect_llm_blocks())
             logger.info(
-                f"Auto-detected {len(target_block_names)} LLM blocks for override: {sorted(target_block_names)}"
+                f"Auto-detected {len(target_block_names)} LLM blocks for configuration: {sorted(target_block_names)}"
             )
 
-        # Apply overrides to target blocks
+        # Apply configuration to target blocks
         modified_count = 0
         for block in self.blocks:
             if block.block_name in target_block_names:
-                for param_name, param_value in override_params.items():
+                for param_name, param_value in config_params.items():
                     if hasattr(block, param_name):
                         old_value = getattr(block, param_name)
                         setattr(block, param_name, param_value)
@@ -562,21 +569,26 @@ class Flow(BaseModel):
 
         if modified_count > 0:
             logger.info(
-                f"Successfully overrode {len(override_params)} parameters "
-                f"for {modified_count} blocks: {list(override_params.keys())}"
+                f"Successfully configured {len(config_params)} parameters "
+                f"for {modified_count} blocks: {list(config_params.keys())}"
             )
+            # Mark that model configuration has been set
+            self._model_config_set = True
         else:
             logger.warning(
                 "No blocks were modified - check block names or LLM block detection"
             )
 
     def _detect_llm_blocks(self) -> List[str]:
-        """Detect LLM blocks in the flow by checking for model-related attributes.
+        """Detect LLM blocks in the flow by checking for model-related attribute existence.
+
+        LLM blocks are identified by having model, api_base, or api_key attributes,
+        regardless of their values (they may be None until set_model_config() is called).
 
         Returns
         -------
         List[str]
-            List of block names that have LLM-related attributes (model, api_base, or api_key).
+            List of block names that have LLM-related attributes.
         """
         llm_blocks = []
 
@@ -584,17 +596,10 @@ class Flow(BaseModel):
             block_type = block.__class__.__name__
             block_name = block.block_name
 
-            # Check by attributes (has model-related configuration)
-            has_model_attr = (
-                hasattr(block, "model") and getattr(block, "model", None) is not None
-            )
-            has_api_base_attr = (
-                hasattr(block, "api_base")
-                and getattr(block, "api_base", None) is not None
-            )
-            has_api_key_attr = (
-                hasattr(block, "api_key") and getattr(block, "api_key", None) is not None
-            )
+            # Check by attribute existence (not value) - LLM blocks have these attributes even if None
+            has_model_attr = hasattr(block, "model")
+            has_api_base_attr = hasattr(block, "api_base")
+            has_api_key_attr = hasattr(block, "api_key")
 
             # A block is considered an LLM block if it has any LLM-related attributes
             is_llm_block = has_model_attr or has_api_base_attr or has_api_key_attr
@@ -603,10 +608,89 @@ class Flow(BaseModel):
                 llm_blocks.append(block_name)
                 logger.debug(
                     f"Detected LLM block '{block_name}' ({block_type}): "
-                    f"model={has_model_attr}, api_base={has_api_base_attr}, api_key={has_api_key_attr}"
+                    f"has_model_attr={has_model_attr}, has_api_base_attr={has_api_base_attr}, has_api_key_attr={has_api_key_attr}"
                 )
 
         return llm_blocks
+
+    def is_model_config_required(self) -> bool:
+        """Check if model configuration is required for this flow.
+
+        Returns
+        -------
+        bool
+            True if flow has LLM blocks and needs model configuration.
+        """
+        return len(self._detect_llm_blocks()) > 0
+
+    def is_model_config_set(self) -> bool:
+        """Check if model configuration has been set.
+
+        Returns
+        -------
+        bool
+            True if model configuration has been set or is not required.
+        """
+        return self._model_config_set
+
+    def reset_model_config(self) -> None:
+        """Reset model configuration flag (useful for testing or reconfiguration).
+
+        After calling this, set_model_config() must be called again before generate().
+        """
+        if self.is_model_config_required():
+            self._model_config_set = False
+            logger.info(
+                "Model configuration flag reset - call set_model_config() before generate()"
+            )
+
+    def get_default_model(self) -> Optional[str]:
+        """Get the default recommended model for this flow.
+
+        Returns
+        -------
+        Optional[str]
+            Default model name, or None if no models specified.
+
+        Examples
+        --------
+        >>> flow = Flow.from_yaml("path/to/flow.yaml")
+        >>> default_model = flow.get_default_model()
+        >>> print(f"Default model: {default_model}")
+        """
+        if not self.metadata.recommended_models:
+            return None
+        return self.metadata.recommended_models.default
+
+    def get_model_recommendations(self) -> Dict[str, Any]:
+        """Get a clean summary of model recommendations for this flow.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary with model recommendations in user-friendly format.
+
+        Examples
+        --------
+        >>> flow = Flow.from_yaml("path/to/flow.yaml")
+        >>> recommendations = flow.get_model_recommendations()
+        >>> print("Model recommendations:")
+        >>> print(f"  Default: {recommendations['default']}")
+        >>> print(f"  Compatible: {recommendations['compatible']}")
+        >>> print(f"  Experimental: {recommendations['experimental']}")
+        """
+        if not self.metadata.recommended_models:
+            return {
+                "default": None,
+                "compatible": [],
+                "experimental": [],
+            }
+
+        return {
+            "default": self.metadata.recommended_models.default,
+            "compatible": self.metadata.recommended_models.compatible,
+            "experimental": self.metadata.recommended_models.experimental,
+        }
 
     def validate_dataset(self, dataset: Dataset) -> List[str]:
         """Validate dataset against flow requirements."""

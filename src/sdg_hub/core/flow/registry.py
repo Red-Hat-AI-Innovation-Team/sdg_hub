@@ -45,25 +45,29 @@ class FlowRegistry:
         """Ensure the registry is initialized with built-in flows."""
         if cls._initialized:
             return
-        
+
         try:
             # Find the sdg_hub package directory
+            # First Party
             import sdg_hub
+
             package_path = Path(sdg_hub.__file__).parent
             flows_dir = package_path / "flows"
-            
+
             # Register built-in flows directory if it exists
             if flows_dir.exists():
                 flows_dir_str = str(flows_dir)
                 if flows_dir_str not in cls._search_paths:
                     cls._search_paths.append(flows_dir_str)
-                    logger.debug(f"Auto-registered built-in flows directory: {flows_dir}")
+                    logger.debug(
+                        f"Auto-registered built-in flows directory: {flows_dir}"
+                    )
             else:
                 logger.debug(f"Built-in flows directory not found: {flows_dir}")
-                
+
         except Exception as exc:
             logger.warning(f"Failed to auto-register built-in flows: {exc}")
-        
+
         cls._initialized = True
 
     @classmethod
@@ -90,7 +94,7 @@ class FlowRegistry:
         """
         # Ensure built-in flows are registered
         cls._ensure_initialized()
-        
+
         if cls._entries and not force_refresh:
             return
 
@@ -251,10 +255,10 @@ class FlowRegistry:
     @classmethod
     def discover_flows(cls, show_all_columns: bool = False) -> None:
         """Discover and display all flows in a formatted table.
-        
+
         This is the main public API for flow discovery. It finds all flows
         in registered search paths and displays them in a beautiful Rich table.
-        
+
         Parameters
         ----------
         show_all_columns : bool, optional
@@ -262,64 +266,65 @@ class FlowRegistry:
         """
         cls._ensure_initialized()
         cls._discover_flows()
-        
+
         if not cls._entries:
-            print("No flows discovered. Try adding search paths with register_search_path()")
+            print(
+                "No flows discovered. Try adding search paths with register_search_path()"
+            )
             print("Note: Only flows with 'metadata' section are discoverable.")
             return
-        
+
         # Prepare data with fallbacks
         flow_data = []
         for name, entry in cls._entries.items():
             metadata = entry.metadata
-            flow_data.append({
-                "name": name,
-                "author": metadata.author or "Unknown",
-                "tags": ", ".join(metadata.tags) if metadata.tags else "-", 
-                "description": metadata.description or "No description",
-                "version": metadata.version,
-                "cost": metadata.estimated_cost,
-            })
-        
+            flow_data.append(
+                {
+                    "name": name,
+                    "author": metadata.author or "Unknown",
+                    "tags": ", ".join(metadata.tags) if metadata.tags else "-",
+                    "description": metadata.description or "No description",
+                    "version": metadata.version,
+                    "cost": metadata.estimated_cost,
+                }
+            )
+
         # Sort by name for consistency
         flow_data.sort(key=lambda x: x["name"])
-        
+
         # Display Rich table
         # Third Party
         from rich.console import Console
         from rich.table import Table
-        
+
         console = Console()
         table = Table(show_header=True, header_style="bold magenta")
-        
+
         # Add columns
         table.add_column("Name", style="cyan", no_wrap=True)
         table.add_column("Author", style="green")
-        
+
         if show_all_columns:
             table.add_column("Version", style="blue")
             table.add_column("Cost", style="yellow")
-        
+
         table.add_column("Tags", style="dim")
         table.add_column("Description")
-        
+
         # Add rows
         for flow in flow_data:
             if show_all_columns:
                 table.add_row(
                     flow["name"],
-                    flow["author"], 
+                    flow["author"],
                     flow["version"],
                     flow["cost"],
                     flow["tags"],
-                    flow["description"]
+                    flow["description"],
                 )
             else:
                 table.add_row(
-                    flow["name"],
-                    flow["author"], 
-                    flow["tags"],
-                    flow["description"]
+                    flow["name"], flow["author"], flow["tags"], flow["description"]
                 )
-        
+
         console.print(table)

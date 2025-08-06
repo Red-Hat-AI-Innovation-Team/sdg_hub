@@ -45,6 +45,76 @@ class ModelOption(BaseModel):
         return v.strip()
 
 
+class RecommendedModels(BaseModel):
+    """Simplified recommended models structure.
+
+    Attributes
+    ----------
+    default : str
+        The default model to use
+    compatible : List[str]
+        List of compatible models
+    experimental : List[str]
+        List of experimental models
+    """
+
+    default: str = Field(..., description="Default model to use")
+    compatible: List[str] = Field(default_factory=list, description="Compatible models")
+    experimental: List[str] = Field(
+        default_factory=list, description="Experimental models"
+    )
+
+    @field_validator("default")
+    @classmethod
+    def validate_default(cls, v: str) -> str:
+        """Validate default model name is not empty."""
+        if not v.strip():
+            raise ValueError("Default model name cannot be empty")
+        return v.strip()
+
+    @field_validator("compatible", "experimental")
+    @classmethod
+    def validate_model_lists(cls, v: List[str]) -> List[str]:
+        """Validate model lists contain non-empty names."""
+        return [model.strip() for model in v if model.strip()]
+
+    def get_all_models(self) -> List[str]:
+        """Get all models (default + compatible + experimental)."""
+        return [self.default] + self.compatible + self.experimental
+
+    def get_best_model(
+        self, available_models: Optional[List[str]] = None
+    ) -> Optional[str]:
+        """Get the best model based on availability.
+
+        Parameters
+        ----------
+        available_models : Optional[List[str]]
+            List of available model names. If None, returns default.
+
+        Returns
+        -------
+        Optional[str]
+            Best model name or None if no models available.
+        """
+        if available_models is None:
+            return self.default
+
+        # Check in priority order: default, compatible, experimental
+        if self.default in available_models:
+            return self.default
+
+        for model in self.compatible:
+            if model in available_models:
+                return model
+
+        for model in self.experimental:
+            if model in available_models:
+                return model
+
+        return None
+
+
 class FlowParameter(BaseModel):
     """Represents a runtime parameter for a flow.
 
@@ -176,8 +246,8 @@ class FlowMetadata(BaseModel):
         Semantic version (e.g., "1.0.0").
     author : str
         Author or contributor name.
-    recommended_models : List[ModelOption]
-        Suggested LLM models with compatibility info.
+    recommended_models : Optional[RecommendedModels]
+        Simplified recommended models structure with default, compatible, and experimental lists.
     tags : List[str]
         Tags for categorization and search.
     created_at : str
@@ -204,8 +274,8 @@ class FlowMetadata(BaseModel):
         description="Semantic version",
     )
     author: str = Field(default="", description="Author or contributor name")
-    recommended_models: List[ModelOption] = Field(
-        default_factory=list, description="Suggested LLM models with compatibility info"
+    recommended_models: Optional[RecommendedModels] = Field(
+        default=None, description="Simplified recommended models structure"
     )
     tags: List[str] = Field(
         default_factory=list, description="Tags for categorization and search"
@@ -242,26 +312,12 @@ class FlowMetadata(BaseModel):
 
     @field_validator("recommended_models")
     @classmethod
-    def validate_recommended_models(cls, v: List[ModelOption]) -> List[ModelOption]:
-        """Validate recommended models list."""
-        if not v:
-            return v
-
-        # Check for duplicates
-        seen_names = set()
-        for model in v:
-            if model.name in seen_names:
-                raise ValueError(f"Duplicate model name: {model.name}")
-            seen_names.add(model.name)
-
-        # Sort by compatibility priority
-        priority_order = {
-            ModelCompatibility.REQUIRED: 0,
-            ModelCompatibility.RECOMMENDED: 1,
-            ModelCompatibility.COMPATIBLE: 2,
-            ModelCompatibility.EXPERIMENTAL: 3,
-        }
-        return sorted(v, key=lambda x: priority_order.get(x.compatibility, 999))
+    def validate_recommended_models(
+        cls, v: Optional[RecommendedModels]
+    ) -> Optional[RecommendedModels]:
+        """Validate recommended models structure."""
+        # Validation is handled within RecommendedModels class
+        return v
 
     def update_timestamp(self) -> None:
         """Update the updated_at timestamp."""
@@ -269,28 +325,20 @@ class FlowMetadata(BaseModel):
 
     def get_best_model(
         self, available_models: Optional[List[str]] = None
-    ) -> Optional[ModelOption]:
+    ) -> Optional[str]:
         """Get the best recommended model based on availability.
 
         Parameters
         ----------
         available_models : Optional[List[str]]
-            List of available model names. If None, returns highest priority model.
+            List of available model names. If None, returns default model.
 
         Returns
         -------
-        Optional[ModelOption]
-            Best model option or None if no models available.
+        Optional[str]
+            Best model name or None if no models available.
         """
         if not self.recommended_models:
             return None
 
-        if available_models is None:
-            return self.recommended_models[0]
-
-        # Find first model that's available
-        for model in self.recommended_models:
-            if model.name in available_models:
-                return model
-
-        return None
+        return self.recommended_models.get_best_model(available_models)

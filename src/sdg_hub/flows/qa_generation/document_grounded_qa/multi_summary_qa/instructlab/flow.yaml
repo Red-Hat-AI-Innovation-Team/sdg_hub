@@ -5,12 +5,9 @@ metadata:
   author: "SDG Hub Contributors"
   
   recommended_models:
-    - name: "mistralai/Mixtral-8x7B-Instruct-v0.1"
-      compatibility: "compatible"
-    - name: "meta-llama/Llama-3.3-70B-Instruct"
-      compatibility: "recommended"
-    - name: "microsoft/phi-4"
-      compatibility: "compatible"
+    default: "meta-llama/Llama-3.3-70B-Instruct"
+    compatible: ["microsoft/phi-4", "mistralai/Mixtral-8x7B-Instruct-v0.1"]
+    experimental: []
   
   tags:
     - "question-generation"
@@ -55,9 +52,6 @@ blocks:
       block_name: gen_detailed_summary
       input_cols: summary_prompt
       output_cols: raw_summary_detailed
-      model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
-      api_base: http://localhost:8000/v1
-      api_key: EMPTY
       max_tokens: 2048
       async_mode: true
 
@@ -82,9 +76,6 @@ blocks:
       block_name: gen_atomic_facts
       input_cols: atomic_facts_prompt
       output_cols: raw_atomic_facts
-      model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
-      api_base: http://localhost:8000/v1
-      api_key: EMPTY
       max_tokens: 2048
       async_mode: true
 
@@ -109,9 +100,6 @@ blocks:
       block_name: gen_extractive_summary
       input_cols: extractive_summary_prompt
       output_cols: raw_summary_extractive
-      model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
-      api_base: http://localhost:8000/v1
-      api_key: EMPTY
       max_tokens: 2048
       async_mode: true
 
@@ -147,9 +135,6 @@ blocks:
       block_name: knowledge_generation
       input_cols: knowledge_generation_prompt
       output_cols: raw_knowledge_generation
-      model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
-      api_base: http://localhost:8000/v1
-      api_key: EMPTY
       temperature: 0.0
       max_tokens: 2048
       async_mode: true
@@ -168,9 +153,6 @@ blocks:
       input_cols: [document, response]
       output_cols: [faithfulness_explanation, faithfulness_judgment]
       prompt_config_path: evaluate_faithfulness.yaml
-      model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
-      api_base: http://localhost:8000/v1
-      api_key: EMPTY
       filter_value: "YES"
       operation: eq
       async_mode: true
@@ -184,9 +166,6 @@ blocks:
       input_cols: [question, response]
       output_cols: [relevancy_explanation, relevancy_score]
       prompt_config_path: evaluate_relevancy.yaml
-      model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
-      api_base: http://localhost:8000/v1
-      api_key: EMPTY
       filter_value: 2.0
       operation: eq
       convert_dtype: float
@@ -202,9 +181,6 @@ blocks:
       input_cols: [question]
       output_cols: [verification_explanation, verification_rating]
       prompt_config_path: evaluate_question.yaml
-      model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
-      api_base: http://localhost:8000/v1
-      api_key: EMPTY
       filter_value: 1.0
       operation: ge
       convert_dtype: float

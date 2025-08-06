@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Union
 
 # Local
 from ..utils.logger_config import setup_logger
-from .metadata import ModelCompatibility, ModelOption
 
 logger = setup_logger(__name__)
 
@@ -117,12 +116,11 @@ class FlowMigration:
             "version": "1.0.0",
             "author": "SDG_Hub",
             "tags": ["migrated"],
-            "recommended_models": [
-                ModelOption(
-                    name="meta-llama/Llama-3.3-70B-Instruct",
-                    compatibility=ModelCompatibility.RECOMMENDED,
-                ).model_dump()
-            ],
+            "recommended_models": {
+                "default": "meta-llama/Llama-3.3-70B-Instruct",
+                "compatible": [],
+                "experimental": []
+            },
         }
 
     @staticmethod
