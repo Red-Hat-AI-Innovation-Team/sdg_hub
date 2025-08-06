@@ -1,0 +1,41 @@
+metadata:
+  name: Simple Annotation
+  description: A simple annotation flow for categorizing text
+blocks:
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: simple_annotation_prompt
+    input_cols:
+    - text
+    output_cols:
+    - annotation_prompt
+    prompt_config_path: ../../../../examples/annotation/flows/simple_annotation/prompt.yaml
+    format_as_messages: true
+- block_type: LLMChatBlock
+  block_config:
+    block_name: simple_annotation
+    input_cols:
+    - annotation_prompt
+    output_cols:
+    - raw_output
+    model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
+    api_base: http://localhost:8000/v1
+    temperature: 0.0
+    max_tokens: 5
+    extra_body:
+      guided_choice:
+        - World
+        - Sports
+        - Business
+        - Sci/Tech
+- block_type: TextParserBlock
+  block_config:
+    block_name: parse_annotation_output
+    input_cols:
+    - raw_output
+    output_cols:
+    - output
+    start_tags:
+    - ''
+    end_tags:
+    - '' 
