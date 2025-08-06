@@ -3,7 +3,7 @@
 
 - role: user
   content: |
-    Task Description: You will be given a text and you need to annotate it with one of the following categories: World, Sports, Business, Sci/Tech, Economy
+    Task Description: You will be given a text and you need to annotate it with one of the following categories: World, Sports, Sci/Tech and Business
 
     Please follow these rules when performing the classification:
     - Focus on the main topic, not peripheral mentions
@@ -27,4 +27,4 @@
     Here is the query for annotation:
 
     Text: {{text}}
-    Category: 
+    Category:
