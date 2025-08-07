@@ -2,19 +2,17 @@
 """Tests for VerifyQuestionBlock."""
 
 # Standard
+from unittest.mock import MagicMock, patch
 import os
 import tempfile
-from unittest.mock import MagicMock, patch
 
 # Third Party
 from datasets import Dataset
-import pytest
 
 # First Party
-from sdg_hub.core.blocks.evaluation.verify_question_block import (
-    VerifyQuestionBlock,
-)
 from sdg_hub import BlockRegistry
+from sdg_hub.core.blocks.evaluation.verify_question_block import VerifyQuestionBlock
+import pytest
 
 
 class TestVerifyQuestionBlock:
@@ -452,11 +450,13 @@ class TestVerifyQuestionBlock:
         )
 
         # Mock the prompt builder to raise an exception
-        with patch.object(
-            block.prompt_builder, "generate", side_effect=Exception("Test error")
+        with (
+            patch.object(
+                block.prompt_builder, "generate", side_effect=Exception("Test error")
+            ),
+            pytest.raises(Exception, match="Test error"),
         ):
-            with pytest.raises(Exception, match="Test error"):
-                block.generate(sample_dataset)
+            block.generate(sample_dataset)
 
     def test_validation_with_empty_dataset(self, test_yaml_config):
         """Test validation with empty dataset."""

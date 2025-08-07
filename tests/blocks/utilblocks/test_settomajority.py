@@ -2,10 +2,10 @@
 
 # Third Party
 from datasets import Dataset
-import pytest
 
 # First Party
 from sdg_hub.core.blocks.deprecated_blocks import SetToMajorityValue
+import pytest
 
 
 @pytest.fixture
@@ -87,7 +87,10 @@ def test_set_to_majority_all_unique():
 def test_set_to_majority_tie_handling():
     """Test behavior when there are multiple values with the same frequency."""
     dataset = Dataset.from_dict(
-        {"tie_col": ["A", "B", "A", "B", "C", "D"], "other_col": ["1", "2", "3", "4", "5", "6"]}
+        {
+            "tie_col": ["A", "B", "A", "B", "C", "D"],
+            "other_col": ["1", "2", "3", "4", "5", "6"],
+        }
     )
     block = SetToMajorityValue(block_name="test_block", col_name="tie_col")
     result = block.generate(dataset)

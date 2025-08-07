@@ -6,17 +6,17 @@ to another based on a choice column's value.
 """
 
 # Standard
-from typing import Any, Dict, List
+from typing import Any
 
 # Third Party
 from datasets import Dataset
 from pydantic import Field, field_validator, model_validator
 
 # Local
+from ...utils.error_handling import MissingColumnError
 from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
 from ..registry import BlockRegistry
-from ...utils.error_handling import MissingColumnError
 
 logger = setup_logger(__name__)
 
@@ -48,10 +48,10 @@ class IndexBasedMapperBlock(BaseBlock):
         List of column names containing choice values. Must have same length as output_cols.
     """
 
-    choice_map: Dict[str, str] = Field(
+    choice_map: dict[str, str] = Field(
         ..., description="Dictionary mapping choice values to column names"
     )
-    choice_cols: List[str] = Field(
+    choice_cols: list[str] = Field(
         ..., description="List of column names containing choice values"
     )
 
@@ -80,7 +80,7 @@ class IndexBasedMapperBlock(BaseBlock):
                 f"choice_cols and output_cols must have same length. "
                 f"Got choice_cols: {len(self.choice_cols)}, output_cols: {len(self.output_cols)}"
             )
-        
+
         if isinstance(self.input_cols, list):
             # Check that all choice_cols are in input_cols
             missing_choice_cols = set(self.choice_cols) - set(self.input_cols)
@@ -95,7 +95,7 @@ class IndexBasedMapperBlock(BaseBlock):
                 logger.warning(
                     f"Mapped columns {missing_mapped_cols} not found in input_cols {self.input_cols}"
                 )
-        
+
         return self
 
     def model_post_init(self, __context: Any) -> None:
@@ -119,7 +119,9 @@ class IndexBasedMapperBlock(BaseBlock):
             If choice values in data are not found in choice_map.
         """
         # Check that all choice_cols exist
-        missing_choice_cols = [col for col in self.choice_cols if col not in samples.column_names]
+        missing_choice_cols = [
+            col for col in self.choice_cols if col not in samples.column_names
+        ]
         if missing_choice_cols:
             raise MissingColumnError(
                 block_name=self.block_name,
@@ -141,17 +143,17 @@ class IndexBasedMapperBlock(BaseBlock):
         all_unique_choices = set()
         for choice_col in self.choice_cols:
             all_unique_choices.update(samples[choice_col])
-        
+
         mapped_choices = set(self.choice_map.keys())
         unmapped_choices = all_unique_choices - mapped_choices
-        
+
         if unmapped_choices:
             raise ValueError(
                 f"Choice values {sorted(unmapped_choices)} not found in choice_map for block '{self.block_name}'. "
                 f"Available choices in mapping: {sorted(mapped_choices)}"
             )
 
-    def _generate(self, sample: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate(self, sample: dict[str, Any]) -> dict[str, Any]:
         """Generate a new sample by selecting values based on choice mapping.
 
         Parameters
@@ -166,7 +168,9 @@ class IndexBasedMapperBlock(BaseBlock):
         """
         for choice_col, output_col in self.choice_to_output_map.items():
             choice_value = sample[choice_col]
-            source_col = self.choice_map[choice_value]  # Safe since validated in _validate_custom
+            source_col = self.choice_map[
+                choice_value
+            ]  # Safe since validated in _validate_custom
             sample[output_col] = sample[source_col]
         return sample
 

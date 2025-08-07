@@ -6,8 +6,8 @@ Use transform.IndexBasedMapperBlock instead.
 """
 
 # Standard
+from typing import Any
 import warnings
-from typing import Any, Dict
 
 # Third Party
 from datasets import Dataset
@@ -53,10 +53,10 @@ class SelectorBlock(BaseBlock):
     def __init__(
         self,
         block_name: str,
-        choice_map: Dict[str, str],
+        choice_map: dict[str, str],
         choice_col: str,
         output_col: str,
-        **batch_kwargs: Dict[str, Any],
+        **batch_kwargs: dict[str, Any],
     ) -> None:
         warnings.warn(
             "SelectorBlock is deprecated. Use sdg_hub.blocks.transform.IndexBasedMapperBlock instead.",

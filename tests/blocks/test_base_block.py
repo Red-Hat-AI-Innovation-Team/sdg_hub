@@ -1,21 +1,21 @@
 """Tests for the enhanced BaseBlock class."""
 
 # Standard
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # Third Party
 from datasets import Dataset
-import pytest
 
 # First Party
 from sdg_hub import BaseBlock
-from sdg_hub.core.utils.logger_config import setup_logger
 from sdg_hub.core.utils.error_handling import (
     BlockValidationError,
     EmptyDatasetError,
     MissingColumnError,
     OutputColumnCollisionError,
 )
+from sdg_hub.core.utils.logger_config import setup_logger
+import pytest
 
 logger = setup_logger(__name__)
 
@@ -67,7 +67,9 @@ class TestBaseBlockInitialization:
     def test_initialization_with_list_columns(self):
         """Test initialization with list column specifications."""
         block = DummyBlock(
-            block_name="test_block", input_cols=["col1", "col2"], output_cols=["out1", "out2"]
+            block_name="test_block",
+            input_cols=["col1", "col2"],
+            output_cols=["out1", "out2"],
         )
 
         assert block.input_cols == ["col1", "col2"]
@@ -77,7 +79,9 @@ class TestBaseBlockInitialization:
         """Test initialization with dictionary column specifications."""
         input_dict = {"col1": "prompt1", "col2": "prompt2"}
         output_dict = {"out1": "config1", "out2": "config2"}
-        block = DummyBlock(block_name="test_block", input_cols=input_dict, output_cols=output_dict)
+        block = DummyBlock(
+            block_name="test_block", input_cols=input_dict, output_cols=output_dict
+        )
 
         assert block.input_cols == input_dict
         assert block.output_cols == output_dict
@@ -85,7 +89,10 @@ class TestBaseBlockInitialization:
     def test_initialization_with_extra_fields(self):
         """Test initialization with additional fields via Pydantic's extra='allow'."""
         block = DummyBlock(
-            block_name="test_block", input_cols="input", custom_param="value", another_param=42
+            block_name="test_block",
+            input_cols="input",
+            custom_param="value",
+            another_param=42,
         )
 
         assert block.custom_param == "value"
@@ -103,13 +110,15 @@ class TestBaseBlockInitialization:
         # This is expected behavior
         assert input_cols == ["col1", "col2"]
         assert output_cols is None
-        
+
         # Demonstrate that we get the actual reference
         assert input_cols is block.input_cols
 
     def test_repr(self):
         """Test string representation."""
-        block = DummyBlock(block_name="test_block", input_cols=["input"], output_cols=["output"])
+        block = DummyBlock(
+            block_name="test_block", input_cols=["input"], output_cols=["output"]
+        )
 
         expected = "DummyBlock(name='test_block', input_cols=['input'], output_cols=['output'])"
         assert repr(block) == expected
@@ -292,7 +301,9 @@ class TestValidation:
         """Test comprehensive dataset validation."""
         dataset = self.create_test_dataset()
         block = DummyBlock(
-            block_name="test_block", input_cols=["input", "category"], output_cols=["new_col"]
+            block_name="test_block",
+            input_cols=["input", "category"],
+            output_cols=["new_col"],
         )
 
         # Should not raise any exception
@@ -339,7 +350,9 @@ class TestLogging:
     def test_log_input_data(self, mock_console):
         """Test input data logging."""
         dataset = self.create_test_dataset()
-        block = DummyBlock(block_name="test_block", input_cols=["input"], output_cols=["output"])
+        block = DummyBlock(
+            block_name="test_block", input_cols=["input"], output_cols=["output"]
+        )
 
         block._log_input_data(dataset)
 
@@ -399,7 +412,9 @@ class TestCallMethod:
         """Test successful __call__ execution."""
         dataset = self.create_test_dataset()
         block = DummyBlock(
-            block_name="test_block", input_cols=["input", "category"], output_cols=["test_output"]
+            block_name="test_block",
+            input_cols=["input", "category"],
+            output_cols=["test_output"],
         )
 
         result = block(dataset, test_param="value")
@@ -468,7 +483,9 @@ class TestGetConfig:
 
     def test_get_config_basic(self):
         """Test basic get_config functionality."""
-        block = DummyBlock(block_name="test_block", input_cols=["input"], output_cols=["output"])
+        block = DummyBlock(
+            block_name="test_block", input_cols=["input"], output_cols=["output"]
+        )
 
         config = block.get_config()
 
@@ -487,7 +504,9 @@ class TestGetConfig:
         """Test get_config with dictionary column specifications."""
         input_dict = {"input": "prompt1"}
         output_dict = {"output": "config1"}
-        block = DummyBlock(block_name="test_block", input_cols=input_dict, output_cols=output_dict)
+        block = DummyBlock(
+            block_name="test_block", input_cols=input_dict, output_cols=output_dict
+        )
 
         config = block.get_config()
 
@@ -512,6 +531,7 @@ class TestGetConfig:
 
     def test_get_config_with_custom_attributes(self):
         """Test get_config includes custom attributes."""
+
         class CustomBlock(DummyBlock):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
@@ -533,6 +553,7 @@ class TestGetConfig:
 
     def test_get_config_excludes_private_attributes(self):
         """Test that get_config excludes private attributes."""
+
         class BlockWithPrivateAttrs(DummyBlock):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
@@ -559,6 +580,7 @@ class TestGetConfig:
 
     def test_get_config_excludes_methods(self):
         """Test that get_config excludes methods."""
+
         class BlockWithMethods(DummyBlock):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
@@ -575,9 +597,9 @@ class TestGetConfig:
         assert "custom_method" not in config
         assert "generate" not in config
 
-
     def test_get_config_with_complex_attributes(self):
         """Test get_config with complex attribute types."""
+
         class ComplexBlock(DummyBlock):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
@@ -599,6 +621,7 @@ class TestGetConfig:
 
     def test_get_config_serialization_ready(self):
         """Test that get_config output is serialization-ready."""
+        # Standard
         import json
 
         class SerializableBlock(DummyBlock):
@@ -631,7 +654,9 @@ class TestGetInfo:
 
     def test_get_info_basic(self):
         """Test basic get_info functionality."""
-        block = DummyBlock(block_name="test_block", input_cols=["input"], output_cols=["output"])
+        block = DummyBlock(
+            block_name="test_block", input_cols=["input"], output_cols=["output"]
+        )
 
         info = block.get_info()
 
@@ -645,7 +670,9 @@ class TestGetInfo:
         """Test get_info with dictionary column specifications."""
         input_dict = {"input": "prompt1"}
         output_dict = {"output": "config1"}
-        block = DummyBlock(block_name="test_block", input_cols=input_dict, output_cols=output_dict)
+        block = DummyBlock(
+            block_name="test_block", input_cols=input_dict, output_cols=output_dict
+        )
 
         info = block.get_info()
 
@@ -667,6 +694,7 @@ class TestGetInfo:
 
     def test_get_info_includes_config(self):
         """Test that get_info includes full configuration."""
+
         class ConfigurableBlock(DummyBlock):
             model_id: str = "test_model"
             temperature: float = 0.7
@@ -706,10 +734,12 @@ class TestCustomValidation:
                 self.custom_validation_called = True
                 super()._validate_custom(dataset)
 
-        block = TestBlockWithCustomValidation(block_name="test_block", input_cols=["input"])
+        block = TestBlockWithCustomValidation(
+            block_name="test_block", input_cols=["input"]
+        )
 
         # Call the block - this should trigger custom validation
-        result = block(dataset)
+        block(dataset)
 
         # Verify custom validation was called
         assert block.custom_validation_called is True
@@ -722,7 +752,9 @@ class TestCustomValidation:
             def _validate_custom(self, dataset):
                 raise BlockValidationError("Custom validation failed", "Test details")
 
-        block = TestBlockWithFailingValidation(block_name="test_block", input_cols=["input"])
+        block = TestBlockWithFailingValidation(
+            block_name="test_block", input_cols=["input"]
+        )
 
         # Custom validation failure should be raised
         with pytest.raises(BlockValidationError, match="Custom validation failed"):
@@ -767,7 +799,9 @@ class TestCustomValidation:
                             f"Invalid special value in row {i}: {sample['special']}"
                         )
 
-        block = TestBlockWithDatasetValidation(block_name="test_block", input_cols=["input"])
+        block = TestBlockWithDatasetValidation(
+            block_name="test_block", input_cols=["input"]
+        )
 
         # Should fail because second row has 'bad' value
         with pytest.raises(
@@ -785,10 +819,12 @@ class TestCustomValidation:
                 # Custom validation that passes
                 logger.info("Custom validation passed")
 
-        block = TestBlockWithLoggingValidation(block_name="test_block", input_cols=["input"])
+        block = TestBlockWithLoggingValidation(
+            block_name="test_block", input_cols=["input"]
+        )
 
         # Should succeed and show logging panels
-        result = block(dataset)
+        block(dataset)
 
         # Verify logging was called (input and output panels)
         assert mock_console.print.call_count == 2
@@ -801,14 +837,14 @@ class TestDictionaryMutationProtection:
         """Test that external changes to input dict don't affect stored version."""
         original_dict = {"col1": "template1", "col2": "template2"}
         block = DummyBlock(block_name="test_block", input_cols=original_dict)
-        
+
         # Verify initial state
         assert block.input_cols == original_dict
-        
+
         # Modify original dictionary
         original_dict["col3"] = "template3"
         original_dict["col1"] = "MODIFIED"
-        
+
         # Block's internal state should be unchanged
         assert block.input_cols == {"col1": "template1", "col2": "template2"}
         assert "col3" not in block.input_cols
@@ -818,14 +854,14 @@ class TestDictionaryMutationProtection:
         """Test that external changes to output dict don't affect stored version."""
         original_dict = {"output1": "result1", "output2": "result2"}
         block = DummyBlock(block_name="test_block", output_cols=original_dict)
-        
+
         # Verify initial state
         assert block.output_cols == original_dict
-        
+
         # Modify original dictionary
         original_dict["output3"] = "result3"
         del original_dict["output1"]
-        
+
         # Block's internal state should be unchanged
         assert block.output_cols == {"output1": "result1", "output2": "result2"}
         assert "output3" not in block.output_cols
@@ -834,15 +870,15 @@ class TestDictionaryMutationProtection:
         """Test that nested dictionaries are also protected from mutations."""
         nested_dict = {
             "col1": {"template": "value1", "params": {"nested": "deep"}},
-            "col2": {"template": "value2"}
+            "col2": {"template": "value2"},
         }
-        block = DummyBlock(block_name="test_block", input_cols=nested_dict)
-        
+        DummyBlock(block_name="test_block", input_cols=nested_dict)
+
         # Modify nested structure
         nested_dict["col1"]["template"] = "MODIFIED"
         nested_dict["col1"]["params"]["nested"] = "CHANGED"
         nested_dict["col2"]["new_key"] = "new_value"
-        
+
         # In Pydantic, we get the actual object, not a deep copy
         # This test needs to be updated for Pydantic behavior
         # The mutation protection happens at assignment time via field validators
@@ -852,15 +888,15 @@ class TestDictionaryMutationProtection:
         """Test that each call to input_cols/output_cols returns independent copies."""
         original_dict = {"col1": "template1", "col2": "template2"}
         block = DummyBlock(block_name="test_block", input_cols=original_dict)
-        
+
         # Get two copies
         copy1 = block.input_cols
         copy2 = block.input_cols
-        
+
         # They should be equal - in Pydantic, properties return the same object
         assert copy1 == copy2
         # Note: Pydantic returns the same object, not independent copies
-        
+
         # In Pydantic, modifying the returned dict affects the original
         # This is expected behavior for Pydantic models
         pass  # Skip mutation test for Pydantic
@@ -869,14 +905,18 @@ class TestDictionaryMutationProtection:
         """Test immutability works correctly for both lists and dicts."""
         list_cols = ["col1", "col2"]
         dict_cols = {"col3": "template3", "col4": "template4"}
-        
-        block1 = DummyBlock(block_name="test1", input_cols=list_cols, output_cols=dict_cols)
-        block2 = DummyBlock(block_name="test2", input_cols=dict_cols, output_cols=list_cols)
-        
+
+        block1 = DummyBlock(
+            block_name="test1", input_cols=list_cols, output_cols=dict_cols
+        )
+        block2 = DummyBlock(
+            block_name="test2", input_cols=dict_cols, output_cols=list_cols
+        )
+
         # Modify originals
         list_cols.append("col5")
         dict_cols["col6"] = "template6"
-        
+
         # Blocks should be unaffected
         assert len(block1.input_cols) == 2
         assert len(block2.output_cols) == 2

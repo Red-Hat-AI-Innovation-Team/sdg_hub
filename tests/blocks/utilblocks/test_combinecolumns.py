@@ -2,10 +2,10 @@
 
 # Third Party
 from datasets import Dataset
-import pytest
 
 # First Party
 from sdg_hub.core.blocks.deprecated_blocks import CombineColumnsBlock
+import pytest
 
 
 @pytest.fixture
@@ -162,5 +162,7 @@ def test_missing_columns():
         output_col="combined",
     )
 
-    with pytest.raises(ValueError, match="Input column 'missing_col' not found in sample"):
+    with pytest.raises(
+        ValueError, match="Input column 'missing_col' not found in sample"
+    ):
         block.generate(dataset)

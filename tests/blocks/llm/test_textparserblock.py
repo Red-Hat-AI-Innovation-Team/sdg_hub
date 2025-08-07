@@ -3,10 +3,10 @@ from unittest.mock import patch
 
 # Third Party
 from datasets import Dataset
-import pytest
 
 # First Party
 from sdg_hub.core.blocks.llm import TextParserBlock
+import pytest
 
 
 @pytest.fixture
@@ -693,7 +693,7 @@ def test_enhanced_logging_for_parsing_failures():
     dataset = Dataset.from_list(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
-        result = block.generate(dataset)
+        block.generate(dataset)
 
         # Should log warning about parsing failure
         mock_logger.warning.assert_called()
@@ -721,7 +721,7 @@ def test_enhanced_logging_missing_input_column():
 
     # BaseBlock should validate and raise MissingColumnError
     with pytest.raises(MissingColumnError):
-        result = block(dataset)  # Use __call__ to trigger validation
+        block(dataset)  # Use __call__ to trigger validation
 
 
 def test_enhanced_logging_regex_parsing():
@@ -737,7 +737,7 @@ def test_enhanced_logging_regex_parsing():
     dataset = Dataset.from_list(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
-        result = block.generate(dataset)
+        block.generate(dataset)
 
         # Should log debug info about matches found
         mock_logger.debug.assert_called()
@@ -760,7 +760,7 @@ def test_enhanced_logging_tag_parsing():
     dataset = Dataset.from_list(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
-        result = block.generate(dataset)
+        block.generate(dataset)
 
         # Should log debug info about tag parsing
         mock_logger.debug.assert_called()

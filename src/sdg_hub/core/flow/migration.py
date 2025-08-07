@@ -3,7 +3,7 @@
 
 # Standard
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Union
 
 # Local
 from ..utils.logger_config import setup_logger
@@ -15,7 +15,7 @@ class FlowMigration:
     """Utility class for migrating old flow formats to new format."""
 
     @staticmethod
-    def is_old_format(flow_config: Union[List[Dict[str, Any]], Dict[str, Any]]) -> bool:
+    def is_old_format(flow_config: Union[list[dict[str, Any]], dict[str, Any]]) -> bool:
         """Detect if a flow configuration is in the old format.
 
         Parameters
@@ -57,8 +57,8 @@ class FlowMigration:
 
     @staticmethod
     def migrate_to_new_format(
-        flow_config: List[Dict[str, Any]], yaml_path: str
-    ) -> tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+        flow_config: list[dict[str, Any]], yaml_path: str
+    ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
         """Migrate old format flow configuration to new format.
 
         Parameters
@@ -82,18 +82,22 @@ class FlowMigration:
         # Process blocks and extract runtime parameters
         migrated_blocks = []
         runtime_params = {}
-        
+
         for i, block_config in enumerate(flow_config):
             try:
-                migrated_block, block_runtime_params = FlowMigration._migrate_block_config(block_config)
+                migrated_block, block_runtime_params = (
+                    FlowMigration._migrate_block_config(block_config)
+                )
                 migrated_blocks.append(migrated_block)
-                
+
                 # Add block's runtime params if any
                 if block_runtime_params:
-                    block_name = migrated_block.get("block_config", {}).get("block_name")
+                    block_name = migrated_block.get("block_config", {}).get(
+                        "block_name"
+                    )
                     if block_name:
                         runtime_params[block_name] = block_runtime_params
-                        
+
             except Exception as exc:
                 logger.warning(f"Failed to migrate block at index {i}: {exc}")
                 # Keep original block config as fallback
@@ -104,11 +108,11 @@ class FlowMigration:
 
         logger.info(f"Successfully migrated flow with {len(migrated_blocks)} blocks")
         logger.info(f"Extracted runtime_params for {len(runtime_params)} blocks")
-        
+
         return new_config, runtime_params
 
     @staticmethod
-    def _generate_default_metadata(flow_name: str) -> Dict[str, Any]:
+    def _generate_default_metadata(flow_name: str) -> dict[str, Any]:
         """Generate default metadata for migrated flows."""
         return {
             "name": flow_name,
@@ -119,12 +123,14 @@ class FlowMigration:
             "recommended_models": {
                 "default": "meta-llama/Llama-3.3-70B-Instruct",
                 "compatible": [],
-                "experimental": []
+                "experimental": [],
             },
         }
 
     @staticmethod
-    def _migrate_block_config(block_config: Dict[str, Any]) -> tuple[Dict[str, Any], Dict[str, Any]]:
+    def _migrate_block_config(
+        block_config: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Migrate individual block configuration from old to new format.
 
         Parameters
@@ -153,7 +159,9 @@ class FlowMigration:
         for unsupported_field in ["drop_columns", "drop_duplicates", "batch_kwargs"]:
             if unsupported_field in migrated_config:
                 migrated_config.pop(unsupported_field)
-                logger.debug(f"Ignoring {unsupported_field} as it's not supported in new flow format")
+                logger.debug(
+                    f"Ignoring {unsupported_field} as it's not supported in new flow format"
+                )
 
         # Handle parser_kwargs for LLMBlock (keep in block_config)
         if migrated_config.get("block_type") == "LLMBlock":
@@ -169,7 +177,11 @@ class FlowMigration:
                 operation = block_config_section["operation"]
                 if isinstance(operation, str) and operation.startswith("operator."):
                     # Convert "operator.eq" to "eq"
-                    block_config_section["operation"] = operation.replace("operator.", "")
-                    logger.debug(f"Converted operation from {operation} to {block_config_section['operation']}")
+                    block_config_section["operation"] = operation.replace(
+                        "operator.", ""
+                    )
+                    logger.debug(
+                        f"Converted operation from {operation} to {block_config_section['operation']}"
+                    )
 
         return migrated_config, runtime_params

@@ -7,7 +7,7 @@ and filtering into a single block for simplified configuration.
 """
 
 # Standard
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 # Third Party
 from datasets import Dataset
@@ -16,11 +16,11 @@ from pydantic import ConfigDict, Field, field_validator
 # Local
 from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
-from ..registry import BlockRegistry
-from ..llm.prompt_builder_block import PromptBuilderBlock
-from ..llm.llm_chat_block import LLMChatBlock
-from ..llm.text_parser_block import TextParserBlock
 from ..filtering.column_value_filter import ColumnValueFilterBlock
+from ..llm.llm_chat_block import LLMChatBlock
+from ..llm.prompt_builder_block import PromptBuilderBlock
+from ..llm.text_parser_block import TextParserBlock
+from ..registry import BlockRegistry
 
 logger = setup_logger(__name__)
 
@@ -144,18 +144,19 @@ class EvaluateRelevancyBlock(BaseBlock):
     )
 
     # Parser configuration
-    start_tags: List[str] = Field(
+    start_tags: list[str] = Field(
         ["[Start of Feedback]", "[Start of Score]"],
         description="Start tags for parsing feedback and score",
     )
-    end_tags: List[str] = Field(
+    end_tags: list[str] = Field(
         ["[End of Feedback]", "[End of Score]"],
         description="End tags for parsing feedback and score",
     )
     parsing_pattern: Optional[str] = Field(
-        None, description="Regex pattern for custom parsing. If provided, takes precedence over tag-based parsing"
+        None,
+        description="Regex pattern for custom parsing. If provided, takes precedence over tag-based parsing",
     )
-    parser_cleanup_tags: Optional[List[str]] = Field(
+    parser_cleanup_tags: Optional[list[str]] = Field(
         None, description="List of tags to clean from parsed output"
     )
 
@@ -173,11 +174,11 @@ class EvaluateRelevancyBlock(BaseBlock):
     presence_penalty: Optional[float] = Field(
         None, description="Presence penalty (-2.0 to 2.0)"
     )
-    stop: Optional[Union[str, List[str]]] = Field(None, description="Stop sequences")
+    stop: Optional[Union[str, list[str]]] = Field(None, description="Stop sequences")
     seed: Optional[int] = Field(
         None, description="Random seed for reproducible outputs"
     )
-    response_format: Optional[Dict[str, Any]] = Field(
+    response_format: Optional[dict[str, Any]] = Field(
         None, description="Response format specification (e.g., JSON mode)"
     )
     stream: Optional[bool] = Field(None, description="Whether to stream responses")
@@ -192,17 +193,17 @@ class EvaluateRelevancyBlock(BaseBlock):
         None, description="Number of top log probabilities to return"
     )
     user: Optional[str] = Field(None, description="End-user identifier")
-    extra_headers: Optional[Dict[str, str]] = Field(
+    extra_headers: Optional[dict[str, str]] = Field(
         None, description="Additional headers to send with requests"
     )
-    extra_body: Optional[Dict[str, Any]] = Field(
+    extra_body: Optional[dict[str, Any]] = Field(
         None, description="Additional parameters for the request body"
     )
     timeout: float = Field(120.0, description="Request timeout in seconds")
     max_retries: int = Field(6, description="Maximum number of retry attempts")
 
     # Additional provider-specific parameters
-    llm_kwargs: Dict[str, Any] = Field(
+    llm_kwargs: dict[str, Any] = Field(
         default_factory=dict, description="Additional provider-specific parameters"
     )
 
@@ -311,7 +312,7 @@ class EvaluateRelevancyBlock(BaseBlock):
             llm_kwargs["extra_headers"] = self.extra_headers
         if self.extra_body is not None:
             llm_kwargs["extra_body"] = self.extra_body
-        
+
         # Add any additional kwargs
         llm_kwargs.update(self.llm_kwargs)
 
@@ -325,13 +326,13 @@ class EvaluateRelevancyBlock(BaseBlock):
             "start_tags": self.start_tags,
             "end_tags": self.end_tags,
         }
-        
+
         # Add optional TextParserBlock parameters if specified
         if self.parsing_pattern is not None:
             text_parser_kwargs["parsing_pattern"] = self.parsing_pattern
         if self.parser_cleanup_tags is not None:
             text_parser_kwargs["parser_cleanup_tags"] = self.parser_cleanup_tags
-            
+
         self.text_parser = TextParserBlock(**text_parser_kwargs)
 
         # 4. ColumnValueFilterBlock
@@ -350,11 +351,11 @@ class EvaluateRelevancyBlock(BaseBlock):
 
     def _reinitialize_client_manager(self) -> None:
         """Reinitialize the internal LLM chat block's client manager.
-        
+
         This should be called after model configuration changes to ensure
         the internal LLM chat block uses the updated model configuration.
         """
-        if self.llm_chat and hasattr(self.llm_chat, '_reinitialize_client_manager'):
+        if self.llm_chat and hasattr(self.llm_chat, "_reinitialize_client_manager"):
             # Update the internal LLM chat block's model config
             self.llm_chat.model = self.model
             self.llm_chat.api_base = self.api_base
@@ -382,7 +383,7 @@ class EvaluateRelevancyBlock(BaseBlock):
         -------
         Dataset
             Dataset with relevancy evaluation results and filtering applied.
-            
+
         Raises
         ------
         BlockValidationError
@@ -390,7 +391,9 @@ class EvaluateRelevancyBlock(BaseBlock):
         """
         # Validate that model is configured
         if not self.model:
+            # Local
             from ...utils.error_handling import BlockValidationError
+
             raise BlockValidationError(
                 f"Model not configured for block '{self.block_name}'. "
                 f"Call flow.set_model_config() before generating."
@@ -408,19 +411,19 @@ class EvaluateRelevancyBlock(BaseBlock):
 
         try:
             # Step 1: Build prompts
-            logger.debug(f"Step 1: Building relevancy evaluation prompts")
+            logger.debug("Step 1: Building relevancy evaluation prompts")
             current_dataset = self.prompt_builder.generate(current_dataset, **kwargs)
 
             # Step 2: Generate LLM responses
-            logger.debug(f"Step 2: Generating LLM responses")
+            logger.debug("Step 2: Generating LLM responses")
             current_dataset = self.llm_chat.generate(current_dataset, **kwargs)
 
             # Step 3: Parse responses
-            logger.debug(f"Step 3: Parsing relevancy evaluation responses")
+            logger.debug("Step 3: Parsing relevancy evaluation responses")
             current_dataset = self.text_parser.generate(current_dataset, **kwargs)
 
             # Step 4: Filter based on score
-            logger.debug(f"Step 4: Filtering based on relevancy score")
+            logger.debug("Step 4: Filtering based on relevancy score")
             original_count = len(current_dataset)
             current_dataset = self.filter_block.generate(current_dataset, **kwargs)
             filtered_count = len(current_dataset)
@@ -536,7 +539,7 @@ class EvaluateRelevancyBlock(BaseBlock):
             logger.error(f"Validation failed in internal blocks: {e}")
             raise ValueError(f"Internal block validation failed: {e}") from e
 
-    def get_internal_blocks_info(self) -> Dict[str, Any]:
+    def get_internal_blocks_info(self) -> dict[str, Any]:
         """Get information about the internal blocks.
 
         Returns

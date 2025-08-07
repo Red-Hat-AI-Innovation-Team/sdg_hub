@@ -6,7 +6,6 @@ from datetime import datetime
 
 # Third Party
 from pydantic import ValidationError
-import pytest
 
 # First Party
 from sdg_hub import FlowMetadata, FlowParameter
@@ -16,6 +15,7 @@ from sdg_hub.core.flow.metadata import (
     ModelOption,
     RecommendedModels,
 )
+import pytest
 
 
 class TestModelOption:

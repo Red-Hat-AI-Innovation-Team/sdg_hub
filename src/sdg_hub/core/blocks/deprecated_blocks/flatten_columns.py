@@ -6,8 +6,8 @@ to maintain backwards compatibility with existing code and configurations.
 """
 
 # Standard
+from typing import Any
 import warnings
-from typing import Any, List
 
 # Third Party
 from datasets import Dataset
@@ -39,7 +39,7 @@ class FlattenColumnsBlock(BaseBlock):
     def __init__(
         self,
         block_name: str,
-        var_cols: List[str],
+        var_cols: list[str],
         value_name: str,
         var_name: str,
     ) -> None:
@@ -61,16 +61,16 @@ class FlattenColumnsBlock(BaseBlock):
             "FlattenColumnsBlock is deprecated and will be removed in a future version. "
             "Please use MeltColumnsBlock instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
-        
+
         # Map old signature to new signature
         super().__init__(
             block_name=block_name,
             input_cols=var_cols,
             output_cols=[value_name, var_name],
         )
-        
+
         # Create the new block instance with mapped parameters
         self._new_block = MeltColumnsBlock(
             block_name=block_name,

@@ -6,11 +6,11 @@ from unittest.mock import MagicMock, patch
 
 # Third Party
 from datasets import Dataset
-import pytest
 
 # First Party
 from sdg_hub.core.blocks.llm import LLMChatBlock, LLMConfig
 from sdg_hub.core.utils.error_handling import BlockValidationError
+import pytest
 
 
 @pytest.fixture
@@ -41,7 +41,9 @@ def mock_litellm_completion_multiple():
 @pytest.fixture
 def mock_litellm_acompletion():
     """Mock LiteLLM async completion function."""
-    with patch("sdg_hub.core.blocks.llm.client_manager.acompletion") as mock_acompletion:
+    with patch(
+        "sdg_hub.core.blocks.llm.client_manager.acompletion"
+    ) as mock_acompletion:
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
         mock_response.choices[0].message.content = "Test async response"
@@ -454,7 +456,9 @@ class TestErrorHandling:
 
     def test_litellm_rate_limit_error(self, sample_dataset):
         """Test handling of LiteLLM rate limit errors."""
-        with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
             # First Party
             from sdg_hub.core.blocks.llm.error_handler import RateLimitError
 
@@ -488,7 +492,9 @@ class TestErrorHandling:
 
     def test_litellm_authentication_error(self, sample_dataset):
         """Test handling of authentication errors (non-retryable)."""
-        with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
             # First Party
             from sdg_hub.core.blocks.llm.error_handler import AuthenticationError
 
@@ -513,7 +519,9 @@ class TestErrorHandling:
 
     def test_litellm_context_window_error(self, sample_dataset):
         """Test handling of context window exceeded errors."""
-        with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
             # First Party
             from sdg_hub.core.blocks.llm.error_handler import ContextWindowExceededError
 
@@ -729,7 +737,7 @@ class TestMultipleResponses:
     def test_validation_fails_with_non_dict_message(self):
         """Test validation fails when message is not a dict."""
         # Create dataset with valid structure first, then modify it to test the error
-        dataset = Dataset.from_dict(
+        Dataset.from_dict(
             {
                 "messages": [
                     [{"role": "user", "content": "Valid message"}],

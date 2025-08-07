@@ -6,11 +6,11 @@ including column melting, value mapping, and edge case handling.
 
 # Third Party
 from datasets import Dataset
-import pytest
 
 # First Party
 from sdg_hub.core.blocks.transform import MeltColumnsBlock
 from sdg_hub.core.utils.error_handling import MissingColumnError
+import pytest
 
 
 def test_flatten_columns_basic():
@@ -193,7 +193,10 @@ def test_flatten_columns_verify_column_names():
     block = MeltColumnsBlock(
         block_name="test_flatten_custom_names",
         input_cols=["summary_detailed", "summary_extractive"],  # Columns to melt
-        output_cols=[custom_value_name, custom_var_name],  # [value_column, variable_column]
+        output_cols=[
+            custom_value_name,
+            custom_var_name,
+        ],  # [value_column, variable_column]
     )
 
     result = block.generate(dataset)
@@ -214,7 +217,6 @@ def test_flatten_columns_verify_column_names():
 
 def test_flatten_columns_validation_errors():
     """Test Pydantic validation errors in MeltColumnsBlock."""
-    
     # Test empty input_cols
     with pytest.raises(ValueError, match="input_cols cannot be empty"):
         MeltColumnsBlock(
@@ -222,17 +224,21 @@ def test_flatten_columns_validation_errors():
             input_cols=[],  # Empty columns to melt
             output_cols=["value", "variable"],  # [value_column, variable_column]
         )
-    
+
     # Test wrong number of output columns (not exactly 2)
-    with pytest.raises(ValueError, match="MeltColumnsBlock expects exactly two output columns"):
+    with pytest.raises(
+        ValueError, match="MeltColumnsBlock expects exactly two output columns"
+    ):
         MeltColumnsBlock(
             block_name="test_flatten_wrong_outputs",
             input_cols=["col1"],  # Columns to melt
             output_cols=["value"],  # Only 1 output column
         )
-    
+
     # Test too many output columns
-    with pytest.raises(ValueError, match="MeltColumnsBlock expects exactly two output columns"):
+    with pytest.raises(
+        ValueError, match="MeltColumnsBlock expects exactly two output columns"
+    ):
         MeltColumnsBlock(
             block_name="test_flatten_too_many_outputs",
             input_cols=["col1"],  # Columns to melt

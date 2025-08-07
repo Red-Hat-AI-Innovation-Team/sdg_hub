@@ -7,11 +7,11 @@ from unittest.mock import Mock, patch
 
 # Third Party
 from datasets import Dataset
-import pytest
-import yaml
 
 # First Party
 from sdg_hub import Flow, FlowMetadata, FlowRegistry
+import pytest
+import yaml
 
 
 class TestFlowIntegration:
@@ -464,7 +464,7 @@ class TestFlowIntegration:
         # Verify the file exists and contains expected content
         assert yaml_path.exists()
 
-        with open(yaml_path, "r") as f:
+        with open(yaml_path) as f:
             content = f.read()
 
         assert "Serialization Test Flow" in content

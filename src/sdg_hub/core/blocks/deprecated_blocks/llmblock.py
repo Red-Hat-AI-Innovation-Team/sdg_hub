@@ -8,7 +8,7 @@ Use the new modular approach with PromptBuilderBlock, LLMChatBlock, and TextPars
 """
 
 # Standard
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 import os
 import tempfile
 import warnings
@@ -55,7 +55,7 @@ def server_supports_batched(client: Any, model_id: str) -> bool:
         supported = len(response.choices) == 6
     except openai.InternalServerError:
         supported = False
-    setattr(client, "server_supports_batched", supported)
+    client.server_supports_batched = supported
     logger.info(
         f"LLM server supports batched inputs: {getattr(client, 'server_supports_batched', False)}"
     )
@@ -98,13 +98,15 @@ class LLMBlock(BaseBlock):
         block_name: str,
         config_path: str,
         client: Any,
-        output_cols: List[str],
-        parser_kwargs: Dict[str, Any] = {},
+        output_cols: list[str],
+        parser_kwargs: dict[str, Any] = None,
         model_prompt: str = "{prompt}",
         model_id: Optional[str] = None,
-        **batch_kwargs: Dict[str, Any],
+        **batch_kwargs: dict[str, Any],
     ) -> None:
         # Issue deprecation warning
+        if parser_kwargs is None:
+            parser_kwargs = {}
         warnings.warn(
             "LLMBlock is deprecated and will be removed in a future version. "
             "Use the new modular approach with PromptBuilderBlock, LLMChatBlock, and TextParserBlock instead.",
@@ -143,28 +145,28 @@ class LLMBlock(BaseBlock):
         # Initialize the three new blocks
         self._setup_internal_blocks()
 
-    def _load_config(self, config_path: str) -> Dict[str, Any]:
+    def _load_config(self, config_path: str) -> dict[str, Any]:
         """Load configuration from YAML file."""
         return self._load_config_static(config_path)
 
     @staticmethod
-    def _load_config_static(config_path: str) -> Dict[str, Any]:
+    def _load_config_static(config_path: str) -> dict[str, Any]:
         """Load configuration from YAML file (static version)."""
         try:
-            with open(config_path, "r", encoding="utf-8") as file:
+            with open(config_path, encoding="utf-8") as file:
                 return yaml.safe_load(file) or {}
         except Exception as e:
             logger.error(f"Failed to load config from {config_path}: {e}")
             return {}
 
-    def _extract_template_variables(self) -> List[str]:
+    def _extract_template_variables(self) -> list[str]:
         """Extract Jinja2 template variables from all config fields."""
         return self._extract_template_variables_static(self.block_config)
 
     @staticmethod
-    def _extract_template_variables_static(block_config: Dict[str, Any]) -> List[str]:
+    def _extract_template_variables_static(block_config: dict[str, Any]) -> list[str]:
         """Extract Jinja2 template variables from all config fields (static version)."""
-        variables: Set[str] = set()
+        variables: set[str] = set()
         env = Environment()
 
         # Extract variables from all string fields in config
@@ -291,15 +293,13 @@ class LLMBlock(BaseBlock):
         else:
             self.text_parser = None
 
-    def generate(self, samples: Dataset, **gen_kwargs: Dict[str, Any]) -> Dataset:
+    def generate(self, samples: Dataset, **gen_kwargs: dict[str, Any]) -> Dataset:
         """Generate the output from the block.
 
         This method maintains backwards compatibility by internally using the three new blocks.
         """
         logger.debug(
-            "Generating outputs for {} samples using deprecated LLMBlock".format(
-                len(samples)
-            )
+            f"Generating outputs for {len(samples)} samples using deprecated LLMBlock"
         )
 
         # Validate num_samples handling

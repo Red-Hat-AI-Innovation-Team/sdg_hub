@@ -8,7 +8,7 @@ categorization, and improved error handling.
 # Standard
 from dataclasses import dataclass
 from difflib import get_close_matches
-from typing import Dict, List, Optional, Set, Type
+from typing import Optional
 import inspect
 
 # Third Party
@@ -43,7 +43,7 @@ class BlockMetadata:
     """
 
     name: str
-    block_class: Type
+    block_class: type
     category: str
     description: str = ""
     deprecated: bool = False
@@ -60,8 +60,8 @@ class BlockMetadata:
 class BlockRegistry:
     """Registry for block classes with metadata and enhanced error handling."""
 
-    _metadata: Dict[str, BlockMetadata] = {}
-    _categories: Dict[str, Set[str]] = {}
+    _metadata: dict[str, BlockMetadata] = {}
+    _categories: dict[str, set[str]] = {}
 
     @classmethod
     def register(
@@ -93,7 +93,7 @@ class BlockRegistry:
             Decorator function.
         """
 
-        def decorator(block_class: Type) -> Type:
+        def decorator(block_class: type) -> type:
             # Validate the class
             cls._validate_block_class(block_class)
 
@@ -131,7 +131,7 @@ class BlockRegistry:
         return decorator
 
     @classmethod
-    def _validate_block_class(cls, block_class: Type) -> None:
+    def _validate_block_class(cls, block_class: type) -> None:
         """Validate that a class is a proper block class.
 
         Parameters
@@ -164,7 +164,7 @@ class BlockRegistry:
                 ) from exc
 
     @classmethod
-    def get(cls, block_name: str) -> Type:
+    def get(cls, block_name: str) -> type:
         """Get a block class with enhanced error handling.
 
         Parameters
@@ -240,7 +240,7 @@ class BlockRegistry:
         return cls._metadata[block_name]
 
     @classmethod
-    def categories(cls) -> List[str]:
+    def categories(cls) -> list[str]:
         """Get all available categories.
 
         Returns
@@ -251,7 +251,7 @@ class BlockRegistry:
         return sorted(cls._categories.keys())
 
     @classmethod
-    def category(cls, category: str) -> List[str]:
+    def category(cls, category: str) -> list[str]:
         """Get all blocks in a specific category.
 
         Parameters
@@ -278,7 +278,7 @@ class BlockRegistry:
         return sorted(cls._categories[category])
 
     @classmethod
-    def all(cls) -> Dict[str, List[str]]:
+    def all(cls) -> dict[str, list[str]]:
         """List all blocks organized by category.
 
         Returns

@@ -5,22 +5,17 @@
 from pathlib import Path
 from unittest.mock import Mock, patch
 import tempfile
-import time
 
 # Third Party
 from datasets import Dataset
 from pydantic import ValidationError
-import pytest
-import yaml
 
 # First Party
 from sdg_hub import Flow, FlowMetadata, FlowParameter
-from sdg_hub.core.flow.metadata import (
-    DatasetRequirements,
-    ModelCompatibility,
-    ModelOption,
-)
+from sdg_hub.core.flow.metadata import DatasetRequirements
 from sdg_hub.core.utils.error_handling import EmptyDatasetError, FlowValidationError
+import pytest
+import yaml
 
 
 class TestFlow:
@@ -266,7 +261,7 @@ class TestFlow:
         flow = Flow(blocks=[block], metadata=metadata)
 
         # Valid dataset
-        valid_dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+        Dataset.from_dict({"input": ["test1", "test2"]})
         # This would work if we had real blocks
 
         # Invalid dataset - missing column
@@ -462,7 +457,7 @@ class TestFlow:
         assert output_path.exists()
 
         # Load and verify content - check structure without full parsing
-        with open(output_path, "r") as f:
+        with open(output_path) as f:
             content = f.read()
 
         assert "Test Flow" in content

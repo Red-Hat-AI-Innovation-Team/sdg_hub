@@ -5,6 +5,7 @@ class GenerateException(Exception):
     """An exception raised during generate step."""
 
 
+# Local
 from .path_resolution import resolve_path
 
 __all__ = ["GenerateException", "resolve_path"]

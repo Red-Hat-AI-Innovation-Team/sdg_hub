@@ -3,11 +3,11 @@ import os
 
 # Third Party
 from datasets import Dataset
-import pytest
 
 # First Party
 from sdg_hub.core.blocks.llm import PromptBuilderBlock
-from sdg_hub.core.blocks.llm.prompt_builder_block import ChatMessage, MessageTemplate
+from sdg_hub.core.blocks.llm.prompt_builder_block import ChatMessage
+import pytest
 
 # Get the absolute paths to test config files
 TEST_CONFIG_WITH_SYSTEM = os.path.join(
@@ -230,7 +230,9 @@ class TestPromptBuilderBlock:
         )
 
         sample = {"input_text": "Hello world", "other_col": "ignored"}
-        template_vars = block.prompt_renderer.resolve_template_vars(sample, block.input_cols)
+        template_vars = block.prompt_renderer.resolve_template_vars(
+            sample, block.input_cols
+        )
 
         assert template_vars == {"input_text": "Hello world"}
 
@@ -244,7 +246,9 @@ class TestPromptBuilderBlock:
         )
 
         sample = {"input_text": "Hello", "context": "friendly", "other_col": "ignored"}
-        template_vars = block.prompt_renderer.resolve_template_vars(sample, block.input_cols)
+        template_vars = block.prompt_renderer.resolve_template_vars(
+            sample, block.input_cols
+        )
 
         assert template_vars == {"input_text": "Hello", "context": "friendly"}
 
@@ -262,7 +266,9 @@ class TestPromptBuilderBlock:
             "background": "conversation context",
             "ignored_col": "not used",
         }
-        template_vars = block.prompt_renderer.resolve_template_vars(sample, block.input_cols)
+        template_vars = block.prompt_renderer.resolve_template_vars(
+            sample, block.input_cols
+        )
 
         assert template_vars == {
             "input_text": "Hello",
@@ -279,7 +285,9 @@ class TestPromptBuilderBlock:
         )
 
         sample = {"other_col": "exists"}
-        template_vars = block.prompt_renderer.resolve_template_vars(sample, block.input_cols)
+        template_vars = block.prompt_renderer.resolve_template_vars(
+            sample, block.input_cols
+        )
 
         assert template_vars == {}
         assert "Dataset column 'missing_col' not found in sample" in caplog.text
@@ -495,7 +503,7 @@ class TestPromptBuilderBlock:
 
     def test_environment_reuse_with_custom_filter(self, tmp_path):
         """Test that get_required_variables uses the template's original environment.
-        
+
         This test creates a template with a custom filter, then checks that
         get_required_variables can properly parse it using the same environment.
         """
@@ -506,7 +514,7 @@ class TestPromptBuilderBlock:
 """
         config_path = tmp_path / "custom_filter_config.yaml"
         config_path.write_text(config_content)
-        
+
         # Create block - this should work fine since the template itself doesn't use custom filters during creation
         block = PromptBuilderBlock(
             block_name="test_block",
@@ -514,17 +522,21 @@ class TestPromptBuilderBlock:
             output_cols="output",
             prompt_config_path=str(config_path),
         )
-        
+
         # Add a custom filter to the template's environment
         def custom_filter(text):
             return f"CUSTOM_{text}"
-        
+
         # Add the filter to the template's environment
-        block.prompt_renderer.message_templates[0].content_template.environment.filters['custom'] = custom_filter
-        
+        block.prompt_renderer.message_templates[0].content_template.environment.filters[
+            "custom"
+        ] = custom_filter
+
         # Now modify the original source to use the custom filter
-        block.prompt_renderer.message_templates[0].original_source = "Process: {{ text | custom }}"
-        
+        block.prompt_renderer.message_templates[
+            0
+        ].original_source = "Process: {{ text | custom }}"
+
         # This should work if we use the template's environment, but fail if we create a new Environment
         # because the new environment won't have the custom filter
         try:
@@ -535,4 +547,6 @@ class TestPromptBuilderBlock:
             # If we get an exception, it means a new Environment was created without the custom filter
             assert "custom" in str(e) or "filter" in str(e), f"Unexpected error: {e}"
             # This is the bug we want to expose
-            pytest.fail("get_required_variables should use the template's original environment")
+            pytest.fail(
+                "get_required_variables should use the template's original environment"
+            )

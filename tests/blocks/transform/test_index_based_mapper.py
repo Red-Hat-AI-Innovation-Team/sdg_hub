@@ -2,11 +2,11 @@
 
 # Third Party
 from datasets import Dataset
-import pytest
 
 # First Party
 from sdg_hub.core.blocks.transform import IndexBasedMapperBlock
 from sdg_hub.core.utils.error_handling import MissingColumnError
+import pytest
 
 
 @pytest.fixture
@@ -49,15 +49,15 @@ def test_index_based_mapper_basic(sample_dataset, choice_map):
     # Check that the selection worked correctly
     assert "selected_1" in result.column_names
     assert "selected_2" in result.column_names
-    
+
     # Row 0: verdict_1=Assistant A -> response_1, verdict_2=Assistant B -> response_2
     assert result[0]["selected_1"] == "Response A1"
     assert result[0]["selected_2"] == "Response A2"
-    
+
     # Row 1: verdict_1=Assistant B -> response_2, verdict_2=Assistant C -> response_3
     assert result[1]["selected_1"] == "Response B2"
     assert result[1]["selected_2"] == "Response B3"
-    
+
     # Row 2: verdict_1=Assistant C -> response_3, verdict_2=Assistant A -> response_1
     assert result[2]["selected_1"] == "Response C3"
     assert result[2]["selected_2"] == "Response C1"
@@ -81,7 +81,7 @@ def test_index_based_mapper_single_choice_col(choice_map):
             "verdict": ["Assistant A", "Assistant B", "Assistant C"],
         }
     )
-    
+
     block = IndexBasedMapperBlock(
         block_name="test_mapper",
         input_cols=["response_1", "response_2", "response_3", "verdict"],
@@ -155,7 +155,7 @@ def test_index_based_mapper_missing_choice_columns():
             # Missing verdict_1 and verdict_2 columns
         }
     )
-    
+
     block = IndexBasedMapperBlock(
         block_name="test_mapper",
         input_cols=["response_1", "response_2", "verdict_1", "verdict_2"],
@@ -179,7 +179,7 @@ def test_index_based_mapper_missing_mapped_columns():
             # Missing response_2 and response_3 columns
         }
     )
-    
+
     block = IndexBasedMapperBlock(
         block_name="test_mapper",
         input_cols=["response_1", "response_2", "response_3", "verdict_1", "verdict_2"],
@@ -199,7 +199,6 @@ def test_index_based_mapper_missing_mapped_columns():
 
 def test_index_based_mapper_validation_errors():
     """Test IndexBasedMapperBlock validation errors."""
-    
     # Test empty choice_map
     with pytest.raises(ValueError, match="choice_map cannot be empty"):
         IndexBasedMapperBlock(
@@ -209,7 +208,7 @@ def test_index_based_mapper_validation_errors():
             choice_map={},
             choice_cols=["verdict_1"],
         )
-    
+
     # Test empty choice_cols
     with pytest.raises(ValueError, match="choice_cols cannot be empty"):
         IndexBasedMapperBlock(
@@ -219,9 +218,11 @@ def test_index_based_mapper_validation_errors():
             choice_map={"Assistant A": "response_1"},
             choice_cols=[],
         )
-    
+
     # Test mismatched choice_cols and output_cols length
-    with pytest.raises(ValueError, match="choice_cols and output_cols must have same length"):
+    with pytest.raises(
+        ValueError, match="choice_cols and output_cols must have same length"
+    ):
         IndexBasedMapperBlock(
             block_name="test_mapper",
             input_cols=["response_1", "verdict_1", "verdict_2"],
@@ -244,19 +245,24 @@ def test_index_based_mapper_complex_scenario():
             "judge_3_choice": ["human", "model_c", "model_b"],
         }
     )
-    
+
     choice_map = {
         "model_a": "model_a_response",
         "model_b": "model_b_response",
         "model_c": "model_c_response",
         "human": "human_response",
     }
-    
+
     block = IndexBasedMapperBlock(
         block_name="multi_judge_mapper",
         input_cols=[
-            "model_a_response", "model_b_response", "model_c_response", "human_response",
-            "judge_1_choice", "judge_2_choice", "judge_3_choice"
+            "model_a_response",
+            "model_b_response",
+            "model_c_response",
+            "human_response",
+            "judge_1_choice",
+            "judge_2_choice",
+            "judge_3_choice",
         ],
         output_cols=["judge_1_selection", "judge_2_selection", "judge_3_selection"],
         choice_map=choice_map,
@@ -264,17 +270,17 @@ def test_index_based_mapper_complex_scenario():
     )
 
     result = block.generate(dataset)
-    
+
     # Check results
     assert result[0]["judge_1_selection"] == "Model A says X"  # judge_1_choice=model_a
     assert result[0]["judge_2_selection"] == "Model C says X"  # judge_2_choice=model_c
-    assert result[0]["judge_3_selection"] == "Human says X"    # judge_3_choice=human
-    
+    assert result[0]["judge_3_selection"] == "Human says X"  # judge_3_choice=human
+
     assert result[1]["judge_1_selection"] == "Model B says Y"  # judge_1_choice=model_b
-    assert result[1]["judge_2_selection"] == "Human says Y"    # judge_2_choice=human
+    assert result[1]["judge_2_selection"] == "Human says Y"  # judge_2_choice=human
     assert result[1]["judge_3_selection"] == "Model C says Y"  # judge_3_choice=model_c
-    
-    assert result[2]["judge_1_selection"] == "Human says Z"    # judge_1_choice=human
+
+    assert result[2]["judge_1_selection"] == "Human says Z"  # judge_1_choice=human
     assert result[2]["judge_2_selection"] == "Model A says Z"  # judge_2_choice=model_a
     assert result[2]["judge_3_selection"] == "Model B says Z"  # judge_3_choice=model_b
 
@@ -288,10 +294,10 @@ def test_index_based_mapper_choice_to_output_mapping():
         choice_map={"Assistant A": "response_1", "Assistant B": "response_2"},
         choice_cols=["verdict_1", "verdict_2"],
     )
-    
+
     expected_mapping = {
         "verdict_1": "selected_1",
         "verdict_2": "selected_2",
     }
-    
+
     assert block.choice_to_output_map == expected_mapping

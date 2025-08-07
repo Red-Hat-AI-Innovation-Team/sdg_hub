@@ -6,8 +6,8 @@ to maintain backwards compatibility with existing code and configurations.
 """
 
 # Standard
+from typing import Any
 import warnings
-from typing import Any, Dict
 
 # Third Party
 from datasets import Dataset
@@ -39,7 +39,7 @@ class DuplicateColumns(BaseBlock):
     def __init__(
         self,
         block_name: str,
-        columns_map: Dict[str, str],
+        columns_map: dict[str, str],
     ) -> None:
         """Initialize the deprecated DuplicateColumns.
 
@@ -56,16 +56,16 @@ class DuplicateColumns(BaseBlock):
             "DuplicateColumns is deprecated and will be removed in a future version. "
             "Please use DuplicateColumnsBlock instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
-        
+
         # Map old signature to new signature
         super().__init__(
             block_name=block_name,
             input_cols=columns_map,
             output_cols=list(columns_map.values()),
         )
-        
+
         # Create the new block instance with mapped parameters
         self._new_block = DuplicateColumnsBlock(
             block_name=block_name,
