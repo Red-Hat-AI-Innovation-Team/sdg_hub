@@ -284,7 +284,6 @@ result = flow.generate(
 
 Ready to master the flow system? Explore these detailed guides:
 
-- **[YAML Configuration](yaml-configuration.md)** - Deep dive into flow configuration syntax
 - **[Flow Discovery](discovery.md)** - Advanced discovery and organization techniques
 - **[Custom Flows](custom-flows.md)** - Building your own sophisticated pipelines
 - **[API Reference](../api-reference.md)** - Complete technical documentation

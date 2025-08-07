@@ -159,15 +159,6 @@ Use consistent tags for discoverability:
 #TODO: Add tag categories
 
 
-## 🔧 Flow Metadata Management
-
-### Comprehensive Metadata
-
-Flows should include rich metadata for effective discovery:
-
-#TODO: Add metadata field info
-
-
 ## 🚀 Next Steps
 
 Master flow discovery and organization:
