@@ -1,0 +1,30 @@
+system: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+introduction: Develop a series of educational question and answer pairs from a chapter in a {{domain}} textbook.
+
+principles: |
+  Here are the requirements:
+  1. Try not to repeat the verb for each question to maximize diversity.
+  2. The language used for the question also should be diverse. For example, you should combine questions with imperative instructions.
+  3. The generated question should be grounded in the provided document.
+  4. A GPT language model should be able to answer the question. For example, do not ask the assistant to create any visual or audio output. For another example, do not ask the assistant to wake you up at 5pm or set a reminder because it cannot perform any action.
+  5. The question should be in English.
+
+examples: |
+  Here is a sample section of the document as an example:
+  {{icl_document}}
+
+  Here are some examples to help you understand the type of questions that are asked for this document:
+
+  Question: {{icl_query}}
+  
+  Here is the document:
+
+  {{title_translated}}
+  {{text_translated}}
+
+generation: |
+  Provide a single question based on the document.
+
+start_tags: [""]
+end_tags: [""]
