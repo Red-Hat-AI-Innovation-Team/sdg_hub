@@ -257,19 +257,43 @@ class TestFlowRegistry:
         assert len(flows) == 0
 
     def test_get_flow_path(self):
-        """Test getting flow path."""
+        """Test getting flow path by both ID and name."""
         # Create test flow
         flow_path = self.create_test_flow("Test Flow")
         
         FlowRegistry.register_search_path(str(self.test_flow_path))
         FlowRegistry._discover_flows(force_refresh=True)
         
-        # Should return the correct path
-        retrieved_path = FlowRegistry.get_flow_path("Test Flow")
+        # Get the flow's ID from metadata
+        metadata = FlowRegistry.get_flow_metadata("Test Flow")
+        flow_id = metadata.flow_id
+        
+        # Should find by flow_id (preferred)
+        retrieved_path = FlowRegistry.get_flow_path(flow_id)
         assert retrieved_path == flow_path
         
-        # Non-existent flow should return None
+        # Should also find by name (backward compatibility)
+        retrieved_path_by_name = FlowRegistry.get_flow_path("Test Flow")
+        assert retrieved_path_by_name == flow_path
+        
+        # Non-existent identifier should return None
         assert FlowRegistry.get_flow_path("Nonexistent Flow") is None
+        assert FlowRegistry.get_flow_path("nonexistent-id") is None
+        
+        # Create another flow to test uniqueness
+        another_flow_path = self.create_test_flow("Another Flow")
+        FlowRegistry._discover_flows(force_refresh=True)
+        
+        # Each flow should be uniquely identifiable by either name or ID
+        another_metadata = FlowRegistry.get_flow_metadata("Another Flow")
+        another_id = another_metadata.flow_id
+        
+        assert FlowRegistry.get_flow_path(another_id) == another_flow_path
+        assert FlowRegistry.get_flow_path("Another Flow") == another_flow_path
+        
+        # Original flow should still be accessible
+        assert FlowRegistry.get_flow_path(flow_id) == flow_path
+        assert FlowRegistry.get_flow_path("Test Flow") == flow_path
 
     def test_get_flow_metadata(self):
         """Test getting flow metadata."""

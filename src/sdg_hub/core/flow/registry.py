@@ -127,9 +127,8 @@ class FlowRegistry:
                     # If flow_id was generated, update the YAML
                     if metadata.flow_id and "flow_id" not in metadata_dict:
                         flow_config["metadata"]["flow_id"] = metadata.flow_id
-                        with open(yaml_file, "w", encoding="utf-8") as f:
-                            yaml.dump(flow_config, f, default_flow_style=False, sort_keys=False)
-                        logger.debug(f"Updated flow YAML with generated flow_id: {metadata.flow_id}")
+                        from ..utils.yaml_utils import save_flow_yaml
+                        save_flow_yaml(yaml_file, flow_config, f"updated with generated flow_id: {metadata.flow_id}")
 
                     entry = FlowRegistryEntry(path=str(yaml_file), metadata=metadata)
                     cls._entries[metadata.name] = entry
@@ -139,13 +138,16 @@ class FlowRegistry:
                 logger.debug(f"Skipped {yaml_file}: {exc}")
 
     @classmethod
-    def get_flow_path(cls, flow_name: str) -> Optional[str]:
+    def get_flow_path(cls, flow_name_or_id: str) -> Optional[str]:
         """Get the path to a registered flow.
+
+        For backward compatibility, this function accepts either a flow_id or flow_name.
+        Flow ID is preferred and should be used in new code.
 
         Parameters
         ----------
-        flow_name : str
-            Name of the flow to find.
+        flow_name_or_id : str
+            Either the flow_id or flow_name to find.
 
         Returns
         -------
@@ -155,8 +157,17 @@ class FlowRegistry:
         cls._ensure_initialized()
         cls._discover_flows()
 
-        if flow_name in cls._entries:
-            return cls._entries[flow_name].path
+        # First try to find by flow_id (preferred)
+        for entry in cls._entries.values():
+            if entry.metadata.flow_id == flow_name_or_id:
+                return entry.path
+
+        # If not found, try by name (backward compatibility)
+        for entry in cls._entries.values():
+            if entry.metadata.name == flow_name_or_id:
+                logger.debug(f"Found flow by name (deprecated): {flow_name_or_id}, use flow_id: {entry.metadata.flow_id} instead")
+                return entry.path
+
         return None
 
     @classmethod

@@ -373,8 +373,8 @@ class FlowMetadata(BaseModel):
                                 config = yaml.safe_load(f)
                             if isinstance(config, dict) and "metadata" in config:
                                 config["metadata"]["flow_id"] = self.flow_id
-                                with open(yaml_path, "w", encoding="utf-8") as f:
-                                    yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+                                from ..utils.yaml_utils import save_flow_yaml
+                                save_flow_yaml(yaml_path, config, f"added generated flow_id: {self.flow_id}")
                         break
                     frame = frame.f_back
             finally:
