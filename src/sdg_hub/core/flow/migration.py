@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Union
 
 # Local
 from ..utils.logger_config import setup_logger
-from .metadata import ModelCompatibility, ModelOption
 
 logger = setup_logger(__name__)
 

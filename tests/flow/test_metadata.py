@@ -2,18 +2,19 @@
 """Tests for flow metadata models."""
 
 # Standard
-import pytest
 from datetime import datetime
 
 # Third Party
 from pydantic import ValidationError
+import pytest
 
-# Local
+# First Party
 from sdg_hub import FlowMetadata, FlowParameter
 from sdg_hub.core.flow.metadata import (
-    ModelOption,
-    ModelCompatibility,
     DatasetRequirements,
+    ModelCompatibility,
+    ModelOption,
+    RecommendedModels,
 )
 
 
@@ -23,8 +24,7 @@ class TestModelOption:
     def test_model_option_creation(self):
         """Test creating a ModelOption."""
         model = ModelOption(
-            name="gpt-4o-mini",
-            compatibility=ModelCompatibility.REQUIRED
+            name="gpt-4o-mini", compatibility=ModelCompatibility.REQUIRED
         )
         assert model.name == "gpt-4o-mini"
         assert model.compatibility == ModelCompatibility.REQUIRED
@@ -50,16 +50,110 @@ class TestModelOption:
         assert model.name == "gpt-4o-mini"
 
 
+class TestRecommendedModels:
+    """Test RecommendedModels class."""
+
+    def test_recommended_models_creation(self):
+        """Test creating RecommendedModels."""
+        models = RecommendedModels(
+            default="meta-llama/Llama-3.3-70B-Instruct",
+            compatible=["microsoft/phi-4", "mistralai/Mixtral-8x7B-Instruct-v0.1"],
+            experimental=["experimental-model"],
+        )
+        assert models.default == "meta-llama/Llama-3.3-70B-Instruct"
+        assert models.compatible == [
+            "microsoft/phi-4",
+            "mistralai/Mixtral-8x7B-Instruct-v0.1",
+        ]
+        assert models.experimental == ["experimental-model"]
+
+    def test_recommended_models_defaults(self):
+        """Test default values."""
+        models = RecommendedModels(default="test-model")
+        assert models.default == "test-model"
+        assert models.compatible == []
+        assert models.experimental == []
+
+    def test_recommended_models_validation(self):
+        """Test validation of model names."""
+        # Empty default should fail
+        with pytest.raises(ValidationError):
+            RecommendedModels(default="")
+
+        # Whitespace-only default should fail
+        with pytest.raises(ValidationError):
+            RecommendedModels(default="   ")
+
+    def test_recommended_models_name_strip(self):
+        """Test name stripping in all lists."""
+        models = RecommendedModels(
+            default="  default-model  ",
+            compatible=["  model1  ", "  model2  "],
+            experimental=["  exp-model  "],
+        )
+        assert models.default == "default-model"
+        assert models.compatible == ["model1", "model2"]
+        assert models.experimental == ["exp-model"]
+
+    def test_recommended_models_empty_name_filtering(self):
+        """Test filtering of empty names from lists."""
+        models = RecommendedModels(
+            default="default-model",
+            compatible=["model1", "", "   ", "model2"],
+            experimental=["", "exp-model", "   "],
+        )
+        assert models.compatible == ["model1", "model2"]
+        assert models.experimental == ["exp-model"]
+
+    def test_get_all_models(self):
+        """Test get_all_models() method."""
+        models = RecommendedModels(
+            default="default-model",
+            compatible=["compat1", "compat2"],
+            experimental=["exp1"],
+        )
+        all_models = models.get_all_models()
+        assert all_models == ["default-model", "compat1", "compat2", "exp1"]
+
+    def test_get_best_model_no_available_list(self):
+        """Test get_best_model() without available list."""
+        models = RecommendedModels(
+            default="default-model", compatible=["compat1"], experimental=["exp1"]
+        )
+        assert models.get_best_model() == "default-model"
+
+    def test_get_best_model_with_available_list(self):
+        """Test get_best_model() with availability checking."""
+        models = RecommendedModels(
+            default="default-model",
+            compatible=["compat1", "compat2"],
+            experimental=["exp1"],
+        )
+
+        # Default is available
+        available = ["default-model", "compat1", "other-model"]
+        assert models.get_best_model(available) == "default-model"
+
+        # Only compatible available
+        available = ["compat2", "other-model"]
+        assert models.get_best_model(available) == "compat2"
+
+        # Only experimental available
+        available = ["exp1", "other-model"]
+        assert models.get_best_model(available) == "exp1"
+
+        # None available
+        available = ["other-model", "another-model"]
+        assert models.get_best_model(available) is None
+
+
 class TestFlowParameter:
     """Test FlowParameter class."""
 
     def test_flow_parameter_creation(self):
         """Test creating a FlowParameter."""
         param = FlowParameter(
-            default="test",
-            description="Test parameter",
-            type_hint="str",
-            required=True
+            default="test", description="Test parameter", type_hint="str", required=True
         )
         assert param.default == "test"
         assert param.description == "Test parameter"
@@ -96,7 +190,7 @@ class TestDatasetRequirements:
             optional_columns=["metadata"],
             min_samples=10,
             max_samples=1000,
-            description="Test requirements"
+            description="Test requirements",
         )
         assert req.required_columns == ["text", "label"]
         assert req.optional_columns == ["metadata"]
@@ -129,7 +223,7 @@ class TestDatasetRequirements:
         """Test column name validation."""
         req = DatasetRequirements(
             required_columns=["  text  ", "", "label", "   "],
-            optional_columns=["metadata", "  ", "extra"]
+            optional_columns=["metadata", "  ", "extra"],
         )
         # Empty and whitespace-only columns should be filtered out
         assert req.required_columns == ["text", "label"]
@@ -137,10 +231,7 @@ class TestDatasetRequirements:
 
     def test_validate_dataset(self):
         """Test dataset validation."""
-        req = DatasetRequirements(
-            required_columns=["text", "label"],
-            min_samples=5
-        )
+        req = DatasetRequirements(required_columns=["text", "label"], min_samples=5)
 
         # Valid dataset
         errors = req.validate_dataset(["text", "label", "extra"], 10)
@@ -166,11 +257,12 @@ class TestFlowMetadata:
 
     def test_flow_metadata_creation(self):
         """Test creating FlowMetadata."""
-        models = [
-            ModelOption(name="gpt-4o-mini", compatibility=ModelCompatibility.REQUIRED),
-            ModelOption(name="gpt-3.5-turbo", compatibility=ModelCompatibility.RECOMMENDED)
-        ]
-        
+        models = RecommendedModels(
+            default="meta-llama/Llama-3.3-70B-Instruct",
+            compatible=["microsoft/phi-4", "mistralai/Mixtral-8x7B-Instruct-v0.1"],
+            experimental=["experimental-model"],
+        )
+
         metadata = FlowMetadata(
             name="Test Flow",
             description="A test flow",
@@ -179,14 +271,16 @@ class TestFlowMetadata:
             recommended_models=models,
             tags=["test", "example"],
             estimated_cost="low",
-            estimated_duration="1-2 minutes"
+            estimated_duration="1-2 minutes",
         )
-        
+
         assert metadata.name == "Test Flow"
         assert metadata.description == "A test flow"
         assert metadata.version == "1.0.0"
         assert metadata.author == "Test Author"
-        assert len(metadata.recommended_models) == 2
+        assert (
+            metadata.recommended_models.default == "meta-llama/Llama-3.3-70B-Instruct"
+        )
         assert metadata.tags == ["test", "example"]
         assert metadata.estimated_cost == "low"
         assert metadata.estimated_duration == "1-2 minutes"
@@ -197,7 +291,7 @@ class TestFlowMetadata:
         assert metadata.description == ""
         assert metadata.version == "1.0.0"
         assert metadata.author == ""
-        assert metadata.recommended_models == []
+        assert metadata.recommended_models is None
         assert metadata.tags == []
         assert metadata.license == "Apache-2.0"
         assert metadata.estimated_cost == "medium"
@@ -220,75 +314,85 @@ class TestFlowMetadata:
     def test_tags_validation(self):
         """Test tags validation and cleaning."""
         metadata = FlowMetadata(
-            name="Test Flow",
-            tags=["  Test  ", "EXAMPLE", "", "   ", "demo"]
+            name="Test Flow", tags=["  Test  ", "EXAMPLE", "", "   ", "demo"]
         )
         # Tags should be cleaned, lowercased, and empty ones removed
         assert metadata.tags == ["test", "example", "demo"]
 
     def test_recommended_models_validation(self):
         """Test recommended models validation."""
-        # Duplicate models should fail
-        with pytest.raises(ValidationError):
-            FlowMetadata(
-                name="Test Flow",
-                recommended_models=[
-                    ModelOption(name="gpt-4o-mini"),
-                    ModelOption(name="gpt-4o-mini")  # Duplicate
-                ]
-            )
-
-    def test_recommended_models_sorting(self):
-        """Test recommended models are sorted by compatibility."""
-        models = [
-            ModelOption(name="model3", compatibility=ModelCompatibility.COMPATIBLE),
-            ModelOption(name="model1", compatibility=ModelCompatibility.REQUIRED),
-            ModelOption(name="model2", compatibility=ModelCompatibility.RECOMMENDED)
-        ]
-        
+        # Valid models should pass
+        models = RecommendedModels(
+            default="test-model",
+            compatible=["model1", "model2"],
+            experimental=["exp-model"],
+        )
         metadata = FlowMetadata(name="Test Flow", recommended_models=models)
-        
-        # Should be sorted by compatibility priority
-        assert metadata.recommended_models[0].name == "model1"  # REQUIRED
-        assert metadata.recommended_models[1].name == "model2"  # RECOMMENDED
-        assert metadata.recommended_models[2].name == "model3"  # COMPATIBLE
+        assert metadata.recommended_models.default == "test-model"
+
+    def test_recommended_models_new_format(self):
+        """Test new simplified recommended models format."""
+        models = RecommendedModels(
+            default="meta-llama/Llama-3.3-70B-Instruct",
+            compatible=["microsoft/phi-4", "mistralai/Mixtral-8x7B-Instruct-v0.1"],
+            experimental=[],
+        )
+
+        metadata = FlowMetadata(name="Test Flow", recommended_models=models)
+
+        # Should maintain the structure
+        assert (
+            metadata.recommended_models.default == "meta-llama/Llama-3.3-70B-Instruct"
+        )
+        assert metadata.recommended_models.compatible == [
+            "microsoft/phi-4",
+            "mistralai/Mixtral-8x7B-Instruct-v0.1",
+        ]
+        assert metadata.recommended_models.experimental == []
 
     def test_update_timestamp(self):
         """Test timestamp updating."""
         metadata = FlowMetadata(name="Test Flow")
         original_time = metadata.updated_at
-        
+
         # Small delay to ensure different timestamp
+        # Standard
         import time
+
         time.sleep(0.01)
-        
+
         metadata.update_timestamp()
         assert metadata.updated_at != original_time
 
     def test_get_best_model(self):
-        """Test getting the best model."""
-        models = [
-            ModelOption(name="gpt-4o", compatibility=ModelCompatibility.REQUIRED),
-            ModelOption(name="gpt-4o-mini", compatibility=ModelCompatibility.RECOMMENDED),
-            ModelOption(name="gpt-3.5-turbo", compatibility=ModelCompatibility.COMPATIBLE)
-        ]
-        
+        """Test getting the best model with new format."""
+        models = RecommendedModels(
+            default="meta-llama/Llama-3.3-70B-Instruct",
+            compatible=["microsoft/phi-4", "mistralai/Mixtral-8x7B-Instruct-v0.1"],
+            experimental=["experimental-model"],
+        )
+
         metadata = FlowMetadata(name="Test Flow", recommended_models=models)
-        
-        # No availability list - should return first (highest priority)
+
+        # No availability list - should return default
         best = metadata.get_best_model()
-        assert best.name == "gpt-4o"
-        
-        # With availability list - should return first available
-        available = ["gpt-4o-mini", "gpt-3.5-turbo"]
+        assert best == "meta-llama/Llama-3.3-70B-Instruct"
+
+        # With availability list - should return first available by priority
+        available = ["microsoft/phi-4", "mistralai/Mixtral-8x7B-Instruct-v0.1"]
         best = metadata.get_best_model(available)
-        assert best.name == "gpt-4o-mini"
-        
+        assert best == "microsoft/phi-4"
+
+        # Only experimental available
+        available = ["experimental-model"]
+        best = metadata.get_best_model(available)
+        assert best == "experimental-model"
+
         # No compatible models available
         available = ["claude-3-haiku"]
         best = metadata.get_best_model(available)
         assert best is None
-        
+
         # No recommended models
         empty_metadata = FlowMetadata(name="Empty Flow")
         best = empty_metadata.get_best_model()
@@ -297,27 +401,21 @@ class TestFlowMetadata:
     def test_timestamps_auto_generation(self):
         """Test automatic timestamp generation."""
         metadata = FlowMetadata(name="Test Flow")
-        
+
         # Should have created_at and updated_at
         assert metadata.created_at != ""
         assert metadata.updated_at != ""
-        
+
         # Should be valid ISO format
         datetime.fromisoformat(metadata.created_at)
         datetime.fromisoformat(metadata.updated_at)
 
     def test_dataset_requirements_integration(self):
         """Test dataset requirements integration."""
-        req = DatasetRequirements(
-            required_columns=["text"],
-            min_samples=5
-        )
-        
-        metadata = FlowMetadata(
-            name="Test Flow",
-            dataset_requirements=req
-        )
-        
+        req = DatasetRequirements(required_columns=["text"], min_samples=5)
+
+        metadata = FlowMetadata(name="Test Flow", dataset_requirements=req)
+
         assert metadata.dataset_requirements is not None
         assert metadata.dataset_requirements.required_columns == ["text"]
         assert metadata.dataset_requirements.min_samples == 5

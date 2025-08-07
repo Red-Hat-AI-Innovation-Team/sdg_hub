@@ -16,8 +16,8 @@ class LLMConfig:
 
     Parameters
     ----------
-    model : str
-        Model identifier in LiteLLM format. Examples:
+    model : Optional[str], optional
+        Model identifier in LiteLLM format. Can be None initially and set later via set_model_config(). Examples:
         - "openai/gpt-4"
         - "anthropic/claude-3-sonnet-20240229"
         - "hosted_vllm/meta-llama/Llama-2-7b-chat-hf"
@@ -93,7 +93,7 @@ class LLMConfig:
         Provider-specific parameters that don't map to standard OpenAI params, by default None
     """
 
-    model: str
+    model: Optional[str] = None
     api_key: Optional[str] = None
     api_base: Optional[str] = None
     timeout: float = 120.0
@@ -127,8 +127,9 @@ class LLMConfig:
 
     def _validate_model(self) -> None:
         """Validate model identifier format."""
-        if not self.model:
-            raise ValueError("Model identifier is required")
+        # Model is optional - will be set later via set_model_config()
+        if self.model is None:
+            return
 
         # Check if it's a valid LiteLLM model format
         if "/" not in self.model:
@@ -183,6 +184,10 @@ class LLMConfig:
         ensuring thread-safety when multiple instances are used concurrently.
         """
         if self.api_key is not None:
+            return
+
+        # Skip API key resolution if model is not set yet
+        if self.model is None:
             return
 
         # Extract provider from model
@@ -276,24 +281,28 @@ class LLMConfig:
         # Create new config
         return LLMConfig(**current_values)
 
-    def get_provider(self) -> str:
+    def get_provider(self) -> Optional[str]:
         """Get the provider name from the model identifier.
 
         Returns
         -------
-        str
-            Provider name (e.g., "openai", "anthropic", "hosted_vllm").
+        Optional[str]
+            Provider name (e.g., "openai", "anthropic", "hosted_vllm"), or None if model is not set.
         """
+        if self.model is None:
+            return None
         return self.model.split("/")[0]
 
-    def get_model_name(self) -> str:
+    def get_model_name(self) -> Optional[str]:
         """Get the model name without provider prefix.
 
         Returns
         -------
-        str
-            Model name (e.g., "gpt-4", "claude-3-sonnet-20240229").
+        Optional[str]
+            Model name (e.g., "gpt-4", "claude-3-sonnet-20240229"), or None if model is not set.
         """
+        if self.model is None:
+            return None
         parts = self.model.split("/", 1)
         return parts[1] if len(parts) > 1 else parts[0]
 
@@ -305,8 +314,11 @@ class LLMConfig:
         bool
             True if the model is hosted locally (vLLM, Ollama, etc.).
         """
+        provider = self.get_provider()
+        if provider is None:
+            return False
         local_providers = {"hosted_vllm", "ollama", "local", "vllm"}
-        return self.get_provider().lower() in local_providers
+        return provider.lower() in local_providers
 
     def __str__(self) -> str:
         """String representation of the configuration."""

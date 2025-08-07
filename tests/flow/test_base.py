@@ -2,22 +2,25 @@
 """Tests for the base Flow class."""
 
 # Standard
-import tempfile
-import time
 from pathlib import Path
 from unittest.mock import Mock, patch
+import tempfile
+import time
 
 # Third Party
-import pytest
-import yaml
 from datasets import Dataset
 from pydantic import ValidationError
+import pytest
+import yaml
 
-# Local
-from sdg_hub import Flow
-from sdg_hub import FlowMetadata, FlowParameter
-from sdg_hub.core.flow.metadata import ModelOption, ModelCompatibility, DatasetRequirements
-from sdg_hub.core.utils.error_handling import FlowValidationError, EmptyDatasetError
+# First Party
+from sdg_hub import Flow, FlowMetadata, FlowParameter
+from sdg_hub.core.flow.metadata import (
+    DatasetRequirements,
+    ModelCompatibility,
+    ModelOption,
+)
+from sdg_hub.core.utils.error_handling import EmptyDatasetError, FlowValidationError
 
 
 class TestFlow:
@@ -26,29 +29,36 @@ class TestFlow:
     def setup_method(self):
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
+        # First Party
+        from sdg_hub.core.flow.metadata import RecommendedModels
+
         self.test_metadata = FlowMetadata(
             name="Test Flow",
             description="A test flow",
             version="1.0.0",
             author="Test Author",
-            recommended_models=[
-                ModelOption(name="test-model", compatibility=ModelCompatibility.REQUIRED)
-            ],
-            tags=["test"]
+            recommended_models=RecommendedModels(
+                default="test-model", compatible=["alt-model"], experimental=[]
+            ),
+            tags=["test"],
         )
 
     def teardown_method(self):
         """Clean up test fixtures."""
+        # Standard
         import shutil
+
         shutil.rmtree(self.temp_dir)
 
     def create_mock_block(self, name="test_block", input_cols=None, output_cols=None):
         """Create a mock block for testing."""
+        # First Party
         from tests.flow.conftest import MockBlock
+
         return MockBlock(
             block_name=name,
             input_cols=input_cols or ["input"],
-            output_cols=output_cols or ["output"]
+            output_cols=output_cols or ["output"],
         )
 
     def test_flow_creation_empty(self):
@@ -62,7 +72,7 @@ class TestFlow:
         """Test creating a flow with blocks."""
         block1 = self.create_mock_block("block1")
         block2 = self.create_mock_block("block2")
-        
+
         flow = Flow(blocks=[block1, block2], metadata=self.test_metadata)
         assert len(flow.blocks) == 2
         assert flow.blocks[0].block_name == "block1"
@@ -72,13 +82,13 @@ class TestFlow:
         """Test creating a flow with parameters."""
         param1 = FlowParameter(default="value1", description="Test param 1")
         param2 = FlowParameter(default=42, description="Test param 2", required=True)
-        
+
         flow = Flow(
             blocks=[],
             metadata=self.test_metadata,
-            parameters={"param1": param1, "param2": param2}
+            parameters={"param1": param1, "param2": param2},
         )
-        
+
         assert len(flow.parameters) == 2
         assert flow.parameters["param1"].default == "value1"
         assert flow.parameters["param2"].default == 42
@@ -88,30 +98,30 @@ class TestFlow:
         """Test block validation with invalid block type."""
         with pytest.raises(ValidationError) as exc_info:
             Flow(blocks=["not a block"], metadata=self.test_metadata)
-        
+
         assert "instance of BaseBlock" in str(exc_info.value)
 
     def test_validate_block_names_unique(self):
         """Test validation of unique block names."""
         block1 = self.create_mock_block("duplicate_name")
         block2 = self.create_mock_block("duplicate_name")
-        
+
         with pytest.raises(ValidationError) as exc_info:
             Flow(blocks=[block1, block2], metadata=self.test_metadata)
-        
+
         assert "Duplicate block name" in str(exc_info.value)
 
     def test_validate_parameters_invalid_name(self):
         """Test parameter validation with invalid name."""
         param = FlowParameter(default="value")
-        
+
         with pytest.raises(ValidationError) as exc_info:
             Flow(
                 blocks=[],
                 metadata=self.test_metadata,
-                parameters={"": param}  # Empty name
+                parameters={"": param},  # Empty name
             )
-        
+
         assert "non-empty string" in str(exc_info.value)
 
     def test_validate_parameters_invalid_type(self):
@@ -120,9 +130,9 @@ class TestFlow:
             Flow(
                 blocks=[],
                 metadata=self.test_metadata,
-                parameters={"param": "not a FlowParameter"}
+                parameters={"param": "not a FlowParameter"},
             )
-        
+
         assert "instance of FlowParameter" in str(exc_info.value)
 
     def test_from_yaml_valid_file(self):
@@ -132,12 +142,11 @@ class TestFlow:
                 "name": "YAML Flow",
                 "description": "Flow from YAML",
                 "version": "1.0.0",
-                "recommended_models": [
-                    {
-                        "name": "test-model",
-                        "compatibility": "required"
-                    }
-                ]
+                "recommended_models": {
+                    "default": "test-model",
+                    "compatible": ["alt-model"],
+                    "experimental": [],
+                },
             },
             "blocks": [
                 {
@@ -146,25 +155,24 @@ class TestFlow:
                         "block_name": "test_block",
                         "input_cols": "input",
                         "output_cols": "output",
-                        "model": "test/model"
-                    }
+                    },
                 }
-            ]
+            ],
         }
-        
+
         yaml_path = Path(self.temp_dir) / "test_flow.yaml"
-        with open(yaml_path, 'w') as f:
+        with open(yaml_path, "w") as f:
             yaml.dump(flow_config, f)
-        
+
         # Mock the block creation
-        with patch('sdg_hub.core.flow.base.BlockRegistry.get') as mock_get:
+        with patch("sdg_hub.core.flow.base.BlockRegistry.get") as mock_get:
             mock_block_class = Mock()
             mock_block_instance = self.create_mock_block("test_block")
             mock_block_class.return_value = mock_block_instance
             mock_get.return_value = mock_block_class
-            
+
             flow = Flow.from_yaml(str(yaml_path))
-            
+
             assert flow.metadata.name == "YAML Flow"
             assert len(flow.blocks) == 1
             assert flow.blocks[0].block_name == "test_block"
@@ -177,20 +185,24 @@ class TestFlow:
     def test_from_yaml_invalid_yaml(self):
         """Test loading flow from invalid YAML file."""
         yaml_path = Path(self.temp_dir) / "invalid.yaml"
-        with open(yaml_path, 'w') as f:
+        with open(yaml_path, "w") as f:
             f.write("invalid: yaml: content:")
-        
+
         with pytest.raises(FlowValidationError) as exc_info:
             Flow.from_yaml(str(yaml_path))
-        
+
         assert "Invalid YAML" in str(exc_info.value)
 
-    def test_from_yaml_backward_compatibility(self):
-        """Test backward compatibility with old recommended_model format."""
+    def test_from_yaml_new_format(self):
+        """Test loading flow with new recommended_models format."""
         flow_config = {
             "metadata": {
-                "name": "Old Format Flow",
-                "recommended_model": "old-model"  # Old format
+                "name": "New Format Flow",
+                "recommended_models": {
+                    "default": "meta-llama/Llama-3.3-70B-Instruct",
+                    "compatible": ["microsoft/phi-4"],
+                    "experimental": [],
+                },
             },
             "blocks": [
                 {
@@ -198,38 +210,40 @@ class TestFlow:
                     "block_config": {
                         "block_name": "test_block",
                         "input_cols": "input",
-                        "output_cols": "output"
-                    }
+                        "output_cols": "output",
+                    },
                 }
-            ]
+            ],
         }
-        
-        yaml_path = Path(self.temp_dir) / "old_format.yaml"
-        with open(yaml_path, 'w') as f:
+
+        yaml_path = Path(self.temp_dir) / "new_format.yaml"
+        with open(yaml_path, "w") as f:
             yaml.dump(flow_config, f)
-        
+
         # Mock the block creation
-        with patch('sdg_hub.core.flow.base.BlockRegistry.get') as mock_get:
+        with patch("sdg_hub.core.flow.base.BlockRegistry.get") as mock_get:
             mock_block_class = Mock()
             mock_block_instance = self.create_mock_block("test_block")
             mock_block_class.return_value = mock_block_instance
             mock_get.return_value = mock_block_class
-            
+
             flow = Flow.from_yaml(str(yaml_path))
-            
-            # Should convert to new format
-            assert len(flow.metadata.recommended_models) == 1
-            assert flow.metadata.recommended_models[0].name == "old-model"
-            assert flow.metadata.recommended_models[0].compatibility == ModelCompatibility.RECOMMENDED
+
+            # Should have new format
+            assert (
+                flow.metadata.recommended_models.default
+                == "meta-llama/Llama-3.3-70B-Instruct"
+            )
+            assert flow.metadata.recommended_models.compatible == ["microsoft/phi-4"]
 
     def test_generate_empty_flow(self):
         """Test generating with empty flow."""
         flow = Flow(blocks=[], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test"]})
-        
+
         with pytest.raises(FlowValidationError) as exc_info:
             flow.generate(dataset)
-        
+
         assert "empty flow" in str(exc_info.value)
 
     def test_generate_empty_dataset(self):
@@ -237,35 +251,29 @@ class TestFlow:
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         empty_dataset = Dataset.from_dict({"input": []})
-        
+
         with pytest.raises(EmptyDatasetError) as exc_info:
             flow.generate(empty_dataset)
-        
+
         assert "empty" in str(exc_info.value)
 
     def test_generate_with_dataset_requirements(self):
         """Test generating with dataset requirements."""
-        requirements = DatasetRequirements(
-            required_columns=["input"],
-            min_samples=2
-        )
-        metadata = FlowMetadata(
-            name="Test Flow",
-            dataset_requirements=requirements
-        )
-        
+        requirements = DatasetRequirements(required_columns=["input"], min_samples=2)
+        metadata = FlowMetadata(name="Test Flow", dataset_requirements=requirements)
+
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=metadata)
-        
+
         # Valid dataset
         valid_dataset = Dataset.from_dict({"input": ["test1", "test2"]})
         # This would work if we had real blocks
-        
+
         # Invalid dataset - missing column
         invalid_dataset = Dataset.from_dict({"wrong_col": ["test1", "test2"]})
         with pytest.raises(FlowValidationError) as exc_info:
             flow.generate(invalid_dataset)
-        
+
         assert "validation failed" in str(exc_info.value)
 
     def test_generate_success(self):
@@ -273,9 +281,9 @@ class TestFlow:
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test1", "test2"]})
-        
+
         result = flow.generate(dataset)
-        
+
         assert len(result) == 2
         assert "output" in result.column_names
         assert result["output"] == ["test_block_output_0", "test_block_output_1"]
@@ -285,18 +293,13 @@ class TestFlow:
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test"]})
-        
-        runtime_params = {
-            "test_block": {
-                "temperature": 0.5,
-                "max_tokens": 100
-            }
-        }
-        
+
+        runtime_params = {"test_block": {"temperature": 0.5, "max_tokens": 100}}
+
         # Runtime parameters are passed to the block but we can't easily test them
         # in this mock setup. The test just verifies the flow runs without error.
         result = flow.generate(dataset, runtime_params=runtime_params)
-        
+
         assert len(result) == 1
         assert "output" in result.column_names
 
@@ -304,7 +307,7 @@ class TestFlow:
         """Test dataset validation with empty dataset."""
         flow = Flow(blocks=[], metadata=self.test_metadata)
         empty_dataset = Dataset.from_dict({"input": []})
-        
+
         errors = flow.validate_dataset(empty_dataset)
         assert len(errors) == 1
         assert "empty" in errors[0]
@@ -312,28 +315,25 @@ class TestFlow:
     def test_validate_dataset_with_requirements(self):
         """Test dataset validation with requirements."""
         requirements = DatasetRequirements(
-            required_columns=["input", "label"],
-            min_samples=5
+            required_columns=["input", "label"], min_samples=5
         )
-        metadata = FlowMetadata(
-            name="Test Flow",
-            dataset_requirements=requirements
-        )
+        metadata = FlowMetadata(name="Test Flow", dataset_requirements=requirements)
         flow = Flow(blocks=[], metadata=metadata)
-        
+
         # Valid dataset
-        valid_dataset = Dataset.from_dict({
-            "input": ["test"] * 5,
-            "label": ["label"] * 5
-        })
+        valid_dataset = Dataset.from_dict(
+            {"input": ["test"] * 5, "label": ["label"] * 5}
+        )
         errors = flow.validate_dataset(valid_dataset)
         assert errors == []
-        
+
         # Invalid dataset
-        invalid_dataset = Dataset.from_dict({
-            "input": ["test"] * 3,  # Too few samples
-            # Missing label column
-        })
+        invalid_dataset = Dataset.from_dict(
+            {
+                "input": ["test"] * 3,  # Too few samples
+                # Missing label column
+            }
+        )
         errors = flow.validate_dataset(invalid_dataset)
         assert len(errors) == 2
 
@@ -341,10 +341,10 @@ class TestFlow:
         """Test dry run with empty flow."""
         flow = Flow(blocks=[], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test"]})
-        
+
         with pytest.raises(FlowValidationError) as exc_info:
             flow.dry_run(dataset)
-        
+
         assert "empty flow" in str(exc_info.value)
 
     def test_dry_run_empty_dataset(self):
@@ -352,7 +352,7 @@ class TestFlow:
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         empty_dataset = Dataset.from_dict({"input": []})
-        
+
         with pytest.raises(EmptyDatasetError):
             flow.dry_run(empty_dataset)
 
@@ -361,9 +361,9 @@ class TestFlow:
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test1", "test2", "test3"]})
-        
+
         result = flow.dry_run(dataset, sample_size=2)
-        
+
         assert result["flow_name"] == "Test Flow"
         assert result["sample_size"] == 2
         assert result["original_dataset_size"] == 3
@@ -378,9 +378,9 @@ class TestFlow:
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test1", "test2"]})
-        
+
         result = flow.dry_run(dataset, sample_size=5)
-        
+
         # Should use actual dataset size
         assert result["sample_size"] == 2
 
@@ -389,24 +389,20 @@ class TestFlow:
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test"]})
-        
-        runtime_params = {
-            "test_block": {
-                "temperature": 0.3
-            }
-        }
-        
+
+        runtime_params = {"test_block": {"temperature": 0.3}}
+
         result = flow.dry_run(dataset, runtime_params=runtime_params)
-        
+
         assert result["blocks_executed"][0]["parameters_used"]["temperature"] == 0.3
 
     def test_add_block_success(self):
         """Test successfully adding a block."""
         flow = Flow(blocks=[], metadata=self.test_metadata)
         new_block = self.create_mock_block("new_block")
-        
+
         new_flow = flow.add_block(new_block)
-        
+
         assert len(new_flow.blocks) == 1
         assert new_flow.blocks[0].block_name == "new_block"
         assert len(flow.blocks) == 0  # Original flow unchanged
@@ -415,36 +411,38 @@ class TestFlow:
         """Test adding block with duplicate name."""
         existing_block = self.create_mock_block("existing")
         flow = Flow(blocks=[existing_block], metadata=self.test_metadata)
-        
+
         duplicate_block = self.create_mock_block("existing")
-        
+
         with pytest.raises(ValueError) as exc_info:
             flow.add_block(duplicate_block)
-        
+
         assert "already exists" in str(exc_info.value)
 
     def test_add_block_invalid_type(self):
         """Test adding invalid block type."""
         flow = Flow(blocks=[], metadata=self.test_metadata)
-        
+
         with pytest.raises(ValueError) as exc_info:
             flow.add_block("not a block")
-        
+
         assert "BaseBlock instance" in str(exc_info.value)
 
     def test_get_info(self):
         """Test getting flow information."""
-        block = self.create_mock_block("test_block", input_cols=["input"], output_cols=["output"])
+        block = self.create_mock_block(
+            "test_block", input_cols=["input"], output_cols=["output"]
+        )
         param = FlowParameter(default="test_value", description="Test parameter")
-        
+
         flow = Flow(
             blocks=[block],
             metadata=self.test_metadata,
-            parameters={"test_param": param}
+            parameters={"test_param": param},
         )
-        
+
         info = flow.get_info()
-        
+
         assert info["metadata"]["name"] == "Test Flow"
         assert info["total_blocks"] == 1
         assert info["block_names"] == ["test_block"]
@@ -457,16 +455,16 @@ class TestFlow:
         """Test saving flow to YAML."""
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        
+
         output_path = Path(self.temp_dir) / "output.yaml"
         flow.to_yaml(str(output_path))
-        
+
         assert output_path.exists()
-        
+
         # Load and verify content - check structure without full parsing
-        with open(output_path, 'r') as f:
+        with open(output_path, "r") as f:
             content = f.read()
-        
+
         assert "Test Flow" in content
         assert "MockBlock" in content
         assert "test_block" in content
@@ -475,13 +473,13 @@ class TestFlow:
         """Test string representations of flow."""
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        
+
         # Test __repr__
         repr_str = repr(flow)
         assert "Test Flow" in repr_str
         assert "1.0.0" in repr_str
         assert "blocks=1" in repr_str
-        
+
         # Test __str__
         str_str = str(flow)
         assert "Test Flow" in str_str
@@ -493,7 +491,457 @@ class TestFlow:
         """Test flow length."""
         flow = Flow(blocks=[], metadata=self.test_metadata)
         assert len(flow) == 0
-        
+
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         assert len(flow) == 1
+
+    def create_mock_llm_block(
+        self,
+        name="llm_block",
+        model="test-model",
+        api_base="http://localhost:8000/v1",
+        api_key="EMPTY",
+    ):
+        """Create a mock LLM block with model attributes."""
+        # First Party
+        from tests.flow.conftest import MockBlock
+
+        block = MockBlock(block_name=name, input_cols=["input"], output_cols=["output"])
+        # Add LLM-related attributes
+        block.model = model
+        block.api_base = api_base
+        block.api_key = api_key
+        block.temperature = 0.0
+        block.max_tokens = 1024
+        return block
+
+    def test_detect_llm_blocks_by_model_attribute(self):
+        """Test detecting LLM blocks by model attribute."""
+        regular_block = self.create_mock_block("regular_block")
+        llm_block = self.create_mock_llm_block("llm_block", model="test-model")
+
+        flow = Flow(blocks=[regular_block, llm_block], metadata=self.test_metadata)
+
+        detected_blocks = flow._detect_llm_blocks()
+
+        assert len(detected_blocks) == 1
+        assert "llm_block" in detected_blocks
+        assert "regular_block" not in detected_blocks
+
+    def test_detect_llm_blocks_by_api_base_attribute(self):
+        """Test detecting LLM blocks by api_base attribute."""
+        regular_block = self.create_mock_block("regular_block")
+        llm_block = self.create_mock_llm_block("llm_block", model=None)
+        llm_block.model = None  # Remove model but keep api_base
+
+        flow = Flow(blocks=[regular_block, llm_block], metadata=self.test_metadata)
+
+        detected_blocks = flow._detect_llm_blocks()
+
+        assert len(detected_blocks) == 1
+        assert "llm_block" in detected_blocks
+
+    def test_detect_llm_blocks_by_api_key_attribute(self):
+        """Test detecting LLM blocks by api_key attribute."""
+        regular_block = self.create_mock_block("regular_block")
+        llm_block = self.create_mock_llm_block("llm_block", model=None, api_base=None)
+        llm_block.model = None
+        llm_block.api_base = None
+        # Only api_key remains
+
+        flow = Flow(blocks=[regular_block, llm_block], metadata=self.test_metadata)
+
+        detected_blocks = flow._detect_llm_blocks()
+
+        assert len(detected_blocks) == 1
+        assert "llm_block" in detected_blocks
+
+    def test_detect_llm_blocks_none_found(self):
+        """Test detecting LLM blocks when none exist."""
+        regular_block1 = self.create_mock_block("regular_block1")
+        regular_block2 = self.create_mock_block("regular_block2")
+
+        flow = Flow(
+            blocks=[regular_block1, regular_block2], metadata=self.test_metadata
+        )
+
+        detected_blocks = flow._detect_llm_blocks()
+
+        assert len(detected_blocks) == 0
+
+    def test_detect_llm_blocks_multiple(self):
+        """Test detecting multiple LLM blocks."""
+        regular_block = self.create_mock_block("regular_block")
+        llm_block1 = self.create_mock_llm_block("llm_block1", model="model1")
+        llm_block2 = self.create_mock_llm_block("llm_block2", model="model2")
+        llm_block3 = self.create_mock_llm_block(
+            "llm_block3", model=None, api_base="http://localhost:8001/v1"
+        )
+        llm_block3.model = None  # Only has api_base
+
+        flow = Flow(
+            blocks=[regular_block, llm_block1, llm_block2, llm_block3],
+            metadata=self.test_metadata,
+        )
+
+        detected_blocks = flow._detect_llm_blocks()
+
+        assert len(detected_blocks) == 3
+        assert "llm_block1" in detected_blocks
+        assert "llm_block2" in detected_blocks
+        assert "llm_block3" in detected_blocks
+        assert "regular_block" not in detected_blocks
+
+    def test_set_model_config_all_llm_blocks(self):
+        """Test set_model_config with auto-detection of all LLM blocks."""
+        regular_block = self.create_mock_block("regular_block")
+        llm_block1 = self.create_mock_llm_block("llm_block1", model="old-model1")
+        llm_block2 = self.create_mock_llm_block("llm_block2", model="old-model2")
+
+        flow = Flow(
+            blocks=[regular_block, llm_block1, llm_block2], metadata=self.test_metadata
+        )
+
+        # Configure model for all LLM blocks
+        flow.set_model_config(
+            model="new-model",
+            api_base="http://localhost:8101/v1",
+            api_key="NEW_KEY",
+            temperature=0.7,
+            max_tokens=2048,
+        )
+
+        # Check that LLM blocks were modified
+        assert flow.blocks[1].model == "new-model"  # llm_block1
+        assert flow.blocks[1].api_base == "http://localhost:8101/v1"
+        assert flow.blocks[1].api_key == "NEW_KEY"
+        assert flow.blocks[1].temperature == 0.7
+        assert flow.blocks[1].max_tokens == 2048
+
+        assert flow.blocks[2].model == "new-model"  # llm_block2
+        assert flow.blocks[2].api_base == "http://localhost:8101/v1"
+
+        # Check that regular block was not modified (doesn't have these attributes)
+        assert not hasattr(flow.blocks[0], "model")
+
+    def test_set_model_config_specific_blocks(self):
+        """Test set_model_config with specific block targeting."""
+        llm_block1 = self.create_mock_llm_block("llm_block1", model="old-model1")
+        llm_block2 = self.create_mock_llm_block("llm_block2", model="old-model2")
+        llm_block3 = self.create_mock_llm_block("llm_block3", model="old-model3")
+
+        flow = Flow(
+            blocks=[llm_block1, llm_block2, llm_block3], metadata=self.test_metadata
+        )
+
+        # Configure only specific blocks
+        flow.set_model_config(
+            model="new-model",
+            api_base="http://localhost:8101/v1",
+            blocks=["llm_block1", "llm_block3"],
+        )
+
+        # Check that only specified blocks were modified
+        assert flow.blocks[0].model == "new-model"  # llm_block1
+        assert flow.blocks[0].api_base == "http://localhost:8101/v1"
+
+        assert flow.blocks[1].model == "old-model2"  # llm_block2 unchanged
+        assert flow.blocks[1].api_base == "http://localhost:8000/v1"  # unchanged
+
+        assert flow.blocks[2].model == "new-model"  # llm_block3
+        assert flow.blocks[2].api_base == "http://localhost:8101/v1"
+
+    def test_set_model_config_partial_parameters(self):
+        """Test set_model_config with only some parameters."""
+        llm_block = self.create_mock_llm_block(
+            "llm_block",
+            model="old-model",
+            api_base="http://localhost:8000/v1",
+            api_key="OLD_KEY",
+        )
+        llm_block.temperature = 0.0
+        llm_block.max_tokens = 1024
+
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+
+        # Configure only model and temperature
+        flow.set_model_config(model="new-model", temperature=0.8)
+
+        # Check that only specified parameters were changed
+        assert flow.blocks[0].model == "new-model"
+        assert flow.blocks[0].temperature == 0.8
+
+        # Other parameters should remain unchanged
+        assert flow.blocks[0].api_base == "http://localhost:8000/v1"
+        assert flow.blocks[0].api_key == "OLD_KEY"
+        assert flow.blocks[0].max_tokens == 1024
+
+    def test_set_model_config_with_kwargs(self):
+        """Test set_model_config with additional kwargs."""
+        llm_block = self.create_mock_llm_block("llm_block")
+        llm_block.top_p = 1.0
+        llm_block.frequency_penalty = 0.0
+
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+
+        # Configure with additional parameters via kwargs
+        flow.set_model_config(model="new-model", top_p=0.9, frequency_penalty=0.1)
+
+        assert flow.blocks[0].model == "new-model"
+        assert flow.blocks[0].top_p == 0.9
+        assert flow.blocks[0].frequency_penalty == 0.1
+
+    def test_set_model_config_no_parameters(self):
+        """Test set_model_config with no parameters raises error."""
+        llm_block = self.create_mock_llm_block("llm_block")
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+
+        with pytest.raises(ValueError) as exc_info:
+            flow.set_model_config()
+
+        assert "At least one configuration parameter must be provided" in str(
+            exc_info.value
+        )
+
+    def test_set_model_config_invalid_block_names(self):
+        """Test set_model_config with invalid block names raises error."""
+        llm_block = self.create_mock_llm_block("llm_block")
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+
+        with pytest.raises(ValueError) as exc_info:
+            flow.set_model_config(
+                model="new-model", blocks=["nonexistent_block", "another_missing_block"]
+            )
+
+        assert "Specified blocks not found in flow" in str(exc_info.value)
+        assert "nonexistent_block" in str(exc_info.value)
+        assert "another_missing_block" in str(exc_info.value)
+
+    def test_set_model_config_no_llm_blocks_detected(self):
+        """Test set_model_config when no LLM blocks are detected."""
+        regular_block1 = self.create_mock_block("regular_block1")
+        regular_block2 = self.create_mock_block("regular_block2")
+
+        flow = Flow(
+            blocks=[regular_block1, regular_block2], metadata=self.test_metadata
+        )
+
+        # Should not raise error but log warning
+        flow.set_model_config(model="new-model")
+
+        # Blocks should remain unchanged
+        assert not hasattr(flow.blocks[0], "model")
+        assert not hasattr(flow.blocks[1], "model")
+
+    def test_set_model_config_missing_attributes_warning(self):
+        """Test set_model_config logs warning for missing attributes."""
+        # Create a block that has model but not other attributes
+        llm_block = self.create_mock_llm_block("llm_block")
+        delattr(llm_block, "api_base")  # Remove api_base attribute
+
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+
+        # This should work for model but log warning for api_base
+        flow.set_model_config(model="new-model", api_base="http://localhost:8101/v1")
+
+        # Model should be changed
+        assert flow.blocks[0].model == "new-model"
+        # api_base should not be set since attribute doesn't exist
+
+    def test_set_model_config_preserves_unspecified_attributes(self):
+        """Test that set_model_config preserves attributes not specified."""
+        llm_block = self.create_mock_llm_block(
+            "llm_block",
+            model="original-model",
+            api_base="http://localhost:8000/v1",
+            api_key="ORIGINAL_KEY",
+        )
+        llm_block.temperature = 0.5
+        llm_block.max_tokens = 1024
+        llm_block.custom_param = "custom_value"
+
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+
+        # Configure only model
+        flow.set_model_config(model="new-model")
+
+        # Only model should change
+        assert flow.blocks[0].model == "new-model"
+
+        # Everything else should remain the same
+        assert flow.blocks[0].api_base == "http://localhost:8000/v1"
+        assert flow.blocks[0].api_key == "ORIGINAL_KEY"
+        assert flow.blocks[0].temperature == 0.5
+        assert flow.blocks[0].max_tokens == 1024
+        assert flow.blocks[0].custom_param == "custom_value"
+
+    def test_generate_requires_model_config_for_llm_flows(self):
+        """Test that generate() requires set_model_config() for flows with LLM blocks."""
+        llm_block = self.create_mock_llm_block(
+            "llm_block", model=None
+        )  # No model configured
+        llm_block.model = None  # Ensure no model set
+
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+        dataset = Dataset.from_dict({"input": ["test"]})
+
+        # Should fail because model config not set
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.generate(dataset)
+
+        assert "Model configuration required before generate()" in str(exc_info.value)
+        assert "llm_block" in str(exc_info.value)
+        assert "Call flow.set_model_config() first" in str(exc_info.value)
+
+    def test_generate_allows_execution_after_model_config(self):
+        """Test that generate() works after set_model_config() is called."""
+        llm_block = self.create_mock_llm_block("llm_block", model=None)
+        llm_block.model = None
+
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+        dataset = Dataset.from_dict({"input": ["test"]})
+
+        # Configure model first
+        flow.set_model_config(
+            model="test-model", api_base="http://localhost:8000/v1", api_key="EMPTY"
+        )
+
+        # Now generate should work
+        result = flow.generate(dataset)
+        assert len(result) == 1
+
+    def test_generate_works_for_non_llm_flows(self):
+        """Test that generate() works without model config for flows without LLM blocks."""
+        regular_block = self.create_mock_block("regular_block")
+        flow = Flow(blocks=[regular_block], metadata=self.test_metadata)
+        dataset = Dataset.from_dict({"input": ["test"]})
+
+        # Should work without set_model_config() because no LLM blocks
+        result = flow.generate(dataset)
+        assert len(result) == 1
+
+    def test_generate_requires_model_config_even_for_llm_blocks_with_attributes(self):
+        """Test that generate() requires set_model_config() even if blocks have LLM attributes."""
+        # Create an LLM block that has model attributes but no values
+        llm_block = self.create_mock_llm_block(
+            "llm_block", model=None, api_base=None, api_key=None
+        )
+        llm_block.model = None
+        llm_block.api_base = None
+        llm_block.api_key = None
+
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+        dataset = Dataset.from_dict({"input": ["test"]})
+
+        # Should fail because model config not set (new approach)
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.generate(dataset)
+
+        assert "Model configuration required before generate()" in str(exc_info.value)
+
+        # After calling set_model_config(), it should work
+        flow.set_model_config(
+            model="test-model", api_base="http://localhost:8000/v1", api_key="EMPTY"
+        )
+        result = flow.generate(dataset)
+        assert len(result) == 1
+
+    def test_is_model_config_required(self):
+        """Test is_model_config_required() method."""
+        # Flow without LLM blocks
+        regular_block = self.create_mock_block("regular_block")
+        flow = Flow(blocks=[regular_block], metadata=self.test_metadata)
+        assert not flow.is_model_config_required()
+
+        # Flow with LLM blocks
+        llm_block = self.create_mock_llm_block("llm_block")
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+        assert flow.is_model_config_required()
+
+    def test_is_model_config_set(self):
+        """Test is_model_config_set() method."""
+        llm_block = self.create_mock_llm_block("llm_block", model=None)
+        llm_block.model = None
+
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+
+        # Should be False initially
+        assert not flow.is_model_config_set()
+
+        # Should be True after calling set_model_config()
+        flow.set_model_config(model="test-model")
+        assert flow.is_model_config_set()
+
+    def test_reset_model_config(self):
+        """Test reset_model_config() method."""
+        llm_block = self.create_mock_llm_block("llm_block", model=None)
+        llm_block.model = None
+
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+
+        # Configure model
+        flow.set_model_config(model="test-model")
+        assert flow.is_model_config_set()
+
+        # Reset should make it False again
+        flow.reset_model_config()
+        assert not flow.is_model_config_set()
+
+    def test_get_default_model_with_new_format(self):
+        """Test get_default_model() with new simplified format."""
+        # First Party
+        from sdg_hub.core.flow.metadata import RecommendedModels
+
+        recommended_models = RecommendedModels(
+            default="meta-llama/Llama-3.3-70B-Instruct",
+            compatible=["microsoft/phi-4", "mistralai/Mixtral-8x7B-Instruct-v0.1"],
+            experimental=[],
+        )
+
+        metadata = FlowMetadata(name="Test Flow", recommended_models=recommended_models)
+
+        flow = Flow(blocks=[], metadata=metadata)
+
+        assert flow.get_default_model() == "meta-llama/Llama-3.3-70B-Instruct"
+
+    def test_get_default_model_no_recommendations(self):
+        """Test get_default_model() when no models are recommended."""
+        metadata = FlowMetadata(name="Test Flow")
+        flow = Flow(blocks=[], metadata=metadata)
+
+        assert flow.get_default_model() is None
+
+    def test_get_model_recommendations(self):
+        """Test get_model_recommendations() method."""
+        # First Party
+        from sdg_hub.core.flow.metadata import RecommendedModels
+
+        recommended_models = RecommendedModels(
+            default="meta-llama/Llama-3.3-70B-Instruct",
+            compatible=["microsoft/phi-4", "mistralai/Mixtral-8x7B-Instruct-v0.1"],
+            experimental=["experimental-model"],
+        )
+
+        metadata = FlowMetadata(name="Test Flow", recommended_models=recommended_models)
+
+        flow = Flow(blocks=[], metadata=metadata)
+        recommendations = flow.get_model_recommendations()
+
+        assert recommendations["default"] == "meta-llama/Llama-3.3-70B-Instruct"
+        assert recommendations["compatible"] == [
+            "microsoft/phi-4",
+            "mistralai/Mixtral-8x7B-Instruct-v0.1",
+        ]
+        assert recommendations["experimental"] == ["experimental-model"]
+
+    def test_get_model_recommendations_no_models(self):
+        """Test get_model_recommendations() when no models are specified."""
+        metadata = FlowMetadata(name="Test Flow")
+        flow = Flow(blocks=[], metadata=metadata)
+
+        recommendations = flow.get_model_recommendations()
+
+        assert recommendations["default"] is None
+        assert recommendations["compatible"] == []
+        assert recommendations["experimental"] == []
