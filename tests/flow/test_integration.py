@@ -217,23 +217,27 @@ class TestFlowIntegration:
 
         # Test listing flows
         flows = FlowRegistry.list_flows()
+        flow_names = [flow["name"] for flow in flows]
         assert len(flows) == 2
-        assert "QA Flow" in flows
-        assert "Summary Flow" in flows
+        assert "QA Flow" in flow_names
+        assert "Summary Flow" in flow_names
 
         # Test searching by tag
         qa_flows = FlowRegistry.search_flows(tag="qa")
+        qa_flow_names = [flow["name"] for flow in qa_flows]
         assert len(qa_flows) == 1
-        assert "QA Flow" in qa_flows
+        assert "QA Flow" in qa_flow_names
 
         nlp_flows = FlowRegistry.search_flows(tag="nlp")
+        nlp_flow_names = [flow["name"] for flow in nlp_flows]
         assert len(nlp_flows) == 1
-        assert "Summary Flow" in nlp_flows
+        assert "Summary Flow" in nlp_flow_names
 
         # Test searching by author
         qa_team_flows = FlowRegistry.search_flows(author="QA Team")
+        qa_team_flow_names = [flow["name"] for flow in qa_team_flows]
         assert len(qa_team_flows) == 1
-        assert "QA Flow" in qa_team_flows
+        assert "QA Flow" in qa_team_flow_names
 
         # Test getting flow metadata
         qa_metadata = FlowRegistry.get_flow_metadata("QA Flow")
@@ -251,8 +255,8 @@ class TestFlowIntegration:
         categories = FlowRegistry.get_flows_by_category()
         assert "qa" in categories
         assert "summarization" in categories
-        assert "QA Flow" in categories["qa"]
-        assert "Summary Flow" in categories["summarization"]
+        assert "QA Flow" in categories["qa"][0]["name"]
+        assert "Summary Flow" in categories["summarization"][0]["name"]
 
     def test_model_compatibility_system(self):
         """Test the model compatibility system with new simplified format."""
