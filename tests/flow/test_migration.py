@@ -241,22 +241,6 @@ class TestFlowMigration:
 class TestFlowMigrationIntegration:
     """Integration tests for flow migration with actual Flow class."""
 
-    def setup_method(self):
-        """Set up test fixtures by importing deprecated blocks."""
-        # Import deprecated blocks to ensure they're registered
-        try:
-            # First Party
-            from src.sdg_hub.blocks.deprecated_blocks.duplicate_columns import (
-                DuplicateColumns,
-            )
-            from src.sdg_hub.blocks.deprecated_blocks.llmblock import LLMBlock
-            from src.sdg_hub.blocks.transform.duplicate_columns import (
-                DuplicateColumnsBlock,
-            )
-        except ImportError:
-            # If imports fail, the tests will appropriately skip
-            pass
-
     def test_flow_from_yaml_with_old_format(self):
         """Test loading an old format YAML through Flow.from_yaml."""
         # First Party
