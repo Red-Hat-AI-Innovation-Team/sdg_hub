@@ -24,21 +24,7 @@ class MyCustomBlock(BaseBlock):
     
     def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
         """Implement your custom processing logic here."""
-        # Your processing logic
-        processed_data = []
-        
-        for item in samples:
-            # Process each item
-            processed_item = self.process_item(item)
-            processed_data.append(processed_item)
-        
-        # Return new dataset with output columns
-        return samples.add_column(self.output_cols[0], processed_data)
-    
-    def process_item(self, item):
-        """Helper method for processing individual items."""
-        # Your custom logic here
-        return item
+        #TODO: Add Custom block boilerplate code here
 ```
 
 ### Block Configuration
