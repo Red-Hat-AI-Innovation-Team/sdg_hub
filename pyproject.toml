@@ -99,7 +99,7 @@ where = ["src"]
 include = ["sdg_hub"]
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 # same as black's default line length
 line-length = 88
 
@@ -110,20 +110,17 @@ unfixable = []
 
 # Fixers will be enabled gradually.
 select = [
-    # "B",  # flake8-bugbear
-    # "E",  # pycodestyle
-    # "F",  # Pyflakes
-    "Q",  # flake8-quotes
-    # Ruff does not support isort's import_headings feature, yet.
-    # "I",  # isort
-    # "UP",  # pyupgrade
-    # "SIM",  # flake8-simplify
-    "TID",  # flake8-tidy-imports
+    "E",   # pycodestyle
+    "F",   # Pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "Q",   # flake8-quotes
+    "TID", # flake8-tidy-imports
 ]
 ignore = [
     # some embedded strings are longer than 88 characters
     "E501",  # line too long
-    "TID252",  # Prefer absolute imports over relative imports from parent modules
+    "TID252", # Prefer absolute imports over relative imports from parent modules
 ]
 
 [tool.ruff.lint.isort]
