@@ -11,7 +11,7 @@ from .core import (
     FlowParameter,
     FlowRegistry,
     FlowValidator,
-    GenerateException,
+    GenerateError,
     resolve_path,
 )
 
@@ -25,6 +25,6 @@ __all__ = [
     "FlowMetadata",
     "FlowParameter",
     "FlowValidator",
-    "GenerateException",
+    "GenerateError",
     "resolve_path",
 ]
