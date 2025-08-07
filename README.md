@@ -92,6 +92,17 @@ flow_name = "Advanced Document Grounded Question-Answer Generation Flow for Know
 flow_path = FlowRegistry.get_flow_path(flow_name)
 flow = Flow.from_yaml(flow_path)
 
+# Discover recommended models
+default_model = flow.get_default_model()
+recommendations = flow.get_model_recommendations()
+
+# Configure model settings at runtime
+flow.set_model_config(
+    model=f"hosted_vllm/{default_model}",
+    api_base="http://localhost:8000/v1",
+    api_key="your_key",
+)
+
 # Create your dataset with required columns
 dataset = Dataset.from_dict({
     'document': ['Your document text here...'],
