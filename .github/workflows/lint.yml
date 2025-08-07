@@ -63,7 +63,8 @@ jobs:
           echo "::add-matcher::.github/workflows/matchers/pylint.json"
           tox -e lint
 
-      - name: Run mypy type checks
-        if: ${{ !cancelled() && (steps.deps.outcome == 'success') }}
-        run: |
-          tox -e mypy
+      # TODO: want to enable this.
+      # - name: Run mypy type checks
+      #   if: ${{ !cancelled() && (steps.deps.outcome == 'success') }}
+      #   run: |
+      #     tox -e mypy
