@@ -37,7 +37,7 @@ dataset → Block₁ → Block₂ → Block₃ → enriched_dataset
 
 ## 📚 Documentation
 
-For comprehensive documentation, including detailed API references, tutorials, and advanced usage examples, visit our **[documentation site](https://ai-innovation.team/)**.
+For comprehensive documentation, including detailed API references, tutorials, and advanced usage examples, visit our **[documentation site](https://ai-innovation.team/sdg_hub/)**.
 
 ## 📦 Installation
 

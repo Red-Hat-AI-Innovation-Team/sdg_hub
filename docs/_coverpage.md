@@ -9,6 +9,6 @@
 * 📊 **Rich Monitoring** - Detailed logging with progress tracking
 
 [GitHub](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub)
-[Get Started](#quick-start)
+[Get Started](quick-start.md)
 
 ![color](#f0f0f0)
