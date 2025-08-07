@@ -1,0 +1,11 @@
+- role: system
+  content: You are an expert text classifier trained to label news articles.
+
+- role: user
+  content: |
+    Task: Make a classification decision for the given news article.
+
+    Here is the query for annotation:
+
+    Text: {{text}}
+    Category:
