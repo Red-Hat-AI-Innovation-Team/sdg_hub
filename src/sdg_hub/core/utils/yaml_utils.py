@@ -14,11 +14,19 @@ from .logger_config import setup_logger
 logger = setup_logger(__name__)
 
 
-def save_flow_yaml(yaml_path: str, flow_config: Dict[str, Any], reason: str = "") -> None:
-    """Save flow configuration to YAML file.
+def save_flow_yaml(
+    yaml_path: str,
+    flow_config: Dict[str, Any],
+    reason: str = "",
+    sort_keys: bool = False,
+    width: int = 240,
+    indent: int = 2,
+) -> None:
+    """
+    Save flow configuration to a YAML file.
 
-    This is a utility function for saving flow configurations to YAML files.
-    It ensures consistent formatting and logging across the codebase.
+    This utility function saves flow configurations to YAML files,
+    ensuring consistent formatting and logging across the codebase.
 
     Parameters
     ----------
@@ -28,12 +36,24 @@ def save_flow_yaml(yaml_path: str, flow_config: Dict[str, Any], reason: str = ""
         Flow configuration to save.
     reason : str, optional
         Reason for saving, used in log message.
+    width : int, optional
+        Maximum line width for YAML output.
+    indent : int, optional
+        Indentation level for YAML output.
     """
     yaml_path = str(Path(yaml_path))  # Normalize path
+
     with open(yaml_path, "w", encoding="utf-8") as f:
-        yaml.dump(flow_config, f, default_flow_style=False, sort_keys=False)
-    
-    log_msg = f"Saved flow YAML to: {yaml_path}"
+        yaml.dump(
+            flow_config,
+            f,
+            default_flow_style=False,
+            sort_keys=sort_keys,
+            width=width,
+            indent=indent,
+        )
+
+    log_msg = f"Saved flow configuration to YAML: {yaml_path}"
     if reason:
         log_msg = f"{log_msg} ({reason})"
     logger.debug(log_msg)

@@ -220,6 +220,14 @@ class Flow(BaseModel):
         # Create and validate the flow
         try:
             flow = cls(blocks=blocks, metadata=metadata, parameters=parameters)
+            # Persist generated flow_id back to the YAML file (only on initial load)
+            from ..utils.yaml_utils import save_flow_yaml
+            # If the file had no metadata.flow_id originally, update and rewrite
+            if not flow_config.get("metadata", {}).get("flow_id"):
+                flow_config.setdefault("metadata", {})["flow_id"] = flow.metadata.flow_id
+                save_flow_yaml(yaml_path, flow_config, f"added generated flow_id: {flow.metadata.flow_id}")
+            else:
+                logger.debug(f"Flow already had flow_id: {flow.metadata.flow_id}")
             # Store migrated runtime params and client for backward compatibility
             if migrated_runtime_params:
                 flow._migrated_runtime_params = migrated_runtime_params
@@ -937,6 +945,7 @@ class Flow(BaseModel):
         Note: This creates a basic YAML structure. For exact reproduction
         of original YAML, save the original file separately.
         """
+        from ..utils.yaml_utils import save_flow_yaml
         config = {
             "metadata": self.metadata.model_dump(),
             "blocks": [
@@ -953,10 +962,8 @@ class Flow(BaseModel):
                 name: param.model_dump() for name, param in self.parameters.items()
             }
 
-        with open(output_path, "w", encoding="utf-8") as f:
-            yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+        save_flow_yaml(output_path, config)
 
-        logger.info(f"Flow configuration saved to: {output_path}")
 
     def __len__(self) -> int:
         """Number of blocks in the flow."""
