@@ -57,14 +57,14 @@ jobs:
         run: |
           tox -e ruff -- check
 
-      # TODO: eshwar checkout and remove it
+      # Pylint disabled for now - may re-enable as non-blocking check in future
       # - name: Run linting
       #   if: ${{ !cancelled() && (steps.deps.outcome == 'success') }}
       #   run: |
       #     echo "::add-matcher::.github/workflows/matchers/pylint.json"
       #     tox -e lint
 
-      # TODO: want to enable this.
+      # MyPy type checking disabled for now - may re-enable as non-blocking check in future
       # - name: Run mypy type checks
       #   if: ${{ !cancelled() && (steps.deps.outcome == 'success') }}
       #   run: |

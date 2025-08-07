@@ -27,18 +27,25 @@ pip install .[dev]
 
 ### Linting and Code Quality
 
-SDG Hub uses a Makefile for linting:
-
-- **CI changes** - `make actionlint`
-- **Documentation changes** - `make md-lint` 
-- **Code changes** - `make verify`
-
-Individual linting tools:
+**Primary linting tools** (required for all contributions):
 ```bash
 tox -e lint        # Full pylint check
 tox -e fastlint    # Quick pylint check
-tox -e ruff        # Ruff formatting and fixes
 tox -e mypy        # Type checking
+
+# Ruff (code formatting and linting)
+tox -e ruff                 # Format and fix issues (development mode)
+tox -e ruff -- check        # Check only, no fixes (CI mode)
+./scripts/ruff.sh           # Direct script - format and fix
+./scripts/ruff.sh check     # Direct script - check only
+./scripts/ruff.sh --help    # Pass custom arguments to ruff
+```
+
+**Optional development tools** (require additional dependencies):
+```bash
+make actionlint          # Lint GitHub Actions (requires: actionlint, shellcheck)
+make md-lint            # Lint markdown files (requires: podman/docker)
+make verify             # Run extended checks: pylint, mypy, ruff (may differ from CI)
 ```
 
 ### Testing
