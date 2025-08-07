@@ -145,11 +145,15 @@ class TestBlockRegistry:
     def test_register_missing_generate_method(self):
         """Test that class without generate method raises ValueError."""
         # This test is for when BaseBlock is not available and we fall back to checking generate method
+        original_import = __import__
+
+        def mock_import(name, globals=None, locals=None, fromlist=(), level=0):
+            if "base" in name:
+                raise ImportError("BaseBlock not available")
+            return original_import(name, globals, locals, fromlist, level)
+
         with (
-            patch(
-                "builtins.__import__",
-                side_effect=ImportError("BaseBlock not available"),
-            ),
+            patch("builtins.__import__", side_effect=mock_import),
             pytest.raises(ValueError, match="must implement 'generate' method"),
         ):
 
@@ -338,14 +342,12 @@ class TestBlockRegistry:
         """Test validation fallback when BaseBlock is not available."""
 
         # Mock the import to raise ImportError for BaseBlock
-        def mock_import(name, *args, **kwargs):
+        original_import = __import__
+
+        def mock_import(name, globals=None, locals=None, fromlist=(), level=0):
             if "base" in name:
                 raise ImportError("BaseBlock not available")
-            # For other imports, use the real import
-            # Standard
-            import importlib
-
-            return importlib.import_module(name)
+            return original_import(name, globals, locals, fromlist, level)
 
         with patch("builtins.__import__", side_effect=mock_import):
             # Should work with generate method
