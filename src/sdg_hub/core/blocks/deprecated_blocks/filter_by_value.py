@@ -53,13 +53,13 @@ class FilterByValueBlock(BaseBlock):
             Name of the block.
         filter_column : str
             Column name to filter on.
-        filter_value : Union[Any, List[Any]]
+        filter_value : Union[Any, list[Any]]
             The value(s) to filter by.
         operation : Callable[[Any, Any], bool]
             A binary operator from the operator module.
-        convert_dtype : Optional[Union[Type[float], Type[int]]], optional
+        convert_dtype : Optional[Union[type[float], type[int]]], optional
             Type to convert the filter column to.
-        **batch_kwargs : Dict[str, Any]
+        **batch_kwargs : dict[str, Any]
             Additional batch processing arguments.
         """
         # Issue deprecation warning
