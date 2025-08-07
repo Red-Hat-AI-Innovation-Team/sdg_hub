@@ -13,6 +13,7 @@ import yaml
 
 # Local
 from sdg_hub import FlowRegistry
+from sdg_hub.core.utils.flow_identifier import get_flow_identifier
 
 
 class TestFlowRegistry:
@@ -71,6 +72,87 @@ class TestFlowRegistry:
             yaml.dump(flow_config, f)
         
         return str(flow_path)
+
+    def test_flow_id_persistence(self):
+        """Test that flow IDs are consistent only when saved to YAML."""
+        # Create flow without flow_id
+        flow_path = self.create_test_flow("Test Flow")
+        FlowRegistry.register_search_path(str(self.test_flow_path))
+
+        # First discovery - should generate and save flow_id
+        FlowRegistry._discover_flows(force_refresh=True)
+        metadata1 = FlowRegistry.get_flow_metadata("Test Flow")
+        first_id = metadata1.flow_id
+
+        # Verify flow_id was saved to YAML
+        with open(flow_path, 'r') as f:
+            flow_config = yaml.safe_load(f)
+            assert "flow_id" in flow_config["metadata"]
+            assert flow_config["metadata"]["flow_id"] == first_id
+
+        # Clear registry and rediscover - should load same flow_id from YAML
+        FlowRegistry._entries.clear()
+        FlowRegistry._discover_flows(force_refresh=True)
+        metadata2 = FlowRegistry.get_flow_metadata("Test Flow")
+        assert metadata2.flow_id == first_id  # Should be same as saved in YAML
+
+        # Create new flow without saving flow_id to YAML
+        flow2_path = self.create_test_flow("Test Flow 2")
+        
+        # Multiple discoveries without saving to YAML should generate different IDs
+        FlowRegistry._discover_flows(force_refresh=True)
+        id1 = FlowRegistry.get_flow_metadata("Test Flow").flow_id
+        
+        FlowRegistry._entries.clear()
+        FlowRegistry._discover_flows(force_refresh=True)
+        id2 = FlowRegistry.get_flow_metadata("Test Flow 2").flow_id
+        
+        assert id1 != id2  # IDs should be different since they weren't saved
+
+    def test_flow_id_yaml_update(self):
+        """Test that flow_id is written to YAML during discovery."""
+        # Create flow without flow_id
+        flow_path = self.create_test_flow("Test Flow")
+        
+        # Verify no flow_id in original YAML
+        with open(flow_path, 'r') as f:
+            original_config = yaml.safe_load(f)
+            assert "flow_id" not in original_config["metadata"]
+
+        # Discover flows - should generate and save flow_id
+        FlowRegistry.register_search_path(str(self.test_flow_path))
+        FlowRegistry._discover_flows(force_refresh=True)
+
+        # Verify flow_id was written to YAML
+        with open(flow_path, 'r') as f:
+            updated_config = yaml.safe_load(f)
+            assert "flow_id" in updated_config["metadata"]
+            saved_id = updated_config["metadata"]["flow_id"]
+
+        # Clear registry and rediscover - should use saved flow_id
+        FlowRegistry._entries.clear()
+        FlowRegistry._discover_flows(force_refresh=True)
+        metadata = FlowRegistry.get_flow_metadata("Test Flow")
+        assert metadata.flow_id == saved_id
+
+    def test_custom_flow_id_preservation(self):
+        """Test that custom flow IDs are preserved."""
+        # Create flow with custom flow_id
+        custom_id = "custom-test-id"
+        flow_path = self.create_test_flow("Test Flow", flow_id=custom_id)
+        
+        FlowRegistry.register_search_path(str(self.test_flow_path))
+        FlowRegistry._discover_flows(force_refresh=True)
+        
+        # Verify custom flow_id is preserved
+        metadata = FlowRegistry.get_flow_metadata("Test Flow")
+        assert metadata.flow_id == custom_id
+        
+        # Clear registry and rediscover - should still use custom flow_id
+        FlowRegistry._entries.clear()
+        FlowRegistry._discover_flows(force_refresh=True)
+        metadata = FlowRegistry.get_flow_metadata("Test Flow")
+        assert metadata.flow_id == custom_id
 
     def test_register_search_path(self):
         """Test registering search paths."""

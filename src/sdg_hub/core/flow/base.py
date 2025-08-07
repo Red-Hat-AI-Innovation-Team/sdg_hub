@@ -155,6 +155,10 @@ class Flow(BaseModel):
             if client is None:
                 logger.warning("Old format YAML detected but no client provided. LLMBlocks may fail.")
             flow_config, migrated_runtime_params = FlowMigration.migrate_to_new_format(flow_config, yaml_path)
+            # Save migrated config back to YAML to persist flow_id
+            with open(yaml_path, "w", encoding="utf-8") as f:
+                yaml.dump(flow_config, f, default_flow_style=False, sort_keys=False)
+            logger.info(f"Saved migrated config with flow_id to: {yaml_path}")
 
         # Validate YAML structure
         validator = FlowValidator()

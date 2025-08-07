@@ -6,5 +6,6 @@ class GenerateException(Exception):
 
 
 from .path_resolution import resolve_path
+from .flow_identifier import get_flow_identifier
 
-__all__ = ["GenerateException", "resolve_path"]
+__all__ = ["GenerateException", "resolve_path", "get_flow_identifier"]

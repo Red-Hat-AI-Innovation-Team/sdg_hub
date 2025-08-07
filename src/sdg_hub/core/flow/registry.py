@@ -120,10 +120,16 @@ class FlowRegistry:
                     metadata_dict = flow_config["metadata"]
                     metadata = FlowMetadata(**metadata_dict)
 
-                    entry = FlowRegistryEntry(path=str(yaml_file), metadata=metadata)
+                    # If flow_id was generated, update the YAML
+                    if metadata.flow_id and "flow_id" not in metadata_dict:
+                        flow_config["metadata"]["flow_id"] = metadata.flow_id
+                        with open(yaml_file, "w", encoding="utf-8") as f:
+                            yaml.dump(flow_config, f, default_flow_style=False, sort_keys=False)
+                        logger.debug(f"Updated flow YAML with generated flow_id: {metadata.flow_id}")
 
+                    entry = FlowRegistryEntry(path=str(yaml_file), metadata=metadata)
                     cls._entries[metadata.name] = entry
-                    logger.debug(f"Registered flow: {metadata.name} from {yaml_file}")
+                    logger.debug(f"Registered flow: {metadata.name} (id: {metadata.flow_id}) from {yaml_file}")
 
             except Exception as exc:
                 logger.debug(f"Skipped {yaml_file}: {exc}")

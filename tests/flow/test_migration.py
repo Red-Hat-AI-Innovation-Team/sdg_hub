@@ -230,6 +230,9 @@ class TestFlowMigration:
         assert "migrated" in metadata["tags"]
         assert "recommended_models" in metadata
         assert len(metadata["recommended_models"]) > 0
+        # Check flow_id generation
+        assert metadata["flow_id"] is not None
+
 
     def test_migrate_block_config_edge_cases(self):
         """Test edge cases in block config migration."""
@@ -284,13 +287,61 @@ class TestFlowMigrationIntegration:
             temp_path = f.name
         
         try:
-            # Should successfully load old format
-            flow = Flow.from_yaml(temp_path)
+                        # First load - should migrate and generate flow_id
+            flow1 = Flow.from_yaml(temp_path)
+            assert flow1.metadata.name == Path(temp_path).stem
+            assert "migrated" in flow1.metadata.tags
+            assert len(flow1.blocks) == 1
+            assert flow1.blocks[0].block_name == "test_duplicate"
+            first_id = flow1.metadata.flow_id
+            assert first_id  # Should have generated an ID
+
+            # Load again - should use same flow_id since it's now in new format
+            flow2 = Flow.from_yaml(temp_path)
+            assert flow2.metadata.flow_id == first_id  # Should use same ID
+
+            # Create another old format flow without saving - should get different ID
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f2:
+                yaml.dump(old_flow_config, f2)
+                temp_path2 = f2.name
+
+            try:
+                flow3 = Flow.from_yaml(temp_path2)
+                assert flow3.metadata.flow_id != first_id  # Should get different ID
+            finally:
+                Path(temp_path2).unlink()
             
-            assert flow.metadata.name == Path(temp_path).stem
-            assert "migrated" in flow.metadata.tags
-            assert len(flow.blocks) == 1
-            assert flow.blocks[0].block_name == "test_duplicate"
+            # Load flow again - should get same flow_id from YAML
+            flow2 = Flow.from_yaml(temp_path)
+            assert flow2.metadata.flow_id == first_id  # Should be same as saved in YAML
+            
+            # Create new flow without saving to YAML to verify random generation
+            old_config = [
+                {
+                    "block_type": "DuplicateColumns",
+                    "block_config": {
+                        "block_name": "test_duplicate2",
+                        "columns_map": {"input": "output"}
+                    }
+                }
+            ]
+            
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f2:
+                yaml.dump(old_config, f2)
+                temp_path2 = f2.name
+            
+            try:
+                # Load flow twice without saving - should get different IDs
+                flow3 = Flow.from_yaml(temp_path2)
+                id1 = flow3.metadata.flow_id
+                
+                flow4 = Flow.from_yaml(temp_path2)
+                id2 = flow4.metadata.flow_id
+                
+                assert id1 != id2  # IDs should be different since they weren't saved
+                
+            finally:
+                Path(temp_path2).unlink()
             
         finally:
             Path(temp_path).unlink()

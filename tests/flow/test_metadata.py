@@ -321,3 +321,58 @@ class TestFlowMetadata:
         assert metadata.dataset_requirements is not None
         assert metadata.dataset_requirements.required_columns == ["text"]
         assert metadata.dataset_requirements.min_samples == 5
+
+    def test_flow_id_generation(self):
+        """Test automatic flow_id generation from name."""
+        metadata = FlowMetadata(
+            name="My Complex Flow Name",
+            description="Test flow"
+        )
+        assert metadata.flow_id is not None
+
+    def test_flow_id_validation(self):
+        """Test flow_id validation with random flow ids."""
+        # Test custom flow_id is preserved
+        metadata = FlowMetadata(
+            name="My Flow",
+            flow_id="custom-id",
+            description="Test flow"
+        )
+        assert metadata.flow_id == "custom-id"
+
+        # Test that a random flow_id is generated if not provided
+        metadata2 = FlowMetadata(
+            name="Another Flow",
+            description="Test flow"
+        )
+        assert metadata2.flow_id is not None
+        assert isinstance(metadata2.flow_id, str)
+        assert metadata2.flow_id != ""  # Should not be empty
+
+        # Test invalid flow_id characters (should fail lowercase check first)
+        with pytest.raises(ValidationError) as exc_info:
+            FlowMetadata(
+                name="My Flow",
+                flow_id="Invalid ID!",  # Contains invalid characters and uppercase
+                description="Test flow"
+            )
+        # The error message should mention lowercase requirement
+        assert "flow_id must be lowercase" in str(exc_info.value)
+
+        # Test uppercase flow_id
+        with pytest.raises(ValidationError) as exc_info:
+            FlowMetadata(
+                name="My Flow",
+                flow_id="INVALID-CASE",
+                description="Test flow"
+            )
+        assert "flow_id must be lowercase" in str(exc_info.value)
+
+        # Test valid lowercase but invalid characters
+        with pytest.raises(ValidationError) as exc_info:
+            FlowMetadata(
+                name="My Flow",
+                flow_id="invalid id!",  # Lowercase but contains space and exclamation
+                description="Test flow"
+            )
+        assert "flow_id must contain only alphanumeric characters and hyphens" in str(exc_info.value)
