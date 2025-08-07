@@ -141,23 +141,6 @@ block = SomeBlock(output_cols=["existing_col"])
 result = block.generate(dataset)  # ❌ Error!
 ```
 
-## 🔍 Block Discovery
-
-### Search Capabilities
-```python
-# Find blocks by category
-llm_blocks = BlockRegistry.search_blocks(category="llm")
-transform_blocks = BlockRegistry.search_blocks(category="transform")
-
-# Find blocks by name pattern
-chat_blocks = BlockRegistry.search_blocks(name_pattern=".*Chat.*")
-
-# Get detailed information
-block_info = BlockRegistry.get_block_info("LLMChatBlock")
-print(f"Description: {block_info['description']}")
-print(f"Category: {block_info['category']}")
-```
-
 ## 🚀 Next Steps
 
 Ready to dive deeper? Explore specific block categories:
