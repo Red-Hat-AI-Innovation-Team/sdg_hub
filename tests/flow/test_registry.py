@@ -180,8 +180,13 @@ class TestFlowRegistry:
         # Should have found the flows
         flows = FlowRegistry.list_flows()
         assert len(flows) == 2
-        assert "Test Flow 1" in flows
-        assert "Test Flow 2" in flows
+        flow_names = [f["name"] for f in flows]
+        assert "Test Flow 1" in flow_names
+        assert "Test Flow 2" in flow_names
+        # Verify each flow has an ID
+        for flow in flows:
+            assert "id" in flow
+            assert flow["id"]  # ID should not be empty
 
     def test_discover_flows_recursive(self):
         """Test recursive flow discovery."""
@@ -209,8 +214,13 @@ class TestFlowRegistry:
         
         flows = FlowRegistry.list_flows()
         assert len(flows) == 2
-        assert "Main Flow" in flows
-        assert "Nested Flow" in flows
+        flow_names = [f["name"] for f in flows]
+        assert "Main Flow" in flow_names
+        assert "Nested Flow" in flow_names
+        # Verify each flow has an ID
+        for flow in flows:
+            assert "id" in flow
+            assert flow["id"]  # ID should not be empty
 
     def test_discover_flows_invalid_yaml(self):
         """Test discovery with invalid YAML files."""
@@ -226,7 +236,7 @@ class TestFlowRegistry:
         # Should only find the valid flow
         flows = FlowRegistry.list_flows()
         assert len(flows) == 1
-        assert "Valid Flow" in flows
+        assert "Valid Flow" in flows[0]["name"]
 
     def test_discover_flows_missing_metadata(self):
         """Test discovery with files missing metadata."""
@@ -244,7 +254,7 @@ class TestFlowRegistry:
         # Should only find the valid flow
         flows = FlowRegistry.list_flows()
         assert len(flows) == 1
-        assert "Valid Flow" in flows
+        assert "Valid Flow" in flows[0]["name"]
 
     def test_discover_flows_nonexistent_path(self):
         """Test discovery with non-existent path."""
@@ -328,8 +338,12 @@ class TestFlowRegistry:
         
         flows = FlowRegistry.list_flows()
         assert len(flows) == 2
-        assert "Flow A" in flows
-        assert "Flow B" in flows
+        flow_names = [f["name"] for f in flows]
+        assert "Flow A" in flow_names
+        assert "Flow B" in flow_names
+        # Verify each flow has an ID
+        for flow in flows:
+            assert flow["id"]  # ID should not be empty
 
     def test_search_flows_by_tag(self):
         """Test searching flows by tag."""
@@ -344,12 +358,17 @@ class TestFlowRegistry:
         # Search by tag
         qa_flows = FlowRegistry.search_flows(tag="qa")
         assert len(qa_flows) == 2
-        assert "QA Flow" in qa_flows
-        assert "Mixed Flow" in qa_flows
+        qa_flow_names = [f["name"] for f in qa_flows]
+        assert "QA Flow" in qa_flow_names
+        assert "Mixed Flow" in qa_flow_names
+        # Verify IDs
+        for flow in qa_flows:
+            assert flow["id"]
         
         nlp_flows = FlowRegistry.search_flows(tag="nlp")
         assert len(nlp_flows) == 1
-        assert "Summary Flow" in nlp_flows
+        assert nlp_flows[0]["name"] == "Summary Flow"
+        assert nlp_flows[0]["id"]  # Should have an ID
         
         # Non-existent tag
         assert FlowRegistry.search_flows(tag="nonexistent") == []
@@ -367,13 +386,21 @@ class TestFlowRegistry:
         # Search by author (case-insensitive partial match)
         alice_flows = FlowRegistry.search_flows(author="alice")
         assert len(alice_flows) == 2
-        assert "Flow 1" in alice_flows
-        assert "Flow 3" in alice_flows
+        alice_flow_names = [f["name"] for f in alice_flows]
+        assert "Flow 1" in alice_flow_names
+        assert "Flow 3" in alice_flow_names
+        # Verify IDs
+        for flow in alice_flows:
+            assert flow["id"]
         
         johnson_flows = FlowRegistry.search_flows(author="Johnson")
         assert len(johnson_flows) == 2
-        assert "Flow 2" in johnson_flows
-        assert "Flow 3" in johnson_flows
+        johnson_flow_names = [f["name"] for f in johnson_flows]
+        assert "Flow 2" in johnson_flow_names
+        assert "Flow 3" in johnson_flow_names
+        # Verify IDs
+        for flow in johnson_flows:
+            assert flow["id"]
         
         # Non-existent author
         assert FlowRegistry.search_flows(author="nonexistent") == []
@@ -391,7 +418,8 @@ class TestFlowRegistry:
         # Search with both criteria
         results = FlowRegistry.search_flows(tag="qa", author="Alice")
         assert len(results) == 1
-        assert "Flow 1" in results
+        assert results[0]["name"] == "Flow 1"
+        assert results[0]["id"]  # Should have an ID
 
     def test_get_flows_by_category(self):
         """Test getting flows organized by category."""
@@ -413,14 +441,20 @@ class TestFlowRegistry:
         
         # Check flows in each category
         assert len(categories["question-answering"]) == 2
-        assert "QA Flow" in categories["question-answering"]
-        assert "Another QA Flow" in categories["question-answering"]
+        qa_flow_names = [f["name"] for f in categories["question-answering"]]
+        assert "QA Flow" in qa_flow_names
+        assert "Another QA Flow" in qa_flow_names
+        # Verify IDs
+        for flow in categories["question-answering"]:
+            assert flow["id"]
         
         assert len(categories["summarization"]) == 1
-        assert "Summary Flow" in categories["summarization"]
+        assert categories["summarization"][0]["name"] == "Summary Flow"
+        assert categories["summarization"][0]["id"]  # Should have an ID
         
         assert len(categories["uncategorized"]) == 1
-        assert "Uncategorized Flow" in categories["uncategorized"]
+        assert categories["uncategorized"][0]["name"] == "Uncategorized Flow"
+        assert categories["uncategorized"][0]["id"]  # Should have an ID
 
     def test_caching_behavior(self):
         """Test that discovery results are cached."""
@@ -443,14 +477,20 @@ class TestFlowRegistry:
         # Should be the same (cached)
         assert flows1 == flows2
         assert len(flows2) == 1
+        assert flows2[0]["name"] == "Test Flow"
+        assert flows2[0]["id"]  # Should have an ID
         
         # Force refresh should pick up new flow
         FlowRegistry._discover_flows(force_refresh=True)
         flows3 = FlowRegistry.list_flows()
         
         assert len(flows3) == 2
-        assert "Test Flow" in flows3
-        assert "Another Flow" in flows3
+        flow_names = [f["name"] for f in flows3]
+        assert "Test Flow" in flow_names
+        assert "Another Flow" in flow_names
+        # Verify IDs
+        for flow in flows3:
+            assert flow["id"]
 
     def test_multiple_search_paths(self):
         """Test discovery with multiple search paths."""
@@ -485,5 +525,9 @@ class TestFlowRegistry:
         # Should find flows from both directories
         flows = FlowRegistry.list_flows()
         assert len(flows) == 2
-        assert "Flow 1" in flows
-        assert "Flow 2" in flows
+        flow_names = [f["name"] for f in flows]
+        assert "Flow 1" in flow_names
+        assert "Flow 2" in flow_names
+        # Verify IDs
+        for flow in flows:
+            assert flow["id"]  # Should have an ID

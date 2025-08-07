@@ -192,22 +192,24 @@ class FlowRegistry:
         return None
 
     @classmethod
-    def list_flows(cls) -> List[str]:
-        """List all registered flow names.
+    def list_flows(cls) -> List[Dict[str, str]]:
+        """List all registered flows with their IDs.
 
         Returns
         -------
-        List[str]
-            List of flow names.
+        List[Dict[str, str]]
+            List of dictionaries containing flow names and IDs.
+            Each dictionary has 'name' and 'id' keys.
         """
         cls._ensure_initialized()
         cls._discover_flows()
-        return list(cls._entries.keys())
+        return [{"name": entry.metadata.name, "id": entry.metadata.flow_id} 
+                for entry in cls._entries.values()]
 
     @classmethod
     def search_flows(
         cls, tag: Optional[str] = None, author: Optional[str] = None
-    ) -> List[str]:
+    ) -> List[Dict[str, str]]:
         """Search flows by criteria.
 
         Parameters
@@ -219,15 +221,17 @@ class FlowRegistry:
 
         Returns
         -------
-        List[str]
-            List of matching flow names.
+        List[Dict[str, str]]
+            List of matching flows. Each dictionary contains:
+            - name: Flow name
+            - id: Flow ID
         """
         cls._ensure_initialized()
         cls._discover_flows()
 
         matching_flows = []
 
-        for name, entry in cls._entries.items():
+        for entry in cls._entries.values():
             metadata = entry.metadata
 
             # Filter by tag
@@ -238,25 +242,30 @@ class FlowRegistry:
             if author and author.lower() not in metadata.author.lower():
                 continue
 
-            matching_flows.append(name)
+            matching_flows.append({
+                "name": metadata.name,
+                "id": metadata.flow_id
+            })
 
         return matching_flows
 
     @classmethod
-    def get_flows_by_category(cls) -> Dict[str, List[str]]:
+    def get_flows_by_category(cls) -> Dict[str, List[Dict[str, str]]]:
         """Get flows organized by their primary tag.
 
         Returns
         -------
-        Dict[str, List[str]]
-            Dictionary mapping tags to flow names.
+        Dict[str, List[Dict[str, str]]]
+            Dictionary mapping tags to flow information. Each flow is represented by:
+            - name: Flow name
+            - id: Flow ID
         """
         cls._ensure_initialized()
         cls._discover_flows()
 
         categories = {}
 
-        for name, entry in cls._entries.items():
+        for entry in cls._entries.values():
             metadata = entry.metadata
 
             # Use first tag as primary category, or "uncategorized"
@@ -265,7 +274,10 @@ class FlowRegistry:
             if category not in categories:
                 categories[category] = []
 
-            categories[category].append(name)
+            categories[category].append({
+                "name": metadata.name,
+                "id": metadata.flow_id
+            })
 
         return categories
 
@@ -297,7 +309,8 @@ class FlowRegistry:
             metadata = entry.metadata
             flow_data.append(
                 {
-                    "name": name,
+                    "name": metadata.name,
+                    "flow_id": metadata.flow_id,
                     "author": metadata.author or "Unknown",
                     "tags": ", ".join(metadata.tags) if metadata.tags else "-",
                     "description": metadata.description or "No description",
@@ -319,11 +332,12 @@ class FlowRegistry:
 
         # Add columns
         table.add_column("Name", style="cyan", no_wrap=True)
+        table.add_column("Flow ID", style="blue", no_wrap=True)
         table.add_column("Author", style="green")
 
         if show_all_columns:
-            table.add_column("Version", style="blue")
-            table.add_column("Cost", style="yellow")
+            table.add_column("Version", style="yellow")
+            table.add_column("Cost", style="magenta")
 
         table.add_column("Tags", style="dim")
         table.add_column("Description")
@@ -333,6 +347,7 @@ class FlowRegistry:
             if show_all_columns:
                 table.add_row(
                     flow["name"],
+                    flow["flow_id"],
                     flow["author"],
                     flow["version"],
                     flow["cost"],
@@ -341,7 +356,11 @@ class FlowRegistry:
                 )
             else:
                 table.add_row(
-                    flow["name"], flow["author"], flow["tags"], flow["description"]
+                    flow["name"],
+                    flow["flow_id"],
+                    flow["author"],
+                    flow["tags"],
+                    flow["description"]
                 )
 
         console.print(table)
