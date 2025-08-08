@@ -28,6 +28,7 @@ from .transform import (
     TextConcatBlock,
     UniformColumnValueSetter,
 )
+from .translation import TranslationBlock
 
 # All blocks moved to deprecated_blocks or transform modules
 

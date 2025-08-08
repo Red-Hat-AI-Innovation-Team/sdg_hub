@@ -1,0 +1,11 @@
+- role: system
+  content: You are a translation service. Translate the provided text accurately while preserving meaning and context.
+
+- role: user
+  content: |
+    Translate the following question and response from {{source_lang}} to {{target_lang}}:
+    
+    Question: {{question}}
+    Response: {{response}}
+    
+    Provide the translations in the same format.
