@@ -29,6 +29,7 @@ A modular Python framework for building synthetic data generation pipelines usin
 
 ## 📦 Installation
 
+Recommended: Install uv  — see https://docs.astral.sh/uv/getting-started/installation/
 
 ```bash
 # Production
@@ -47,7 +48,7 @@ uv pip install .[dev]
 uv pip install sdg-hub[vllm]
 
 # For examples
-uv pip install sdg-hub[examples]
+ pip install sdg-hub[examples]
 ```
 
 ## 🚀 Quick Start
