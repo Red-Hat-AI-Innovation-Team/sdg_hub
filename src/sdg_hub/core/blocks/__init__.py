@@ -28,6 +28,7 @@ from .transform import (
     UniformColumnValueSetter,
 )
 from .evaluation import EvaluateFaithfulnessBlock, EvaluateRelevancyBlock
+from .translation import TranslationBlock
 # All blocks moved to deprecated_blocks or transform modules
 
 __all__ = [
@@ -54,4 +55,5 @@ __all__ = [
     "PromptBuilderBlock",
     "EvaluateFaithfulnessBlock",
     "EvaluateRelevancyBlock",
+    "TranslationBlock",
 ]
