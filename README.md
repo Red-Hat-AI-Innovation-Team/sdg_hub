@@ -48,7 +48,7 @@ uv pip install .[dev]
 uv pip install sdg-hub[vllm]
 
 # For examples
- pip install sdg-hub[examples]
+uv pip install sdg-hub[examples]
 ```
 
 ## 🚀 Quick Start
