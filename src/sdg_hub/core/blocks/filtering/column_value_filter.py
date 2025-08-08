@@ -6,7 +6,7 @@ using various operations with optional data type conversion.
 """
 
 # Standard
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 import operator
 
 # Third Party
@@ -15,8 +15,8 @@ from pydantic import Field, field_validator
 
 # Local
 from ...utils.logger_config import setup_logger
-from ..registry import BlockRegistry
 from ..base import BaseBlock
+from ..registry import BlockRegistry
 
 logger = setup_logger(__name__)
 
@@ -66,14 +66,16 @@ class ColumnValueFilterBlock(BaseBlock):
         If None, no conversion is performed.
     """
 
-    filter_value: Union[Any, List[Any]] = Field(
+    filter_value: Union[Any, list[Any]] = Field(
         ..., description="The value(s) to filter by"
     )
     operation: str = Field(
-        ..., description="String name of binary operator for comparison (e.g., 'eq', 'contains')"
+        ...,
+        description="String name of binary operator for comparison (e.g., 'eq', 'contains')",
     )
     convert_dtype: Optional[str] = Field(
-        None, description="String name of type to convert filter column to ('float' or 'int')"
+        None,
+        description="String name of type to convert filter column to ('float' or 'int')",
     )
 
     @field_validator("operation")
@@ -81,15 +83,19 @@ class ColumnValueFilterBlock(BaseBlock):
     def validate_operation(cls, v):
         """Validate that operation is a supported operation string."""
         if v not in OPERATION_MAP:
-            raise ValueError(f"Unsupported operation '{v}'. Supported operations: {list(OPERATION_MAP.keys())}")
+            raise ValueError(
+                f"Unsupported operation '{v}'. Supported operations: {list(OPERATION_MAP.keys())}"
+            )
         return v
-    
+
     @field_validator("convert_dtype")
     @classmethod
     def validate_convert_dtype(cls, v):
         """Validate that convert_dtype is a supported type string."""
         if v is not None and v not in DTYPE_MAP:
-            raise ValueError(f"Unsupported dtype '{v}'. Supported dtypes: {list(DTYPE_MAP.keys())}")
+            raise ValueError(
+                f"Unsupported dtype '{v}'. Supported dtypes: {list(DTYPE_MAP.keys())}"
+            )
         return v
 
     @field_validator("input_cols", mode="after")
@@ -97,28 +103,38 @@ class ColumnValueFilterBlock(BaseBlock):
     def validate_input_cols_not_empty(cls, v):
         """Validate that we have at least one input column."""
         if not v or len(v) == 0:
-            raise ValueError("ColumnValueFilterBlock requires at least one input column")
+            raise ValueError(
+                "ColumnValueFilterBlock requires at least one input column"
+            )
         return v
 
     def model_post_init(self, __context: Any) -> None:
         """Initialize derived attributes after Pydantic validation."""
-        super().model_post_init(__context) if hasattr(super(), 'model_post_init') else None
-        
+        super().model_post_init(__context) if hasattr(
+            super(), "model_post_init"
+        ) else None
+
         # Ensure output_cols is empty list for filtering operations (doesn't create new columns)
         if self.output_cols is None:
             self.output_cols = []
-        
+
         # Set derived attributes
-        self.value = self.filter_value if isinstance(self.filter_value, list) else [self.filter_value]
+        self.value = (
+            self.filter_value
+            if isinstance(self.filter_value, list)
+            else [self.filter_value]
+        )
         self.column_name = self.input_cols[0]  # Use first input column for filtering
-        
+
         # Convert string operation to actual callable
         self._operation_func = OPERATION_MAP[self.operation]
-        
-        # Convert string dtype to actual type if specified
-        self._convert_dtype_func = DTYPE_MAP[self.convert_dtype] if self.convert_dtype else None
 
-    def _convert_dtype(self, sample: Dict[str, Any]) -> Dict[str, Any]:
+        # Convert string dtype to actual type if specified
+        self._convert_dtype_func = (
+            DTYPE_MAP[self.convert_dtype] if self.convert_dtype else None
+        )
+
+    def _convert_dtype(self, sample: dict[str, Any]) -> dict[str, Any]:
         """Convert the data type of the filter column.
 
         Parameters
@@ -132,7 +148,9 @@ class ColumnValueFilterBlock(BaseBlock):
             The sample with converted column value.
         """
         try:
-            sample[self.column_name] = self._convert_dtype_func(sample[self.column_name])
+            sample[self.column_name] = self._convert_dtype_func(
+                sample[self.column_name]
+            )
         except ValueError as e:
             logger.error(
                 "Error converting dtype: %s, filling with None to be filtered later", e

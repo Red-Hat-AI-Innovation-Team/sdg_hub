@@ -4,11 +4,11 @@
 
 # Third Party
 from datasets import Dataset, Features, Value
-import pytest
 
 # First Party
 from sdg_hub.core.blocks import ColumnValueFilterBlock
 from sdg_hub.core.utils.error_handling import EmptyDatasetError, MissingColumnError
+import pytest
 
 
 @pytest.fixture
@@ -224,12 +224,25 @@ def test_filter_block_with_contains_multiple_values():
         operation="contains",
     )
     dataset = Dataset.from_dict(
-        {"text": ["hello world", "goodbye moon", "hello there", "world peace", "moon landing"]},
+        {
+            "text": [
+                "hello world",
+                "goodbye moon",
+                "hello there",
+                "world peace",
+                "moon landing",
+            ]
+        },
         features=Features({"text": Value("string")}),
     )
     filtered_dataset = block(dataset)
     assert len(filtered_dataset) == 4
-    assert filtered_dataset["text"] == ["hello world", "goodbye moon", "world peace", "moon landing"]
+    assert filtered_dataset["text"] == [
+        "hello world",
+        "goodbye moon",
+        "world peace",
+        "moon landing",
+    ]
 
 
 def test_filter_block_with_all_operations():
@@ -238,31 +251,47 @@ def test_filter_block_with_all_operations():
         {"score": ["10", "20", "30", "40", "50"]},
         features=Features({"score": Value("string")}),
     )
-    
+
     # Test eq
     block_eq = ColumnValueFilterBlock(
-        block_name="test_eq", input_cols="score", filter_value=30, operation="eq", convert_dtype="int"
+        block_name="test_eq",
+        input_cols="score",
+        filter_value=30,
+        operation="eq",
+        convert_dtype="int",
     )
     result = block_eq(dataset)
     assert result["score"] == [30]
-    
+
     # Test ne
     block_ne = ColumnValueFilterBlock(
-        block_name="test_ne", input_cols="score", filter_value=30, operation="ne", convert_dtype="int"
+        block_name="test_ne",
+        input_cols="score",
+        filter_value=30,
+        operation="ne",
+        convert_dtype="int",
     )
     result = block_ne(dataset)
     assert result["score"] == [10, 20, 40, 50]
-    
-    # Test le 
+
+    # Test le
     block_le = ColumnValueFilterBlock(
-        block_name="test_le", input_cols="score", filter_value=30, operation="le", convert_dtype="int"
+        block_name="test_le",
+        input_cols="score",
+        filter_value=30,
+        operation="le",
+        convert_dtype="int",
     )
     result = block_le(dataset)
     assert result["score"] == [10, 20, 30]
-    
+
     # Test ge
     block_ge = ColumnValueFilterBlock(
-        block_name="test_ge", input_cols="score", filter_value=30, operation="ge", convert_dtype="int"
+        block_name="test_ge",
+        input_cols="score",
+        filter_value=30,
+        operation="ge",
+        convert_dtype="int",
     )
     result = block_ge(dataset)
     assert result["score"] == [30, 40, 50]

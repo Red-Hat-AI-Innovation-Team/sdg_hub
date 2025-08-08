@@ -7,11 +7,11 @@ mode, min, max, mean, or median.
 
 # Standard
 from typing import Any, Literal
-import numpy as np
 
 # Third Party
 from datasets import Dataset
 from pydantic import field_validator
+import numpy as np
 
 # Local
 from ...utils.logger_config import setup_logger

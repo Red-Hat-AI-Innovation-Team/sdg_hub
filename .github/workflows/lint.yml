@@ -5,7 +5,7 @@ name: Lint, Format, and MyPy
 on:
   push:
     branches:
-      - "main-disabled"
+      - "main"
     paths:
       - '**.py'
       - 'pyproject.toml'
@@ -15,7 +15,7 @@ on:
       - '.github/**'
   pull_request:
     branches:
-      - "main-disabled"
+      - "main"
     paths:
       - '**.py'
       - 'pyproject.toml'
@@ -57,13 +57,15 @@ jobs:
         run: |
           tox -e ruff -- check
 
-      - name: Run linting
-        if: ${{ !cancelled() && (steps.deps.outcome == 'success') }}
-        run: |
-          echo "::add-matcher::.github/workflows/matchers/pylint.json"
-          tox -e lint
+      # Pylint disabled for now - may re-enable as non-blocking check in future
+      # - name: Run linting
+      #   if: ${{ !cancelled() && (steps.deps.outcome == 'success') }}
+      #   run: |
+      #     echo "::add-matcher::.github/workflows/matchers/pylint.json"
+      #     tox -e lint
 
-      - name: Run mypy type checks
-        if: ${{ !cancelled() && (steps.deps.outcome == 'success') }}
-        run: |
-          tox -e mypy
+      # MyPy type checking disabled for now - may re-enable as non-blocking check in future
+      # - name: Run mypy type checks
+      #   if: ${{ !cancelled() && (steps.deps.outcome == 'success') }}
+      #   run: |
+      #     tox -e mypy

@@ -2,8 +2,8 @@
 """Configuration system for LLM blocks supporting all providers via LiteLLM."""
 
 # Standard
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from dataclasses import dataclass
+from typing import Any, Optional, Union
 import os
 
 
@@ -32,7 +32,9 @@ class LLMConfig:
 
     api_base : Optional[str], optional
         Base URL for the API. Required for local models.
-        Examples:
+
+    Examples
+    --------
         - "http://localhost:8000/v1" for local vLLM
         - "http://localhost:11434" for Ollama
 
@@ -105,9 +107,9 @@ class LLMConfig:
     top_p: Optional[float] = None
     frequency_penalty: Optional[float] = None
     presence_penalty: Optional[float] = None
-    stop: Optional[Union[str, List[str]]] = None
+    stop: Optional[Union[str, list[str]]] = None
     seed: Optional[int] = None
-    response_format: Optional[Dict[str, Any]] = None
+    response_format: Optional[dict[str, Any]] = None
     stream: Optional[bool] = None
     n: Optional[int] = None
     logprobs: Optional[bool] = None
@@ -115,9 +117,9 @@ class LLMConfig:
     user: Optional[str] = None
 
     # Additional parameters
-    extra_headers: Optional[Dict[str, str]] = None
-    extra_body: Optional[Dict[str, Any]] = None
-    provider_specific: Optional[Dict[str, Any]] = None
+    extra_headers: Optional[dict[str, str]] = None
+    extra_body: Optional[dict[str, Any]] = None
+    provider_specific: Optional[dict[str, Any]] = None
 
     def __post_init__(self) -> None:
         """Validate configuration after initialization."""
@@ -219,7 +221,7 @@ class LLMConfig:
         if env_var:
             self.api_key = os.getenv(env_var)
 
-    def get_generation_kwargs(self) -> Dict[str, Any]:
+    def get_generation_kwargs(self) -> dict[str, Any]:
         """Get generation parameters as kwargs for LiteLLM completion."""
         kwargs = {}
 
@@ -269,6 +271,7 @@ class LLMConfig:
             New configuration with overrides applied.
         """
         # Get current values as dict
+        # Standard
         from dataclasses import fields
 
         current_values = {

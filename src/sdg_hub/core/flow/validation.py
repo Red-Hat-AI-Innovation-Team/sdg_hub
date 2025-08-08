@@ -2,7 +2,7 @@
 """Flow validation utilities."""
 
 # Standard
-from typing import TYPE_CHECKING, Any, Dict, List, Set
+from typing import TYPE_CHECKING, Any
 
 # Third Party
 from datasets import Dataset
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 class FlowValidator:
     """Validator for flow configurations and execution readiness."""
 
-    def validate_yaml_structure(self, flow_config: Dict[str, Any]) -> List[str]:
+    def validate_yaml_structure(self, flow_config: dict[str, Any]) -> list[str]:
         """Validate the structure of a flow YAML configuration.
 
         Parameters
@@ -62,8 +62,8 @@ class FlowValidator:
         return errors
 
     def _validate_block_config(
-        self, block_config: Dict[str, Any], index: int
-    ) -> List[str]:
+        self, block_config: dict[str, Any], index: int
+    ) -> list[str]:
         """Validate a single block configuration."""
         errors = []
         prefix = f"Block {index}"
@@ -98,7 +98,7 @@ class FlowValidator:
 
         return errors
 
-    def _validate_metadata_config(self, metadata: Dict[str, Any]) -> List[str]:
+    def _validate_metadata_config(self, metadata: dict[str, Any]) -> list[str]:
         """Validate metadata configuration."""
         errors = []
 
@@ -133,7 +133,7 @@ class FlowValidator:
 
         return errors
 
-    def _validate_parameters_config(self, parameters: Dict[str, Any]) -> List[str]:
+    def _validate_parameters_config(self, parameters: dict[str, Any]) -> list[str]:
         """Validate parameters configuration."""
         errors = []
 
@@ -168,7 +168,7 @@ class FlowValidator:
 
         return errors
 
-    def validate_flow_execution(self, flow: "Flow", dataset: Dataset) -> List[str]:
+    def validate_flow_execution(self, flow: "Flow", dataset: Dataset) -> list[str]:
         """Validate that a flow can be executed with the given dataset.
 
         Parameters
@@ -196,7 +196,7 @@ class FlowValidator:
         # Track available columns as we progress through blocks
         current_columns = set(dataset.column_names)
 
-        for i, block in enumerate(flow.blocks):
+        for _i, block in enumerate(flow.blocks):
             block_name = block.block_name
 
             # Check input columns
@@ -217,16 +217,14 @@ class FlowValidator:
         return errors
 
     def _check_missing_columns(
-        self, required_cols: Any, available_cols: Set[str]
-    ) -> List[str]:
+        self, required_cols: Any, available_cols: set[str]
+    ) -> list[str]:
         """Check which required columns are missing."""
-        if isinstance(required_cols, list):
+        if isinstance(required_cols, (list, dict)):
             return [col for col in required_cols if col not in available_cols]
-        elif isinstance(required_cols, dict):
-            return [col for col in required_cols.keys() if col not in available_cols]
         return []
 
-    def _extract_column_names(self, output_cols: Any) -> List[str]:
+    def _extract_column_names(self, output_cols: Any) -> list[str]:
         """Extract column names from output specification."""
         if isinstance(output_cols, list):
             return output_cols
@@ -234,7 +232,7 @@ class FlowValidator:
             return list(output_cols.keys())
         return []
 
-    def validate_block_chain(self, blocks: List[Any]) -> List[str]:
+    def validate_block_chain(self, blocks: list[Any]) -> list[str]:
         """Validate that blocks can be chained together.
 
         Parameters

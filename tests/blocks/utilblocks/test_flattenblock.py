@@ -6,10 +6,10 @@ including column melting, value mapping, and edge case handling.
 
 # Third Party
 from datasets import Dataset
-import pytest
 
 # First Party
 from sdg_hub.core.blocks.deprecated_blocks import FlattenColumnsBlock
+import pytest
 
 
 def test_flatten_columns_basic():

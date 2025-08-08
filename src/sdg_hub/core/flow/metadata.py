@@ -4,7 +4,7 @@
 # Standard
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 # Third Party
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -59,8 +59,8 @@ class RecommendedModels(BaseModel):
     """
 
     default: str = Field(..., description="Default model to use")
-    compatible: List[str] = Field(default_factory=list, description="Compatible models")
-    experimental: List[str] = Field(
+    compatible: list[str] = Field(default_factory=list, description="Compatible models")
+    experimental: list[str] = Field(
         default_factory=list, description="Experimental models"
     )
 
@@ -74,16 +74,16 @@ class RecommendedModels(BaseModel):
 
     @field_validator("compatible", "experimental")
     @classmethod
-    def validate_model_lists(cls, v: List[str]) -> List[str]:
+    def validate_model_lists(cls, v: list[str]) -> list[str]:
         """Validate model lists contain non-empty names."""
         return [model.strip() for model in v if model.strip()]
 
-    def get_all_models(self) -> List[str]:
+    def get_all_models(self) -> list[str]:
         """Get all models (default + compatible + experimental)."""
         return [self.default] + self.compatible + self.experimental
 
     def get_best_model(
-        self, available_models: Optional[List[str]] = None
+        self, available_models: Optional[list[str]] = None
     ) -> Optional[str]:
         """Get the best model based on availability.
 
@@ -136,7 +136,7 @@ class FlowParameter(BaseModel):
     description: str = Field(default="", description="Human-readable description")
     type_hint: str = Field(default="Any", description="Type hint as string")
     required: bool = Field(default=False, description="Whether parameter is required")
-    constraints: Dict[str, Any] = Field(
+    constraints: dict[str, Any] = Field(
         default_factory=dict, description="Additional constraints for the parameter"
     )
 
@@ -167,10 +167,10 @@ class DatasetRequirements(BaseModel):
         Human-readable description of dataset requirements.
     """
 
-    required_columns: List[str] = Field(
+    required_columns: list[str] = Field(
         default_factory=list, description="Column names that must be present"
     )
-    optional_columns: List[str] = Field(
+    optional_columns: list[str] = Field(
         default_factory=list,
         description="Optional columns that can enhance performance",
     )
@@ -180,14 +180,14 @@ class DatasetRequirements(BaseModel):
     max_samples: Optional[int] = Field(
         default=None, gt=0, description="Maximum number of samples to process"
     )
-    column_types: Dict[str, str] = Field(
+    column_types: dict[str, str] = Field(
         default_factory=dict, description="Expected types for specific columns"
     )
     description: str = Field(default="", description="Human-readable description")
 
     @field_validator("required_columns", "optional_columns")
     @classmethod
-    def validate_column_names(cls, v: List[str]) -> List[str]:
+    def validate_column_names(cls, v: list[str]) -> list[str]:
         """Validate column names are not empty."""
         return [col.strip() for col in v if col.strip()]
 
@@ -199,8 +199,8 @@ class DatasetRequirements(BaseModel):
         return self
 
     def validate_dataset(
-        self, dataset_columns: List[str], dataset_size: int
-    ) -> List[str]:
+        self, dataset_columns: list[str], dataset_size: int
+    ) -> list[str]:
         """Validate a dataset against these requirements.
 
         Parameters
@@ -277,7 +277,7 @@ class FlowMetadata(BaseModel):
     recommended_models: Optional[RecommendedModels] = Field(
         default=None, description="Simplified recommended models structure"
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list, description="Tags for categorization and search"
     )
     created_at: str = Field(
@@ -306,7 +306,7 @@ class FlowMetadata(BaseModel):
 
     @field_validator("tags")
     @classmethod
-    def validate_tags(cls, v: List[str]) -> List[str]:
+    def validate_tags(cls, v: list[str]) -> list[str]:
         """Validate and clean tags."""
         return [tag.strip().lower() for tag in v if tag.strip()]
 
@@ -324,7 +324,7 @@ class FlowMetadata(BaseModel):
         self.updated_at = datetime.now().isoformat()
 
     def get_best_model(
-        self, available_models: Optional[List[str]] = None
+        self, available_models: Optional[list[str]] = None
     ) -> Optional[str]:
         """Get the best recommended model based on availability.
 

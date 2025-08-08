@@ -5,11 +5,12 @@ This module provides blocks for transforming datasets including column operation
 wide-to-long transformations, value selection, and majority value assignment.
 """
 
-from .text_concat import TextConcatBlock
+# Local
 from .duplicate_columns import DuplicateColumnsBlock
-from .melt_columns import MeltColumnsBlock
 from .index_based_mapper import IndexBasedMapperBlock
+from .melt_columns import MeltColumnsBlock
 from .rename_columns import RenameColumnsBlock
+from .text_concat import TextConcatBlock
 from .uniform_col_val_setter import UniformColumnValueSetter
 
 __all__ = [

@@ -2,16 +2,15 @@
 """Tests for flow migration functionality."""
 
 # Standard
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock
+import tempfile
+
+# First Party
+from sdg_hub.core.flow.migration import FlowMigration
 
 # Third Party
-import pytest
 import yaml
-
-# Local
-from sdg_hub.core.flow.migration import FlowMigration
 
 
 class TestFlowMigration:
@@ -28,7 +27,7 @@ class TestFlowMigration:
         """Test that new format (dict with metadata/blocks) is correctly detected."""
         new_config = {
             "metadata": {"name": "test"},
-            "blocks": [{"block_type": "LLMBlock"}]
+            "blocks": [{"block_type": "LLMBlock"}],
         }
         assert FlowMigration.is_old_format(new_config) is False
 
@@ -36,14 +35,12 @@ class TestFlowMigration:
         """Test edge cases for format detection."""
         # Empty list (old format)
         assert FlowMigration.is_old_format([]) is True
-        
+
         # Empty dict (assume new format)
         assert FlowMigration.is_old_format({}) is False
-        
+
         # Dict without metadata/blocks but with block-like structure
-        dict_with_blocks = {
-            "some_key": {"block_type": "TestBlock"}
-        }
+        dict_with_blocks = {"some_key": {"block_type": "TestBlock"}}
         assert FlowMigration.is_old_format(dict_with_blocks) is True
 
     def test_migrate_basic_old_format(self):
@@ -54,35 +51,32 @@ class TestFlowMigration:
                 "block_config": {
                     "block_name": "test_block",
                     "config_path": "test.yaml",
-                    "output_cols": ["output"]
+                    "output_cols": ["output"],
                 },
-                "gen_kwargs": {
-                    "temperature": 0.7,
-                    "max_tokens": 100
-                }
+                "gen_kwargs": {"temperature": 0.7, "max_tokens": 100},
             }
         ]
-        
+
         new_config, runtime_params = FlowMigration.migrate_to_new_format(
             old_config, "/test/flow.yaml"
         )
-        
+
         # Check structure
         assert "metadata" in new_config
         assert "blocks" in new_config
         assert len(new_config["blocks"]) == 1
-        
+
         # Check metadata
         metadata = new_config["metadata"]
         assert metadata["name"] == "flow"
         assert metadata["version"] == "1.0.0"
         assert "migrated" in metadata["tags"]
-        
+
         # Check runtime params extraction
         assert "test_block" in runtime_params
         assert runtime_params["test_block"]["temperature"] == 0.7
         assert runtime_params["test_block"]["max_tokens"] == 100
-        
+
         # Check gen_kwargs removed from block config
         block = new_config["blocks"][0]
         assert "gen_kwargs" not in block
@@ -95,18 +89,18 @@ class TestFlowMigration:
                 "block_config": {
                     "block_name": "filter_block",
                     "filter_column": "score",
-                    "filter_value": 1.0
+                    "filter_value": 1.0,
                 },
                 "drop_columns": ["temp_col"],
                 "drop_duplicates": ["id"],
-                "batch_kwargs": {"num_procs": 4}
+                "batch_kwargs": {"num_procs": 4},
             }
         ]
-        
+
         new_config, runtime_params = FlowMigration.migrate_to_new_format(
             old_config, "/test/flow.yaml"
         )
-        
+
         block = new_config["blocks"][0]
         assert "drop_columns" not in block
         assert "drop_duplicates" not in block
@@ -121,15 +115,15 @@ class TestFlowMigration:
                     "block_name": "filter_block",
                     "filter_column": "score",
                     "filter_value": 1.0,
-                    "operation": "operator.eq"
-                }
+                    "operation": "operator.eq",
+                },
             }
         ]
-        
+
         new_config, runtime_params = FlowMigration.migrate_to_new_format(
             old_config, "/test/flow.yaml"
         )
-        
+
         block = new_config["blocks"][0]
         assert block["block_config"]["operation"] == "eq"
 
@@ -144,16 +138,16 @@ class TestFlowMigration:
                     "output_cols": ["output"],
                     "parser_kwargs": {
                         "parser_name": "custom",
-                        "parsing_pattern": "test_pattern"
-                    }
-                }
+                        "parsing_pattern": "test_pattern",
+                    },
+                },
             }
         ]
-        
+
         new_config, runtime_params = FlowMigration.migrate_to_new_format(
             old_config, "/test/flow.yaml"
         )
-        
+
         block = new_config["blocks"][0]
         parser_kwargs = block["block_config"]["parser_kwargs"]
         assert parser_kwargs["parser_name"] == "custom"
@@ -165,65 +159,59 @@ class TestFlowMigration:
             {
                 "block_type": "LLMBlock",
                 "block_config": {"block_name": "llm1"},
-                "gen_kwargs": {"temperature": 0.5}
+                "gen_kwargs": {"temperature": 0.5},
             },
             {
                 "block_type": "FilterByValueBlock",
-                "block_config": {
-                    "block_name": "filter1",
-                    "operation": "operator.ge"
-                },
-                "drop_columns": ["temp"]
+                "block_config": {"block_name": "filter1", "operation": "operator.ge"},
+                "drop_columns": ["temp"],
             },
-            {
-                "block_type": "DuplicateColumns",
-                "block_config": {"block_name": "dup1"}
-            }
+            {"block_type": "DuplicateColumns", "block_config": {"block_name": "dup1"}},
         ]
-        
+
         new_config, runtime_params = FlowMigration.migrate_to_new_format(
             old_config, "/test/complex_flow.yaml"
         )
-        
+
         assert len(new_config["blocks"]) == 3
         assert "llm1" in runtime_params
         assert runtime_params["llm1"]["temperature"] == 0.5
-        
+
         # Check operator conversion
         filter_block = new_config["blocks"][1]
         assert filter_block["block_config"]["operation"] == "ge"
-        
+
         # Check drop_columns removed
         assert "drop_columns" not in filter_block
 
     def test_migrate_handles_malformed_blocks(self):
         """Test that malformed blocks are handled gracefully."""
         old_config = [
-            {
-                "block_type": "LLMBlock",
-                "block_config": {"block_name": "good_block"}
-            },
+            {"block_type": "LLMBlock", "block_config": {"block_name": "good_block"}},
             "invalid_block_config",  # This should be handled gracefully
             {
                 "block_type": "FilterByValueBlock",
-                "block_config": {"block_name": "another_good_block"}
-            }
+                "block_config": {"block_name": "another_good_block"},
+            },
         ]
-        
+
         new_config, runtime_params = FlowMigration.migrate_to_new_format(
             old_config, "/test/flow.yaml"
         )
-        
+
         # Should still have 3 blocks (including the malformed one as fallback)
         assert len(new_config["blocks"]) == 3
         # Good blocks should still be processed
         assert new_config["blocks"][0]["block_config"]["block_name"] == "good_block"
-        assert new_config["blocks"][2]["block_config"]["block_name"] == "another_good_block"
+        assert (
+            new_config["blocks"][2]["block_config"]["block_name"]
+            == "another_good_block"
+        )
 
     def test_generate_default_metadata(self):
         """Test default metadata generation."""
         metadata = FlowMigration._generate_default_metadata("test_flow")
-        
+
         assert metadata["name"] == "test_flow"
         assert metadata["version"] == "1.0.0"
         assert metadata["author"] == "SDG_Hub"
@@ -237,12 +225,12 @@ class TestFlowMigration:
         result_config, result_params = FlowMigration._migrate_block_config("not_a_dict")
         assert result_config == "not_a_dict"
         assert result_params == {}
-        
+
         # Test with empty dict
         result_config, result_params = FlowMigration._migrate_block_config({})
         assert result_config == {}
         assert result_params == {}
-        
+
         # Test with dict missing expected fields
         config = {"some_field": "some_value"}
         result_config, result_params = FlowMigration._migrate_block_config(config)
@@ -253,63 +241,54 @@ class TestFlowMigration:
 class TestFlowMigrationIntegration:
     """Integration tests for flow migration with actual Flow class."""
 
-    def setup_method(self):
-        """Set up test fixtures by importing deprecated blocks."""
-        # Import deprecated blocks to ensure they're registered
-        try:
-            from src.sdg_hub.blocks.deprecated_blocks.llmblock import LLMBlock
-            from src.sdg_hub.blocks.deprecated_blocks.duplicate_columns import DuplicateColumns
-            from src.sdg_hub.blocks.transform.duplicate_columns import DuplicateColumnsBlock
-        except ImportError:
-            # If imports fail, the tests will appropriately skip
-            pass
-
     def test_flow_from_yaml_with_old_format(self):
         """Test loading an old format YAML through Flow.from_yaml."""
-        # Standard
+        # First Party
         from sdg_hub import Flow
-        
+
         old_flow_config = [
             {
                 "block_type": "DuplicateColumns",
                 "block_config": {
                     "block_name": "test_duplicate",
-                    "columns_map": {"input": "output"}
-                }
+                    "columns_map": {"input": "output"},
+                },
             }
         ]
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             yaml.dump(old_flow_config, f)
             temp_path = f.name
-        
+
         try:
             # Should successfully load old format
             flow = Flow.from_yaml(temp_path)
-            
+
             assert flow.metadata.name == Path(temp_path).stem
             assert "migrated" in flow.metadata.tags
             assert len(flow.blocks) == 1
             assert flow.blocks[0].block_name == "test_duplicate"
-            
+
         finally:
             Path(temp_path).unlink()
 
     def test_flow_from_yaml_with_llm_client_injection(self):
         """Test that client is properly injected for LLMBlocks."""
-        # Standard
+        # First Party
         from sdg_hub import Flow
-        
+
         # Create a simple config file for LLMBlock
         config_content = """
 system: "You are a helpful assistant."
 introduction: "Generate text"
 """
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as config_f:
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".yaml", delete=False
+        ) as config_f:
             config_f.write(config_content)
             config_path = config_f.name
-        
+
         old_flow_config = [
             {
                 "block_type": "LLMBlock",
@@ -317,71 +296,71 @@ introduction: "Generate text"
                     "block_name": "test_llm",
                     "config_path": config_path,
                     "output_cols": ["output"],
-                    "model_id": "test-model"
+                    "model_id": "test-model",
                 },
-                "gen_kwargs": {
-                    "temperature": 0.7
-                }
+                "gen_kwargs": {"temperature": 0.7},
             }
         ]
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as flow_f:
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".yaml", delete=False
+        ) as flow_f:
             yaml.dump(old_flow_config, flow_f)
             flow_path = flow_f.name
-        
+
         try:
             mock_client = MagicMock()
-            
+
             # Should successfully load with client injection
             flow = Flow.from_yaml(flow_path, client=mock_client)
-            
+
             assert len(flow.blocks) == 1
             assert flow.blocks[0].block_name == "test_llm"
-            
+
             # Check that runtime params were extracted
-            assert hasattr(flow, '_migrated_runtime_params')
+            assert hasattr(flow, "_migrated_runtime_params")
             assert "test_llm" in flow._migrated_runtime_params
             assert flow._migrated_runtime_params["test_llm"]["temperature"] == 0.7
-            
+
         finally:
             Path(flow_path).unlink()
             Path(config_path).unlink()
 
     def test_flow_from_yaml_new_format_ignores_client(self):
         """Test that new format YAMLs ignore the client parameter."""
-        # Standard
+        # First Party
         from sdg_hub import Flow
-        
+
         new_flow_config = {
             "metadata": {
                 "name": "test_flow",
                 "version": "1.0.0",
-                "description": "Test flow"
+                "description": "Test flow",
             },
             "blocks": [
                 {
                     "block_type": "DuplicateColumnsBlock",
                     "block_config": {
                         "block_name": "test_block",
-                        "input_cols": {"input": "output"}
-                    }
+                        "input_cols": {"input": "output"},
+                    },
                 }
-            ]
+            ],
         }
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             yaml.dump(new_flow_config, f)
             temp_path = f.name
-        
+
         try:
             mock_client = MagicMock()
-            
+
             # Should load successfully and ignore client
             flow = Flow.from_yaml(temp_path, client=mock_client)
-            
+
             assert flow.metadata.name == "test_flow"
-            assert not hasattr(flow, '_llm_client') or flow._llm_client is None
+            assert not hasattr(flow, "_llm_client") or flow._llm_client is None
             assert len(flow.blocks) == 1
-            
+
         finally:
             Path(temp_path).unlink()

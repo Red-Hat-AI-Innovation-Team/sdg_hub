@@ -2,19 +2,19 @@
 """Tests for EvaluateFaithfulnessBlock."""
 
 # Standard
+from unittest.mock import MagicMock, patch
 import os
 import tempfile
-from unittest.mock import MagicMock, patch
 
 # Third Party
 from datasets import Dataset
-import pytest
 
 # First Party
+from sdg_hub import BlockRegistry
 from sdg_hub.core.blocks.evaluation.evaluate_faithfulness_block import (
     EvaluateFaithfulnessBlock,
 )
-from sdg_hub import BlockRegistry
+import pytest
 
 
 class TestEvaluateFaithfulnessBlock:
@@ -241,7 +241,9 @@ class TestEvaluateFaithfulnessBlock:
             block._validate_custom(sample_dataset)
 
     @patch("sdg_hub.core.blocks.evaluation.evaluate_faithfulness_block.LLMChatBlock")
-    @patch("sdg_hub.core.blocks.evaluation.evaluate_faithfulness_block.PromptBuilderBlock")
+    @patch(
+        "sdg_hub.core.blocks.evaluation.evaluate_faithfulness_block.PromptBuilderBlock"
+    )
     @patch("sdg_hub.core.blocks.evaluation.evaluate_faithfulness_block.TextParserBlock")
     @patch(
         "sdg_hub.core.blocks.evaluation.evaluate_faithfulness_block.ColumnValueFilterBlock"
@@ -464,11 +466,13 @@ class TestEvaluateFaithfulnessBlock:
         )
 
         # Mock the prompt builder to raise an exception
-        with patch.object(
-            block.prompt_builder, "generate", side_effect=Exception("Test error")
+        with (
+            patch.object(
+                block.prompt_builder, "generate", side_effect=Exception("Test error")
+            ),
+            pytest.raises(Exception, match="Test error"),
         ):
-            with pytest.raises(Exception, match="Test error"):
-                block.generate(sample_dataset)
+            block.generate(sample_dataset)
 
     def test_validation_with_empty_dataset(self, test_yaml_config):
         """Test validation with empty dataset."""

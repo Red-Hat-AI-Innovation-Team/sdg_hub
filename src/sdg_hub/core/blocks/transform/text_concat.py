@@ -21,7 +21,7 @@ logger = setup_logger(__name__)
 
 
 @BlockRegistry.register(
-    "TextConcatBlock", 
+    "TextConcatBlock",
     "transform",
     "Combines multiple columns into a single column using a specified separator",
 )
@@ -43,7 +43,9 @@ class TextConcatBlock(BaseBlock):
         String to use as separator between combined values.
     """
 
-    separator: str = Field(default="\n\n", description="Separator to use between combined values")
+    separator: str = Field(
+        default="\n\n", description="Separator to use between combined values"
+    )
 
     @field_validator("input_cols", mode="after")
     @classmethod
@@ -78,7 +80,7 @@ class TextConcatBlock(BaseBlock):
         """
         if not self.output_cols:
             raise ValueError("output_cols must be specified")
-        
+
         output_col = self.output_cols[0]
 
         def _combine_columns(sample):

@@ -65,6 +65,5 @@ class RenameColumnsBlock(BaseBlock):
         Dataset
             Dataset with renamed columns.
         """
-
         # Rename columns using HuggingFace datasets method
         return samples.rename_columns(self.input_cols)

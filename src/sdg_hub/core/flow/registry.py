@@ -4,7 +4,7 @@
 # Standard
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 import os
 
 # Third Party
@@ -36,8 +36,8 @@ class FlowRegistryEntry:
 class FlowRegistry:
     """Registry for managing contributed flows."""
 
-    _entries: Dict[str, FlowRegistryEntry] = {}
-    _search_paths: List[str] = []
+    _entries: dict[str, FlowRegistryEntry] = {}
+    _search_paths: list[str] = []
     _initialized: bool = False
 
     @classmethod
@@ -116,7 +116,7 @@ class FlowRegistry:
 
         for yaml_file in path.rglob("*.yaml"):
             try:
-                with open(yaml_file, "r", encoding="utf-8") as f:
+                with open(yaml_file, encoding="utf-8") as f:
                     flow_config = yaml.safe_load(f)
 
                 # Check if this is a flow file
@@ -175,7 +175,7 @@ class FlowRegistry:
         return None
 
     @classmethod
-    def list_flows(cls) -> List[str]:
+    def list_flows(cls) -> list[str]:
         """List all registered flow names.
 
         Returns
@@ -190,7 +190,7 @@ class FlowRegistry:
     @classmethod
     def search_flows(
         cls, tag: Optional[str] = None, author: Optional[str] = None
-    ) -> List[str]:
+    ) -> list[str]:
         """Search flows by criteria.
 
         Parameters
@@ -226,7 +226,7 @@ class FlowRegistry:
         return matching_flows
 
     @classmethod
-    def get_flows_by_category(cls) -> Dict[str, List[str]]:
+    def get_flows_by_category(cls) -> dict[str, list[str]]:
         """Get flows organized by their primary tag.
 
         Returns

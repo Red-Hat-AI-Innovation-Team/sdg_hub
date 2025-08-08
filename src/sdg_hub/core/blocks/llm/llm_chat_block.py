@@ -2,7 +2,7 @@
 """Unified LLM chat block supporting all providers via LiteLLM."""
 
 # Standard
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 import asyncio
 
 # Third Party
@@ -10,8 +10,8 @@ from datasets import Dataset
 from pydantic import Field, field_validator
 
 # Local
-from ...utils.logger_config import setup_logger
 from ...utils.error_handling import BlockValidationError
+from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
 from ..registry import BlockRegistry
 from .client_manager import LLMClientManager
@@ -160,11 +160,11 @@ class LLMChatBlock(BaseBlock):
     presence_penalty: Optional[float] = Field(
         None, description="Presence penalty (-2.0 to 2.0)"
     )
-    stop: Optional[Union[str, List[str]]] = Field(None, description="Stop sequences")
+    stop: Optional[Union[str, list[str]]] = Field(None, description="Stop sequences")
     seed: Optional[int] = Field(
         None, description="Random seed for reproducible outputs"
     )
-    response_format: Optional[Dict[str, Any]] = Field(
+    response_format: Optional[dict[str, Any]] = Field(
         None, description="Response format specification"
     )
     stream: Optional[bool] = Field(None, description="Whether to stream responses")
@@ -176,13 +176,13 @@ class LLMChatBlock(BaseBlock):
         None, description="Number of top log probabilities to return"
     )
     user: Optional[str] = Field(None, description="End-user identifier")
-    extra_headers: Optional[Dict[str, str]] = Field(
+    extra_headers: Optional[dict[str, str]] = Field(
         None, description="Additional headers"
     )
-    extra_body: Optional[Dict[str, Any]] = Field(
+    extra_body: Optional[dict[str, Any]] = Field(
         None, description="Additional request body parameters"
     )
-    provider_specific: Optional[Dict[str, Any]] = Field(
+    provider_specific: Optional[dict[str, Any]] = Field(
         None, description="Provider-specific parameters"
     )
 
@@ -281,7 +281,7 @@ class LLMChatBlock(BaseBlock):
         """
         self._setup_client_manager()
 
-    def generate(self, samples: Dataset, **override_kwargs: Dict[str, Any]) -> Dataset:
+    def generate(self, samples: Dataset, **override_kwargs: dict[str, Any]) -> Dataset:
         """Generate responses from the LLM.
 
         Parameters set at runtime override those set during initialization.
@@ -354,9 +354,9 @@ class LLMChatBlock(BaseBlock):
 
     def _generate_sync(
         self,
-        messages_list: List[List[Dict[str, Any]]],
-        **override_kwargs: Dict[str, Any],
-    ) -> List[Union[str, List[str]]]:
+        messages_list: list[list[dict[str, Any]]],
+        **override_kwargs: dict[str, Any],
+    ) -> list[Union[str, list[str]]]:
         """Generate responses synchronously.
 
         Parameters
@@ -408,9 +408,9 @@ class LLMChatBlock(BaseBlock):
 
     async def _generate_async(
         self,
-        messages_list: List[List[Dict[str, Any]]],
-        **override_kwargs: Dict[str, Any],
-    ) -> List[Union[str, List[str]]]:
+        messages_list: list[list[dict[str, Any]]],
+        **override_kwargs: dict[str, Any],
+    ) -> list[Union[str, list[str]]]:
         """Generate responses asynchronously.
 
         Parameters
@@ -445,7 +445,7 @@ class LLMChatBlock(BaseBlock):
             )
             raise
 
-    def get_model_info(self) -> Dict[str, Any]:
+    def get_model_info(self) -> dict[str, Any]:
         """Get information about the configured model.
 
         Returns

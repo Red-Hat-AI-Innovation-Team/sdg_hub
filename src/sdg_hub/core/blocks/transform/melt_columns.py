@@ -13,10 +13,10 @@ from datasets import Dataset
 from pydantic import field_validator
 
 # Local
+from ...utils.error_handling import MissingColumnError
 from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
 from ..registry import BlockRegistry
-from ...utils.error_handling import MissingColumnError
 
 logger = setup_logger(__name__)
 
@@ -66,14 +66,18 @@ class MeltColumnsBlock(BaseBlock):
 
     def model_post_init(self, __context: Any) -> None:
         """Initialize derived attributes after Pydantic validation."""
-        super().model_post_init(__context) if hasattr(super(), "model_post_init") else None
-        
+        super().model_post_init(__context) if hasattr(
+            super(), "model_post_init"
+        ) else None
+
         # Derive value and variable column names from output_cols
         self.value_name = self.output_cols[0]  # First output column is value
-        self.var_name = self.output_cols[1]    # Second output column is variable
-        
+        self.var_name = self.output_cols[1]  # Second output column is variable
+
         # input_cols contains the columns to be melted (what was var_cols)
-        self.var_cols = self.input_cols if isinstance(self.input_cols, list) else [self.input_cols]
+        self.var_cols = (
+            self.input_cols if isinstance(self.input_cols, list) else [self.input_cols]
+        )
 
     def _validate_custom(self, samples: Dataset) -> None:
         """Validate that required columns exist in the dataset.

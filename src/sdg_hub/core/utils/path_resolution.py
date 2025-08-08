@@ -7,11 +7,11 @@ search paths.
 """
 
 # Standard
-from typing import List, Union
+from typing import Union
 import os
 
 
-def resolve_path(filename: str, search_dirs: Union[str, List[str]]) -> str:
+def resolve_path(filename: str, search_dirs: Union[str, list[str]]) -> str:
     """Resolve a file path relative to one or more search directories.
 
     Files are checked in the following order:
