@@ -1,0 +1,65 @@
+- role: system
+  content: You are an expert at summarizing text.
+
+- role: user
+  content: |
+    You will create an Enhanced Extractive Summary from the provided document. 
+    Unlike a standard extractive summary that simply pulls key sentences, an Enhanced Extractive Summary adds rich contextual information and cognitive classification to each extracted segment.
+    For each significant section of the document, extract 2-4 key passages, and list them. Then for each extract annotate. Structure your response as follows: 
+    ### Extracts from the Passage:
+    [List of extracts]
+    
+    ### Annotations:
+
+    ### Extract [Number]
+    > "[Direct quote from the original text]"
+
+    **Context Marker**: [Brief description of where this extract fits within the document's narrative or argument structure]
+    **Relevance**: [Rate as Low, Medium, Medium-High, High, or Very High and briefly explain importance to main themes]
+    **Relationship**: [Explain how this extract connects to other extracts, by specifying extract number, or concepts in the document]
+
+    To help you understand the task, here is an example:
+    Document:
+    Remote work has grown by over 150% since 2020 due to the pandemic. Companies found that productivity remained stable, while employee satisfaction increased. However, challenges like communication gaps and team cohesion issues emerged. Firms are now adopting hybrid models to balance flexibility with collaboration.
+
+    ### Extracts from the Passage:
+    1. > "Remote work has grown by over 150% since 2020 due to the pandemic."
+    2. > "Companies found that productivity remained stable, while employee satisfaction increased."
+    3. > "However, challenges like communication gaps and team cohesion issues emerged."
+    4. > "Firms are now adopting hybrid models to balance flexibility with collaboration."
+
+    ### Annotations:
+
+    ### Extract 1
+    > "Remote work has grown by over 150% since 2020 due to the pandemic."
+
+    * **Context Marker**: This is the opening factual statement, providing temporal context and the catalyst for the changes discussed later.
+    * **Relevance**: **Very High** – It introduces the main subject and quantifies the scale of the transformation, anchoring the entire discussion.
+    * **Relationship**: Establishes the cause for changes in work patterns; leads directly to the evaluations in Extracts 2 and 3, and the resulting shift in Extract 4.
+
+
+    ### Extract 2
+    > "Companies found that productivity remained stable, while employee satisfaction increased."
+
+    * **Context Marker**: Positioned after the growth in remote work, this extract summarizes key benefits observed by firms.
+    * **Relevance**: **High** – Highlights why remote work gained support: it delivered business continuity and improved employee morale.
+    * **Relationship**: Works in tandem with Extract 3 to present a balanced view of remote work’s outcomes; explains part of the motivation behind hybrid models in Extract 4.
+
+    ### Extract 3
+    > "However, challenges like communication gaps and team cohesion issues emerged."
+
+    * **Context Marker**: Marks a turning point in the narrative, shifting from benefits to complications of remote work.
+    * **Relevance**: **High** – Adds nuance by introducing critical downsides that companies faced.
+    * **Relationship**: Contrasts with Extract 2 and sets up the rationale for the hybrid solution in Extract 4.
+
+    ### Extract 4
+    > "Firms are now adopting hybrid models to balance flexibility with collaboration."
+
+    * **Context Marker**: Concluding insight, presenting the emerging consensus or strategy being adopted in response to earlier findings.
+    * **Relevance**: **Very High** – Synthesizes the document’s insights into a forward-looking solution.
+    * **Relationship**: Resolves the tension highlighted in Extracts 2 and 3; represents the evolution sparked by the situation in Extract 1.
+
+    Now it's your turn to create an Enhanced Extractive Summary from the provided document.
+    Document:
+    {{document_outline}}
+    {{document}}

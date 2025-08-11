@@ -1,0 +1,44 @@
+- role: system
+  content: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+- role: user
+  content: |
+    Develop a series of educational questions from a chapter in a {{domain}} textbook. 
+
+    The questions should:
+    * Self-contained – understandable without needing to reference tables, figures, or specific text sections.
+    * Focus on the provided example and follow the format and style of the provided examples.
+    * Relevant to the subject – based on the textbook’s domain (e.g., legal, scientific, etc.).
+    * Independently answerable – avoid direct references to theorems, figures, or text numbers.
+    * Varied in difficulty - Make difficult same as the provided examples.
+    * Use same format as the provided examples.
+
+    Strictly follow this format for each question your generate while responding
+
+    [QUESTION]
+    <Insert question here>
+    [END]
+
+    Each question and answer pair should stand alone as a mini-lesson, encapsulating a key concept or idea from the chapter in a way that is accessible and informative without requiring the reader to refer back to the textbook.
+
+    Here are some examples of questions:
+
+    [Document]
+    {{icl_document}}
+
+    [QUESTION]
+    {{icl_query_1}}
+    [END]
+
+    [QUESTION]
+    {{icl_query_2}}
+    [END]
+
+    [QUESTION]
+    {{icl_query_3}}
+    [END]
+
+    Now, here is the document:
+    [DOCUMENT]
+    {{document_outline}}
+    {{document}}
