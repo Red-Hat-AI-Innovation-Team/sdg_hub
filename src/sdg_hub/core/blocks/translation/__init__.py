@@ -4,6 +4,6 @@ This module provides translation functionality for dataset processing.
 """
 
 # Local
-from .translation_block_new import TranslationBlock
+from .translation_block import TranslationBlock
 
 __all__ = ["TranslationBlock"]
