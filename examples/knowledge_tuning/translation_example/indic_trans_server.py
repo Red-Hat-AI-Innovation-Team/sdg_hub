@@ -78,7 +78,7 @@ def translate_text(
         with torch.no_grad():
             output = model.generate(
                 **inputs,
-                use_cache=True,
+                use_cache=False,  # Disable cache to avoid layer indexing issues
                 min_length=0,
                 max_length=256,
                 num_beams=5,

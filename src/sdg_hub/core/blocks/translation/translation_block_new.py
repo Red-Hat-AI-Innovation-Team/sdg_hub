@@ -115,7 +115,7 @@ class TranslationBlock(BaseBlock):
             
             self._client = OpenAI(
                 base_url=self.client_url,
-                api_key="dummy"  # Many translation services don't require real API keys
+                api_key="EMPTY" 
             )
             
             logger.info(
@@ -159,6 +159,16 @@ class TranslationBlock(BaseBlock):
                     "max_length": self.max_length,
                 },
             )
+            logger.info(f"Translation response: {response}")
+            
+            # Check if response contains an error
+            if hasattr(response, 'error') and response.error:
+                raise Exception(f"Server returned error: {response.error}")
+            
+            # Check if choices exist and are not None
+            if not response.choices or len(response.choices) == 0:
+                raise Exception("No translation choices returned from server")
+            
             return response.choices[0].text.strip()
         except Exception as e:
             logger.error(

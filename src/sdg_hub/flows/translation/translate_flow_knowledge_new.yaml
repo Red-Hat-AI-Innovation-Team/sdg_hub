@@ -39,7 +39,7 @@ blocks:
       source_lang: "kan_Knda"  # Source language (Kannada)
       target_lang: "eng_Latn"  # Target language (English)
       trans_model_id: ai4bharat/indictrans2-indic-en-dist-200M
-      client_url: "http://localhost:8000/v1"
+      client_url: "http://localhost:8081/v1"
       format_as_messages: false
 
   - block_type: PromptBuilderBlock
@@ -103,5 +103,5 @@ blocks:
       source_lang: "eng_Latn"  # Source language (English)
       target_lang: "kan_Knda"  # Target language (Kannada)
       trans_model_id: ai4bharat/indictrans2-en-indic-dist-200M
-      client_url: "http://localhost:8000/v1"
+      client_url: "http://localhost:8081/v1"
       format_as_messages: false
