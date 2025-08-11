@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+transformers
+rich
+datasets
+tabulate
+IndicTransToolkit
