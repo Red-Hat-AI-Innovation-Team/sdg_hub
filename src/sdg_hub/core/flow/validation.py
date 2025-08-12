@@ -120,7 +120,9 @@ class FlowValidator:
             elif flow_id and not flow_id.islower():
                 errors.append("Metadata: 'flow_id' must be lowercase")
             elif flow_id and not flow_id.replace("-", "").isalnum():
-                errors.append("Metadata: 'flow_id' must contain only alphanumeric characters and hyphens")
+                errors.append(
+                    "Metadata: 'flow_id' must contain only alphanumeric characters and hyphens"
+                )
 
         # Validate optional fields
         string_fields = [

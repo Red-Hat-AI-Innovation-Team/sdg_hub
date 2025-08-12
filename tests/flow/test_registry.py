@@ -15,6 +15,7 @@ import yaml
 from sdg_hub import FlowRegistry
 from sdg_hub.core.utils.flow_identifier import get_flow_identifier
 
+
 class TestFlowRegistry:
     """Test FlowRegistry class."""
 
@@ -86,7 +87,7 @@ class TestFlowRegistry:
         first_id = metadata1.flow_id
 
         # Verify flow_id was saved to YAML
-        with open(flow_path, 'r') as f:
+        with open(flow_path, "r") as f:
             flow_config = yaml.safe_load(f)
             assert "flow_id" in flow_config["metadata"]
             assert flow_config["metadata"]["flow_id"] == first_id
@@ -99,24 +100,24 @@ class TestFlowRegistry:
 
         # Create new flow without saving flow_id to YAML
         flow2_path = self.create_test_flow("Test Flow 2")
-        
+
         # Multiple discoveries without saving to YAML should generate different IDs
         FlowRegistry._discover_flows(force_refresh=True)
         id1 = FlowRegistry.get_flow_metadata("Test Flow").flow_id
-        
+
         FlowRegistry._entries.clear()
         FlowRegistry._discover_flows(force_refresh=True)
         id2 = FlowRegistry.get_flow_metadata("Test Flow 2").flow_id
-        
+
         assert id1 != id2  # IDs should be different since they weren't saved
 
     def test_flow_id_yaml_update(self):
         """Test that flow_id is written to YAML during discovery."""
         # Create flow without flow_id
         flow_path = self.create_test_flow("Test Flow")
-        
+
         # Verify no flow_id in original YAML
-        with open(flow_path, 'r') as f:
+        with open(flow_path, "r") as f:
             original_config = yaml.safe_load(f)
             assert "flow_id" not in original_config["metadata"]
 
@@ -125,7 +126,7 @@ class TestFlowRegistry:
         FlowRegistry._discover_flows(force_refresh=True)
 
         # Verify flow_id was written to YAML
-        with open(flow_path, 'r') as f:
+        with open(flow_path, "r") as f:
             updated_config = yaml.safe_load(f)
             assert "flow_id" in updated_config["metadata"]
             saved_id = updated_config["metadata"]["flow_id"]
@@ -141,14 +142,14 @@ class TestFlowRegistry:
         # Create flow with custom flow_id
         custom_id = "custom-test-id"
         flow_path = self.create_test_flow("Test Flow", flow_id=custom_id)
-        
+
         FlowRegistry.register_search_path(str(self.test_flow_path))
         FlowRegistry._discover_flows(force_refresh=True)
-        
+
         # Verify custom flow_id is preserved
         metadata = FlowRegistry.get_flow_metadata("Test Flow")
         assert metadata.flow_id == custom_id
-        
+
         # Clear registry and rediscover - should still use custom flow_id
         FlowRegistry._entries.clear()
         FlowRegistry._discover_flows(force_refresh=True)
@@ -274,34 +275,34 @@ class TestFlowRegistry:
 
         FlowRegistry.register_search_path(str(self.test_flow_path))
         FlowRegistry._discover_flows(force_refresh=True)
-        
+
         # Get the flow's ID from metadata
         metadata = FlowRegistry.get_flow_metadata("Test Flow")
         flow_id = metadata.flow_id
-        
+
         # Should find by flow_id (preferred)
         retrieved_path = FlowRegistry.get_flow_path(flow_id)
         assert retrieved_path == flow_path
-        
+
         # Should also find by name (backward compatibility)
         retrieved_path_by_name = FlowRegistry.get_flow_path("Test Flow")
         assert retrieved_path_by_name == flow_path
-        
+
         # Non-existent identifier should return None
         assert FlowRegistry.get_flow_path("Nonexistent Flow") is None
         assert FlowRegistry.get_flow_path("nonexistent-id") is None
-        
+
         # Create another flow to test uniqueness
         another_flow_path = self.create_test_flow("Another Flow")
         FlowRegistry._discover_flows(force_refresh=True)
-        
+
         # Each flow should be uniquely identifiable by either name or ID
         another_metadata = FlowRegistry.get_flow_metadata("Another Flow")
         another_id = another_metadata.flow_id
-        
+
         assert FlowRegistry.get_flow_path(another_id) == another_flow_path
         assert FlowRegistry.get_flow_path("Another Flow") == another_flow_path
-        
+
         # Original flow should still be accessible
         assert FlowRegistry.get_flow_path(flow_id) == flow_path
         assert FlowRegistry.get_flow_path("Test Flow") == flow_path
@@ -367,12 +368,12 @@ class TestFlowRegistry:
         # Verify IDs
         for flow in qa_flows:
             assert flow["id"]
-        
+
         nlp_flows = FlowRegistry.search_flows(tag="nlp")
         assert len(nlp_flows) == 1
         assert nlp_flows[0]["name"] == "Summary Flow"
         assert nlp_flows[0]["id"]  # Should have an ID
-        
+
         # Non-existent tag
         assert FlowRegistry.search_flows(tag="nonexistent") == []
 
@@ -395,7 +396,7 @@ class TestFlowRegistry:
         # Verify IDs
         for flow in alice_flows:
             assert flow["id"]
-        
+
         johnson_flows = FlowRegistry.search_flows(author="Johnson")
         assert len(johnson_flows) == 2
         johnson_flow_names = [f["name"] for f in johnson_flows]
@@ -404,7 +405,7 @@ class TestFlowRegistry:
         # Verify IDs
         for flow in johnson_flows:
             assert flow["id"]
-        
+
         # Non-existent author
         assert FlowRegistry.search_flows(author="nonexistent") == []
 
@@ -450,11 +451,11 @@ class TestFlowRegistry:
         # Verify IDs
         for flow in categories["question-answering"]:
             assert flow["id"]
-        
+
         assert len(categories["summarization"]) == 1
         assert categories["summarization"][0]["name"] == "Summary Flow"
         assert categories["summarization"][0]["id"]  # Should have an ID
-        
+
         assert len(categories["uncategorized"]) == 1
         assert categories["uncategorized"][0]["name"] == "Uncategorized Flow"
         assert categories["uncategorized"][0]["id"]  # Should have an ID
@@ -482,7 +483,7 @@ class TestFlowRegistry:
         assert len(flows2) == 1
         assert flows2[0]["name"] == "Test Flow"
         assert flows2[0]["id"]  # Should have an ID
-        
+
         # Force refresh should pick up new flow
         FlowRegistry._discover_flows(force_refresh=True)
         flows3 = FlowRegistry.list_flows()
@@ -534,4 +535,3 @@ class TestFlowRegistry:
         # Verify IDs
         for flow in flows:
             assert flow["id"]  # Should have an ID
-

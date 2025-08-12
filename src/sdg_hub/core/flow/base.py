@@ -158,10 +158,15 @@ class Flow(BaseModel):
         if is_old_format:
             logger.info(f"Detected old format flow, migrating: {yaml_path}")
             if client is None:
-                logger.warning("Old format YAML detected but no client provided. LLMBlocks may fail.")
-            flow_config, migrated_runtime_params = FlowMigration.migrate_to_new_format(flow_config, yaml_path)
+                logger.warning(
+                    "Old format YAML detected but no client provided. LLMBlocks may fail."
+                )
+            flow_config, migrated_runtime_params = FlowMigration.migrate_to_new_format(
+                flow_config, yaml_path
+            )
             # Save migrated config back to YAML to persist flow_id
             from ..utils.yaml_utils import save_flow_yaml
+
             save_flow_yaml(yaml_path, flow_config, "migrated to new format")
 
         # Validate YAML structure
@@ -226,10 +231,17 @@ class Flow(BaseModel):
             flow = cls(blocks=blocks, metadata=metadata, parameters=parameters)
             # Persist generated flow_id back to the YAML file (only on initial load)
             from ..utils.yaml_utils import save_flow_yaml
+
             # If the file had no metadata.flow_id originally, update and rewrite
             if not flow_config.get("metadata", {}).get("flow_id"):
-                flow_config.setdefault("metadata", {})["flow_id"] = flow.metadata.flow_id
-                save_flow_yaml(yaml_path, flow_config, f"added generated flow_id: {flow.metadata.flow_id}")
+                flow_config.setdefault("metadata", {})["flow_id"] = (
+                    flow.metadata.flow_id
+                )
+                save_flow_yaml(
+                    yaml_path,
+                    flow_config,
+                    f"added generated flow_id: {flow.metadata.flow_id}",
+                )
             else:
                 logger.debug(f"Flow already had flow_id: {flow.metadata.flow_id}")
             # Store migrated runtime params and client for backward compatibility
@@ -1044,6 +1056,7 @@ class Flow(BaseModel):
         of original YAML, save the original file separately.
         """
         from ..utils.yaml_utils import save_flow_yaml
+
         config = {
             "metadata": self.metadata.model_dump(),
             "blocks": [
@@ -1061,7 +1074,6 @@ class Flow(BaseModel):
             }
 
         save_flow_yaml(output_path, config)
-
 
     def __len__(self) -> int:
         """Number of blocks in the flow."""

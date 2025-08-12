@@ -269,7 +269,9 @@ class FlowMetadata(BaseModel):
     """
 
     name: str = Field(..., min_length=1, description="Human-readable name")
-    flow_id: str = Field(default="", description="Unique identifier for the flow, generated from name")
+    flow_id: str = Field(
+        default="", description="Unique identifier for the flow, generated from name"
+    )
     description: str = Field(default="", description="Detailed description")
     version: str = Field(
         default="1.0.0",
@@ -312,25 +314,27 @@ class FlowMetadata(BaseModel):
     def validate_flow_id(cls, v: str, values: Dict[str, Any]) -> str:
         """Validate and generate flow_id."""
         from ..utils.flow_identifier import get_flow_identifier
-        
+
         # Auto-generate flow_id from name if not provided
         if not v and "name" in values:
             v = get_flow_identifier(values["name"])
-        
+
         # Validate flow_id format
         if v:
             # Must be lowercase
             if not v.islower():
                 raise ValueError("flow_id must be lowercase")
-            
+
             # Must contain only alphanumeric characters and hyphens
             if not v.replace("-", "").isalnum():
-                raise ValueError("flow_id must contain only alphanumeric characters and hyphens")
-            
+                raise ValueError(
+                    "flow_id must contain only alphanumeric characters and hyphens"
+                )
+
             # Must not start or end with a hyphen
             if v.startswith("-") or v.endswith("-"):
                 raise ValueError("flow_id must not start or end with a hyphen")
-        
+
         return v
 
     @field_validator("tags")
@@ -357,11 +361,13 @@ class FlowMetadata(BaseModel):
         """Ensure flow_id is set and saved to YAML."""
         if not self.flow_id and self.name:
             from ..utils.flow_identifier import get_flow_identifier
+
             self.flow_id = get_flow_identifier(self.name)
-            
+
             # Save flow_id back to YAML if we're loading from a file
             # This is a bit hacky but necessary to persist the flow_id
             import inspect
+
             frame = inspect.currentframe()
             try:
                 while frame:
@@ -369,17 +375,23 @@ class FlowMetadata(BaseModel):
                         yaml_path = frame.f_locals.get("yaml_path")
                         if yaml_path:
                             import yaml
+
                             with open(yaml_path, "r", encoding="utf-8") as f:
                                 config = yaml.safe_load(f)
                             if isinstance(config, dict) and "metadata" in config:
                                 config["metadata"]["flow_id"] = self.flow_id
                                 from ..utils.yaml_utils import save_flow_yaml
-                                save_flow_yaml(yaml_path, config, f"added generated flow_id: {self.flow_id}")
+
+                                save_flow_yaml(
+                                    yaml_path,
+                                    config,
+                                    f"added generated flow_id: {self.flow_id}",
+                                )
                         break
                     frame = frame.f_back
             finally:
                 del frame  # Clean up circular reference
-        
+
         return self
 
     def get_best_model(

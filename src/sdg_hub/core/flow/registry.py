@@ -128,11 +128,18 @@ class FlowRegistry:
                     if metadata.flow_id and "flow_id" not in metadata_dict:
                         flow_config["metadata"]["flow_id"] = metadata.flow_id
                         from ..utils.yaml_utils import save_flow_yaml
-                        save_flow_yaml(yaml_file, flow_config, f"updated with generated flow_id: {metadata.flow_id}")
+
+                        save_flow_yaml(
+                            yaml_file,
+                            flow_config,
+                            f"updated with generated flow_id: {metadata.flow_id}",
+                        )
 
                     entry = FlowRegistryEntry(path=str(yaml_file), metadata=metadata)
                     cls._entries[metadata.name] = entry
-                    logger.debug(f"Registered flow: {metadata.name} (id: {metadata.flow_id}) from {yaml_file}")
+                    logger.debug(
+                        f"Registered flow: {metadata.name} (id: {metadata.flow_id}) from {yaml_file}"
+                    )
 
             except Exception as exc:
                 logger.debug(f"Skipped {yaml_file}: {exc}")
@@ -165,7 +172,9 @@ class FlowRegistry:
         # If not found, try by name (backward compatibility)
         for entry in cls._entries.values():
             if entry.metadata.name == flow_name_or_id:
-                logger.debug(f"Found flow by name (deprecated): {flow_name_or_id}, use flow_id: {entry.metadata.flow_id} instead")
+                logger.debug(
+                    f"Found flow by name (deprecated): {flow_name_or_id}, use flow_id: {entry.metadata.flow_id} instead"
+                )
                 return entry.path
 
         return None
@@ -203,8 +212,10 @@ class FlowRegistry:
         """
         cls._ensure_initialized()
         cls._discover_flows()
-        return [{"name": entry.metadata.name, "id": entry.metadata.flow_id} 
-                for entry in cls._entries.values()]
+        return [
+            {"name": entry.metadata.name, "id": entry.metadata.flow_id}
+            for entry in cls._entries.values()
+        ]
 
     @classmethod
     def search_flows(
@@ -242,10 +253,7 @@ class FlowRegistry:
             if author and author.lower() not in metadata.author.lower():
                 continue
 
-            matching_flows.append({
-                "name": metadata.name,
-                "id": metadata.flow_id
-            })
+            matching_flows.append({"name": metadata.name, "id": metadata.flow_id})
 
         return matching_flows
 
@@ -274,10 +282,7 @@ class FlowRegistry:
             if category not in categories:
                 categories[category] = []
 
-            categories[category].append({
-                "name": metadata.name,
-                "id": metadata.flow_id
-            })
+            categories[category].append({"name": metadata.name, "id": metadata.flow_id})
 
         return categories
 
@@ -360,7 +365,7 @@ class FlowRegistry:
                     flow["flow_id"],
                     flow["author"],
                     flow["tags"],
-                    flow["description"]
+                    flow["description"],
                 )
 
         console.print(table)
