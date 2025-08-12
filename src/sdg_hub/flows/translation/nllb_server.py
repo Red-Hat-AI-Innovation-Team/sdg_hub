@@ -6,11 +6,12 @@ with OpenAI's completion API format. It supports multiple language pairs
 using the NLLB-200-1.3B model from Hugging Face Transformers.
 """
 
+from typing import Any, Dict
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 import torch
-from typing import Dict, Any
 
 app = FastAPI()
 

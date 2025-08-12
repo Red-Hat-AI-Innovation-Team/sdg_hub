@@ -1,14 +1,14 @@
 import os
 import sys
-import re
-from tqdm import tqdm
+
 from datasets import Dataset, load_dataset
+from tqdm import tqdm
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "..")))
 from knowledge_utils import chunk_document
 
 # output directory
-output_dir = f"sdg_demo_output/"
+output_dir = "sdg_demo_output/"
 
 chunk_size = 50
 max_model_context_length = 2048
@@ -251,7 +251,7 @@ try:
     from collections import Counter
 
     domain_counts = Counter([doc["domain"] for doc in kannada_doc_with_icl])
-    print(f"\nDomain distribution:")
+    print("\nDomain distribution:")
     for domain, count in domain_counts.most_common():
         print(f"  {domain}: {count} documents")
 

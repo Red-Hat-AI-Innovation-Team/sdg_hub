@@ -7,16 +7,16 @@ using external translation services like IndicTrans2 or NLLB.
 
 # Standard
 from typing import Any, Dict, List, Optional
-import logging
 
 # Third Party
 from datasets import Dataset
 from pydantic import Field, field_validator
 from tqdm import tqdm
 
+from ...utils.error_handling import BlockValidationError
+
 # Local
 from ...utils.logger_config import setup_logger
-from ...utils.error_handling import BlockValidationError
 from ..base import BaseBlock
 from ..registry import BlockRegistry
 

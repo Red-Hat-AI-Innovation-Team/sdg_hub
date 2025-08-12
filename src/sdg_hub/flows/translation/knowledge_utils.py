@@ -4,23 +4,22 @@
 from pathlib import Path
 from typing import List
 import json
+import logging
 import os
 import random
 import re
 import uuid
-import logging
-from rich.logging import RichHandler
 
 # Third Party
 from datasets import Dataset, concatenate_datasets
 from langchain_text_splitters import Language, RecursiveCharacterTextSplitter
-from tabulate import tabulate
-from transformers import AutoTokenizer
-import yaml
+from rich.logging import RichHandler
 
 # First Party
 from sdg_hub.core.utils.datautils import safe_concatenate_datasets
-import sdg_hub
+from tabulate import tabulate
+from transformers import AutoTokenizer
+import yaml
 
 
 def setup_logger(name):
@@ -590,7 +589,8 @@ def build_chunks_from_docling_json(
 
         try:
             prev_page_number = current_book_page_number
-        except:
+        except Exception as e:
+            logger.error(f"Error in building chunks from docling json: {e}")
             logger.error(book_element)
     if "\n\n".join(current_buffer) not in document_chunks:
         document_chunks.append("\n\n".join(current_buffer))

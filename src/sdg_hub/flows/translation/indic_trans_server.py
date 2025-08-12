@@ -10,12 +10,13 @@ Models:
     - ai4bharat/indictrans2-indic-en-dist-200M: Indic to English translation
 """
 
+from typing import Any, Dict
+
 from fastapi import FastAPI
-from pydantic import BaseModel
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-import torch
 from IndicTransToolkit.processor import IndicProcessor
-from typing import Dict, Any
+from pydantic import BaseModel
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+import torch
 
 app = FastAPI()
 
