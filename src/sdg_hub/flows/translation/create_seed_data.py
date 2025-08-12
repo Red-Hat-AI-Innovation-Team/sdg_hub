@@ -16,7 +16,7 @@ max_model_context_length = 2048
 # ============================================================================
 # CUSTOM DOMAIN CONFIGURATION
 # ============================================================================
-# Add your own custom domains and keywords here. 
+# Add your own custom domains and keywords here.
 # Format: {'domain_name': ['keyword1', 'keyword2', ...]}
 # Keywords can be in any language (Kannada, English, etc.)
 
@@ -41,71 +41,159 @@ CUSTOM_DOMAINS = {
 # 2. Use both source language and English keywords for better coverage
 # 3. Run the script to see your custom domains in the output
 
+
 def classify_domain(title, text, custom_domains=None):
     """
     Classify the domain of a Wikipedia article based on title and content.
-    
+
     Args:
         title (str): Article title
         text (str): Article content
         custom_domains (dict, optional): Custom domain keywords in format:
             {'domain_name': ['keyword1', 'keyword2', ...]}
-    
+
     Returns:
         str: Domain classification (geography, history, science, culture, politics, etc.)
     """
     title_lower = title.lower()
     text_lower = text.lower()
-    
+
     # Default domain keywords
     default_domains = {
-        'geography': [
-            'ನಗರ', 'ಜಿಲ್ಲೆ', 'ರಾಜ್ಯ', 'ದೇಶ', 'ಪರ್ವತ', 'ನದಿ', 'ಸಮುದ್ರ', 'ಕರಾವಳಿ',
-            'city', 'district', 'state', 'country', 'mountain', 'river', 'sea', 'coast',
-            'ಗ್ರಾಮ', 'ತಾಲೂಕು', 'ಪ್ರಾಂತ್ಯ', 'ಭೂಗೋಳ'
+        "geography": [
+            "ನಗರ",
+            "ಜಿಲ್ಲೆ",
+            "ರಾಜ್ಯ",
+            "ದೇಶ",
+            "ಪರ್ವತ",
+            "ನದಿ",
+            "ಸಮುದ್ರ",
+            "ಕರಾವಳಿ",
+            "city",
+            "district",
+            "state",
+            "country",
+            "mountain",
+            "river",
+            "sea",
+            "coast",
+            "ಗ್ರಾಮ",
+            "ತಾಲೂಕು",
+            "ಪ್ರಾಂತ್ಯ",
+            "ಭೂಗೋಳ",
         ],
-        'history': [
-            'ಇತಿಹಾಸ', 'ರಾಜ', 'ರಾಣಿ', 'ಸಾಮ್ರಾಜ್ಯ', 'ಯುದ್ಧ', 'ಕಾಲ', 'ಶತಮಾನ',
-            'history', 'king', 'queen', 'empire', 'war', 'century', 'ancient', 'medieval',
-            'ಪ್ರಾಚೀನ', 'ಮಧ್ಯಕಾಲೀನ', 'ಆಧುನಿಕ'
+        "history": [
+            "ಇತಿಹಾಸ",
+            "ರಾಜ",
+            "ರಾಣಿ",
+            "ಸಾಮ್ರಾಜ್ಯ",
+            "ಯುದ್ಧ",
+            "ಕಾಲ",
+            "ಶತಮಾನ",
+            "history",
+            "king",
+            "queen",
+            "empire",
+            "war",
+            "century",
+            "ancient",
+            "medieval",
+            "ಪ್ರಾಚೀನ",
+            "ಮಧ್ಯಕಾಲೀನ",
+            "ಆಧುನಿಕ",
         ],
-        'science': [
-            'ವಿಜ್ಞಾನ', 'ತಂತ್ರಜ್ಞಾನ', 'ಗಣಿತ', 'ಭೌತಶಾಸ್ತ್ರ', 'ರಸಾಯನಶಾಸ್ತ್ರ', 'ಜೀವಶಾಸ್ತ್ರ',
-            'science', 'technology', 'mathematics', 'physics', 'chemistry', 'biology',
-            'ಸಂಶೋಧನೆ', 'ಆವಿಷ್ಕಾರ', 'ಇಂಜಿನಿಯರಿಂಗ್'
+        "science": [
+            "ವಿಜ್ಞಾನ",
+            "ತಂತ್ರಜ್ಞಾನ",
+            "ಗಣಿತ",
+            "ಭೌತಶಾಸ್ತ್ರ",
+            "ರಸಾಯನಶಾಸ್ತ್ರ",
+            "ಜೀವಶಾಸ್ತ್ರ",
+            "science",
+            "technology",
+            "mathematics",
+            "physics",
+            "chemistry",
+            "biology",
+            "ಸಂಶೋಧನೆ",
+            "ಆವಿಷ್ಕಾರ",
+            "ಇಂಜಿನಿಯರಿಂಗ್",
         ],
-        'culture': [
-            'ಸಂಸ್ಕೃತಿ', 'ಕಲೆ', 'ಸಾಹಿತ್ಯ', 'ಸಂಗೀತ', 'ನೃತ್ಯ', 'ಚಿತ್ರಕಲೆ', 'ಶಿಲ್ಪ',
-            'culture', 'art', 'literature', 'music', 'dance', 'painting', 'sculpture',
-            'ಭಾಷೆ', 'ಸಂಪ್ರದಾಯ', 'ಹಬ್ಬ', 'ಧರ್ಮ', 'ದೇವಾಲಯ'
+        "culture": [
+            "ಸಂಸ್ಕೃತಿ",
+            "ಕಲೆ",
+            "ಸಾಹಿತ್ಯ",
+            "ಸಂಗೀತ",
+            "ನೃತ್ಯ",
+            "ಚಿತ್ರಕಲೆ",
+            "ಶಿಲ್ಪ",
+            "culture",
+            "art",
+            "literature",
+            "music",
+            "dance",
+            "painting",
+            "sculpture",
+            "ಭಾಷೆ",
+            "ಸಂಪ್ರದಾಯ",
+            "ಹಬ್ಬ",
+            "ಧರ್ಮ",
+            "ದೇವಾಲಯ",
         ],
-        'politics': [
-            'ರಾಜಕೀಯ', 'ಸರ್ಕಾರ', 'ಚುನಾವಣೆ', 'ಸಂಸತ್ತು', 'ಮುಖ್ಯಮಂತ್ರಿ', 'ಪ್ರಧಾನಿ',
-            'politics', 'government', 'election', 'parliament', 'minister', 'policy',
-            'ಪಕ್ಷ', 'ನೀತಿ', 'ಆಡಳಿತ'
+        "politics": [
+            "ರಾಜಕೀಯ",
+            "ಸರ್ಕಾರ",
+            "ಚುನಾವಣೆ",
+            "ಸಂಸತ್ತು",
+            "ಮುಖ್ಯಮಂತ್ರಿ",
+            "ಪ್ರಧಾನಿ",
+            "politics",
+            "government",
+            "election",
+            "parliament",
+            "minister",
+            "policy",
+            "ಪಕ್ಷ",
+            "ನೀತಿ",
+            "ಆಡಳಿತ",
         ],
-        'sports': [
-            'ಕ್ರೀಡೆ', 'ಆಟ', 'ಪಂದ್ಯ', 'ಟೂರ್ನಮೆಂಟ್', 'ಚಾಂಪಿಯನ್', 'ಕ್ರಿಕೆಟ್', 'ಫುಟ್ಬಾಲ್',
-            'sports', 'game', 'match', 'tournament', 'champion', 'cricket', 'football',
-            'ಒಲಿಂಪಿಕ್ಸ್', 'ಪದಕ', 'ಆಟಗಾರ'
-        ]
+        "sports": [
+            "ಕ್ರೀಡೆ",
+            "ಆಟ",
+            "ಪಂದ್ಯ",
+            "ಟೂರ್ನಮೆಂಟ್",
+            "ಚಾಂಪಿಯನ್",
+            "ಕ್ರಿಕೆಟ್",
+            "ಫುಟ್ಬಾಲ್",
+            "sports",
+            "game",
+            "match",
+            "tournament",
+            "champion",
+            "cricket",
+            "football",
+            "ಒಲಿಂಪಿಕ್ಸ್",
+            "ಪದಕ",
+            "ಆಟಗಾರ",
+        ],
     }
-    
+
     # Merge custom domains with default domains
     all_domains = default_domains.copy()
     if custom_domains:
         all_domains.update(custom_domains)
         print(f"Added custom domains: {list(custom_domains.keys())}")
-    
+
     # Count keyword matches for all domains
     domain_scores = {}
     for domain_name, keywords in all_domains.items():
         score = sum(1 for kw in keywords if kw in title_lower or kw in text_lower)
         domain_scores[domain_name] = score
-    
+
     # Return domain with highest score, default to 'general'
     best_domain = max(domain_scores, key=domain_scores.get)
-    return best_domain if domain_scores[best_domain] > 0 else 'general'
+    return best_domain if domain_scores[best_domain] > 0 else "general"
+
 
 try:
     kannada_wiki = load_dataset("wikimedia/wikipedia", "20231101.kn")["train"]
@@ -147,12 +235,12 @@ try:
 
         icl_dict["title"] = each_document["title"]
         icl_dict["text"] = each_document["document"]
-        
+
         # Add domain classification (with custom domains if defined)
         icl_dict["domain"] = classify_domain(
-            each_document["title"], 
-            each_document["document"], 
-            custom_domains=CUSTOM_DOMAINS if CUSTOM_DOMAINS else None
+            each_document["title"],
+            each_document["document"],
+            custom_domains=CUSTOM_DOMAINS if CUSTOM_DOMAINS else None,
         )
 
         kannada_doc_with_icl.append(icl_dict)
@@ -161,6 +249,7 @@ try:
 
     # Print domain distribution
     from collections import Counter
+
     domain_counts = Counter([doc["domain"] for doc in kannada_doc_with_icl])
     print(f"\nDomain distribution:")
     for domain, count in domain_counts.most_common():
@@ -171,7 +260,9 @@ try:
     output_file = f"{output_dir}/seed_data.jsonl"
 
     seed_data.to_json(output_file, orient="records", lines=True, force_ascii=False)
-    print(f"\nSaved {len(kannada_doc_with_icl)} documents with domain classification to {output_file}")
+    print(
+        f"\nSaved {len(kannada_doc_with_icl)} documents with domain classification to {output_file}"
+    )
 except Exception as e:
     print(f"Failed to load Kannada Wikipedia dataset: {e}")
     print("Please ensure you have internet connectivity and the dataset is available.")

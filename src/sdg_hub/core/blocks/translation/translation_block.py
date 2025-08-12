@@ -27,7 +27,7 @@ logger = setup_logger(__name__)
     "TranslationBlock",
     "translation",
     "Translation block for dataset column translation operations",
-    )
+)
 class TranslationBlock(BaseBlock):
     """Block for translating text from one language to another.
 
@@ -73,18 +73,10 @@ class TranslationBlock(BaseBlock):
     """
 
     # Translation-specific parameters
-    source_lang: str = Field(
-        default="eng_Latn", description="Source language code"
-    )
-    target_lang: str = Field(
-        default="hin_Deva", description="Target language code"
-    )
-    trans_model_id: str = Field(
-        description="Translation model identifier"
-    )
-    client_url: str = Field(
-        description="URL of the translation service endpoint"
-    )
+    source_lang: str = Field(default="eng_Latn", description="Source language code")
+    target_lang: str = Field(default="hin_Deva", description="Target language code")
+    trans_model_id: str = Field(description="Translation model identifier")
+    client_url: str = Field(description="URL of the translation service endpoint")
     max_length: int = Field(
         default=512, description="Maximum length for translation output"
     )
@@ -112,12 +104,9 @@ class TranslationBlock(BaseBlock):
         try:
             # Import OpenAI client for HTTP API communication
             from openai import OpenAI
-            
-            self._client = OpenAI(
-                base_url=self.client_url,
-                api_key="EMPTY" 
-            )
-            
+
+            self._client = OpenAI(base_url=self.client_url, api_key="EMPTY")
+
             logger.info(
                 f"Initialized TranslationBlock '{self.block_name}' with model '{self.trans_model_id}'",
                 extra={
@@ -160,15 +149,15 @@ class TranslationBlock(BaseBlock):
                 },
             )
             logger.info(f"Translation response: {response}")
-            
+
             # Check if response contains an error
-            if hasattr(response, 'error') and response.error:
+            if hasattr(response, "error") and response.error:
                 raise Exception(f"Server returned error: {response.error}")
-            
+
             # Check if choices exist and are not None
             if not response.choices or len(response.choices) == 0:
                 raise Exception("No translation choices returned from server")
-            
+
             return response.choices[0].text.strip()
         except Exception as e:
             logger.error(
@@ -177,7 +166,7 @@ class TranslationBlock(BaseBlock):
                     "block_name": self.block_name,
                     "model": self.trans_model_id,
                     "error": str(e),
-                }
+                },
             )
             return text  # Return original text as fallback
 
@@ -196,14 +185,14 @@ class TranslationBlock(BaseBlock):
         """
         results = []
         progress_bar = tqdm(
-            samples, 
+            samples,
             desc=f"{self.block_name} Translation",
-            disable=len(samples) < 10  # Only show progress bar for larger batches
+            disable=len(samples) < 10,  # Only show progress bar for larger batches
         )
-        
+
         for sample in progress_bar:
             translated_texts = []
-            
+
             for col in self.input_cols:
                 if col in sample:
                     text = sample[col]
@@ -212,12 +201,12 @@ class TranslationBlock(BaseBlock):
                 else:
                     logger.warning(
                         f"Column '{col}' not found in sample, skipping translation",
-                        extra={"block_name": self.block_name, "missing_column": col}
+                        extra={"block_name": self.block_name, "missing_column": col},
                     )
                     translated_texts.append("")
-            
+
             results.append(translated_texts)
-        
+
         return results
 
     def generate(self, samples: Dataset) -> Dataset:
@@ -245,7 +234,7 @@ class TranslationBlock(BaseBlock):
 
         # Convert to list for processing
         samples_list = list(samples)
-        
+
         if not samples_list:
             return Dataset.from_list([])
 
@@ -258,7 +247,7 @@ class TranslationBlock(BaseBlock):
                 "target_lang": self.target_lang,
                 "input_cols": self.input_cols,
                 "output_cols": self.output_cols,
-            }
+            },
         )
 
         # Translate samples
@@ -268,14 +257,14 @@ class TranslationBlock(BaseBlock):
         new_data = []
         for sample, translations in zip(samples_list, translated_outputs):
             translated_data = {}
-            
+
             # Add translations to output columns
             for i, output_col in enumerate(self.output_cols):
                 if i < len(translations):
                     translated_data[output_col] = translations[i]
                 else:
                     translated_data[output_col] = ""
-            
+
             # Combine with original sample
             new_data.append({**sample, **translated_data})
 
@@ -285,7 +274,7 @@ class TranslationBlock(BaseBlock):
                 "block_name": self.block_name,
                 "model": self.trans_model_id,
                 "output_samples": len(new_data),
-            }
+            },
         )
 
         return Dataset.from_list(new_data)
@@ -312,11 +301,13 @@ class TranslationBlock(BaseBlock):
             If validation fails.
         """
         # Validate input columns exist
-        missing_cols = [col for col in self.input_cols if col not in dataset.column_names]
+        missing_cols = [
+            col for col in self.input_cols if col not in dataset.column_names
+        ]
         if missing_cols:
             raise BlockValidationError(
                 f"Missing input columns in dataset: {missing_cols}",
-                details=f"Block: {self.block_name}, Available columns: {dataset.column_names}"
+                details=f"Block: {self.block_name}, Available columns: {dataset.column_names}",
             )
 
         # Validate input/output column count match
@@ -324,7 +315,7 @@ class TranslationBlock(BaseBlock):
             raise BlockValidationError(
                 f"Number of input columns ({len(self.input_cols)}) must match "
                 f"number of output columns ({len(self.output_cols)})",
-                details=f"Block: {self.block_name}, Input: {self.input_cols}, Output: {self.output_cols}"
+                details=f"Block: {self.block_name}, Input: {self.input_cols}, Output: {self.output_cols}",
             )
 
     def __repr__(self) -> str:
