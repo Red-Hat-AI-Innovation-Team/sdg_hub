@@ -9,13 +9,13 @@ import tempfile
 # Third Party
 from datasets import Dataset
 from pydantic import ValidationError
+import pytest
+import yaml
 
 # First Party
 from sdg_hub import Flow, FlowMetadata, FlowParameter
 from sdg_hub.core.flow.metadata import DatasetRequirements
 from sdg_hub.core.utils.error_handling import EmptyDatasetError, FlowValidationError
-import pytest
-import yaml
 
 
 class TestFlow:
@@ -946,10 +946,10 @@ class TestFlow:
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test1", "test2"]})
-        
+
         # Should work the same as before when no checkpoint_dir provided
         result = flow.generate(dataset)
-        
+
         assert len(result) == 2
         assert "output" in result.column_names
 
@@ -958,19 +958,19 @@ class TestFlow:
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test1", "test2"]})
-        
+
         checkpoint_dir = Path(self.temp_dir) / "checkpoints"
-        
+
         result = flow.generate(dataset, checkpoint_dir=str(checkpoint_dir))
-        
+
         assert len(result) == 2
         assert "output" in result.column_names
-        
+
         # Should have created checkpoint files
         assert checkpoint_dir.exists()
         checkpoint_files = list(checkpoint_dir.glob("checkpoint_*.jsonl"))
         assert len(checkpoint_files) == 1
-        
+
         # Should have metadata file
         metadata_file = checkpoint_dir / "flow_metadata.json"
         assert metadata_file.exists()
@@ -979,16 +979,20 @@ class TestFlow:
         """Test generation with checkpointing and save frequency."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test1", "test2", "test3", "test4", "test5"]})
-        
+        dataset = Dataset.from_dict(
+            {"input": ["test1", "test2", "test3", "test4", "test5"]}
+        )
+
         checkpoint_dir = Path(self.temp_dir) / "checkpoints_freq"
         save_freq = 2
-        
-        result = flow.generate(dataset, checkpoint_dir=str(checkpoint_dir), save_freq=save_freq)
-        
+
+        result = flow.generate(
+            dataset, checkpoint_dir=str(checkpoint_dir), save_freq=save_freq
+        )
+
         assert len(result) == 5
         assert "output" in result.column_names
-        
+
         # Should have created multiple checkpoint files (3 chunks: 2+2+1)
         checkpoint_files = list(checkpoint_dir.glob("checkpoint_*.jsonl"))
         assert len(checkpoint_files) == 3
@@ -997,35 +1001,35 @@ class TestFlow:
         """Test generation resuming from existing checkpoints."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        
+
         checkpoint_dir = Path(self.temp_dir) / "existing_checkpoints"
         checkpoint_dir.mkdir(parents=True)
-        
+
         # Pre-create some checkpoint data manually
         from sdg_hub.core.flow.checkpointer import FlowCheckpointer
+
         checkpointer = FlowCheckpointer(
             checkpoint_dir=str(checkpoint_dir),
             save_freq=2,  # Need save_freq to trigger checkpoint save
-            flow_name=flow.metadata.name
+            flow_name=flow.metadata.name,
         )
-        
+
         # Simulate some completed samples
-        completed_data = Dataset.from_dict({
-            "input": ["test1", "test2"],
-            "output": ["existing1", "existing2"]
-        })
+        completed_data = Dataset.from_dict(
+            {"input": ["test1", "test2"], "output": ["existing1", "existing2"]}
+        )
         checkpointer.add_completed_samples(completed_data)
-        
+
         # Now run flow with larger input dataset
-        full_dataset = Dataset.from_dict({
-            "input": ["test1", "test2", "test3", "test4"]
-        })
-        
+        full_dataset = Dataset.from_dict(
+            {"input": ["test1", "test2", "test3", "test4"]}
+        )
+
         result = flow.generate(full_dataset, checkpoint_dir=str(checkpoint_dir))
-        
+
         # Should have 4 samples total: 2 existing + 2 newly processed
         assert len(result) == 4
-        
+
         # Should include both existing and new outputs
         assert "existing1" in result["output"]
         assert "existing2" in result["output"]
@@ -1036,31 +1040,29 @@ class TestFlow:
         """Test generation when all samples are already completed."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        
+
         checkpoint_dir = Path(self.temp_dir) / "all_completed"
         checkpoint_dir.mkdir(parents=True)
-        
+
         # Pre-create checkpoint data for all input samples
         from sdg_hub.core.flow.checkpointer import FlowCheckpointer
+
         checkpointer = FlowCheckpointer(
             checkpoint_dir=str(checkpoint_dir),
             save_freq=2,  # Need save_freq to trigger checkpoint save
-            flow_name=flow.metadata.name
+            flow_name=flow.metadata.name,
         )
-        
-        completed_data = Dataset.from_dict({
-            "input": ["test1", "test2"],
-            "output": ["existing1", "existing2"]
-        })
+
+        completed_data = Dataset.from_dict(
+            {"input": ["test1", "test2"], "output": ["existing1", "existing2"]}
+        )
         checkpointer.add_completed_samples(completed_data)
-        
+
         # Run flow with same input dataset
-        input_dataset = Dataset.from_dict({
-            "input": ["test1", "test2"]
-        })
-        
+        input_dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+
         result = flow.generate(input_dataset, checkpoint_dir=str(checkpoint_dir))
-        
+
         # Should just return existing results without processing
         assert len(result) == 2
         assert result["output"] == ["existing1", "existing2"]
@@ -1070,25 +1072,20 @@ class TestFlow:
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test1", "test2"]})
-        
+
         checkpoint_dir = Path(self.temp_dir) / "checkpoints_with_params"
-        runtime_params = {
-            "test_block": {
-                "temperature": 0.7,
-                "max_tokens": 150
-            }
-        }
-        
+        runtime_params = {"test_block": {"temperature": 0.7, "max_tokens": 150}}
+
         result = flow.generate(
-            dataset, 
+            dataset,
             runtime_params=runtime_params,
             checkpoint_dir=str(checkpoint_dir),
-            save_freq=1
+            save_freq=1,
         )
-        
+
         assert len(result) == 2
         assert "output" in result.column_names
-        
+
         # Checkpointing should still work with runtime params
         checkpoint_files = list(checkpoint_dir.glob("checkpoint_*.jsonl"))
         assert len(checkpoint_files) == 2  # save_freq=1 means each sample gets saved
@@ -1096,25 +1093,28 @@ class TestFlow:
     def test_checkpointing_with_multiple_blocks(self):
         """Test checkpointing with multiple blocks in the flow."""
         block1 = self.create_mock_block("block1", output_cols=["intermediate"])
-        block2 = self.create_mock_block("block2", input_cols=["intermediate"], output_cols=["final"])
-        
+        block2 = self.create_mock_block(
+            "block2", input_cols=["intermediate"], output_cols=["final"]
+        )
+
         flow = Flow(blocks=[block1, block2], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test1", "test2"]})
-        
+
         checkpoint_dir = Path(self.temp_dir) / "multi_block_checkpoints"
-        
+
         result = flow.generate(dataset, checkpoint_dir=str(checkpoint_dir), save_freq=1)
-        
+
         # Should have processed through both blocks
         assert len(result) == 2
         assert "final" in result.column_names
-        
+
         # Should save final results only (after all blocks completed)
         checkpoint_files = list(checkpoint_dir.glob("checkpoint_*.jsonl"))
         assert len(checkpoint_files) == 2
-        
+
         # Verify checkpoint content includes results from all blocks
         import json
-        with open(checkpoint_files[0], 'r') as f:
+
+        with open(checkpoint_files[0], "r") as f:
             checkpoint_data = json.loads(f.readline())
             assert "final" in checkpoint_data
