@@ -3,11 +3,15 @@
 
 # Standard
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 # Third Party
 from datasets import Dataset
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.tree import Tree
 import yaml
 
 # Local
@@ -40,14 +44,14 @@ class Flow(BaseModel):
         Runtime parameters that can be overridden during execution.
     """
 
-    blocks: List[BaseBlock] = Field(
+    blocks: list[BaseBlock] = Field(
         default_factory=list,
         description="Ordered list of blocks to execute in the flow",
     )
     metadata: FlowMetadata = Field(
         description="Flow metadata including name, version, author, etc."
     )
-    parameters: Dict[str, FlowParameter] = Field(
+    parameters: dict[str, FlowParameter] = Field(
         default_factory=dict,
         description="Runtime parameters that can be overridden during execution",
     )
@@ -55,13 +59,13 @@ class Flow(BaseModel):
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
     # Private attributes (not serialized)
-    _migrated_runtime_params: Dict[str, Dict[str, Any]] = {}
+    _migrated_runtime_params: dict[str, dict[str, Any]] = {}
     _llm_client: Any = None  # Only used for backward compatibility with old YAMLs
     _model_config_set: bool = False  # Track if model configuration has been set
 
     @field_validator("blocks")
     @classmethod
-    def validate_blocks(cls, v: List[BaseBlock]) -> List[BaseBlock]:
+    def validate_blocks(cls, v: list[BaseBlock]) -> list[BaseBlock]:
         """Validate that all blocks are BaseBlock instances."""
         if not v:
             return v
@@ -77,8 +81,8 @@ class Flow(BaseModel):
     @field_validator("parameters")
     @classmethod
     def validate_parameters(
-        cls, v: Dict[str, FlowParameter]
-    ) -> Dict[str, FlowParameter]:
+        cls, v: dict[str, FlowParameter]
+    ) -> dict[str, FlowParameter]:
         """Validate parameter names and ensure they are FlowParameter instances."""
         if not v:
             return v
@@ -141,7 +145,7 @@ class Flow(BaseModel):
 
         # Load YAML file
         try:
-            with open(yaml_path, "r", encoding="utf-8") as f:
+            with open(yaml_path, encoding="utf-8") as f:
                 flow_config = yaml.safe_load(f)
         except FileNotFoundError as exc:
             raise FileNotFoundError(f"Flow file not found: {yaml_path}") from exc
@@ -165,7 +169,7 @@ class Flow(BaseModel):
         validation_errors = validator.validate_yaml_structure(flow_config)
         if validation_errors:
             raise FlowValidationError(
-                f"Invalid flow configuration:\n" + "\n".join(validation_errors)
+                "Invalid flow configuration:\n" + "\n".join(validation_errors)
             )
 
         # Extract and validate metadata
@@ -250,7 +254,7 @@ class Flow(BaseModel):
     @classmethod
     def _create_block_from_config(
         cls,
-        block_config: Dict[str, Any],
+        block_config: dict[str, Any],
         yaml_dir: Path,
     ) -> BaseBlock:
         """Create a block instance from configuration with validation.
@@ -316,8 +320,8 @@ class Flow(BaseModel):
 
     @classmethod
     def _resolve_config_paths(
-        cls, paths: Union[str, List[str], Dict[str, str]], yaml_dir: Path
-    ) -> Union[str, List[str], Dict[str, str]]:
+        cls, paths: Union[str, list[str], dict[str, str]], yaml_dir: Path
+    ) -> Union[str, list[str], dict[str, str]]:
         """Resolve configuration file paths relative to YAML directory."""
         if isinstance(paths, str):
             return str(yaml_dir / paths)
@@ -330,7 +334,7 @@ class Flow(BaseModel):
     def generate(
         self,
         dataset: Dataset,
-        runtime_params: Optional[Dict[str, Dict[str, Any]]] = None,
+        runtime_params: Optional[dict[str, dict[str, Any]]] = None,
     ) -> Dataset:
         """Execute the flow blocks in sequence to generate data.
 
@@ -452,8 +456,8 @@ class Flow(BaseModel):
         return current_dataset
 
     def _prepare_block_kwargs(
-        self, block: BaseBlock, runtime_params: Dict[str, Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, block: BaseBlock, runtime_params: dict[str, dict[str, Any]]
+    ) -> dict[str, Any]:
         """Prepare execution parameters for a block."""
         return runtime_params.get(block.block_name, {})
 
@@ -462,7 +466,7 @@ class Flow(BaseModel):
         model: Optional[str] = None,
         api_base: Optional[str] = None,
         api_key: Optional[str] = None,
-        blocks: Optional[List[str]] = None,
+        blocks: Optional[list[str]] = None,
         **kwargs: Any,
     ) -> None:
         """Configure model settings for LLM blocks in this flow (in-place).
@@ -572,11 +576,11 @@ class Flow(BaseModel):
                             f"Block '{block.block_name}' ({block.__class__.__name__}) "
                             f"does not have attribute '{param_name}' - skipping"
                         )
-                
+
                 # Reinitialize client manager for LLM blocks after updating config
-                if hasattr(block, '_reinitialize_client_manager'):
+                if hasattr(block, "_reinitialize_client_manager"):
                     block._reinitialize_client_manager()
-                    
+
                 modified_count += 1
 
         if modified_count > 0:
@@ -589,14 +593,12 @@ class Flow(BaseModel):
                     param_summary.append(f"api_base: '{param_value}'")
                 else:
                     param_summary.append(f"{param_name}: {param_value}")
-            
+
             logger.info(
                 f"Successfully configured {modified_count} LLM blocks with: {', '.join(param_summary)}"
             )
-            logger.info(
-                f"Configured blocks: {sorted(target_block_names)}"
-            )
-            
+            logger.info(f"Configured blocks: {sorted(target_block_names)}")
+
             # Mark that model configuration has been set
             self._model_config_set = True
         else:
@@ -604,7 +606,7 @@ class Flow(BaseModel):
                 "No blocks were modified - check block names or LLM block detection"
             )
 
-    def _detect_llm_blocks(self) -> List[str]:
+    def _detect_llm_blocks(self) -> list[str]:
         """Detect LLM blocks in the flow by checking for model-related attribute existence.
 
         LLM blocks are identified by having model, api_base, or api_key attributes,
@@ -687,7 +689,7 @@ class Flow(BaseModel):
             return None
         return self.metadata.recommended_models.default
 
-    def get_model_recommendations(self) -> Dict[str, Any]:
+    def get_model_recommendations(self) -> dict[str, Any]:
         """Get a clean summary of model recommendations for this flow.
 
         Returns
@@ -717,7 +719,7 @@ class Flow(BaseModel):
             "experimental": self.metadata.recommended_models.experimental,
         }
 
-    def validate_dataset(self, dataset: Dataset) -> List[str]:
+    def validate_dataset(self, dataset: Dataset) -> list[str]:
         """Validate dataset against flow requirements."""
         errors = []
 
@@ -737,8 +739,8 @@ class Flow(BaseModel):
         self,
         dataset: Dataset,
         sample_size: int = 2,
-        runtime_params: Optional[Dict[str, Dict[str, Any]]] = None,
-    ) -> Dict[str, Any]:
+        runtime_params: Optional[dict[str, dict[str, Any]]] = None,
+    ) -> dict[str, Any]:
         """Perform a dry run of the flow with a subset of data.
 
         Parameters
@@ -919,7 +921,7 @@ class Flow(BaseModel):
             blocks=new_blocks, metadata=self.metadata, parameters=self.parameters
         )
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """Get information about the flow."""
         return {
             "metadata": self.metadata.model_dump(),
@@ -938,6 +940,102 @@ class Flow(BaseModel):
             "total_blocks": len(self.blocks),
             "block_names": [block.block_name for block in self.blocks],
         }
+
+    def print_info(self) -> None:
+        """
+        Print an interactive summary of the Flow in the console.
+
+        The summary contains:
+        1. Flow metadata (name, version, author, description)
+        2. Defined runtime parameters with type hints and defaults
+        3. A table of all blocks with their input and output columns
+
+        Notes
+        -----
+        Uses the `rich` library for colourised output; install with
+        `pip install rich` if not already present.
+
+        Returns
+        -------
+        None
+        """
+
+        console = Console()
+
+        # Create main tree structure
+        flow_tree = Tree(
+            f"[bold bright_blue]{self.metadata.name}[/bold bright_blue] Flow"
+        )
+
+        # Metadata section
+        metadata_branch = flow_tree.add(
+            "[bold bright_green]Metadata[/bold bright_green]"
+        )
+        metadata_branch.add(
+            f"Version: [bright_cyan]{self.metadata.version}[/bright_cyan]"
+        )
+        metadata_branch.add(
+            f"Author: [bright_cyan]{self.metadata.author}[/bright_cyan]"
+        )
+        if self.metadata.description:
+            metadata_branch.add(
+                f"Description: [white]{self.metadata.description}[/white]"
+            )
+
+        # Parameters section
+        if self.parameters:
+            params_branch = flow_tree.add(
+                "[bold bright_yellow]Parameters[/bold bright_yellow]"
+            )
+            for name, param in self.parameters.items():
+                param_info = f"[bright_cyan]{name}[/bright_cyan]: [white]{param.type_hint}[/white]"
+                if param.default is not None:
+                    param_info += f" = [bright_white]{param.default}[/bright_white]"
+                params_branch.add(param_info)
+
+        # Blocks overview
+        flow_tree.add(
+            f"[bold bright_magenta]Blocks[/bold bright_magenta] ({len(self.blocks)} total)"
+        )
+
+        # Create blocks table
+        blocks_table = Table(show_header=True, header_style="bold bright_white")
+        blocks_table.add_column("Block Name", style="bright_cyan")
+        blocks_table.add_column("Type", style="bright_green")
+        blocks_table.add_column("Input Cols", style="bright_yellow")
+        blocks_table.add_column("Output Cols", style="bright_red")
+
+        for block in self.blocks:
+            input_cols = getattr(block, "input_cols", None)
+            output_cols = getattr(block, "output_cols", None)
+
+            blocks_table.add_row(
+                block.block_name,
+                block.__class__.__name__,
+                str(input_cols) if input_cols else "[bright_black]None[/bright_black]",
+                str(output_cols)
+                if output_cols
+                else "[bright_black]None[/bright_black]",
+            )
+
+        # Print everything
+        console.print()
+        console.print(
+            Panel(
+                flow_tree,
+                title="[bold bright_white]Flow Information[/bold bright_white]",
+                border_style="bright_blue",
+            )
+        )
+        console.print()
+        console.print(
+            Panel(
+                blocks_table,
+                title="[bold bright_white]Block Details[/bold bright_white]",
+                border_style="bright_magenta",
+            )
+        )
+        console.print()
 
     def to_yaml(self, output_path: str) -> None:
         """Save flow configuration to YAML file.

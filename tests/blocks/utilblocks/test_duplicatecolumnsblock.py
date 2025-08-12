@@ -2,10 +2,10 @@
 
 # Third Party
 from datasets import Dataset
-import pytest
 
 # First Party
 from sdg_hub.core.blocks.deprecated_blocks import DuplicateColumns
+import pytest
 
 
 @pytest.fixture
@@ -52,7 +52,9 @@ def test_duplicate_multiple_columns(sample_dataset):
     assert result["other_col"] == result["duplicate_other_col"]
     # Check that the mapping is exact (no extra columns)
     columns_map = {"document": "base_document", "other_col": "duplicate_other_col"}
-    assert len(result.column_names) == len(sample_dataset.column_names) + len(columns_map)
+    assert len(result.column_names) == len(sample_dataset.column_names) + len(
+        columns_map
+    )
 
 
 def test_empty_columns_map():
@@ -69,7 +71,9 @@ def test_nonexistent_column():
         block_name="test_nonexistent", columns_map={"nonexistent_col": "new_col"}
     )
 
-    with pytest.raises(ValueError, match="Source column 'nonexistent_col' not found in dataset"):
+    with pytest.raises(
+        ValueError, match="Source column 'nonexistent_col' not found in dataset"
+    ):
         block.generate(dataset)
 
 

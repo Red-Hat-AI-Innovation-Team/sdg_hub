@@ -1,7 +1,7 @@
 """Custom exception classes for SDG Hub error handling."""
 
 # Standard
-from typing import List, Optional
+from typing import Optional
 
 
 class SDGHubError(Exception):
@@ -89,7 +89,7 @@ class MissingColumnError(BlockValidationError):
     """Raised when required input columns are missing from dataset."""
 
     def __init__(
-        self, block_name: str, missing_columns: List[str], available_columns: List[str]
+        self, block_name: str, missing_columns: list[str], available_columns: list[str]
     ):
         """Initialize MissingColumnError.
 
@@ -137,7 +137,7 @@ class OutputColumnCollisionError(BlockValidationError):
     """Raised when output columns would overwrite existing dataset columns."""
 
     def __init__(
-        self, block_name: str, collision_columns: List[str], existing_columns: List[str]
+        self, block_name: str, collision_columns: list[str], existing_columns: list[str]
     ):
         """Initialize OutputColumnCollisionError.
 
@@ -164,7 +164,10 @@ class TemplateValidationError(BlockValidationError):
     """Raised when template validation fails due to missing variables."""
 
     def __init__(
-        self, block_name: str, missing_variables: List[str], available_variables: List[str]
+        self,
+        block_name: str,
+        missing_variables: list[str],
+        available_variables: list[str],
     ):
         """Initialize TemplateValidationError.
 

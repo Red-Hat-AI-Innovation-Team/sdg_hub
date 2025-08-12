@@ -6,7 +6,7 @@ start/end tags, custom regex patterns, and cleanup operations.
 """
 
 # Standard
-from typing import Any, List, Optional
+from typing import Any, Optional
 import re
 
 # Third Party
@@ -50,16 +50,16 @@ class TextParserBlock(BaseBlock):
         List of tags to clean from parsed output.
     """
 
-    start_tags: List[str] = Field(
+    start_tags: list[str] = Field(
         default_factory=list, description="List of start tags for tag-based parsing"
     )
-    end_tags: List[str] = Field(
+    end_tags: list[str] = Field(
         default_factory=list, description="List of end tags for tag-based parsing"
     )
     parsing_pattern: Optional[str] = Field(
         default=None, description="Regex pattern for custom parsing"
     )
-    parser_cleanup_tags: Optional[List[str]] = Field(
+    parser_cleanup_tags: Optional[list[str]] = Field(
         default=None, description="List of tags to clean from parsed output"
     )
 
@@ -145,7 +145,7 @@ class TextParserBlock(BaseBlock):
 
     def _extract_matches(
         self, text: str, start_tag: Optional[str], end_tag: Optional[str]
-    ) -> List[str]:
+    ) -> list[str]:
         if not text:
             return []
         if not start_tag and not end_tag:
@@ -162,18 +162,18 @@ class TextParserBlock(BaseBlock):
 
         return [match.strip() for match in re.findall(pattern, text, re.DOTALL)]
 
-    def _parse(self, generated_string: str) -> dict[str, List[str]]:
+    def _parse(self, generated_string: str) -> dict[str, list[str]]:
         if self.parsing_pattern is not None:
             return self._parse_with_regex(generated_string)
         return self._parse_with_tags(generated_string)
 
-    def _parse_with_regex(self, generated_string: str) -> dict[str, List[str]]:
+    def _parse_with_regex(self, generated_string: str) -> dict[str, list[str]]:
         """Parse using regex pattern."""
         if self.parsing_pattern is None:
             raise ValueError("parsing_pattern is required for regex parsing")
         pattern = re.compile(self.parsing_pattern, re.DOTALL)
         all_matches = pattern.findall(generated_string)
-        matches: dict[str, List[str]] = {
+        matches: dict[str, list[str]] = {
             column_name: [] for column_name in self.output_cols
         }
 
@@ -185,9 +185,9 @@ class TextParserBlock(BaseBlock):
             return self._process_tuple_matches(all_matches, matches)
         return self._process_single_matches(all_matches, matches)
 
-    def _parse_with_tags(self, generated_string: str) -> dict[str, List[str]]:
+    def _parse_with_tags(self, generated_string: str) -> dict[str, list[str]]:
         """Parse using start/end tags."""
-        matches: dict[str, List[str]] = {
+        matches: dict[str, list[str]] = {
             column_name: [] for column_name in self.output_cols
         }
 
@@ -203,8 +203,8 @@ class TextParserBlock(BaseBlock):
         return matches
 
     def _process_tuple_matches(
-        self, all_matches: list, matches: dict[str, List[str]]
-    ) -> dict[str, List[str]]:
+        self, all_matches: list, matches: dict[str, list[str]]
+    ) -> dict[str, list[str]]:
         """Process regex matches that are tuples."""
         for match in all_matches:
             for column_name, value in zip(self.output_cols, match):
@@ -213,8 +213,8 @@ class TextParserBlock(BaseBlock):
         return matches
 
     def _process_single_matches(
-        self, all_matches: list, matches: dict[str, List[str]]
-    ) -> dict[str, List[str]]:
+        self, all_matches: list, matches: dict[str, list[str]]
+    ) -> dict[str, list[str]]:
         """Process regex matches that are single values."""
         cleaned_matches = [self._clean_value(match.strip()) for match in all_matches]
         matches[self.output_cols[0]] = cleaned_matches
@@ -227,7 +227,7 @@ class TextParserBlock(BaseBlock):
                 value = value.replace(clean_tag, "")
         return value
 
-    def _generate(self, sample: dict) -> List[dict]:
+    def _generate(self, sample: dict) -> list[dict]:
         input_column = self.input_cols[0]
         raw_output = sample[input_column]
 

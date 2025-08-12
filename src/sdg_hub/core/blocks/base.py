@@ -7,7 +7,7 @@ with unified constructor patterns, column handling, and common functionality.
 
 # Standard
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 # Third Party
 from datasets import Dataset
@@ -17,12 +17,12 @@ from rich.panel import Panel
 from rich.text import Text
 
 # Local
-from ..utils.logger_config import setup_logger
 from ..utils.error_handling import (
     EmptyDatasetError,
     MissingColumnError,
     OutputColumnCollisionError,
 )
+from ..utils.logger_config import setup_logger
 
 logger = setup_logger(__name__)
 console = Console()
@@ -48,10 +48,10 @@ class BaseBlock(BaseModel, ABC):
     block_name: str = Field(
         ..., description="Unique identifier for this block instance"
     )
-    input_cols: Union[str, List[str], Dict[str, Any], None] = Field(
+    input_cols: Union[str, list[str], dict[str, Any], None] = Field(
         None, description="Input columns: str, list, or dict"
     )
-    output_cols: Union[str, List[str], Dict[str, Any], None] = Field(
+    output_cols: Union[str, list[str], dict[str, Any], None] = Field(
         None, description="Output columns: str, list, or dict"
     )
 
@@ -72,8 +72,8 @@ class BaseBlock(BaseModel, ABC):
 
     @staticmethod
     def _normalize_columns(
-        cols: Optional[Union[str, List[str], Dict[str, Any]]],
-    ) -> Union[List[str], Dict[str, Any]]:
+        cols: Optional[Union[str, list[str], dict[str, Any]]],
+    ) -> Union[list[str], dict[str, Any]]:
         """Normalize column inputs into a standard internal format.
 
         Parameters
@@ -278,7 +278,7 @@ class BaseBlock(BaseModel, ABC):
         """Compact string representation."""
         return f"{self.__class__.__name__}(name='{self.block_name}', input_cols={self.input_cols}, output_cols={self.output_cols})"
 
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         """Return only constructor arguments for serialization.
 
         Returns
@@ -288,7 +288,7 @@ class BaseBlock(BaseModel, ABC):
         return self.model_dump()
 
     @classmethod
-    def from_config(cls, config: Dict[str, Any]) -> "BaseBlock":
+    def from_config(cls, config: dict[str, Any]) -> "BaseBlock":
         """Instantiate block from serialized config.
 
         Parameters
@@ -301,7 +301,7 @@ class BaseBlock(BaseModel, ABC):
         """
         return cls(**config)
 
-    def get_info(self) -> Dict[str, Any]:
+    def get_info(self) -> dict[str, Any]:
         """Return a high-level summary of block metadata and config.
 
         Returns

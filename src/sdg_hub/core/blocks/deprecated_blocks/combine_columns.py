@@ -6,8 +6,8 @@ Use transform.CombineColumnsBlock instead.
 """
 
 # Standard
+from typing import Any
 import warnings
-from typing import Any, Dict, List
 
 # Third Party
 from datasets import Dataset
@@ -27,7 +27,7 @@ logger = setup_logger(__name__)
     "DEPRECATED: Use TextConcatBlock instead. Combines multiple columns into a single column using a separator",
 )
 class CombineColumnsBlock(BaseBlock):
-    """DEPRECATED: Combine multiple columns into a single column using a separator.
+    r"""DEPRECATED: Combine multiple columns into a single column using a separator.
 
     .. deprecated::
         Use `sdg_hub.blocks.transform.CombineColumnsBlock` instead.
@@ -53,10 +53,10 @@ class CombineColumnsBlock(BaseBlock):
     def __init__(
         self,
         block_name: str,
-        columns: List[str],
+        columns: list[str],
         output_col: str,
         separator: str = "\n\n",
-        **batch_kwargs: Dict[str, Any],
+        **batch_kwargs: dict[str, Any],
     ) -> None:
         warnings.warn(
             "CombineColumnsBlock is deprecated. Use sdg_hub.blocks.transform.TextConcatBlock instead.",

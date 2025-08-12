@@ -6,8 +6,8 @@ This block is deprecated and will be replaced with a router block.
 """
 
 # Standard
+from typing import Any
 import warnings
-from typing import Any, Dict, List
 
 # Third Party
 from datasets import Dataset
@@ -35,10 +35,10 @@ class SamplePopulatorBlock(BaseBlock):
     def __init__(
         self,
         block_name: str,
-        config_paths: List[str],
+        config_paths: list[str],
         column_name: str,
         post_fix: str = "",
-        **batch_kwargs: Dict[str, Any],
+        **batch_kwargs: dict[str, Any],
     ) -> None:
         warnings.warn(
             "SamplePopulatorBlock is deprecated and will be replaced with a router block.",

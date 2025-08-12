@@ -6,7 +6,7 @@ to maintain backwards compatibility with existing code and configurations.
 """
 
 # Standard
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Optional, Union
 import warnings
 
 # Third Party
@@ -40,10 +40,10 @@ class FilterByValueBlock(BaseBlock):
         self,
         block_name: str,
         filter_column: str,
-        filter_value: Union[Any, List[Any]],
+        filter_value: Union[Any, list[Any]],
         operation: Callable[[Any, Any], bool],
-        convert_dtype: Optional[Union[Type[float], Type[int]]] = None,
-        **batch_kwargs: Dict[str, Any],
+        convert_dtype: Optional[Union[type[float], type[int]]] = None,
+        **batch_kwargs: dict[str, Any],
     ) -> None:
         """Initialize the deprecated FilterByValueBlock.
 
@@ -53,13 +53,13 @@ class FilterByValueBlock(BaseBlock):
             Name of the block.
         filter_column : str
             Column name to filter on.
-        filter_value : Union[Any, List[Any]]
+        filter_value : Union[Any, list[Any]]
             The value(s) to filter by.
         operation : Callable[[Any, Any], bool]
             A binary operator from the operator module.
-        convert_dtype : Optional[Union[Type[float], Type[int]]], optional
+        convert_dtype : Optional[Union[type[float], type[int]]], optional
             Type to convert the filter column to.
-        **batch_kwargs : Dict[str, Any]
+        **batch_kwargs : dict[str, Any]
             Additional batch processing arguments.
         """
         # Issue deprecation warning

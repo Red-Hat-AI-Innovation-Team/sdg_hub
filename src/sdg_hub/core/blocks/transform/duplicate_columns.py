@@ -54,8 +54,10 @@ class DuplicateColumnsBlock(BaseBlock):
 
     def model_post_init(self, __context: Any) -> None:
         """Initialize derived attributes after Pydantic validation."""
-        super().model_post_init(__context) if hasattr(super(), 'model_post_init') else None
-        
+        super().model_post_init(__context) if hasattr(
+            super(), "model_post_init"
+        ) else None
+
         # Set output_cols to the new column names being created
         if self.output_cols is None:
             self.output_cols = list(self.input_cols.values())
@@ -75,12 +77,12 @@ class DuplicateColumnsBlock(BaseBlock):
         """
         # Create a copy to avoid modifying the original
         result = samples
-        
+
         # Duplicate each column as specified in the mapping
         for source_col, target_col in self.input_cols.items():
             if source_col not in result.column_names:
                 raise ValueError(f"Source column '{source_col}' not found in dataset")
-            
+
             result = result.add_column(target_col, result[source_col])
-        
+
         return result

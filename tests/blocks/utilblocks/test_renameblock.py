@@ -2,10 +2,10 @@
 
 # Third Party
 from datasets import Dataset
-import pytest
 
 # First Party
 from sdg_hub.core.blocks import RenameColumns
+import pytest
 
 
 def test_rename_columns_basic():
@@ -37,7 +37,6 @@ def test_rename_columns_basic():
     assert result["raw_document"] == ["doc1", "doc2"]
     assert result["document"] == ["sum1", "sum2"]
     assert result["other"] == ["other1", "other2"]
-
 
 
 def test_rename_columns_nonexistent_column():

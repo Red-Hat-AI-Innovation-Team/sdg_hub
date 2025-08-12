@@ -5,7 +5,6 @@ This package provides various block implementations for data generation, process
 
 # Local
 from .base import BaseBlock
-from .registry import BlockRegistry
 from .deprecated_blocks import (
     CombineColumnsBlock,
     DuplicateColumns,
@@ -17,8 +16,10 @@ from .deprecated_blocks import (
     SelectorBlock,
     SetToMajorityValue,
 )
+from .evaluation import EvaluateFaithfulnessBlock, EvaluateRelevancyBlock
 from .filtering import ColumnValueFilterBlock
 from .llm import LLMChatBlock, PromptBuilderBlock, TextParserBlock
+from .registry import BlockRegistry
 from .transform import (
     DuplicateColumnsBlock,
     IndexBasedMapperBlock,
@@ -27,7 +28,7 @@ from .transform import (
     TextConcatBlock,
     UniformColumnValueSetter,
 )
-from .evaluation import EvaluateFaithfulnessBlock, EvaluateRelevancyBlock
+
 # All blocks moved to deprecated_blocks or transform modules
 
 __all__ = [

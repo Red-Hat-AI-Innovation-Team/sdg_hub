@@ -2,11 +2,11 @@
 
 # Third Party
 from datasets import Dataset
-import pytest
 
 # First Party
 from sdg_hub.core.blocks.transform import UniformColumnValueSetter
 from sdg_hub.core.utils.error_handling import EmptyDatasetError, MissingColumnError
+import pytest
 
 
 @pytest.fixture
@@ -185,7 +185,6 @@ def test_set_to_majority_missing_column():
 
 def test_set_to_majority_validation_errors():
     """Test Pydantic validation errors in UniformColumnValueSetter."""
-
     # Test empty input_cols
     with pytest.raises(
         ValueError, match="UniformColumnValueSetter requires exactly one input column"

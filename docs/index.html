@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SDG Hub - Synthetic Data Generation Toolkit</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+  <meta name="description" content="A modular Python framework for building synthetic data generation pipelines using composable blocks and flows.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/buble.css">
+  <style>
+    nav.app-nav li ul { 
+      min-width: 100px; 
+    }
+  </style>
+  <link rel="icon" href="https://raw.githubusercontent.com/Red-Hat-AI-Innovation-Team/sdg_hub/main/docs/assets/favicon.ico" type="image/x-icon">
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    window.$docsify = {
+      name: 'SDG Hub',
+      repo: 'https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub',
+      loadSidebar: true,
+      loadNavbar: true,
+      coverpage: true,
+      mergeNavbar: true,
+      maxLevel: 4,
+      subMaxLevel: 2,
+      auto2top: true,
+      search: {
+        maxAge: 86400000,
+        paths: 'auto',
+        placeholder: 'Search...',
+        noData: 'No results found.',
+        depth: 6
+      },
+      plugins: [
+        function(hook, vm) {
+          hook.beforeEach(function (html) {
+            var url = 'https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/blob/main/docs/' + vm.route.file;
+            var editHtml = '[:memo: Edit Document](' + url + ')\n';
+            return editHtml + html;
+          });
+        }
+      ]
+    }
+  </script>
+  <!-- Docsify v4 -->
+  <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
+  <!-- Search plugin -->
+  <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
+  <!-- Code syntax highlighting -->
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-python.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-yaml.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+</body>
+</html>

@@ -2,10 +2,10 @@
 
 # Third Party
 from datasets import Dataset
-import pytest
 
 # First Party
 from sdg_hub.core.blocks.transform import TextConcatBlock
+import pytest
 
 
 @pytest.fixture
@@ -79,7 +79,9 @@ def test_empty_input_cols():
 
 def test_invalid_output_cols():
     """Test validation with invalid output_cols."""
-    with pytest.raises(ValueError, match="TextConcatBlock requires exactly one output column"):
+    with pytest.raises(
+        ValueError, match="TextConcatBlock requires exactly one output column"
+    ):
         TextConcatBlock(
             block_name="test_concat",
             input_cols=["col1", "col2"],
@@ -97,7 +99,9 @@ def test_missing_columns():
         output_cols=["combined"],
     )
 
-    with pytest.raises(ValueError, match="Input column 'missing_col' not found in sample"):
+    with pytest.raises(
+        ValueError, match="Input column 'missing_col' not found in sample"
+    ):
         block.generate(dataset)
 
 

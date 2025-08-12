@@ -6,7 +6,7 @@ including conversion to OpenAI Messages format and template rendering.
 """
 
 # Standard
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal, Optional
 
 # Third Party
 from datasets import Dataset
@@ -15,8 +15,8 @@ from pydantic import BaseModel, Field, field_validator
 import yaml
 
 # Local
-from ...utils.logger_config import setup_logger
 from ...utils.error_handling import TemplateValidationError
+from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
 from ..registry import BlockRegistry
 
@@ -54,13 +54,13 @@ class PromptTemplateConfig:
     def __init__(self, config_path: str):
         """Initialize with path to YAML config file."""
         self.config_path = config_path
-        self.message_templates: List[MessageTemplate] = []
+        self.message_templates: list[MessageTemplate] = []
         self._load_and_validate()
 
     def _load_and_validate(self) -> None:
         """Load YAML config and validate format."""
         try:
-            with open(self.config_path, "r", encoding="utf-8") as config_file:
+            with open(self.config_path, encoding="utf-8") as config_file:
                 config = yaml.safe_load(config_file)
 
                 if not isinstance(config, list):
@@ -86,7 +86,7 @@ class PromptTemplateConfig:
             )
             raise
 
-    def _compile_templates(self, config: List[Dict[str, Any]]) -> None:
+    def _compile_templates(self, config: list[dict[str, Any]]) -> None:
         """Compile Jinja templates for each message in the config."""
         for i, message in enumerate(config):
             if "role" not in message or "content" not in message:
@@ -121,7 +121,7 @@ class PromptTemplateConfig:
                 f"Got role='{self.message_templates[-1].role}' for the last message."
             )
 
-    def get_message_templates(self) -> List[MessageTemplate]:
+    def get_message_templates(self) -> list[MessageTemplate]:
         """Return the compiled message templates."""
         return self.message_templates
 
@@ -129,7 +129,7 @@ class PromptTemplateConfig:
 class PromptRenderer:
     """Handles rendering of message templates with variable substitution."""
 
-    def __init__(self, message_templates: List[MessageTemplate]):
+    def __init__(self, message_templates: list[MessageTemplate]):
         """Initialize with a list of message templates."""
         self.message_templates = message_templates
 
@@ -146,8 +146,8 @@ class PromptRenderer:
         return required_vars
 
     def resolve_template_vars(
-        self, sample: Dict[str, Any], input_cols
-    ) -> Dict[str, Any]:
+        self, sample: dict[str, Any], input_cols
+    ) -> dict[str, Any]:
         """Resolve template variables from dataset columns based on input_cols.
 
         Parameters
@@ -183,7 +183,7 @@ class PromptRenderer:
 
         return template_vars
 
-    def render_messages(self, template_vars: Dict[str, Any]) -> List[ChatMessage]:
+    def render_messages(self, template_vars: dict[str, Any]) -> list[ChatMessage]:
         """Render all message templates with the given variables.
 
         Parameters
@@ -297,7 +297,7 @@ class PromptBuilderBlock(BaseBlock):
                     available_variables=list(template_vars.keys()),
                 )
 
-    def _generate(self, sample: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate(self, sample: dict[str, Any]) -> dict[str, Any]:
         """Generate formatted output for a single sample.
 
         1. Resolve columns needed for prompt templating
@@ -359,7 +359,7 @@ class PromptBuilderBlock(BaseBlock):
         Dataset
             Dataset with the formatted output added to the specified column.
         """
-        logger.debug("Formatting prompts for {} samples".format(len(samples)))
+        logger.debug(f"Formatting prompts for {len(samples)} samples")
 
         # Use dataset map for efficient processing
         formatted_dataset = samples.map(self._generate)

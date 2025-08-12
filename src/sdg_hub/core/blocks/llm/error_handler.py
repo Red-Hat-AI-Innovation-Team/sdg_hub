@@ -3,27 +3,27 @@
 
 # Standard
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 # Third Party
+from litellm import (
+    APIConnectionError,
+    AuthenticationError,
+    BadRequestError,
+    ContentPolicyViolationError,
+    ContextWindowExceededError,
+    InternalServerError,
+    InvalidRequestError,
+    NotFoundError,
+    RateLimitError,
+    ServiceUnavailableError,
+    UnprocessableEntityError,
+)
 from tenacity import (
     retry,
     retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-)
-from litellm import (
-    RateLimitError,
-    APIConnectionError,
-    InternalServerError,
-    ServiceUnavailableError,
-    ContentPolicyViolationError,
-    AuthenticationError,
-    BadRequestError,
-    InvalidRequestError,
-    UnprocessableEntityError,
-    NotFoundError,
-    ContextWindowExceededError,
 )
 
 # Local
@@ -188,7 +188,7 @@ class LLMErrorHandler:
         return delay
 
     def log_error_context(
-        self, error: Exception, context: Dict[str, Any], attempt: int = 1
+        self, error: Exception, context: dict[str, Any], attempt: int = 1
     ) -> None:
         """Log error with context information.
 
@@ -226,7 +226,7 @@ class LLMErrorHandler:
                 f"Non-retryable error or max retries exceeded: {error}", extra=log_data
             )
 
-    def create_retry_decorator(self, context: Optional[Dict[str, Any]] = None):
+    def create_retry_decorator(self, context: Optional[dict[str, Any]] = None):
         """Create a retry decorator for LLM operations.
 
         Parameters
@@ -292,7 +292,7 @@ class LLMErrorHandler:
         )
 
     def wrap_completion(
-        self, completion_func, context: Optional[Dict[str, Any]] = None
+        self, completion_func, context: Optional[dict[str, Any]] = None
     ):
         """Wrap a completion function with error handling and retry logic.
 
@@ -311,7 +311,7 @@ class LLMErrorHandler:
         retry_decorator = self.create_retry_decorator(context)
         return retry_decorator(completion_func)
 
-    def get_error_summary(self, error: Exception) -> Dict[str, Any]:
+    def get_error_summary(self, error: Exception) -> dict[str, Any]:
         """Get a summary of error information.
 
         Parameters
@@ -335,7 +335,7 @@ class LLMErrorHandler:
         }
 
     def format_error_message(
-        self, error: Exception, context: Optional[Dict[str, Any]] = None
+        self, error: Exception, context: Optional[dict[str, Any]] = None
     ) -> str:
         """Format an error message for user display.
 
