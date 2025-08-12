@@ -1006,6 +1006,7 @@ class TestFlow:
         checkpoint_dir.mkdir(parents=True)
 
         # Pre-create some checkpoint data manually
+        # First Party
         from sdg_hub.core.flow.checkpointer import FlowCheckpointer
 
         checkpointer = FlowCheckpointer(
@@ -1045,6 +1046,7 @@ class TestFlow:
         checkpoint_dir.mkdir(parents=True)
 
         # Pre-create checkpoint data for all input samples
+        # First Party
         from sdg_hub.core.flow.checkpointer import FlowCheckpointer
 
         checkpointer = FlowCheckpointer(
@@ -1113,6 +1115,7 @@ class TestFlow:
         assert len(checkpoint_files) == 2
 
         # Verify checkpoint content includes results from all blocks
+        # Standard
         import json
 
         with open(checkpoint_files[0], "r") as f:

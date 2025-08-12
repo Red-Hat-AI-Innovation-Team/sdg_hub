@@ -6,10 +6,10 @@ from pathlib import Path
 import json
 import tempfile
 
+# Third Party
 from datasets import Dataset
 
-# Third Party
-# Local
+# First Party
 from sdg_hub.core.flow.checkpointer import FlowCheckpointer
 
 
@@ -23,6 +23,7 @@ class TestFlowCheckpointer:
 
     def teardown_method(self):
         """Clean up test fixtures."""
+        # Standard
         import shutil
 
         shutil.rmtree(self.temp_dir)
