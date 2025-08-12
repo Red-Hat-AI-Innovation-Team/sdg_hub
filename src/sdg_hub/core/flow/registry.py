@@ -4,7 +4,7 @@
 # Standard
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict
 import os
 
 # Third Party
