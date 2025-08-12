@@ -307,7 +307,7 @@ class TestBlockRegistry:
     def test_print_blocks_empty_registry(self):
         """Test printing blocks when registry is empty."""
         with patch("sdg_hub.core.blocks.registry.console") as mock_console:
-            BlockRegistry.show()
+            BlockRegistry.discover_blocks()
             mock_console.print.assert_called_once_with(
                 "[yellow]No blocks registered yet.[/yellow]"
             )
@@ -328,7 +328,7 @@ class TestBlockRegistry:
                 return samples
 
         with patch("sdg_hub.core.blocks.registry.console") as mock_console:
-            BlockRegistry.show()
+            BlockRegistry.discover_blocks()
 
             # Check that console.print was called (for table and summary)
             assert mock_console.print.call_count >= 2

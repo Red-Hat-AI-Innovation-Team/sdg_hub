@@ -291,7 +291,7 @@ class BlockRegistry:
         }
 
     @classmethod
-    def show(cls) -> None:
+    def discover_blocks(cls) -> None:
         """Print a Rich-formatted table of all available blocks."""
         if not cls._metadata:
             console.print("[yellow]No blocks registered yet.[/yellow]")

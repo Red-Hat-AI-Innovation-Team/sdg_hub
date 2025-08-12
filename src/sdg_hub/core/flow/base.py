@@ -8,6 +8,10 @@ from typing import Any, Optional, Union
 # Third Party
 from datasets import Dataset
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.tree import Tree
 import yaml
 
 # Local
@@ -929,6 +933,102 @@ class Flow(BaseModel):
             "total_blocks": len(self.blocks),
             "block_names": [block.block_name for block in self.blocks],
         }
+
+    def print_info(self) -> None:
+        """
+        Print an interactive summary of the Flow in the console.
+
+        The summary contains:
+        1. Flow metadata (name, version, author, description)
+        2. Defined runtime parameters with type hints and defaults
+        3. A table of all blocks with their input and output columns
+
+        Notes
+        -----
+        Uses the `rich` library for colourised output; install with
+        `pip install rich` if not already present.
+
+        Returns
+        -------
+        None
+        """
+
+        console = Console()
+
+        # Create main tree structure
+        flow_tree = Tree(
+            f"[bold bright_blue]{self.metadata.name}[/bold bright_blue] Flow"
+        )
+
+        # Metadata section
+        metadata_branch = flow_tree.add(
+            "[bold bright_green]Metadata[/bold bright_green]"
+        )
+        metadata_branch.add(
+            f"Version: [bright_cyan]{self.metadata.version}[/bright_cyan]"
+        )
+        metadata_branch.add(
+            f"Author: [bright_cyan]{self.metadata.author}[/bright_cyan]"
+        )
+        if self.metadata.description:
+            metadata_branch.add(
+                f"Description: [white]{self.metadata.description}[/white]"
+            )
+
+        # Parameters section
+        if self.parameters:
+            params_branch = flow_tree.add(
+                "[bold bright_yellow]Parameters[/bold bright_yellow]"
+            )
+            for name, param in self.parameters.items():
+                param_info = f"[bright_cyan]{name}[/bright_cyan]: [white]{param.type_hint}[/white]"
+                if param.default is not None:
+                    param_info += f" = [bright_white]{param.default}[/bright_white]"
+                params_branch.add(param_info)
+
+        # Blocks overview
+        flow_tree.add(
+            f"[bold bright_magenta]Blocks[/bold bright_magenta] ({len(self.blocks)} total)"
+        )
+
+        # Create blocks table
+        blocks_table = Table(show_header=True, header_style="bold bright_white")
+        blocks_table.add_column("Block Name", style="bright_cyan")
+        blocks_table.add_column("Type", style="bright_green")
+        blocks_table.add_column("Input Cols", style="bright_yellow")
+        blocks_table.add_column("Output Cols", style="bright_red")
+
+        for block in self.blocks:
+            input_cols = getattr(block, "input_cols", None)
+            output_cols = getattr(block, "output_cols", None)
+
+            blocks_table.add_row(
+                block.block_name,
+                block.__class__.__name__,
+                str(input_cols) if input_cols else "[bright_black]None[/bright_black]",
+                str(output_cols)
+                if output_cols
+                else "[bright_black]None[/bright_black]",
+            )
+
+        # Print everything
+        console.print()
+        console.print(
+            Panel(
+                flow_tree,
+                title="[bold bright_white]Flow Information[/bold bright_white]",
+                border_style="bright_blue",
+            )
+        )
+        console.print()
+        console.print(
+            Panel(
+                blocks_table,
+                title="[bold bright_white]Block Details[/bold bright_white]",
+                border_style="bright_magenta",
+            )
+        )
+        console.print()
 
     def to_yaml(self, output_path: str) -> None:
         """Save flow configuration to YAML file.
