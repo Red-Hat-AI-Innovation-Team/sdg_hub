@@ -6,14 +6,11 @@ from pathlib import Path
 import tempfile
 
 # First Party
+# Local
 from sdg_hub import FlowRegistry
 
 # Third Party
 import yaml
-
-# Local
-from sdg_hub import FlowRegistry
-from sdg_hub.core.utils.flow_identifier import get_flow_identifier
 
 
 class TestFlowRegistry:
@@ -99,7 +96,7 @@ class TestFlowRegistry:
         assert metadata2.flow_id == first_id  # Should be same as saved in YAML
 
         # Create new flow without saving flow_id to YAML
-        flow2_path = self.create_test_flow("Test Flow 2")
+        self.create_test_flow("Test Flow 2")
 
         # Multiple discoveries without saving to YAML should generate different IDs
         FlowRegistry._discover_flows(force_refresh=True)
@@ -141,7 +138,7 @@ class TestFlowRegistry:
         """Test that custom flow IDs are preserved."""
         # Create flow with custom flow_id
         custom_id = "custom-test-id"
-        flow_path = self.create_test_flow("Test Flow", flow_id=custom_id)
+        self.create_test_flow("Test Flow", flow_id=custom_id)
 
         FlowRegistry.register_search_path(str(self.test_flow_path))
         FlowRegistry._discover_flows(force_refresh=True)

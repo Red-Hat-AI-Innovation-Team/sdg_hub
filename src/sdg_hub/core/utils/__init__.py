@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Local
-from .path_resolution import resolve_path
 from .flow_identifier import get_flow_identifier
+from .path_resolution import resolve_path
 
 
 # This is part of the public API, and used by instructlab
