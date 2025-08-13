@@ -3,14 +3,16 @@
 
 # Standard
 from unittest.mock import MagicMock, patch
-import pytest
 
 # Third Party
 from datasets import Dataset
+import pytest
 
 # First Party
 from sdg_hub.core.blocks.llm import LLMChatWithParsingRetryBlock
-from sdg_hub.core.blocks.llm.llm_chat_with_parsing_retry_block import MaxRetriesExceededError
+from sdg_hub.core.blocks.llm.llm_chat_with_parsing_retry_block import (
+    MaxRetriesExceededError,
+)
 from sdg_hub.core.utils.error_handling import BlockValidationError
 
 
