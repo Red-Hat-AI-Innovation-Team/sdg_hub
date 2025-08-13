@@ -12,9 +12,10 @@ from typing import Any, Optional, Union
 from datasets import Dataset
 from pydantic import ConfigDict, Field, field_validator
 
+from ...utils.error_handling import BlockValidationError
+
 # Local
 from ...utils.logger_config import setup_logger
-from ...utils.error_handling import BlockValidationError
 from ..base import BaseBlock
 from ..registry import BlockRegistry
 from .llm_chat_block import LLMChatBlock
