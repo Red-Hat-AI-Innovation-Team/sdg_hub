@@ -72,86 +72,86 @@ class TestFlowRegistry:
 
         return str(flow_path)
 
-    def test_flow_id_persistence(self):
+    def test_id_persistence(self):
         """Test that flow IDs are consistent only when saved to YAML."""
-        # Create flow without flow_id
+        # Create flow without id
         flow_path = self.create_test_flow("Test Flow")
         FlowRegistry.register_search_path(str(self.test_flow_path))
 
-        # First discovery - should generate and save flow_id
+        # First discovery - should generate and save id
         FlowRegistry._discover_flows(force_refresh=True)
         metadata1 = FlowRegistry.get_flow_metadata("Test Flow")
-        first_id = metadata1.flow_id
+        first_id = metadata1.id
 
-        # Verify flow_id was saved to YAML
+        # Verify id was saved to YAML
         with open(flow_path, "r") as f:
             flow_config = yaml.safe_load(f)
-            assert "flow_id" in flow_config["metadata"]
-            assert flow_config["metadata"]["flow_id"] == first_id
+            assert "id" in flow_config["metadata"]
+            assert flow_config["metadata"]["id"] == first_id
 
-        # Clear registry and rediscover - should load same flow_id from YAML
+        # Clear registry and rediscover - should load same id from YAML
         FlowRegistry._entries.clear()
         FlowRegistry._discover_flows(force_refresh=True)
         metadata2 = FlowRegistry.get_flow_metadata("Test Flow")
-        assert metadata2.flow_id == first_id  # Should be same as saved in YAML
+        assert metadata2.id == first_id  # Should be same as saved in YAML
 
-        # Create new flow without saving flow_id to YAML
+        # Create new flow without saving id to YAML
         self.create_test_flow("Test Flow 2")
 
         # Multiple discoveries without saving to YAML should generate different IDs
         FlowRegistry._discover_flows(force_refresh=True)
-        id1 = FlowRegistry.get_flow_metadata("Test Flow").flow_id
+        id1 = FlowRegistry.get_flow_metadata("Test Flow").id
 
         FlowRegistry._entries.clear()
         FlowRegistry._discover_flows(force_refresh=True)
-        id2 = FlowRegistry.get_flow_metadata("Test Flow 2").flow_id
+        id2 = FlowRegistry.get_flow_metadata("Test Flow 2").id
 
         assert id1 != id2  # IDs should be different since they weren't saved
 
-    def test_flow_id_yaml_update(self):
-        """Test that flow_id is written to YAML during discovery."""
-        # Create flow without flow_id
+    def test_id_yaml_update(self):
+        """Test that id is written to YAML during discovery."""
+        # Create flow without id
         flow_path = self.create_test_flow("Test Flow")
 
-        # Verify no flow_id in original YAML
+        # Verify no id in original YAML
         with open(flow_path, "r") as f:
             original_config = yaml.safe_load(f)
-            assert "flow_id" not in original_config["metadata"]
+            assert "id" not in original_config["metadata"]
 
-        # Discover flows - should generate and save flow_id
+        # Discover flows - should generate and save id
         FlowRegistry.register_search_path(str(self.test_flow_path))
         FlowRegistry._discover_flows(force_refresh=True)
 
-        # Verify flow_id was written to YAML
+        # Verify id was written to YAML
         with open(flow_path, "r") as f:
             updated_config = yaml.safe_load(f)
-            assert "flow_id" in updated_config["metadata"]
-            saved_id = updated_config["metadata"]["flow_id"]
+            assert "id" in updated_config["metadata"]
+            saved_id = updated_config["metadata"]["id"]
 
-        # Clear registry and rediscover - should use saved flow_id
+        # Clear registry and rediscover - should use saved id
         FlowRegistry._entries.clear()
         FlowRegistry._discover_flows(force_refresh=True)
         metadata = FlowRegistry.get_flow_metadata("Test Flow")
-        assert metadata.flow_id == saved_id
+        assert metadata.id == saved_id
 
-    def test_custom_flow_id_preservation(self):
+    def test_custom_id_preservation(self):
         """Test that custom flow IDs are preserved."""
-        # Create flow with custom flow_id
+        # Create flow with custom id
         custom_id = "custom-test-id"
-        self.create_test_flow("Test Flow", flow_id=custom_id)
+        self.create_test_flow("Test Flow", id=custom_id)
 
         FlowRegistry.register_search_path(str(self.test_flow_path))
         FlowRegistry._discover_flows(force_refresh=True)
 
-        # Verify custom flow_id is preserved
+        # Verify custom id is preserved
         metadata = FlowRegistry.get_flow_metadata("Test Flow")
-        assert metadata.flow_id == custom_id
+        assert metadata.id == custom_id
 
-        # Clear registry and rediscover - should still use custom flow_id
+        # Clear registry and rediscover - should still use custom id
         FlowRegistry._entries.clear()
         FlowRegistry._discover_flows(force_refresh=True)
         metadata = FlowRegistry.get_flow_metadata("Test Flow")
-        assert metadata.flow_id == custom_id
+        assert metadata.id == custom_id
 
     def test_register_search_path(self):
         """Test registering search paths."""
@@ -275,10 +275,10 @@ class TestFlowRegistry:
 
         # Get the flow's ID from metadata
         metadata = FlowRegistry.get_flow_metadata("Test Flow")
-        flow_id = metadata.flow_id
+        id = metadata.id
 
-        # Should find by flow_id (preferred)
-        retrieved_path = FlowRegistry.get_flow_path(flow_id)
+        # Should find by id (preferred)
+        retrieved_path = FlowRegistry.get_flow_path(id)
         assert retrieved_path == flow_path
 
         # Should also find by name (backward compatibility)
@@ -295,13 +295,13 @@ class TestFlowRegistry:
 
         # Each flow should be uniquely identifiable by either name or ID
         another_metadata = FlowRegistry.get_flow_metadata("Another Flow")
-        another_id = another_metadata.flow_id
+        another_id = another_metadata.id
 
         assert FlowRegistry.get_flow_path(another_id) == another_flow_path
         assert FlowRegistry.get_flow_path("Another Flow") == another_flow_path
 
         # Original flow should still be accessible
-        assert FlowRegistry.get_flow_path(flow_id) == flow_path
+        assert FlowRegistry.get_flow_path(id) == flow_path
         assert FlowRegistry.get_flow_path("Test Flow") == flow_path
 
     def test_get_flow_metadata(self):

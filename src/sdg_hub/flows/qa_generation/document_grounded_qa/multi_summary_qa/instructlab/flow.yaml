@@ -1,4 +1,5 @@
 metadata:
+  id: small-rock-799
   name: "Advanced Document Grounded Question-Answer Generation Flow for Knowledge Tuning"
   description: "A comprehensive flow that generates high-quality question-answer pairs from input documents using multiple LLM blocks for question generation, answer synthesis, and quality evaluation."
   version: "1.0.0"
@@ -32,8 +33,6 @@ metadata:
       - "icl_query_3"
       - "icl_response_3"
     description: "Input dataset should contain documents with text content and domain classification. Each document should be substantial enough for meaningful question generation (minimum 100 words recommended)."
-  
-  flow_id: desert-eagle
 
 blocks:
   - block_type: DuplicateColumnsBlock

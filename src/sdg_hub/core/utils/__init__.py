@@ -10,4 +10,4 @@ class GenerateError(Exception):
     """An exception raised during generate step."""
 
 
-__all__ = ["GenerateException", "resolve_path", "get_flow_identifier"]
+__all__ = ["GenerateError", "resolve_path", "get_flow_identifier"]

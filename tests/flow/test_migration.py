@@ -218,8 +218,8 @@ class TestFlowMigration:
         assert "migrated" in metadata["tags"]
         assert "recommended_models" in metadata
         assert len(metadata["recommended_models"]) > 0
-        # Check flow_id generation
-        assert metadata["flow_id"] is not None
+        # Check id generation
+        assert metadata["id"] is not None
 
     def test_migrate_block_config_edge_cases(self):
         """Test edge cases in block config migration."""
@@ -263,25 +263,25 @@ class TestFlowMigrationIntegration:
             temp_path = f.name
 
         try:
-            # First load - should migrate and generate flow_id
+            # First load - should migrate and generate id
             flow1 = Flow.from_yaml(temp_path)
             assert flow1.metadata.name == Path(temp_path).stem
             assert "migrated" in flow1.metadata.tags
             assert len(flow1.blocks) == 1
             assert flow1.blocks[0].block_name == "test_duplicate"
-            first_id = flow1.metadata.flow_id
+            first_id = flow1.metadata.id
             assert first_id  # Should have generated an ID
 
-            # Verify flow_id was saved to YAML during migration
+            # Verify id was saved to YAML during migration
             with open(temp_path, "r") as f:
                 migrated_config = yaml.safe_load(f)
                 assert "metadata" in migrated_config
-                assert "flow_id" in migrated_config["metadata"]
-                assert migrated_config["metadata"]["flow_id"] == first_id
+                assert "id" in migrated_config["metadata"]
+                assert migrated_config["metadata"]["id"] == first_id
 
-            # Load again - should use same flow_id since it's now in new format
+            # Load again - should use same id since it's now in new format
             flow2 = Flow.from_yaml(temp_path)
-            assert flow2.metadata.flow_id == first_id  # Should use same ID
+            assert flow2.metadata.id == first_id  # Should use same ID
 
             # Create another old format flow - should get different ID when migrated
             with tempfile.NamedTemporaryFile(
@@ -293,16 +293,16 @@ class TestFlowMigrationIntegration:
             try:
                 # When migrated, should get different ID
                 flow3 = Flow.from_yaml(temp_path2)
-                assert flow3.metadata.flow_id != first_id  # Should get different ID
+                assert flow3.metadata.id != first_id  # Should get different ID
 
                 # Verify the new ID was saved to YAML during migration
                 with open(temp_path2, "r") as f:
                     migrated_config2 = yaml.safe_load(f)
                     assert "metadata" in migrated_config2
-                    assert "flow_id" in migrated_config2["metadata"]
+                    assert "id" in migrated_config2["metadata"]
                     assert (
-                        migrated_config2["metadata"]["flow_id"]
-                        == flow3.metadata.flow_id
+                        migrated_config2["metadata"]["id"]
+                        == flow3.metadata.id
                     )
             finally:
                 Path(temp_path2).unlink()
@@ -335,21 +335,21 @@ class TestFlowMigrationIntegration:
             try:
                 # Load both files - should get different IDs since they're separate migrations
                 flow3 = Flow.from_yaml(temp_path2)
-                id1 = flow3.metadata.flow_id
+                id1 = flow3.metadata.id
 
                 flow4 = Flow.from_yaml(temp_path3)
-                id2 = flow4.metadata.flow_id
+                id2 = flow4.metadata.id
 
                 assert id1 != id2  # Should get different IDs for different files
 
                 # Verify both IDs were saved to their respective YAMLs
                 with open(temp_path2, "r") as f:
                     config2 = yaml.safe_load(f)
-                    assert config2["metadata"]["flow_id"] == id1
+                    assert config2["metadata"]["id"] == id1
 
                 with open(temp_path3, "r") as f:
                     config3 = yaml.safe_load(f)
-                    assert config3["metadata"]["flow_id"] == id2
+                    assert config3["metadata"]["id"] == id2
 
             finally:
                 Path(temp_path2).unlink()

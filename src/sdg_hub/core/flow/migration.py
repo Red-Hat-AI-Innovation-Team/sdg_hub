@@ -130,11 +130,11 @@ class FlowMigration:
             },
         }
 
-        # Generate flow_id for migrated flows
+        # Generate id for migrated flows
         flow_id = get_flow_identifier(flow_name)
         if flow_id:
-            metadata["flow_id"] = flow_id
-            logger.debug(f"Generated flow_id for migrated flow: {flow_id}")
+            metadata["id"] = flow_id
+            logger.debug(f"Generated id for migrated flow: {flow_id}")
 
         return metadata
 
