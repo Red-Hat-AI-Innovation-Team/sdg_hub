@@ -428,9 +428,7 @@ class TestFlowMetadata:
     def test_id_validation(self):
         """Test id validation with random flow ids."""
         # Test custom id is preserved
-        metadata = FlowMetadata(
-            name="My Flow", id="custom-id", description="Test flow"
-        )
+        metadata = FlowMetadata(name="My Flow", id="custom-id", description="Test flow")
         assert metadata.id == "custom-id"
 
         # Test that a random id is generated if not provided
@@ -451,9 +449,7 @@ class TestFlowMetadata:
 
         # Test uppercase id
         with pytest.raises(ValidationError) as exc_info:
-            FlowMetadata(
-                name="My Flow", id="INVALID-CASE", description="Test flow"
-            )
+            FlowMetadata(name="My Flow", id="INVALID-CASE", description="Test flow")
         assert "id must be lowercase" in str(exc_info.value)
 
         # Test valid lowercase but invalid characters

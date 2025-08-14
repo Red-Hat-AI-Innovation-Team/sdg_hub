@@ -300,10 +300,7 @@ class TestFlowMigrationIntegration:
                     migrated_config2 = yaml.safe_load(f)
                     assert "metadata" in migrated_config2
                     assert "id" in migrated_config2["metadata"]
-                    assert (
-                        migrated_config2["metadata"]["id"]
-                        == flow3.metadata.id
-                    )
+                    assert migrated_config2["metadata"]["id"] == flow3.metadata.id
             finally:
                 Path(temp_path2).unlink()
 

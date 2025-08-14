@@ -139,7 +139,7 @@ class Flow(BaseModel):
         -------
         Flow
             Validated Flow instance.
-            
+
         Raises
         ------
         FlowValidationError
@@ -149,7 +149,7 @@ class Flow(BaseModel):
             raise FlowValidationError(
                 "Flow path cannot be None. Please provide a valid YAML file path or check that the flow exists in the registry."
             )
-        
+
         yaml_path = resolve_path(yaml_path, [])
         yaml_dir = Path(yaml_path).parent
 
@@ -242,9 +242,7 @@ class Flow(BaseModel):
             # Persist generated id back to the YAML file (only on initial load)
             # If the file had no metadata.id originally, update and rewrite
             if not flow_config.get("metadata", {}).get("id"):
-                flow_config.setdefault("metadata", {})["id"] = (
-                    flow.metadata.id
-                )
+                flow_config.setdefault("metadata", {})["id"] = flow.metadata.id
                 save_flow_yaml(
                     yaml_path,
                     flow_config,

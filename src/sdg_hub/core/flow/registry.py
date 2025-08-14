@@ -197,7 +197,7 @@ class FlowRegistry:
         -------
         str
             Path to the flow file.
-            
+
         Raises
         ------
         ValueError
@@ -210,18 +210,18 @@ class FlowRegistry:
         if path is None:
             # Get available flows for better error message
             available_flows = cls.list_flows()
-            
+
             error_msg = f"Flow '{flow_name_or_id}' not found.\n"
-            
+
             if available_flows:
                 error_msg += "Available flows:\n"
                 for flow in available_flows:
                     error_msg += f"  - ID: '{flow['id']}', Name: '{flow['name']}'\n"
             else:
                 error_msg += "No flows are currently registered. Try running FlowRegistry.discover_flows() first."
-                
+
             raise ValueError(error_msg.strip())
-            
+
         return path
 
     @classmethod
