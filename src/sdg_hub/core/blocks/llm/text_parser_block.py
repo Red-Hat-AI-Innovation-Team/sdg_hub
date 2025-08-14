@@ -67,7 +67,7 @@ class TextParserBlock(BaseBlock):
     )
     expand_lists: bool = Field(
         default=True,
-        description="Whether to expand list inputs into individual rows (True) or preserve lists (False). "
+        description="Whether to expand list inputs into individual rows (True) or preserve lists (False). ",
     )
 
     @field_validator("start_tags", "end_tags", mode="before")
