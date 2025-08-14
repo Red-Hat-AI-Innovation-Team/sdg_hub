@@ -269,13 +269,29 @@ print(f"Sample output: {dry_result['sample_output']}")
 Customize flow behavior at runtime:
 
 ```python
-# Override default parameters
+# Override default runtime parameters
 result = flow.generate(
     dataset,
-    parameters={
+    runtime_params={
         "max_tokens": 200,
         "temperature": 0.9,
-        "enable_evaluation": False
+    }
+)
+```
+
+### Block-Specific Runtime Arguments
+
+You can enable or disable advanced features—such as "thinking mode"—for individual blocks at runtime using the `runtime_params` argument. This allows fine-grained control over block behavior without modifying the flow YAML.
+
+For example, to disable "thinking mode" for several blocks:
+
+```python
+# Set runtime_params for specific blocks
+result = flow.generate(
+    dataset, 
+    runtime_params = {
+    # LLMChatBlock blocks
+    "llm_chat_block_1": {"extra_body": {"chat_template_kwargs": {"enable_thinking": False}}},
     }
 )
 ```
