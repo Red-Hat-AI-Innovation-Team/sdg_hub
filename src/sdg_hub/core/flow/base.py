@@ -7,7 +7,7 @@ from typing import Any, Optional, Union
 import time
 
 # Third Party
-from datasets import Dataset, concatenate_datasets
+from datasets import Dataset
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from rich.console import Console
 from rich.panel import Panel
@@ -18,6 +18,7 @@ import yaml
 # Local
 from ..blocks.base import BaseBlock
 from ..blocks.registry import BlockRegistry
+from ..utils.datautils import safe_concatenate_with_validation
 from ..utils.error_handling import EmptyDatasetError, FlowValidationError
 from ..utils.logger_config import setup_logger
 from ..utils.path_resolution import resolve_path
@@ -426,7 +427,7 @@ class Flow(BaseModel):
             checkpointer = FlowCheckpointer(
                 checkpoint_dir=checkpoint_dir,
                 save_freq=save_freq,
-                flow_name=self.metadata.name,
+                flow_id=self.metadata.id,
             )
 
             # Load existing progress
@@ -478,11 +479,16 @@ class Flow(BaseModel):
             checkpointer.save_final_checkpoint()
 
             # Combine all processed chunks
-            final_dataset = concatenate_datasets(all_processed)
+            final_dataset = safe_concatenate_with_validation(
+                all_processed, "processed chunks from flow execution"
+            )
 
             # Combine with previously completed samples if any
             if checkpointer and completed_dataset:
-                final_dataset = concatenate_datasets([completed_dataset, final_dataset])
+                final_dataset = safe_concatenate_with_validation(
+                    [completed_dataset, final_dataset], 
+                    "completed checkpoint data with newly processed data"
+                )
 
         else:
             # Process entire dataset at once
@@ -495,8 +501,9 @@ class Flow(BaseModel):
 
                 # Combine with previously completed samples if any
                 if completed_dataset:
-                    final_dataset = concatenate_datasets(
-                        [completed_dataset, final_dataset]
+                    final_dataset = safe_concatenate_with_validation(
+                        [completed_dataset, final_dataset],
+                        "completed checkpoint data with newly processed data"
                     )
 
         logger.info(

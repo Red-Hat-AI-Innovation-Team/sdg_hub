@@ -1012,7 +1012,7 @@ class TestFlow:
         checkpointer = FlowCheckpointer(
             checkpoint_dir=str(checkpoint_dir),
             save_freq=2,  # Need save_freq to trigger checkpoint save
-            flow_name=flow.metadata.name,
+            flow_id=flow.metadata.id,
         )
 
         # Simulate some completed samples
@@ -1052,7 +1052,7 @@ class TestFlow:
         checkpointer = FlowCheckpointer(
             checkpoint_dir=str(checkpoint_dir),
             save_freq=2,  # Need save_freq to trigger checkpoint save
-            flow_name=flow.metadata.name,
+            flow_id=flow.metadata.id,
         )
 
         completed_data = Dataset.from_dict(

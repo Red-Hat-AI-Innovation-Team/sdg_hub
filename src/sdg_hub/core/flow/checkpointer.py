@@ -9,9 +9,10 @@ import os
 import uuid
 
 # Third Party
-from datasets import Dataset, concatenate_datasets
+from datasets import Dataset
 
 # Local
+from ..utils.datautils import safe_concatenate_with_validation
 from ..utils.logger_config import setup_logger
 
 logger = setup_logger(__name__)
@@ -28,7 +29,7 @@ class FlowCheckpointer:
         self,
         checkpoint_dir: Optional[str] = None,
         save_freq: Optional[int] = None,
-        flow_name: Optional[str] = None,
+        flow_id: Optional[str] = None,
     ):
         """Initialize the FlowCheckpointer.
 
@@ -39,12 +40,12 @@ class FlowCheckpointer:
         save_freq : Optional[int]
             Number of completed samples after which to save a checkpoint.
             If None, only final results are saved.
-        flow_name : Optional[str]
-            Name of the flow for checkpoint identification.
+        flow_id : Optional[str]
+            Unique ID of the flow for checkpoint identification.
         """
         self.checkpoint_dir = checkpoint_dir
         self.save_freq = save_freq
-        self.flow_name = flow_name or "unknown_flow"
+        self.flow_id = flow_id or "unknown_flow"
 
         # Internal state
         self._samples_processed = 0
@@ -92,11 +93,11 @@ class FlowCheckpointer:
                 return input_dataset, None
 
             # Validate flow identity to prevent mixing checkpoints from different flows
-            saved_flow_name = metadata.get("flow_name")
-            if saved_flow_name and saved_flow_name != self.flow_name:
+            saved_flow_id = metadata.get("flow_id")
+            if saved_flow_id and saved_flow_id != self.flow_id:
                 logger.warning(
-                    f"Flow name mismatch: saved checkpoints are for flow '{saved_flow_name}' "
-                    f"but current flow is '{self.flow_name}'. Starting fresh to avoid "
+                    f"Flow ID mismatch: saved checkpoints are for flow ID '{saved_flow_id}' "
+                    f"but current flow ID is '{self.flow_id}'. Starting fresh to avoid "
                     f"mixing incompatible checkpoint data."
                 )
                 return input_dataset, None
@@ -152,10 +153,9 @@ class FlowCheckpointer:
             return
 
         if self._pending_samples:
+            sample_count = len(self._pending_samples)
             self._save_checkpoint()
-            logger.info(
-                f"Saved final checkpoint with {len(self._pending_samples)} samples"
-            )
+            logger.info(f"Saved final checkpoint with {sample_count} samples")
 
     def _save_checkpoint(self) -> None:
         """Save current pending samples to a checkpoint file."""
@@ -185,7 +185,7 @@ class FlowCheckpointer:
     def _save_metadata(self) -> None:
         """Save flow execution metadata."""
         metadata = {
-            "flow_name": self.flow_name,
+            "flow_id": self.flow_id,
             "save_freq": self.save_freq,
             "samples_processed": self._samples_processed,
             "checkpoint_counter": self._checkpoint_counter,
@@ -238,17 +238,22 @@ class FlowCheckpointer:
         if not datasets:
             return None
 
-        return concatenate_datasets(datasets)
+        return safe_concatenate_with_validation(
+            datasets, "checkpoint files"
+        )
 
     def _find_remaining_samples(
         self, input_dataset: Dataset, completed_dataset: Dataset
     ) -> Dataset:
         """Find samples from input_dataset that are not in completed_dataset.
 
+        Note: Assumes input_dataset contains unique samples. For datasets with
+        duplicates, multiset semantics with collections.Counter would be needed.
+
         Parameters
         ----------
         input_dataset : Dataset
-            Original input dataset.
+            Original input dataset (assumed to contain unique samples).
         completed_dataset : Dataset
             Dataset of completed samples.
 
@@ -300,7 +305,7 @@ class FlowCheckpointer:
         return {
             "checkpoint_dir": self.checkpoint_dir,
             "save_freq": self.save_freq,
-            "flow_name": self.flow_name,
+            "flow_id": self.flow_id,
             "samples_processed": self._samples_processed,
             "checkpoint_counter": self._checkpoint_counter,
             "pending_samples": len(self._pending_samples),

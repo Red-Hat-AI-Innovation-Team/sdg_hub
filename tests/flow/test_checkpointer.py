@@ -19,7 +19,7 @@ class TestFlowCheckpointer:
     def setup_method(self):
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
-        self.flow_name = "test_flow"
+        self.flow_id = "test_flow_id"
 
     def teardown_method(self):
         """Clean up test fixtures."""
@@ -47,19 +47,19 @@ class TestFlowCheckpointer:
     def test_checkpointer_enabled(self):
         """Test checkpointer when enabled."""
         checkpointer = FlowCheckpointer(
-            checkpoint_dir=self.temp_dir, save_freq=2, flow_name=self.flow_name
+            checkpoint_dir=self.temp_dir, save_freq=2, flow_id=self.flow_id
         )
 
         assert checkpointer.is_enabled
         assert checkpointer.checkpoint_dir == self.temp_dir
         assert checkpointer.save_freq == 2
-        assert checkpointer.flow_name == self.flow_name
+        assert checkpointer.flow_id == self.flow_id
         assert Path(self.temp_dir).exists()
 
     def test_load_existing_progress_no_checkpoints(self):
         """Test loading progress when no checkpoints exist."""
         checkpointer = FlowCheckpointer(
-            checkpoint_dir=self.temp_dir, flow_name=self.flow_name
+            checkpoint_dir=self.temp_dir, flow_id=self.flow_id
         )
 
         dataset = Dataset.from_dict({"input": ["test1", "test2"]})
@@ -71,7 +71,7 @@ class TestFlowCheckpointer:
     def test_save_and_load_single_checkpoint(self):
         """Test saving and loading a single checkpoint."""
         checkpointer = FlowCheckpointer(
-            checkpoint_dir=self.temp_dir, save_freq=2, flow_name=self.flow_name
+            checkpoint_dir=self.temp_dir, save_freq=2, flow_id=self.flow_id
         )
 
         # Add some completed samples
@@ -96,7 +96,7 @@ class TestFlowCheckpointer:
     def test_save_checkpoint_with_save_freq(self):
         """Test checkpoint saving with save frequency."""
         checkpointer = FlowCheckpointer(
-            checkpoint_dir=self.temp_dir, save_freq=3, flow_name=self.flow_name
+            checkpoint_dir=self.temp_dir, save_freq=3, flow_id=self.flow_id
         )
 
         # Add samples one by one
@@ -134,7 +134,7 @@ class TestFlowCheckpointer:
         """Test loading existing checkpoints and finding remaining work."""
         # First, create some checkpoints
         checkpointer1 = FlowCheckpointer(
-            checkpoint_dir=self.temp_dir, save_freq=2, flow_name=self.flow_name
+            checkpoint_dir=self.temp_dir, save_freq=2, flow_id=self.flow_id
         )
 
         completed_data = Dataset.from_dict(
@@ -144,7 +144,7 @@ class TestFlowCheckpointer:
 
         # Now create a new checkpointer and test loading
         checkpointer2 = FlowCheckpointer(
-            checkpoint_dir=self.temp_dir, flow_name=self.flow_name
+            checkpoint_dir=self.temp_dir, flow_id=self.flow_id
         )
 
         # Input dataset with some new samples
@@ -165,7 +165,7 @@ class TestFlowCheckpointer:
         """Test loading when all samples are already completed."""
         # Create checkpoints for all input samples
         checkpointer1 = FlowCheckpointer(
-            checkpoint_dir=self.temp_dir, save_freq=2, flow_name=self.flow_name
+            checkpoint_dir=self.temp_dir, save_freq=2, flow_id=self.flow_id
         )
 
         completed_data = Dataset.from_dict(
@@ -181,7 +181,7 @@ class TestFlowCheckpointer:
         )
 
         checkpointer2 = FlowCheckpointer(
-            checkpoint_dir=self.temp_dir, flow_name=self.flow_name
+            checkpoint_dir=self.temp_dir, flow_id=self.flow_id
         )
 
         remaining, completed = checkpointer2.load_existing_progress(input_dataset)
@@ -192,7 +192,7 @@ class TestFlowCheckpointer:
     def test_find_remaining_samples_no_common_columns(self):
         """Test finding remaining samples when no common columns exist."""
         checkpointer = FlowCheckpointer(
-            checkpoint_dir=self.temp_dir, flow_name=self.flow_name
+            checkpoint_dir=self.temp_dir, flow_id=self.flow_id
         )
 
         input_dataset = Dataset.from_dict(
@@ -218,7 +218,7 @@ class TestFlowCheckpointer:
     def test_metadata_persistence(self):
         """Test metadata saving and loading."""
         checkpointer = FlowCheckpointer(
-            checkpoint_dir=self.temp_dir, save_freq=5, flow_name=self.flow_name
+            checkpoint_dir=self.temp_dir, save_freq=5, flow_id=self.flow_id
         )
 
         # Add some samples to trigger metadata save
@@ -234,7 +234,7 @@ class TestFlowCheckpointer:
         with open(checkpointer.metadata_path, "r") as f:
             metadata = json.load(f)
 
-        assert metadata["flow_name"] == self.flow_name
+        assert metadata["flow_id"] == self.flow_id
         assert metadata["save_freq"] == 5
         assert metadata["samples_processed"] == 5
         assert metadata["checkpoint_counter"] == 1
@@ -242,7 +242,7 @@ class TestFlowCheckpointer:
     def test_cleanup_checkpoints(self):
         """Test cleaning up all checkpoints."""
         checkpointer = FlowCheckpointer(
-            checkpoint_dir=self.temp_dir, save_freq=2, flow_name=self.flow_name
+            checkpoint_dir=self.temp_dir, save_freq=2, flow_id=self.flow_id
         )
 
         # Create some checkpoints
@@ -267,14 +267,14 @@ class TestFlowCheckpointer:
     def test_progress_info(self):
         """Test getting progress information."""
         checkpointer = FlowCheckpointer(
-            checkpoint_dir=self.temp_dir, save_freq=3, flow_name=self.flow_name
+            checkpoint_dir=self.temp_dir, save_freq=3, flow_id=self.flow_id
         )
 
         progress = checkpointer.get_progress_info()
 
         assert progress["checkpoint_dir"] == self.temp_dir
         assert progress["save_freq"] == 3
-        assert progress["flow_name"] == self.flow_name
+        assert progress["flow_id"] == self.flow_id
         assert progress["samples_processed"] == 0
         assert progress["checkpoint_counter"] == 0
         assert progress["pending_samples"] == 0
@@ -283,7 +283,7 @@ class TestFlowCheckpointer:
     def test_multiple_checkpoint_files_loading(self):
         """Test loading multiple checkpoint files in correct order."""
         checkpointer = FlowCheckpointer(
-            checkpoint_dir=self.temp_dir, save_freq=2, flow_name=self.flow_name
+            checkpoint_dir=self.temp_dir, save_freq=2, flow_id=self.flow_id
         )
 
         # Create multiple checkpoints manually
@@ -310,7 +310,7 @@ class TestFlowCheckpointer:
         checkpointer = FlowCheckpointer(
             checkpoint_dir=self.temp_dir,
             save_freq=1,  # Save after each sample
-            flow_name=self.flow_name,
+            flow_id=self.flow_id,
         )
 
         # Create a good checkpoint first
