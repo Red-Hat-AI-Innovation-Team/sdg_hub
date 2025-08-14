@@ -225,7 +225,9 @@ class TestFlowIntegration:
         # Validate flow id presence and validity
         assert all("id" in flow for flow in flows), "All flows should have id"
         assert all(flow["id"] for flow in flows), "All flow ids should be non-empty"
-        assert all(isinstance(flow["id"], str) for flow in flows), "All flow ids should be strings"
+        assert all(
+            isinstance(flow["id"], str) for flow in flows
+        ), "All flow ids should be strings"
 
         # Test searching by tag
         qa_flows = FlowRegistry.search_flows(tag="qa")
