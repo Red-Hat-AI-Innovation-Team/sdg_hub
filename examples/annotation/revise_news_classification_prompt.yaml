@@ -9,7 +9,6 @@
     - The verifier assessment provides expert reasoning about potential classification issues.
     - If the verifier identified problems with the initial prediction, correct them.
     - If the verifier confirmed the prediction is reasonable, maintain it.
-    - Only use the categories provided in the guidelines, the exact label that you think is most appropriate should be used.
 
     Here is the query for annotation:
 
