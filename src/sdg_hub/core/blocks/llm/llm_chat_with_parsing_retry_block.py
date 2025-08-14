@@ -6,7 +6,7 @@ LLM generation and parsing workflow with automatic retry on parsing failures.
 """
 
 # Standard
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 # Third Party
 from datasets import Dataset
@@ -143,81 +143,18 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
     ... )
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="allow"
+    )  # Allow extra fields for dynamic forwarding
 
-    # Core configuration
-    model: Optional[str] = Field(None, description="Model identifier in LiteLLM format")
-    api_base: Optional[str] = Field(None, description="Base URL for the API")
-    api_key: Optional[str] = Field(
-        None,
-        description="API key for the provider. Falls back to environment variables.",
-    )
-
-    # Retry configuration
+    # Composite-specific parameters only
     parsing_max_retries: int = Field(
         3, description="Maximum number of retry attempts for parsing failures"
     )
 
-    # LLM configuration
-    async_mode: bool = Field(False, description="Whether to use async processing")
-    timeout: float = Field(120.0, description="Request timeout in seconds")
-    max_retries: int = Field(
-        6, description="Maximum number of LLM retry attempts for network failures"
-    )
-
-    # LLM generation parameters
-    temperature: Optional[float] = Field(
-        None, description="Sampling temperature (0.0 to 2.0)"
-    )
-    max_tokens: Optional[int] = Field(None, description="Maximum tokens to generate")
-    top_p: Optional[float] = Field(
-        None, description="Nucleus sampling parameter (0.0 to 1.0)"
-    )
-    frequency_penalty: Optional[float] = Field(
-        None, description="Frequency penalty (-2.0 to 2.0)"
-    )
-    presence_penalty: Optional[float] = Field(
-        None, description="Presence penalty (-2.0 to 2.0)"
-    )
-    stop: Optional[Union[str, list[str]]] = Field(None, description="Stop sequences")
-    seed: Optional[int] = Field(
-        None, description="Random seed for reproducible outputs"
-    )
-    response_format: Optional[dict[str, Any]] = Field(
-        None, description="Response format specification"
-    )
-    stream: Optional[bool] = Field(None, description="Whether to stream responses")
-    n: Optional[int] = Field(None, description="Number of completions to generate")
-    logprobs: Optional[bool] = Field(
-        None, description="Whether to return log probabilities"
-    )
-    top_logprobs: Optional[int] = Field(
-        None, description="Number of top log probabilities to return"
-    )
-    user: Optional[str] = Field(None, description="End-user identifier")
-    extra_headers: Optional[dict[str, str]] = Field(
-        None, description="Additional headers"
-    )
-    extra_body: Optional[dict[str, Any]] = Field(
-        None, description="Additional request body parameters"
-    )
-    provider_specific: Optional[dict[str, Any]] = Field(
-        None, description="Provider-specific parameters"
-    )
-
-    # Text parser parameters
-    start_tags: list[str] = Field(
-        default_factory=list, description="List of start tags for tag-based parsing"
-    )
-    end_tags: list[str] = Field(
-        default_factory=list, description="List of end tags for tag-based parsing"
-    )
-    parsing_pattern: Optional[str] = Field(
-        default=None, description="Regex pattern for custom parsing"
-    )
-    parser_cleanup_tags: Optional[list[str]] = Field(
-        default=None, description="List of tags to clean from parsed output"
-    )
+    # Store parameters for internal blocks
+    llm_params: dict[str, Any] = Field(default_factory=dict, exclude=True)
+    parser_params: dict[str, Any] = Field(default_factory=dict, exclude=True)
 
     # Internal blocks - excluded from serialization
     llm_chat: Optional[LLMChatBlock] = Field(None, exclude=True)
@@ -245,79 +182,60 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
             raise ValueError("parsing_max_retries must be at least 1")
         return v
 
-    def model_post_init(self, __context: Any) -> None:
-        """Initialize the internal blocks after Pydantic validation."""
-        super().model_post_init(__context)
+    def __init__(self, **kwargs):
+        """Initialize with dynamic parameter forwarding."""
+        # Extract and store composite-specific params before super().__init__
+        parsing_max_retries = kwargs.pop("parsing_max_retries", 3)
 
-        # Create internal blocks
+        # Forward parameters to appropriate internal blocks
+        llm_params = {k: v for k, v in kwargs.items() if k in LLMChatBlock.model_fields}
+        parser_params = {
+            k: v for k, v in kwargs.items() if k in TextParserBlock.model_fields
+        }
+
+        # Keep only BaseBlock fields for super().__init__
+        base_params = {k: v for k, v in kwargs.items() if k in BaseBlock.model_fields}
+        base_params["parsing_max_retries"] = parsing_max_retries
+        base_params["llm_params"] = llm_params
+        base_params["parser_params"] = parser_params
+
+        # Initialize parent with all valid parameters
+        super().__init__(**base_params)
+
+        # Create internal blocks with forwarded parameters
         self._create_internal_blocks()
 
         # Log initialization only when model is configured
-        if self.model:
+        model = self.llm_params.get("model")
+        if model:
             logger.info(
-                f"Initialized LLMChatWithParsingRetryBlock '{self.block_name}' with model '{self.model}'",
+                f"Initialized LLMChatWithParsingRetryBlock '{self.block_name}' with model '{model}'",
                 extra={
                     "block_name": self.block_name,
-                    "model": self.model,
-                    "async_mode": self.async_mode,
+                    "model": model,
+                    "async_mode": self.llm_params.get("async_mode", False),
                     "parsing_max_retries": self.parsing_max_retries,
                 },
             )
 
     def _create_internal_blocks(self) -> None:
-        """Create and configure the internal blocks."""
+        """Create and configure the internal blocks using dynamic parameter forwarding."""
         # 1. LLMChatBlock
         llm_kwargs = {
-            "block_name": f"{self.block_name}_llm_chat",
+            **self.llm_params,  # Forward all LLM parameters dynamically first
+            "block_name": f"{self.block_name}_llm_chat",  # Override block_name
             "input_cols": self.input_cols,
             "output_cols": [f"{self.block_name}_raw_response"],
-            "model": self.model,
-            "api_base": self.api_base,
-            "api_key": self.api_key,
-            "async_mode": self.async_mode,
-            "timeout": self.timeout,
-            "max_retries": self.max_retries,
         }
-
-        # Add generation parameters (LLMChatBlock safely handles None values)
-        llm_kwargs.update(
-            {
-                "temperature": self.temperature,
-                "max_tokens": self.max_tokens,
-                "top_p": self.top_p,
-                "frequency_penalty": self.frequency_penalty,
-                "presence_penalty": self.presence_penalty,
-                "stop": self.stop,
-                "seed": self.seed,
-                "response_format": self.response_format,
-                "stream": self.stream,
-                "n": self.n,
-                "logprobs": self.logprobs,
-                "top_logprobs": self.top_logprobs,
-                "user": self.user,
-                "extra_headers": self.extra_headers,
-                "extra_body": self.extra_body,
-                "provider_specific": self.provider_specific,
-            }
-        )
-
         self.llm_chat = LLMChatBlock(**llm_kwargs)
 
         # 2. TextParserBlock
         text_parser_kwargs = {
-            "block_name": f"{self.block_name}_text_parser",
+            **self.parser_params,  # Forward all parser parameters dynamically first
+            "block_name": f"{self.block_name}_text_parser",  # Override block_name
             "input_cols": [f"{self.block_name}_raw_response"],
             "output_cols": self.output_cols,
-            "start_tags": self.start_tags,
-            "end_tags": self.end_tags,
         }
-
-        # Add optional TextParserBlock parameters if specified
-        if self.parsing_pattern is not None:
-            text_parser_kwargs["parsing_pattern"] = self.parsing_pattern
-        if self.parser_cleanup_tags is not None:
-            text_parser_kwargs["parser_cleanup_tags"] = self.parser_cleanup_tags
-
         self.text_parser = TextParserBlock(**text_parser_kwargs)
 
     def _reinitialize_client_manager(self) -> None:
@@ -327,10 +245,10 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         the internal LLM chat block uses the updated model configuration.
         """
         if self.llm_chat and hasattr(self.llm_chat, "_reinitialize_client_manager"):
-            # Update the internal LLM chat block's model config
-            self.llm_chat.model = self.model
-            self.llm_chat.api_base = self.api_base
-            self.llm_chat.api_key = self.api_key
+            # Update the internal LLM chat block's model config from stored params
+            for key in ["model", "api_base", "api_key"]:
+                if key in self.llm_params:
+                    setattr(self.llm_chat, key, self.llm_params[key])
             # Reinitialize its client manager
             self.llm_chat._reinitialize_client_manager()
 
@@ -364,7 +282,8 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
             If target count not reached after max retries for any sample.
         """
         # Validate that model is configured
-        if not self.model:
+        model = self.llm_params.get("model")
+        if not model:
             raise BlockValidationError(
                 f"Model not configured for block '{self.block_name}'. "
                 f"Call flow.set_model_config() before generating."
@@ -374,7 +293,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
             f"Starting LLM generation with parsing retry for {len(samples)} samples",
             extra={
                 "block_name": self.block_name,
-                "model": self.model,
+                "model": model,
                 "batch_size": len(samples),
                 "parsing_max_retries": self.parsing_max_retries,
             },
@@ -388,7 +307,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
             total_parsed_count = 0
 
             # Determine target count for this sample (number of completions requested)
-            target = kwargs.get("n", self.n) or 1
+            target = kwargs.get("n", self.llm_params.get("n")) or 1
 
             logger.debug(
                 f"Processing sample {sample_idx} with target count {target}",
@@ -485,7 +404,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                 "block_name": self.block_name,
                 "input_samples": len(samples),
                 "output_rows": len(all_results),
-                "model": self.model,
+                "model": model,
             },
         )
 
@@ -511,8 +430,10 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
             )
 
         # Validate parsing configuration
-        has_regex = self.parsing_pattern is not None
-        has_tags = bool(self.start_tags) or bool(self.end_tags)
+        has_regex = self.parser_params.get("parsing_pattern") is not None
+        has_tags = bool(self.parser_params.get("start_tags", [])) or bool(
+            self.parser_params.get("end_tags", [])
+        )
 
         if not has_regex and not has_tags:
             raise ValueError(
@@ -563,7 +484,8 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
 
     def __repr__(self) -> str:
         """String representation of the block."""
+        model = self.llm_params.get("model", "not_configured")
         return (
             f"LLMChatWithParsingRetryBlock(name='{self.block_name}', "
-            f"model='{self.model}', parsing_max_retries={self.parsing_max_retries})"
+            f"model='{model}', parsing_max_retries={self.parsing_max_retries})"
         )
