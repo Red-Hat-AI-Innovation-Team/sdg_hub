@@ -532,3 +532,73 @@ class TestFlowRegistry:
         # Verify IDs
         for flow in flows:
             assert flow["id"]  # Should have an ID
+
+    def test_get_flow_path_safe_success(self):
+        """Test get_flow_path_safe with existing flow."""
+        # Create test flow
+        flow_path = self.create_test_flow("Test Flow")
+        FlowRegistry.register_search_path(str(self.test_flow_path))
+        FlowRegistry._discover_flows(force_refresh=True)
+
+        # Get flow metadata to find its ID
+        metadata = FlowRegistry.get_flow_metadata("Test Flow")
+        flow_id = metadata.id
+
+        # Should return path successfully
+        result_path = FlowRegistry.get_flow_path_safe(flow_id)
+        assert result_path == flow_path
+
+        # Should also work with flow name (backward compatibility)
+        result_path_by_name = FlowRegistry.get_flow_path_safe("Test Flow")
+        assert result_path_by_name == flow_path
+
+    def test_get_flow_path_safe_not_found_with_available_flows(self):
+        """Test get_flow_path_safe with non-existent flow when flows are available."""
+        # Third Party
+        import pytest
+
+        # Create some flows in registry
+        self.create_test_flow("Flow 1")
+        self.create_test_flow("Flow 2")
+        FlowRegistry.register_search_path(str(self.test_flow_path))
+        FlowRegistry._discover_flows(force_refresh=True)
+
+        # Try to get non-existent flow
+        with pytest.raises(ValueError) as exc_info:
+            FlowRegistry.get_flow_path_safe("nonexistent-flow")
+
+        # Verify error message format
+        error_msg = str(exc_info.value)
+        assert "Flow 'nonexistent-flow' not found" in error_msg
+        assert "Available flows:" in error_msg
+        assert "ID:" in error_msg
+        assert "Name:" in error_msg
+        # Should contain the actual flow names
+        assert "Flow 1" in error_msg
+        assert "Flow 2" in error_msg
+
+    def test_get_flow_path_safe_not_found_empty_registry(self):
+        """Test get_flow_path_safe with empty registry."""
+        # Third Party
+        # Standard
+        from unittest.mock import patch
+
+        import pytest
+
+        # Use patch to prevent auto-discovery during initialization
+        with patch("sdg_hub.core.flow.registry.Path") as mock_path:
+            # Make the built-in flows directory appear non-existent
+            mock_path.return_value.parent.return_value.__truediv__.return_value.exists.return_value = False
+
+            # Clear registry state
+            FlowRegistry._entries.clear()
+            FlowRegistry._search_paths.clear()
+            FlowRegistry._initialized = False
+
+            with pytest.raises(ValueError) as exc_info:
+                FlowRegistry.get_flow_path_safe("any-flow")
+
+            error_msg = str(exc_info.value)
+            assert "Flow 'any-flow' not found" in error_msg
+            assert "No flows are currently registered" in error_msg
+            assert "FlowRegistry.discover_flows()" in error_msg
