@@ -222,11 +222,20 @@ class TestFlowIntegration:
         assert "QA Flow" in flow_names
         assert "Summary Flow" in flow_names
 
+        # Validate flow id presence and validity
+        assert all("id" in flow for flow in flows), "All flows should have id"
+        assert all(flow["id"] for flow in flows), "All flow ids should be non-empty"
+        assert all(isinstance(flow["id"], str) for flow in flows), "All flow ids should be strings"
+
         # Test searching by tag
         qa_flows = FlowRegistry.search_flows(tag="qa")
         qa_flow_names = [flow["name"] for flow in qa_flows]
         assert len(qa_flows) == 1
         assert "QA Flow" in qa_flow_names
+
+        # Validate flow id presence and validity for QA flows
+        assert all("id" in flow for flow in qa_flows), "QA flows should have id"
+        assert all(flow["id"] for flow in qa_flows), "QA flow ids should be non-empty"
 
         nlp_flows = FlowRegistry.search_flows(tag="nlp")
         nlp_flow_names = [flow["name"] for flow in nlp_flows]
