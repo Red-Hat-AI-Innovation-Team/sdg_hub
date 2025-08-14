@@ -1,240 +1,57 @@
 # Standard
 import hashlib
 import random
+from pathlib import Path
+from typing import Dict, List
 
-# Wandb-style adjectives (positive, descriptive)
-ADJECTIVES = [
-    "able",
-    "ancient",
-    "autumn",
-    "bold",
-    "brave",
-    "bright",
-    "calm",
-    "clean",
-    "clever",
-    "cool",
-    "cosmic",
-    "daily",
-    "dark",
-    "deep",
-    "divine",
-    "dry",
-    "eager",
-    "early",
-    "earnest",
-    "easy",
-    "epic",
-    "even",
-    "exact",
-    "fair",
-    "fast",
-    "fine",
-    "firm",
-    "first",
-    "fresh",
-    "full",
-    "gentle",
-    "glad",
-    "golden",
-    "good",
-    "great",
-    "green",
-    "happy",
-    "hard",
-    "heavy",
-    "high",
-    "holy",
-    "huge",
-    "jolly",
-    "keen",
-    "kind",
-    "large",
-    "late",
-    "light",
-    "live",
-    "long",
-    "loud",
-    "lucky",
-    "major",
-    "mild",
-    "new",
-    "nice",
-    "noble",
-    "old",
-    "open",
-    "plain",
-    "proud",
-    "pure",
-    "quick",
-    "quiet",
-    "rapid",
-    "rare",
-    "real",
-    "rich",
-    "right",
-    "rough",
-    "round",
-    "safe",
-    "sharp",
-    "short",
-    "simple",
-    "slow",
-    "small",
-    "smart",
-    "smooth",
-    "soft",
-    "solid",
-    "strong",
-    "sure",
-    "swift",
-    "tall",
-    "thick",
-    "thin",
-    "tiny",
-    "true",
-    "vast",
-    "warm",
-    "weak",
-    "whole",
-    "wide",
-    "wild",
-    "wise",
-    "young",
-    "exalted",
-    "legendary",
-    "resilient",
-    "vibrant",
-    "stellar",
-    "graceful",
-    "radiant",
-    "serene",
-    "brilliant",
-    "majestic",
-    "elegant",
-]
+# Third Party
+import yaml
 
-# Wandb-style nouns (nature, objects, concepts)
-NOUNS = [
-    "abyss",
-    "angel",
-    "arrow",
-    "atom",
-    "ball",
-    "band",
-    "bark",
-    "beam",
-    "bear",
-    "bell",
-    "bird",
-    "bloom",
-    "blue",
-    "boat",
-    "bone",
-    "book",
-    "brook",
-    "brush",
-    "calm",
-    "cave",
-    "cell",
-    "chant",
-    "chord",
-    "clay",
-    "cliff",
-    "cloud",
-    "coal",
-    "coast",
-    "coin",
-    "colt",
-    "coral",
-    "core",
-    "creek",
-    "crop",
-    "crown",
-    "cube",
-    "dawn",
-    "day",
-    "dew",
-    "disk",
-    "dove",
-    "dream",
-    "drop",
-    "dust",
-    "eagle",
-    "earth",
-    "echo",
-    "edge",
-    "ember",
-    "field",
-    "fire",
-    "fish",
-    "flame",
-    "flight",
-    "flow",
-    "foam",
-    "fog",
-    "forest",
-    "frost",
-    "glow",
-    "gold",
-    "grass",
-    "grove",
-    "haze",
-    "heart",
-    "hill",
-    "ice",
-    "iris",
-    "jade",
-    "lake",
-    "land",
-    "leaf",
-    "light",
-    "lion",
-    "moon",
-    "moss",
-    "night",
-    "oak",
-    "ocean",
-    "path",
-    "peak",
-    "pearl",
-    "pine",
-    "pond",
-    "rain",
-    "reef",
-    "river",
-    "rock",
-    "rose",
-    "sage",
-    "sand",
-    "sea",
-    "shadow",
-    "shore",
-    "sky",
-    "snow",
-    "song",
-    "star",
-    "stone",
-    "storm",
-    "stream",
-    "sun",
-    "sunset",
-    "surf",
-    "tide",
-    "tree",
-    "vale",
-    "wave",
-    "wind",
-    "wing",
-    "wolf",
-    "wood",
-    "darkness",
-    "meadow",
-    "thunder",
-    "crystal",
-    "valley",
-    "mountain",
-]
+# Cache for loaded word lists to avoid repeated file I/O
+_WORD_CACHE: Dict[str, List[str]] = {}
+
+
+def _load_word_lists() -> Dict[str, List[str]]:
+    """Load word lists from YAML configuration file.
+    
+    Returns:
+        Dictionary containing 'adjectives' and 'nouns' lists
+        
+    Raises:
+        FileNotFoundError: If the word list file is not found
+        yaml.YAMLError: If the YAML file is malformed
+    """
+    global _WORD_CACHE
+    
+    if _WORD_CACHE:
+        return _WORD_CACHE
+    
+    # Get path to word list file relative to this module
+    current_dir = Path(__file__).parent
+    words_file = current_dir / "flow_id_words.yaml"
+    
+    try:
+        with open(words_file, 'r', encoding='utf-8') as f:
+            word_data = yaml.safe_load(f)
+            
+        _WORD_CACHE = {
+            "adjectives": word_data["adjectives"],
+            "nouns": word_data["nouns"]
+        }
+        
+        return _WORD_CACHE
+        
+    except FileNotFoundError:
+        # Fallback to minimal word lists if configuration file is not found
+        _WORD_CACHE = {
+            "adjectives": ["bright", "calm", "fast", "smart", "quick"],
+            "nouns": ["river", "star", "cloud", "moon", "rock"]
+        }
+        return _WORD_CACHE
+    except yaml.YAMLError as e:
+        raise yaml.YAMLError(f"Error parsing word list YAML: {e}")
+    except KeyError as e:
+        raise KeyError(f"Missing required key in word list YAML: {e}")
 
 
 def get_flow_identifier(name: str) -> str:
@@ -255,14 +72,23 @@ def get_flow_identifier(name: str) -> str:
         "bright-river-123"
         >>> get_flow_identifier("My Document QA Flow")  # Same input
         "bright-river-123"  # Same output
+        
+    Raises:
+        FileNotFoundError: If the word list configuration file is not found
+        yaml.YAMLError: If the word list YAML file is malformed
     """
+    # Load word lists from YAML configuration
+    word_lists = _load_word_lists()
+    adjectives = word_lists["adjectives"]
+    nouns = word_lists["nouns"]
+    
     # Create deterministic seed from name
     seed_value = int(hashlib.sha256(name.encode()).hexdigest()[:8], 16)
     rng = random.Random(seed_value)
 
     # Select words and number deterministically
-    adjective = rng.choice(ADJECTIVES)
-    noun = rng.choice(NOUNS)
+    adjective = rng.choice(adjectives)
+    noun = rng.choice(nouns)
     number = rng.randint(1, 999)
 
     return f"{adjective}-{noun}-{number}"
