@@ -1,6 +1,7 @@
 """Tests for custom error handling classes."""
 
 # First Party
+# Third Party
 from sdg_hub.core.utils.error_handling import (
     APIConnectionError,
     BlockConfigurationError,
@@ -16,8 +17,6 @@ from sdg_hub.core.utils.error_handling import (
     FlowValidationError,
     SDGHubError,
 )
-
-# Third Party
 import pytest
 
 

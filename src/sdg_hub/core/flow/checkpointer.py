@@ -238,9 +238,7 @@ class FlowCheckpointer:
         if not datasets:
             return None
 
-        return safe_concatenate_with_validation(
-            datasets, "checkpoint files"
-        )
+        return safe_concatenate_with_validation(datasets, "checkpoint files")
 
     def _find_remaining_samples(
         self, input_dataset: Dataset, completed_dataset: Dataset

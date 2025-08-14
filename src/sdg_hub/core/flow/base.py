@@ -486,8 +486,8 @@ class Flow(BaseModel):
             # Combine with previously completed samples if any
             if checkpointer and completed_dataset:
                 final_dataset = safe_concatenate_with_validation(
-                    [completed_dataset, final_dataset], 
-                    "completed checkpoint data with newly processed data"
+                    [completed_dataset, final_dataset],
+                    "completed checkpoint data with newly processed data",
                 )
 
         else:
@@ -503,7 +503,7 @@ class Flow(BaseModel):
                 if completed_dataset:
                     final_dataset = safe_concatenate_with_validation(
                         [completed_dataset, final_dataset],
-                        "completed checkpoint data with newly processed data"
+                        "completed checkpoint data with newly processed data",
                     )
 
         logger.info(
