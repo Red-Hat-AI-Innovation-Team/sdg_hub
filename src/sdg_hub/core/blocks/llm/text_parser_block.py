@@ -48,6 +48,9 @@ class TextParserBlock(BaseBlock):
         Regex pattern for custom parsing.
     parser_cleanup_tags : Optional[List[str]]
         List of tags to clean from parsed output.
+    expand_lists : bool
+        Whether to expand list inputs into individual rows (True) or preserve lists (False).
+        Default is True for backward compatibility.
     """
 
     start_tags: list[str] = Field(
@@ -61,6 +64,10 @@ class TextParserBlock(BaseBlock):
     )
     parser_cleanup_tags: Optional[list[str]] = Field(
         default=None, description="List of tags to clean from parsed output"
+    )
+    expand_lists: bool = Field(
+        default=True,
+        description="Whether to expand list inputs into individual rows (True) or preserve lists (False). "
     )
 
     @field_validator("start_tags", "end_tags", mode="before")
@@ -237,36 +244,76 @@ class TextParserBlock(BaseBlock):
                 logger.warning(f"Input column '{input_column}' contains empty list")
                 return []
 
-            all_results = []
-            for i, response in enumerate(raw_output):
-                if not response or not isinstance(response, str):
-                    logger.warning(
-                        f"List item {i} in column '{input_column}' contains invalid data "
-                        f"(empty or non-string): {type(response)}"
-                    )
-                    continue
+            if not self.expand_lists:
+                # When expand_lists=False, preserve the list structure
+                # Parse each response in the list and collect results as lists
+                all_parsed_outputs = {col: [] for col in self.output_cols}
+                valid_responses = 0
 
-                parsed_outputs = self._parse(response)
+                for i, response in enumerate(raw_output):
+                    if not response or not isinstance(response, str):
+                        logger.warning(
+                            f"List item {i} in column '{input_column}' contains invalid data "
+                            f"(empty or non-string): {type(response)}"
+                        )
+                        continue
 
-                if not parsed_outputs or not any(
-                    len(value) > 0 for value in parsed_outputs.values()
-                ):
-                    logger.warning(
-                        f"Failed to parse content from list item {i}. Raw output length: {len(response)}, "
-                        f"parsing method: {'regex' if self.parsing_pattern else 'tags'}"
-                    )
-                    continue
+                    parsed_outputs = self._parse(response)
 
-                # Create output rows for this response
-                max_length = max(len(value) for value in parsed_outputs.values())
-                for values in zip(
-                    *(lst[:max_length] for lst in parsed_outputs.values())
-                ):
-                    all_results.append(
-                        {**sample, **dict(zip(parsed_outputs.keys(), values))}
-                    )
+                    if not parsed_outputs or not any(
+                        len(value) > 0 for value in parsed_outputs.values()
+                    ):
+                        logger.warning(
+                            f"Failed to parse content from list item {i}. Raw output length: {len(response)}, "
+                            f"parsing method: {'regex' if self.parsing_pattern else 'tags'}"
+                        )
+                        continue
 
-            return all_results
+                    valid_responses += 1
+                    # Collect all parsed values for each column as lists
+                    for col in self.output_cols:
+                        all_parsed_outputs[col].extend(parsed_outputs.get(col, []))
+
+                if valid_responses == 0:
+                    return []
+
+                # Return single row with lists as values
+                # TODO: This breaks retry counting in LLMChatWithParsingRetryBlock until LLMChatWithParsingRetryBlock is re-based
+                # which expects one row per successful parse for counting
+                return [{**sample, **all_parsed_outputs}]
+
+            else:
+                # When expand_lists=True, use existing expanding behavior
+                all_results = []
+                for i, response in enumerate(raw_output):
+                    if not response or not isinstance(response, str):
+                        logger.warning(
+                            f"List item {i} in column '{input_column}' contains invalid data "
+                            f"(empty or non-string): {type(response)}"
+                        )
+                        continue
+
+                    parsed_outputs = self._parse(response)
+
+                    if not parsed_outputs or not any(
+                        len(value) > 0 for value in parsed_outputs.values()
+                    ):
+                        logger.warning(
+                            f"Failed to parse content from list item {i}. Raw output length: {len(response)}, "
+                            f"parsing method: {'regex' if self.parsing_pattern else 'tags'}"
+                        )
+                        continue
+
+                    # Create output rows for this response
+                    max_length = max(len(value) for value in parsed_outputs.values())
+                    for values in zip(
+                        *(lst[:max_length] for lst in parsed_outputs.values())
+                    ):
+                        all_results.append(
+                            {**sample, **dict(zip(parsed_outputs.keys(), values))}
+                        )
+
+                return all_results
 
         # Handle string inputs (existing logic)
         elif isinstance(raw_output, str):

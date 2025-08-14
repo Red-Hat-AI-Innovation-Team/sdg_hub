@@ -1027,3 +1027,244 @@ def test_generate_with_invalid_input_type():
 
         # Should return empty result
         assert len(result) == 0
+
+
+# Tests for expand_lists functionality
+def test_expand_lists_false_basic_functionality():
+    """Test basic functionality with expand_lists=False."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["entities"],
+        start_tags=["<entity>"],
+        end_tags=["</entity>"],
+        expand_lists=False,
+    )
+
+    # List input with multiple entity responses
+    data = [
+        {
+            "raw_output": [
+                "<entity>A</entity><entity>B</entity>",
+                "<entity>C</entity>",
+            ]
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    # Should return single row with entities as a list
+    assert len(result) == 1
+    assert result[0]["entities"] == ["A", "B", "C"]
+
+
+def test_expand_lists_false_multiple_output_columns():
+    """Test expand_lists=False with multiple output columns."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["title", "content"],
+        start_tags=["<title>", "<content>"],
+        end_tags=["</title>", "</content>"],
+        expand_lists=False,
+    )
+
+    # List input with title/content pairs
+    data = [
+        {
+            "raw_output": [
+                "<title>Title 1</title><content>Content 1</content>",
+                "<title>Title 2</title><content>Content 2</content>",
+            ]
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    # Should return single row with lists for each column
+    assert len(result) == 1
+    assert result[0]["title"] == ["Title 1", "Title 2"]
+    assert result[0]["content"] == ["Content 1", "Content 2"]
+
+
+def test_expand_lists_false_with_regex_parsing():
+    """Test expand_lists=False with regex parsing."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["answer"],
+        parsing_pattern=r"Answer: (.*?)(?:\n|$)",
+        expand_lists=False,
+    )
+
+    # List input with multiple answers
+    data = [
+        {
+            "raw_output": [
+                "Question 1\nAnswer: Response 1",
+                "Question 2\nAnswer: Response 2\nAnswer: Response 3",
+            ]
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    # Should return single row with all answers as a list
+    assert len(result) == 1
+    assert result[0]["answer"] == ["Response 1", "Response 2", "Response 3"]
+
+
+def test_expand_lists_false_with_parsing_failures():
+    """Test expand_lists=False when some items fail to parse."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["entity"],
+        start_tags=["<entity>"],
+        end_tags=["</entity>"],
+        expand_lists=False,
+    )
+
+    # Mix of valid and invalid responses
+    data = [
+        {
+            "raw_output": [
+                "<entity>Valid 1</entity>",
+                "No tags here",  # Will fail to parse
+                "<entity>Valid 2</entity>",
+            ]
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
+        result = block.generate(dataset)
+
+        # Should return single row with only valid entities
+        assert len(result) == 1
+        assert result[0]["entity"] == ["Valid 1", "Valid 2"]
+
+        # Should log warning for parsing failure
+        warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
+        assert any(
+            "Failed to parse content from list item 1" in call for call in warning_calls
+        )
+
+
+def test_expand_lists_false_empty_list():
+    """Test expand_lists=False with empty list input."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["entity"],
+        start_tags=["<entity>"],
+        end_tags=["</entity>"],
+        expand_lists=False,
+    )
+
+    data = [{"raw_output": []}]
+    dataset = Dataset.from_list(data)
+
+    with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
+        result = block.generate(dataset)
+
+        # Should return empty result and log warning
+        assert len(result) == 0
+        mock_logger.warning.assert_called_with(
+            "Input column 'raw_output' contains empty list"
+        )
+
+
+def test_expand_lists_false_all_parsing_failures():
+    """Test expand_lists=False when all items fail to parse."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["entity"],
+        start_tags=["<entity>"],
+        end_tags=["</entity>"],
+        expand_lists=False,
+    )
+
+    # All responses fail to parse
+    data = [
+        {
+            "raw_output": [
+                "No tags here",
+                "Also no tags",
+            ]
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    # Should return empty result
+    assert len(result) == 0
+
+
+def test_expand_lists_true_backward_compatibility():
+    """Test that expand_lists=True (default) maintains backward compatibility."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["entity"],
+        start_tags=["<entity>"],
+        end_tags=["</entity>"],
+        expand_lists=True,  # Explicit True (same as default)
+    )
+
+    # List input
+    data = [
+        {
+            "raw_output": [
+                "<entity>A</entity><entity>B</entity>",
+                "<entity>C</entity>",
+            ]
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    # Should expand to individual rows (existing behavior)
+    assert len(result) == 3
+    assert result[0]["entity"] == "A"
+    assert result[1]["entity"] == "B"
+    assert result[2]["entity"] == "C"
+
+
+def test_expand_lists_default_value():
+    """Test that expand_lists defaults to True for backward compatibility."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["entity"],
+        start_tags=["<entity>"],
+        end_tags=["</entity>"],
+        # expand_lists not specified - should default to True
+    )
+
+    # Verify default value
+    assert block.expand_lists is True
+
+    # Test behavior matches expanding behavior
+    data = [
+        {
+            "raw_output": [
+                "<entity>A</entity>",
+                "<entity>B</entity>",
+            ]
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    # Should expand to individual rows (default behavior)
+    assert len(result) == 2
+    assert result[0]["entity"] == "A"
+    assert result[1]["entity"] == "B"
