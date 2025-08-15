@@ -51,4 +51,5 @@ def setup_logger(name, log_dir=None, log_filename="sdg_hub.log"):
             file_handler.setFormatter(file_formatter)
             logger.addHandler(file_handler)
 
+    logger.info(f"Logger setup complete: {name}")
     return logger
