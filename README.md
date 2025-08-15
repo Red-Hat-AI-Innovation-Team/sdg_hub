@@ -53,7 +53,7 @@ uv pip install sdg-hub[examples]
 
 ## 🚀 Quick Start
 
-### 🧱 Core Concepts
+### Core Concepts
 
 **Blocks** are composable units that transform datasets - think of them as data processing Lego pieces. Each block performs a specific task: LLM chat, text parsing, evaluation, or transformation.
 
@@ -68,7 +68,7 @@ dataset → Block₁ → Block₂ → Block₃ → enriched_dataset
 
 #### Flow Discovery
 ```python
-from sdg_hub import FlowRegistry
+from sdg_hub import FlowRegistry, Flow
 
 # Auto-discover all available flows (no setup needed!)
 FlowRegistry.discover_flows()
@@ -82,16 +82,20 @@ qa_flows = FlowRegistry.search_flows(tag="question-generation")
 print(f"QA flows: {qa_flows}")
 ```
 
-#### Using Flows
+Each flow has a **unique, human-readable ID** automatically generated from its name. These IDs provide a convenient shorthand for referencing flows:
+
 ```python
-from sdg_hub import FlowRegistry, Flow
-from datasets import Dataset
+# Every flow gets a deterministic ID 
+# Same flow name always generates the same ID
+flow_id = "small-rock-799" 
 
-# Load the flow by name
-flow_name = "Advanced Document Grounded Question-Answer Generation Flow for Knowledge Tuning"
-flow_path = FlowRegistry.get_flow_path(flow_name)
+# Use ID to reference the flow
+flow_path = FlowRegistry.get_flow_path(flow_id)
 flow = Flow.from_yaml(flow_path)
+```
 
+#### Discovering Models and Configuring them
+```python
 # Discover recommended models
 default_model = flow.get_default_model()
 recommendations = flow.get_model_recommendations()
@@ -103,7 +107,9 @@ flow.set_model_config(
     api_base="http://localhost:8000/v1",
     api_key="your_key",
 )
-
+```
+#### Load your dataset and run the flow
+```python
 # Create your dataset with required columns
 dataset = Dataset.from_dict({
     'document': ['Your document text here...'],
@@ -118,6 +124,11 @@ dataset = Dataset.from_dict({
     'icl_response_3': ['Example answer 3']
 })
 
+# Quick Testing with Dry Run
+dry_result = flow.dry_run(dataset, sample_size=1)
+print(f"Dry run completed in {dry_result['execution_time_seconds']:.2f}s")
+print(f"Output columns: {dry_result['final_dataset']['columns']}")
+
 # Generate high-quality QA pairs
 result = flow.generate(dataset)
 
@@ -126,14 +137,6 @@ questions = result['question']
 answers = result['response']
 faithfulness_scores = result['faithfulness_judgment']
 relevancy_scores = result['relevancy_score']
-```
-
-#### Quick Testing with Dry Run
-```python
-# Test the flow with a small sample first
-dry_result = flow.dry_run(dataset, sample_size=1)
-print(f"Dry run completed in {dry_result['execution_time_seconds']:.2f}s")
-print(f"Output columns: {dry_result['final_dataset']['columns']}")
 ```
 
 
