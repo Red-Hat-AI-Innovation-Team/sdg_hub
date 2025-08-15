@@ -85,7 +85,7 @@ class TestFlowIntegration:
                 mock_class.return_value = mock_instance
                 return mock_class
 
-            mock_registry.get.side_effect = mock_get
+            mock_registry._get.side_effect = mock_get
 
             # Load the flow
             flow = Flow.from_yaml(str(yaml_path))
@@ -386,7 +386,7 @@ class TestFlowIntegration:
                 mock_class.return_value = mock_instance
                 return mock_class
 
-            mock_registry.get.side_effect = mock_get
+            mock_registry._get.side_effect = mock_get
 
             # Load the flow
             flow = Flow.from_yaml(str(yaml_path))

@@ -160,7 +160,7 @@ class TestFlow:
             yaml.dump(flow_config, f)
 
         # Mock the block creation
-        with patch("sdg_hub.core.flow.base.BlockRegistry.get") as mock_get:
+        with patch("sdg_hub.core.flow.base.BlockRegistry._get") as mock_get:
             mock_block_class = Mock()
             mock_block_instance = self.create_mock_block("test_block")
             mock_block_class.return_value = mock_block_instance
@@ -216,7 +216,7 @@ class TestFlow:
             yaml.dump(flow_config, f)
 
         # Mock the block creation
-        with patch("sdg_hub.core.flow.base.BlockRegistry.get") as mock_get:
+        with patch("sdg_hub.core.flow.base.BlockRegistry._get") as mock_get:
             mock_block_class = Mock()
             mock_block_instance = self.create_mock_block("test_block")
             mock_block_class.return_value = mock_block_instance

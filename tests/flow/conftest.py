@@ -188,7 +188,7 @@ def mock_block_registry():
             mock_class.return_value = mock_instance
             return mock_class
 
-        mock_registry.get.side_effect = mock_get
+        mock_registry._get.side_effect = mock_get
         mock_registry.list_blocks.return_value = ["LLMChatBlock", "MockBlock"]
 
         yield mock_registry

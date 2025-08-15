@@ -65,7 +65,7 @@ class TestEvaluateFaithfulnessBlock:
 
     def test_block_registry(self):
         """Test that EvaluateFaithfulnessBlock is properly registered."""
-        block_class = BlockRegistry.get("EvaluateFaithfulnessBlock")
+        block_class = BlockRegistry._get("EvaluateFaithfulnessBlock")
         assert block_class == EvaluateFaithfulnessBlock
 
         # Check category

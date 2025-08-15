@@ -164,8 +164,10 @@ class BlockRegistry:
                 ) from exc
 
     @classmethod
-    def get(cls, block_name: str) -> type:
-        """Get a block class with enhanced error handling.
+    def _get(cls, block_name: str) -> type:
+        """Internal method to get a block class with enhanced error handling.
+
+        This is a private method used by the framework internals (Flow system).
 
         Parameters
         ----------
