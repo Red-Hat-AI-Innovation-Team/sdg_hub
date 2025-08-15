@@ -357,6 +357,7 @@ class Flow(BaseModel):
         runtime_params: Optional[dict[str, dict[str, Any]]] = None,
         checkpoint_dir: Optional[str] = None,
         save_freq: Optional[int] = None,
+        log_dir: Optional[str] = None,
     ) -> Dataset:
         """Execute the flow blocks in sequence to generate data.
 
@@ -378,6 +379,10 @@ class Flow(BaseModel):
         save_freq : Optional[int], optional
             Number of completed samples after which to save a checkpoint.
             If None, only saves final results when checkpointing is enabled.
+        log_dir : Optional[str], optional
+            Directory to save execution logs. If provided, logs will be written to both
+            console and a log file in this directory. Maintains backward compatibility
+            when None.
 
         Returns
         -------
@@ -396,6 +401,19 @@ class Flow(BaseModel):
             raise FlowValidationError(
                 f"save_freq must be greater than 0, got {save_freq}"
             )
+
+        # Set up file logging if log_dir is provided
+        if log_dir is not None:
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            flow_name = self.metadata.name.replace(" ", "_").lower()
+            log_filename = f"{flow_name}_{timestamp}.log"
+            
+            # Clear existing handlers and reinitialize the global logger with file logging
+            global logger
+            logger.handlers.clear()  # Clear existing handlers so setup_logger can add new ones
+            logger = setup_logger(__name__, log_dir=log_dir, log_filename=log_filename)
+            logger.info(f"Flow logging enabled - logs will be saved to: {log_dir}/{log_filename}")
 
         # Validate preconditions
         if not self.blocks:
