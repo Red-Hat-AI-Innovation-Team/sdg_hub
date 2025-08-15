@@ -1142,7 +1142,7 @@ class TestFlow:
 
         # Check log file content
         log_file = log_files[0]
-        with open(log_file, 'r', encoding='utf-8') as f:
+        with open(log_file, "r", encoding="utf-8") as f:
             log_content = f.read()
 
         # Should contain flow execution logs
@@ -1195,10 +1195,10 @@ class TestFlow:
         checkpoint_dir = Path(self.temp_dir) / "checkpoints_with_logs"
 
         result = flow.generate(
-            dataset, 
-            log_dir=str(log_dir), 
+            dataset,
+            log_dir=str(log_dir),
             checkpoint_dir=str(checkpoint_dir),
-            save_freq=1
+            save_freq=1,
         )
 
         assert len(result) == 2

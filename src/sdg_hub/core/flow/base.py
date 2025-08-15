@@ -405,15 +405,18 @@ class Flow(BaseModel):
         # Set up file logging if log_dir is provided
         if log_dir is not None:
             from datetime import datetime
+
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             flow_name = self.metadata.name.replace(" ", "_").lower()
             log_filename = f"{flow_name}_{timestamp}.log"
-            
+
             # Clear existing handlers and reinitialize the global logger with file logging
             global logger
             logger.handlers.clear()  # Clear existing handlers so setup_logger can add new ones
             logger = setup_logger(__name__, log_dir=log_dir, log_filename=log_filename)
-            logger.info(f"Flow logging enabled - logs will be saved to: {log_dir}/{log_filename}")
+            logger.info(
+                f"Flow logging enabled - logs will be saved to: {log_dir}/{log_filename}"
+            )
 
         # Validate preconditions
         if not self.blocks:
