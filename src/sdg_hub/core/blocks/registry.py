@@ -215,29 +215,7 @@ class BlockRegistry:
             logger.warning(warning_msg)
 
         return metadata.block_class
-
-    @classmethod
-    def info(cls, block_name: str) -> BlockMetadata:
-        """Get metadata for a specific block.
-
-        Parameters
-        ----------
-        block_name : str
-            Name of the block.
-
-        Returns
-        -------
-        BlockMetadata
-            The block's metadata.
-
-        Raises
-        ------
-        KeyError
-            If the block is not found.
-        """
-        if block_name not in cls._metadata:
-            raise KeyError(f"Block '{block_name}' not found in registry.")
-        return cls._metadata[block_name]
+        
 
     @classmethod
     def categories(cls) -> list[str]:

@@ -218,24 +218,7 @@ class TestBlockRegistry:
             assert "deprecated" in call_args
             assert "NewBlock" in call_args
 
-    def test_get_metadata(self):
-        """Test retrieving block metadata."""
-
-        @BlockRegistry.register("TestBlock", "test", "A test block")
-        class TestBlock(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
-                return samples
-
-        metadata = BlockRegistry.info("TestBlock")
-        assert metadata.name == "TestBlock"
-        assert metadata.category == "test"
-        assert metadata.description == "A test block"
-
-    def test_get_metadata_not_found(self):
-        """Test error when metadata not found."""
-        with pytest.raises(KeyError, match="'NonExistentBlock' not found in registry"):
-            BlockRegistry.info("NonExistentBlock")
-
+   
     def test_get_categories(self):
         """Test getting all categories."""
 
