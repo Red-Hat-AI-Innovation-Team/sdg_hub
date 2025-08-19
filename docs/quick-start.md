@@ -108,10 +108,10 @@ eval_flows = FlowRegistry.search_flows(tag="evaluation")
 print(f"📊 Evaluation Flows: {eval_flows}")
 
 # Find blocks by category
-llm_blocks = BlockRegistry.category("llm")
+llm_blocks = BlockRegistry.get_category_blocks("llm")
 print(f"🧠 LLM Blocks: {llm_blocks}")
 
-transform_blocks = BlockRegistry.category("transform") 
+transform_blocks = BlockRegistry.get_category_blocks("transform") 
 print(f"🔄 Transform Blocks: {transform_blocks}")
 ```
 

@@ -69,7 +69,7 @@ class TestEvaluateFaithfulnessBlock:
         assert block_class == EvaluateFaithfulnessBlock
 
         # Check category
-        eval_blocks = BlockRegistry.category("evaluation")
+        eval_blocks = BlockRegistry.get_category_blocks("evaluation")
         assert "EvaluateFaithfulnessBlock" in eval_blocks
 
     def test_init_with_valid_params(self, test_yaml_config):

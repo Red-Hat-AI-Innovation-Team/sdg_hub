@@ -253,7 +253,7 @@ class BlockRegistry:
         return sorted(cls._categories.keys())
 
     @classmethod
-    def category(cls, category: str) -> list[str]:
+    def get_category_blocks(cls, category: str) -> list[str]:
         """Get all blocks in a specific category.
 
         Parameters
