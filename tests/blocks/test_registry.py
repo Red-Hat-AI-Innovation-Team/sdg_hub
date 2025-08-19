@@ -218,7 +218,6 @@ class TestBlockRegistry:
             assert "deprecated" in call_args
             assert "NewBlock" in call_args
 
-   
     def test_get_categories(self):
         """Test getting all categories."""
 

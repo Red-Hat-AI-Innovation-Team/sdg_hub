@@ -215,7 +215,6 @@ class BlockRegistry:
             logger.warning(warning_msg)
 
         return metadata.block_class
-        
 
     @classmethod
     def categories(cls) -> list[str]:
