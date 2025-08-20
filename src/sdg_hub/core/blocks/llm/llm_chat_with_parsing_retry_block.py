@@ -246,7 +246,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         """
         if self.llm_chat and hasattr(self.llm_chat, "_reinitialize_client_manager"):
             # Update the internal LLM chat block's model config from stored params
-            for key in ["model", "api_base", "api_key"]:
+            for key in ["model", "api_base", "api_key", "extra_headers", "extra_body"]:
                 if key in self.llm_params:
                     setattr(self.llm_chat, key, self.llm_params[key])
             # Reinitialize its client manager

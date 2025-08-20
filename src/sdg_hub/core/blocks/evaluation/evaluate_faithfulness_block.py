@@ -360,6 +360,8 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             self.llm_chat.model = self.model
             self.llm_chat.api_base = self.api_base
             self.llm_chat.api_key = self.api_key
+            self.llm_chat.extra_headers = self.extra_headers
+            self.llm_chat.extra_body = self.extra_body
             # Reinitialize its client manager
             self.llm_chat._reinitialize_client_manager()
 
