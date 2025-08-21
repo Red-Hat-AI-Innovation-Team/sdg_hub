@@ -2,9 +2,9 @@
 
 """Shared fixtures and configuration for integration tests."""
 
-import tempfile
 from pathlib import Path
 from typing import Any, Dict, Generator
+import tempfile
 
 import pytest
 
@@ -22,5 +22,5 @@ def mock_openai_server_config() -> Dict[str, Any]:
     return {
         "api_key": "test-key",
         "base_url": "http://localhost:8000/v1",
-        "model": "test-model"
+        "model": "test-model",
     }

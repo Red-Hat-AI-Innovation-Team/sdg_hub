@@ -8,75 +8,77 @@ using papermill with parameter injection and comprehensive LLM mocking.
 Tests the real user workflow while ensuring deterministic, fast execution.
 """
 
-import json
 from pathlib import Path
+import json
 
 import pytest
 
 from tests.integration.notebook_utils import (
     execute_notebook_with_cell_injection,
-    validate_notebook_execution,
     extract_notebook_outputs,
+    validate_notebook_execution,
 )
+
 from .mock_utils import get_knowledge_generation_mock_cells
 
-
 # Constants
-NOTEBOOK_PATH = Path("examples/knowledge_tuning/instructlab/knowledge_generation_and_mixing.ipynb")
+NOTEBOOK_PATH = Path(
+    "examples/knowledge_tuning/instructlab/knowledge_generation_and_mixing.ipynb"
+)
 
 
 @pytest.fixture(scope="session")
 def executed_notebook_cache(tmp_path_factory):
     """
     Execute the notebook once per test session and cache all results.
-    
+
     This session-scoped fixture ensures we only run the expensive notebook execution
     once across all tests, saving execution results to a cache directory that
     other tests can read from.
     """
     cache_dir = tmp_path_factory.mktemp("notebook_execution_cache")
-    
+
     # Load mock cells from separate files for better maintainability
     mock_cells = get_knowledge_generation_mock_cells()
-    
+
     # Create notebook parameters to override defaults
     notebook_params = {
-        'number_of_samples': 2,  # Small dataset for testing
-        'seed_data_dir': 'test_sdg_demo_output',  # Use test data directory
+        "number_of_samples": 2,  # Small dataset for testing
+        "seed_data_dir": "test_sdg_demo_output",  # Use test data directory
     }
-    
+
     # Execute notebook with injected mock cells and parameters
     executed_notebook_path = execute_notebook_with_cell_injection(
         notebook_path=NOTEBOOK_PATH,
         injected_cells=mock_cells,
         parameters=notebook_params,
         injection_position=1,  # Inject after first cell, before imports
-        output_dir=cache_dir
+        output_dir=cache_dir,
     )
-    
+
     # Extract and save all artifacts
     outputs = extract_notebook_outputs(executed_notebook_path)
     execution_success = validate_notebook_execution(executed_notebook_path)
-    
+
     # Check for output files
     notebook_dir = NOTEBOOK_PATH.parent
     output_dir = notebook_dir / "test_sdg_demo_output"
-    
+
     # Save all artifacts to cache
     artifacts = {
-        'executed_notebook_path': str(executed_notebook_path),
-        'outputs': outputs,
-        'execution_success': execution_success,
-        'output_dir': str(output_dir),
-        'notebook_params': notebook_params,
-        'cache_dir': str(cache_dir)
+        "executed_notebook_path": str(executed_notebook_path),
+        "outputs": outputs,
+        "execution_success": execution_success,
+        "output_dir": str(output_dir),
+        "notebook_params": notebook_params,
+        "cache_dir": str(cache_dir),
     }
-    
+
     # Save artifacts as JSON for other tests to load
     artifacts_file = cache_dir / "execution_artifacts.json"
-    with open(artifacts_file, 'w') as f:
+    with open(artifacts_file, "w") as f:
         json.dump(artifacts, f, indent=2)
-    
+
     print(f"✅ Notebook executed and cached to {cache_dir}")
     return cache_dir
 
@@ -93,15 +95,14 @@ def test_knowledge_generation_dependencies_exist():
     """Test that required flow files and dependencies exist."""
     # Check that the target notebook exists
     assert NOTEBOOK_PATH.exists(), f"Notebook not found at {NOTEBOOK_PATH}"
-    
+
     # Check that the flow registry can discover flows
-    from sdg_hub.core.flow.registry import FlowRegistry
-    
+
     # Set up flow discovery paths like the notebook does
     project_root = Path(__file__).parent.parent.parent.parent
     flows_dir = project_root / "src" / "sdg_hub" / "flows"
     assert flows_dir.exists(), f"Flows directory not found at {flows_dir}"
-    
+
     print("✅ All dependencies and flow files exist")
 
 
@@ -109,34 +110,35 @@ def test_knowledge_generation_dependencies_exist():
 def test_knowledge_generation_notebook_execution_success(executed_notebook_cache):
     """Test that the cached notebook execution was successful."""
     import json
-    
+
     # Load cached artifacts
     artifacts_file = executed_notebook_cache / "execution_artifacts.json"
-    with open(artifacts_file, 'r') as f:
+    with open(artifacts_file, "r") as f:
         artifacts = json.load(f)
-    
+
     # Validate execution success
-    assert artifacts['execution_success'], \
-        f"Notebook execution failed - check {artifacts['executed_notebook_path']} for errors"
-    
+    assert artifacts[
+        "execution_success"
+    ], f"Notebook execution failed - check {artifacts['executed_notebook_path']} for errors"
+
     print("✅ Notebook executed successfully with mocked LLMs")
 
 
-@pytest.mark.integration  
+@pytest.mark.integration
 def test_knowledge_generation_notebook_outputs_structure(executed_notebook_cache):
     """Test that the notebook produces the expected outputs and data structure."""
     import json
-    
+
     # Load cached artifacts
     artifacts_file = executed_notebook_cache / "execution_artifacts.json"
-    with open(artifacts_file, 'r') as f:
+    with open(artifacts_file, "r") as f:
         artifacts = json.load(f)
-    
-    outputs = artifacts['outputs']
-    
+
+    outputs = artifacts["outputs"]
+
     # Validate that we got outputs from the notebook
     assert isinstance(outputs, dict), "Should have extracted outputs from notebook"
-    
+
     print(f"✅ Notebook outputs validated - found {len(outputs)} output sections")
 
 
@@ -144,19 +146,16 @@ def test_knowledge_generation_notebook_outputs_structure(executed_notebook_cache
 def test_knowledge_generation_output_files_created(executed_notebook_cache):
     """Test that the notebook creates the expected output files."""
     import json
-    
+
     # Load cached artifacts
     artifacts_file = executed_notebook_cache / "execution_artifacts.json"
-    with open(artifacts_file, 'r') as f:
+    with open(artifacts_file, "r") as f:
         artifacts = json.load(f)
-    
-    output_dir = Path(artifacts['output_dir'])
-    
-    expected_files = [
-        "instructlab_phase_1_ds.jsonl", 
-        "instructlab_phase_2_ds.jsonl"
-    ]
-    
+
+    output_dir = Path(artifacts["output_dir"])
+
+    expected_files = ["instructlab_phase_1_ds.jsonl", "instructlab_phase_2_ds.jsonl"]
+
     for filename in expected_files:
         file_path = output_dir / filename
         print(f"Checking for output file: {file_path}")
@@ -164,17 +163,17 @@ def test_knowledge_generation_output_files_created(executed_notebook_cache):
             print(f"✅ Found output file: {filename}")
         else:
             print(f"ℹ️ Output file not created (expected with mocking): {filename}")
-    
+
     print("✅ Output file validation complete")
 
 
 def test_mock_cells_structure():
     """Test that the mock injection cells are properly structured."""
     from .mock_utils import get_knowledge_generation_mock_cells
-    
+
     mock_cells = get_knowledge_generation_mock_cells()
     assert len(mock_cells) == 2, "Should have 2 injection cells"
-    
+
     for cell in mock_cells:
         assert cell["cell_type"] == "code", "All injection cells should be code cells"
         assert "source" in cell, "Cells should have source code"
@@ -182,5 +181,5 @@ def test_mock_cells_structure():
         # Each source line should be a string
         for line in cell["source"]:
             assert isinstance(line, str), "Each source line should be a string"
-    
+
     print("✅ Mock injection cells are properly structured")

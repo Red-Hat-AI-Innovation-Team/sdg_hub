@@ -8,7 +8,7 @@ Utilities for loading mock cells for knowledge generation notebook testing.
 def create_llm_mock_cell() -> dict:
     """
     Create LLM mock setup cell with comprehensive litellm mocking.
-    
+
     Returns:
         Dictionary representing a Jupyter notebook cell
     """
@@ -94,12 +94,12 @@ def create_llm_mock_cell() -> dict:
 def create_test_data_cell() -> dict:
     """
     Create test data setup cell.
-    
+
     Returns:
         Dictionary representing a Jupyter notebook cell
     """
     return {
-        "cell_type": "code", 
+        "cell_type": "code",
         "execution_count": None,
         "metadata": {"tags": ["test-data"]},
         "outputs": [],
@@ -150,11 +150,8 @@ def create_test_data_cell() -> dict:
 def get_knowledge_generation_mock_cells() -> list:
     """
     Get all mock cells needed for knowledge generation notebook testing.
-    
+
     Returns:
         List of mock cell dictionaries
     """
-    return [
-        create_llm_mock_cell(),
-        create_test_data_cell()
-    ]
+    return [create_llm_mock_cell(), create_test_data_cell()]
