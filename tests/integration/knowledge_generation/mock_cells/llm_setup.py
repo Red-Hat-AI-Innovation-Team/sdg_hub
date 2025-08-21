@@ -7,9 +7,9 @@ This module provides deterministic LLM responses that follow the expected
 flow execution pattern for knowledge generation workflows.
 """
 
-# Mock LLM Setup - Deterministic responses for integration testing
-from unittest.mock import patch, MagicMock
-import asyncio
+# Mock LLM Setup - Deterministic responses for integration testing - MUST BE FIRST
+import sys
+from unittest.mock import MagicMock, patch
 
 def create_knowledge_mock_response(call_count):
     """Generate deterministic responses based on call order."""
@@ -57,23 +57,79 @@ def create_knowledge_mock_response(call_count):
         else:
             return '[Start of Explanation] The question is well-formulated and appropriate. [End of Explanation] [Start of Rating] 1.0 [End of Rating]'
 
-# Global call counter for deterministic responses
-global_call_count = 0
-
-async def mock_completion(*args, **kwargs):
-    """Mock completion function with deterministic responses."""
-    global global_call_count
-    global_call_count += 1
-    
+# Create mock responses for knowledge generation (enough for the entire flow)
+mock_responses = []
+for i in range(100):  # Enough for multiple documents and flow steps
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
     mock_response.choices[0].message = MagicMock()
-    mock_response.choices[0].message.content = create_knowledge_mock_response(global_call_count)
-    
-    return mock_response
+    mock_response.choices[0].message.content = create_knowledge_mock_response(i + 1)
+    mock_responses.append(mock_response)
 
-# Apply the comprehensive mocking
-completion_patcher = patch('sdg_hub.core.blocks.llm.client_manager.completion', side_effect=mock_completion)
+# Create a cycling iterator for responses  
+response_iter = iter(mock_responses * 10)  # Repeat responses to ensure we don't run out
+
+# Mock the litellm completion function used by SDG Hub
+def mock_completion(*args, **kwargs):
+    return next(response_iter)
+
+# Mock the async completion function (following the working test pattern)
+async def mock_async_completion(*_args, **_kwargs):
+    return next(response_iter)
+
+# COMPLETE LITELLM BYPASS STRATEGY
+# Instead of letting LiteLLM route to different providers, we intercept at the entry point
+# and immediately return our mock responses, bypassing ALL LiteLLM logic
+
+# Patch LiteLLM's main entry points to completely bypass all routing and HTTP calls
+def mock_litellm_completion(*args, **kwargs):
+    """Completely bypass LiteLLM and return mock response immediately."""
+    print(f"🔍 MOCK INTERCEPTED: litellm.completion called with model: {kwargs.get('model', 'unknown')}")
+    return next(response_iter)
+
+async def mock_litellm_acompletion(*args, **kwargs):
+    """Completely bypass LiteLLM async and return mock response immediately."""
+    print(f"🔍 MOCK INTERCEPTED: litellm.acompletion called with model: {kwargs.get('model', 'unknown')}")
+    return next(response_iter)
+
+# Patch at LiteLLM level - this catches ALL provider routing
+litellm_completion_patcher = patch('litellm.completion', side_effect=mock_litellm_completion)
+litellm_completion_patcher.start()
+
+litellm_acompletion_patcher = patch('litellm.acompletion', side_effect=mock_litellm_acompletion)
+litellm_acompletion_patcher.start()
+
+# Also patch the client_manager imports (these import from litellm, so should be covered above)
+# But we add these for extra safety in case there are direct imports
+completion_patcher = patch('sdg_hub.core.blocks.llm.client_manager.completion', side_effect=mock_litellm_completion)
 completion_patcher.start()
 
-print('✅ Mock LLM setup complete - all API calls will be intercepted')
+acompletion_patcher = patch('sdg_hub.core.blocks.llm.client_manager.acompletion', side_effect=mock_litellm_acompletion)
+acompletion_patcher.start()
+
+# CRITICAL: Also mock OpenAI client creation (like PR 269 does)
+# LiteLLM creates OpenAI clients internally and calls them directly, bypassing our patches
+mock_openai_client = MagicMock()
+mock_openai_model = MagicMock()
+mock_openai_model.id = 'meta-llama/Llama-3.3-70B-Instruct'
+mock_openai_client.models.list.return_value.data = [mock_openai_model]
+
+# Mock both sync and async OpenAI completions
+mock_openai_client.chat.completions.create.side_effect = mock_responses
+mock_openai_client.chat.completions.with_raw_response.create.side_effect = mock_responses
+
+# Mock both OpenAI client classes that LiteLLM might use
+openai_patcher = patch('openai.OpenAI', return_value=mock_openai_client)
+openai_patcher.start()
+
+openai_async_patcher = patch('openai.AsyncOpenAI', return_value=mock_openai_client)
+openai_async_patcher.start()
+
+print('✅ Mock LLM setup complete for knowledge generation')
+print(f'   - Mocked {len(mock_responses)} responses with cycling iterator')
+print('   - Patched: sdg_hub.core.blocks.llm.client_manager.completion')
+print('   - Patched: sdg_hub.core.blocks.llm.client_manager.acompletion')
+print('   - Patched: litellm.completion')
+print('   - Patched: litellm.acompletion')
+print('   - Patched: openai.OpenAI')
+print('   - Patched: openai.AsyncOpenAI')

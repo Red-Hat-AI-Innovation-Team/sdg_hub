@@ -158,6 +158,6 @@ env = [
     "LOG_LEVEL=WARNING"
 ]
 markers = [
-    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: notebook-based end-to-end tests (deselect with '-m \"not integration\"')",
+    "slow: long-running tests (>60 s) (deselect with '-m \"not slow\"')",
 ]

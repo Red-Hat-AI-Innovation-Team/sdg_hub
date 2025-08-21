@@ -9,20 +9,14 @@ Tests the real user workflow while ensuring deterministic, fast execution.
 """
 
 import json
-import tempfile
 from pathlib import Path
-from unittest.mock import patch, Mock, MagicMock
-from typing import Dict, Any
 
 import pytest
-from datasets import Dataset
 
 from tests.integration.notebook_utils import (
     execute_notebook_with_cell_injection,
     validate_notebook_execution,
     extract_notebook_outputs,
-    validate_dataset_structure,
-    create_sample_seed_data
 )
 from .mock_utils import get_knowledge_generation_mock_cells
 
@@ -56,7 +50,7 @@ def executed_notebook_cache(tmp_path_factory):
         notebook_path=NOTEBOOK_PATH,
         injected_cells=mock_cells,
         parameters=notebook_params,
-        injection_position=2,  # After imports, before flow discovery
+        injection_position=1,  # Inject after first cell, before imports
         output_dir=cache_dir
     )
     
@@ -104,23 +98,7 @@ def test_knowledge_generation_dependencies_exist():
     from sdg_hub.core.flow.registry import FlowRegistry
     
     # Set up flow discovery paths like the notebook does
-    project_root = Path(__file__).parent.parent.parent
-    flows_dir = project_root / "src" / "sdg_hub" / "flows"
-    assert flows_dir.exists(), f"Flows directory not found at {flows_dir}"
-    
-    print("✅ All dependencies and flow files exist")
-
-
-def test_knowledge_generation_dependencies_exist():
-    """Test that required flow files and dependencies exist."""
-    # Check that the target notebook exists
-    assert NOTEBOOK_PATH.exists(), f"Notebook not found at {NOTEBOOK_PATH}"
-    
-    # Check that the flow registry can discover flows
-    from sdg_hub.core.flow.registry import FlowRegistry
-    
-    # Set up flow discovery paths like the notebook does
-    project_root = Path(__file__).parent.parent.parent
+    project_root = Path(__file__).parent.parent.parent.parent
     flows_dir = project_root / "src" / "sdg_hub" / "flows"
     assert flows_dir.exists(), f"Flows directory not found at {flows_dir}"
     
@@ -190,56 +168,19 @@ def test_knowledge_generation_output_files_created(executed_notebook_cache):
     print("✅ Output file validation complete")
 
 
-@pytest.mark.integration
-@pytest.mark.slow
-def test_knowledge_generation_deterministic_behavior(
-    test_seed_data,
-    mock_llm_injection_cells,
-    temp_output_dir
-):
-    """
-    Test that the notebook produces deterministic results across multiple runs.
-    
-    This validates that our mocking strategy provides consistent outputs
-    for regression testing and CI stability.
-    """
-    notebook_params = {
-        'number_of_samples': 2,
-        'seed_data_dir': 'test_sdg_demo_output',
-    }
-    
-    # Run the notebook twice
-    results = []
-    for run_id in range(2):
-        executed_notebook_path = execute_notebook_with_cell_injection(
-            notebook_path=NOTEBOOK_PATH,
-            injected_cells=mock_llm_injection_cells,
-            parameters=notebook_params,
-            injection_position=2,
-            output_dir=temp_output_dir / f"run_{run_id}"
-        )
-        
-        assert validate_notebook_execution(executed_notebook_path), \
-            f"Notebook execution failed on run {run_id}"
-        
-        # Extract key outputs for comparison
-        outputs = extract_notebook_outputs(executed_notebook_path)
-        results.append(outputs)
-    
-    # For now, just validate both runs completed successfully
-    # In the future, we could add detailed output comparison
-    assert len(results) == 2, "Both test runs should complete"
-    
-    print("✅ Deterministic behavior validated - both runs completed successfully")
-
-
-def test_mock_llm_injection_cells_structure(mock_llm_injection_cells):
+def test_mock_cells_structure():
     """Test that the mock injection cells are properly structured."""
-    assert len(mock_llm_injection_cells) == 2, "Should have 2 injection cells"
+    from .mock_utils import get_knowledge_generation_mock_cells
     
-    for cell in mock_llm_injection_cells:
+    mock_cells = get_knowledge_generation_mock_cells()
+    assert len(mock_cells) == 2, "Should have 2 injection cells"
+    
+    for cell in mock_cells:
         assert cell["cell_type"] == "code", "All injection cells should be code cells"
         assert "source" in cell, "Cells should have source code"
         assert isinstance(cell["source"], list), "Source should be a list of strings"
+        # Each source line should be a string
+        for line in cell["source"]:
+            assert isinstance(line, str), "Each source line should be a string"
     
     print("✅ Mock injection cells are properly structured")

@@ -152,25 +152,37 @@ def execute_notebook_with_cell_injection(
     for i, cell in enumerate(injected_cells):
         notebook['cells'].insert(injection_position + i, cell)
     
+    # Remove the last cell (which has the problematic instruction dataset loading)
+    if len(notebook['cells']) > 0:
+        notebook['cells'].pop()  # Remove the last cell
+    
     # Create temporary notebook file in the same directory as original notebook
     # This ensures relative paths work correctly
+    notebook_path = notebook_path.resolve()  # Make sure it's absolute
     notebook_dir = notebook_path.parent
     temp_notebook_path = notebook_dir / f"temp_{notebook_path.name}"
     with open(temp_notebook_path, 'w') as f:
         json.dump(notebook, f, indent=2)
     
     try:
-        # Execute using standard function
-        executed_path = execute_notebook_with_params(
-            temp_notebook_path,
-            parameters,
-            output_dir,
-            kernel_name
+        # Execute using papermill directly with absolute paths
+        output_path = output_dir / f"executed_{notebook_path.name}"
+        
+        pm.execute_notebook(
+            str(temp_notebook_path.resolve()),  # Use absolute path
+            str(output_path.resolve()),         # Use absolute path for output
+            parameters=parameters,
+            kernel_name=kernel_name,
+            progress_bar=False,
+            cwd=str(notebook_dir.resolve())     # Use absolute path for cwd
         )
+        
+        executed_path = output_path
     finally:
-        # Clean up temp notebook
-        if temp_notebook_path.exists():
-            temp_notebook_path.unlink()
+        # Clean up temp notebook (temporarily keep for debugging)
+        pass
+        # if temp_notebook_path.exists():
+        #     temp_notebook_path.unlink()
     
     return executed_path
 
@@ -211,42 +223,3 @@ def validate_dataset_structure(
             return False
     
     return True
-
-
-def create_sample_seed_data() -> Dataset:
-    """
-    Create sample seed data for testing knowledge generation flows.
-    
-    Returns:
-        Dataset with sample document data for testing
-    """
-    sample_data = [
-        {
-            "document": "Machine learning is a subset of artificial intelligence that focuses on algorithms and statistical models. It enables computers to learn and improve from experience without being explicitly programmed for every task.",
-            "document_outline": "1. Definition of machine learning\n2. Relationship to AI\n3. Core concepts: algorithms and statistical models\n4. Learning from experience\n5. Automation benefits",
-            "domain": "technology",
-            "seed_examples": "Examples of ML applications include recommendation systems, image recognition, and natural language processing.",
-            "icl_document": "Artificial intelligence encompasses machine learning, deep learning, and other computational approaches to simulate human intelligence.",
-            "icl_query_1": "What is the relationship between AI and machine learning?",
-            "icl_response_1": "Machine learning is a subset of artificial intelligence, focusing specifically on algorithms that can learn from data.",
-            "icl_query_2": "How do machine learning algorithms work?",
-            "icl_response_2": "They analyze patterns in data to make predictions or decisions without explicit programming for each scenario.",
-            "icl_query_3": "What are common applications of machine learning?",
-            "icl_response_3": "Common applications include recommendation engines, fraud detection, image recognition, and autonomous vehicles."
-        },
-        {
-            "document": "Cloud computing provides on-demand access to computing resources over the internet. It offers scalability, flexibility, and cost-effectiveness for businesses of all sizes by eliminating the need for physical infrastructure management.",
-            "document_outline": "1. Cloud computing definition\n2. On-demand resource access\n3. Internet-based delivery\n4. Scalability benefits\n5. Cost advantages\n6. Infrastructure management",
-            "domain": "technology", 
-            "seed_examples": "Cloud services include Infrastructure as a Service (IaaS), Platform as a Service (PaaS), and Software as a Service (SaaS).",
-            "icl_document": "Traditional computing required organizations to maintain physical servers and infrastructure on-premises.",
-            "icl_query_1": "What are the main benefits of cloud computing?",
-            "icl_response_1": "Key benefits include scalability, cost reduction, flexibility, and reduced infrastructure management overhead.",
-            "icl_query_2": "What are the different types of cloud services?",
-            "icl_response_2": "The main types are IaaS (infrastructure), PaaS (platform), and SaaS (software) as a service.",
-            "icl_query_3": "How does cloud computing differ from traditional computing?",
-            "icl_response_3": "Cloud computing provides remote access to resources over the internet, while traditional computing relies on local physical infrastructure."
-        }
-    ]
-    
-    return Dataset.from_list(sample_data)

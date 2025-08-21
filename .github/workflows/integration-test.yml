@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
-name: Test
+name: Integration Test
 
 on:
   workflow_dispatch:
@@ -9,23 +9,25 @@ on:
       - "main"
       - "release-**"
     paths:
-      - 'src/**/*.py'
-      - 'tests/**/*.py'
+      # static paths, DONT CHANGE THEM
+      - 'src/sdg_hub/core/**/*.py'
+      - 'tests/integration/**/*.py'
       - 'pyproject.toml'
-      - 'requirements*.txt'
       - 'tox.ini'
-      - '.github/workflows/test.yml' # This workflow
+      - '.github/workflows/integration-test.yml' # This workflow
+      # dynamic paths, UPDATE THESE when necessary (when an example is considered for validation by a maintainer)
+      - 'examples/knowledge_tuning/instructlab/**'
   pull_request:
     branches:
       - "main"
       - "release-**"
     paths:
-      - 'src/**/*.py'
-      - 'tests/**/*.py'
+      - 'src/sdg_hub/core/**/*.py'
+      - 'examples/knowledge_tuning/instructlab/**'
+      - 'tests/integration/**/*.py'
       - 'pyproject.toml'
-      - 'requirements*.txt'
       - 'tox.ini'
-      - '.github/workflows/test.yml' # This workflow
+      - '.github/workflows/integration-test.yml' # This workflow
 
 env:
   LC_ALL: en_US.UTF-8
@@ -38,19 +40,15 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: "Unit Tests - ${{ matrix.python }} on ${{ matrix.platform }}"
+  integration-test:
+    name: "Integration Tests - ${{ matrix.python }} on ${{ matrix.platform }}"
     runs-on: "${{ matrix.platform }}"
     strategy:
       matrix:
         python:
-          - "3.10"
           - "3.11"
         platform:
           - "ubuntu-latest"
-        include:
-          - python: "3.11"
-            platform: "macos-latest"
     steps:
       - name: "Harden Runner"
         uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
@@ -64,18 +62,11 @@ jobs:
           fetch-depth: 0
 
       - name: Free disk space
-        if: matrix.platform != 'macos-latest'
         uses: ./.github/actions/free-disk-space
 
       - name: Install the expect package
-        if: startsWith(matrix.platform, 'ubuntu')
         run: |
           sudo apt-get install -y expect
-
-      - name: Install tools on MacOS
-        if: startsWith(matrix.platform, 'macos')
-        run: |
-          brew install expect coreutils bash
 
       - name: Setup Python ${{ matrix.python }}
         uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5.5.0
@@ -102,26 +93,37 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install tox tox-gh>=1.2
 
-      - name: Run unit tests with tox
+      - name: Run integration tests with tox
         run: |
-          tox -e py3-unitcov
-
+          tox -e py3-integrationcov
 
       - name: Remove llama-cpp-python from cache
         if: always()
         run: |
           pip cache remove llama_cpp_python
-      
-      - name: Upload coverage to Codecov
+
+      - name: Upload integration test coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./coverage.xml
-          fail_ci_if_error: true 
+          file: ./coverage-py3-integrationcov.xml
+          fail_ci_if_error: false
+          flags: integration
 
-  test-workflow-complete:
-    needs: ["test"]
+      - name: Upload integration test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results-${{ matrix.python }}-${{ matrix.platform }}
+          path: |
+            coverage-py3-integrationcov/
+            coverage-py3-integrationcov.xml
+            durations/py3-integrationcov.html
+          retention-days: 30
+
+  integration-test-workflow-complete:
+    needs: ["integration-test"]
     runs-on: ubuntu-latest
     steps:
-      - name: Test Workflow Complete
-        run: echo "Test Workflow Complete"
+      - name: Integration Test Workflow Complete
+        run: echo "Integration Test Workflow Complete"
