@@ -136,7 +136,7 @@ def create_test_data_cell() -> dict:
             "    }\n",
             "]\n",
             "\n",
-            "test_output_dir = 'test_sdg_demo_output'\n",
+            "test_output_dir = 'sdg_demo_output'\n",
             "os.makedirs(test_output_dir, exist_ok=True)\n",
             "\n",
             "test_ds = Dataset.from_list(test_data)\n",
