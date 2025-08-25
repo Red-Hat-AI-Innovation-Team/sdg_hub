@@ -2,7 +2,6 @@
 """Tests for EvaluateFaithfulnessBlock."""
 
 # Standard
-from unittest.mock import MagicMock, patch
 import os
 import tempfile
 
@@ -81,7 +80,9 @@ class TestEvaluateFaithfulnessBlock:
 
         # Test parameters are stored in appropriate dictionaries
         assert "model" in block.llm_params
-        assert block.llm_params["model"] == "hosted_vllm/meta-llama/Llama-3.3-70B-Instruct"
+        assert (
+            block.llm_params["model"] == "hosted_vllm/meta-llama/Llama-3.3-70B-Instruct"
+        )
         assert "prompt_config_path" in block.prompt_params
         assert block.prompt_params["prompt_config_path"] == test_yaml_config
 
@@ -119,10 +120,7 @@ class TestEvaluateFaithfulnessBlock:
         block = EvaluateFaithfulnessBlock(
             block_name="test_faithfulness",
             input_cols=["document", "response"],
-            output_cols=[
-                "faithfulness_explanation", 
-                "faithfulness_judgment"
-            ],
+            output_cols=["faithfulness_explanation", "faithfulness_judgment"],
             prompt_config_path=test_yaml_config,
             model="openai/gpt-4",
         )
@@ -165,11 +163,12 @@ class TestEvaluateFaithfulnessBlock:
         )
 
         # Setup test data
-        test_dataset = Dataset.from_list([
-            {"document": "test doc", "response": "test response"}
-        ])
+        test_dataset = Dataset.from_list(
+            [{"document": "test doc", "response": "test response"}]
+        )
 
         # Should raise BlockValidationError
         from sdg_hub.core.utils.error_handling import BlockValidationError
+
         with pytest.raises(BlockValidationError, match="Model not configured"):
             block.generate(test_dataset)

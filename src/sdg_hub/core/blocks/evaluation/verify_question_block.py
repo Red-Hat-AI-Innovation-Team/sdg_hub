@@ -83,7 +83,7 @@ class VerifyQuestionBlock(BaseBlock):
     parser_params: dict[str, Any] = Field(default_factory=dict, exclude=True)
     filter_params: dict[str, Any] = Field(default_factory=dict, exclude=True)
 
-    # Internal blocks - excluded from serialization  
+    # Internal blocks - excluded from serialization
     prompt_builder: Optional[PromptBuilderBlock] = Field(default=None, exclude=True)
     llm_chat: Optional[LLMChatBlock] = Field(default=None, exclude=True)
     text_parser: Optional[TextParserBlock] = Field(default=None, exclude=True)
