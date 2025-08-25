@@ -4,10 +4,14 @@
 This module provides the EvaluateFaithfulnessBlock that encapsulates the complete
 faithfulness evaluation workflow, combining prompt building, LLM chat, text parsing,
 and filtering into a single block for simplified configuration.
+
+The block uses dynamic parameter forwarding to support all parameters from its
+internal blocks (LLMChatBlock, PromptBuilderBlock, TextParserBlock, ColumnValueFilterBlock)
+without requiring manual parameter declarations.
 """
 
 # Standard
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 # Third Party
 from datasets import Dataset
@@ -47,171 +51,43 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         Input columns: ["document", "response"]
     output_cols : List[str]
         Output columns: ["faithfulness_explanation", "faithfulness_judgment"]
-    prompt_config_path : str
-        Path to YAML file containing the faithfulness evaluation prompt template.
-    model : str
-        Model identifier in LiteLLM format (e.g., "hosted_vllm/meta-llama/Llama-3.3-70B-Instruct")
-    api_base : Optional[str]
-        Base URL for the API. Required for local models.
-    api_key : Optional[str]
-        API key for the provider. Falls back to environment variables.
-    filter_value : str, optional
-        Value to filter on for faithfulness judgment (default: "YES")
-    operation : str, optional
-        Filter operation (default: "eq")
-    convert_dtype : Optional[str], optional
-        Data type conversion for filter column (default: None)
-    async_mode : bool, optional
-        Whether to use async processing (default: True)
-    format_as_messages : bool, optional
-        Whether to format prompt as messages (default: True)
-    start_tags : List[str], optional
-        Start tags for parsing (default: ["[Start of Explanation]", "[Start of Answer]"])
-    end_tags : List[str], optional
-        End tags for parsing (default: ["[End of Explanation]", "[End of Answer]"])
-    parsing_pattern : Optional[str], optional
-        Regex pattern for custom parsing. If provided, takes precedence over tag-based parsing.
-    parser_cleanup_tags : Optional[List[str]], optional
-        List of tags to clean from parsed output.
-
-    ### LLM Generation Parameters ###
-    temperature : Optional[float], optional
-        Sampling temperature (0.0 to 2.0).
-    max_tokens : Optional[int], optional
-        Maximum tokens to generate.
-    top_p : Optional[float], optional
-        Nucleus sampling parameter (0.0 to 1.0).
-    frequency_penalty : Optional[float], optional
-        Frequency penalty (-2.0 to 2.0).
-    presence_penalty : Optional[float], optional
-        Presence penalty (-2.0 to 2.0).
-    stop : Optional[Union[str, List[str]]], optional
-        Stop sequences.
-    seed : Optional[int], optional
-        Random seed for reproducible outputs.
-    response_format : Optional[Dict[str, Any]], optional
-        Response format specification (e.g., JSON mode).
-    stream : Optional[bool], optional
-        Whether to stream responses.
-    n : Optional[int], optional
-        Number of completions to generate. When n > 1, the output column will contain
-        a list of responses for each input sample.
-    logprobs : Optional[bool], optional
-        Whether to return log probabilities.
-    top_logprobs : Optional[int], optional
-        Number of top log probabilities to return.
-    user : Optional[str], optional
-        End-user identifier.
-    extra_headers : Optional[Dict[str, str]], optional
-        Additional headers to send with requests.
-    extra_body : Optional[Dict[str, Any]], optional
-        Additional parameters for the request body.
-    timeout : float, optional
-        Request timeout in seconds (default: 120.0).
-    max_retries : int, optional
-        Maximum number of retry attempts (default: 6).
     **kwargs : Any
-        Additional provider-specific parameters.
+        All parameters from internal blocks are supported with automatic forwarding:
+
+        - **LLMChatBlock parameters**: model, api_base, api_key, temperature, max_tokens,
+          top_p, frequency_penalty, presence_penalty, stop, seed, response_format, stream,
+          n, logprobs, top_logprobs, user, extra_headers, extra_body, timeout, max_retries,
+          async_mode, provider_specific, and more.
+
+        - **PromptBuilderBlock parameters**: prompt_config_path (REQUIRED), format_as_messages (default: True).
+
+        - **TextParserBlock parameters**: start_tags (default: ["[Start of Explanation]", "[Start of Answer]"]),
+          end_tags (default: ["[End of Explanation]", "[End of Answer]"]), parsing_pattern,
+          parser_cleanup_tags, expand_lists.
+
+        - **ColumnValueFilterBlock parameters**: filter_value (default: "YES"), operation (default: "eq"),
+          convert_dtype (default: None).
+
+        See the respective block documentation for complete parameter details.
     """
 
-    model_config = ConfigDict(extra="forbid")
-
-    # Core configuration
-    prompt_config_path: str = Field(
-        ...,
-        description="Path to YAML file containing the faithfulness evaluation prompt template",
-    )
-    model: Optional[str] = Field(None, description="Model identifier in LiteLLM format")
-    api_base: Optional[str] = Field(None, description="Base URL for the API")
-    api_key: Optional[str] = Field(
-        None,
-        description="API key for the provider. Falls back to environment variables.",
+    model_config = ConfigDict(
+        extra="allow"  # Allow extra fields for dynamic parameter forwarding
     )
 
-    # Filter configuration
-    filter_value: str = Field(
-        "YES", description="Value to filter on for faithfulness judgment"
-    )
-    operation: str = Field("eq", description="Filter operation")
-    convert_dtype: Optional[str] = Field(
-        None, description="Data type conversion for filter column"
-    )
+    # No composite-specific configuration - all parameters are forwarded dynamically
 
-    # Processing configuration
-    async_mode: bool = Field(True, description="Whether to use async processing")
-    format_as_messages: bool = Field(
-        True, description="Whether to format prompt as messages"
-    )
-
-    # Parser configuration
-    start_tags: list[str] = Field(
-        ["[Start of Explanation]", "[Start of Answer]"],
-        description="Start tags for parsing explanation and judgment",
-    )
-    end_tags: list[str] = Field(
-        ["[End of Explanation]", "[End of Answer]"],
-        description="End tags for parsing explanation and judgment",
-    )
-    parsing_pattern: Optional[str] = Field(
-        None,
-        description="Regex pattern for custom parsing. If provided, takes precedence over tag-based parsing",
-    )
-    parser_cleanup_tags: Optional[list[str]] = Field(
-        None, description="List of tags to clean from parsed output"
-    )
-
-    # LLM generation parameters
-    temperature: Optional[float] = Field(
-        None, description="Sampling temperature (0.0 to 2.0)"
-    )
-    max_tokens: Optional[int] = Field(None, description="Maximum tokens to generate")
-    top_p: Optional[float] = Field(
-        None, description="Nucleus sampling parameter (0.0 to 1.0)"
-    )
-    frequency_penalty: Optional[float] = Field(
-        None, description="Frequency penalty (-2.0 to 2.0)"
-    )
-    presence_penalty: Optional[float] = Field(
-        None, description="Presence penalty (-2.0 to 2.0)"
-    )
-    stop: Optional[Union[str, list[str]]] = Field(None, description="Stop sequences")
-    seed: Optional[int] = Field(
-        None, description="Random seed for reproducible outputs"
-    )
-    response_format: Optional[dict[str, Any]] = Field(
-        None, description="Response format specification (e.g., JSON mode)"
-    )
-    stream: Optional[bool] = Field(None, description="Whether to stream responses")
-    n: Optional[int] = Field(
-        None,
-        description="Number of completions to generate. When n > 1, the output column will contain a list of responses for each input sample",
-    )
-    logprobs: Optional[bool] = Field(
-        None, description="Whether to return log probabilities"
-    )
-    top_logprobs: Optional[int] = Field(
-        None, description="Number of top log probabilities to return"
-    )
-    user: Optional[str] = Field(None, description="End-user identifier")
-    extra_headers: Optional[dict[str, str]] = Field(
-        None, description="Additional headers to send with requests"
-    )
-    extra_body: Optional[dict[str, Any]] = Field(
-        None, description="Additional parameters for the request body"
-    )
-    timeout: float = Field(120.0, description="Request timeout in seconds")
-    max_retries: int = Field(6, description="Maximum number of retry attempts")
-
-    # Additional provider-specific parameters
-    llm_kwargs: dict[str, Any] = Field(
-        default_factory=dict, description="Additional provider-specific parameters"
-    )
+    # Store parameters for internal blocks
+    llm_params: dict[str, Any] = Field(default_factory=dict, exclude=True)
+    prompt_params: dict[str, Any] = Field(default_factory=dict, exclude=True)
+    parser_params: dict[str, Any] = Field(default_factory=dict, exclude=True)
+    filter_params: dict[str, Any] = Field(default_factory=dict, exclude=True)
 
     # Internal blocks - excluded from serialization
-    prompt_builder: Optional[PromptBuilderBlock] = Field(None, exclude=True)
-    llm_chat: Optional[LLMChatBlock] = Field(None, exclude=True)
-    text_parser: Optional[TextParserBlock] = Field(None, exclude=True)
-    filter_block: Optional[ColumnValueFilterBlock] = Field(None, exclude=True)
+    prompt_builder: Optional[PromptBuilderBlock] = Field(default=None, exclude=True)
+    llm_chat: Optional[LLMChatBlock] = Field(default=None, exclude=True)
+    text_parser: Optional[TextParserBlock] = Field(default=None, exclude=True)
+    filter_block: Optional[ColumnValueFilterBlock] = Field(default=None, exclude=True)
 
     @field_validator("input_cols")
     @classmethod
@@ -238,115 +114,97 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             )
         return v
 
-    def model_post_init(self, __context: Any) -> None:
-        """Initialize the internal blocks after Pydantic validation."""
-        super().model_post_init(__context)
+    def __init__(self, **kwargs):
+        """Initialize with dynamic parameter forwarding."""
+        # No composite-specific parameters - everything is forwarded dynamically
+        composite_params = {}
 
-        # Create internal blocks
+        # Forward parameters to appropriate internal blocks
+        llm_params = {k: v for k, v in kwargs.items() if k in LLMChatBlock.model_fields}
+        prompt_params = {
+            k: v for k, v in kwargs.items() if k in PromptBuilderBlock.model_fields
+        }
+        parser_params = {
+            k: v for k, v in kwargs.items() if k in TextParserBlock.model_fields
+        }
+        filter_params = {
+            k: v for k, v in kwargs.items() if k in ColumnValueFilterBlock.model_fields
+        }
+
+        # Keep only BaseBlock fields for super().__init__
+        base_params = {k: v for k, v in kwargs.items() if k in BaseBlock.model_fields}
+        base_params.update(composite_params)
+        base_params["llm_params"] = llm_params
+        base_params["prompt_params"] = prompt_params
+        base_params["parser_params"] = parser_params
+        base_params["filter_params"] = filter_params
+
+        # Initialize parent with all valid parameters
+        super().__init__(**base_params)
+
+        # Create internal blocks with forwarded parameters
         self._create_internal_blocks()
 
         # Log initialization only when model is configured
-        if self.model:
+        model = self.llm_params.get("model")
+        if model:
             logger.info(
-                f"Initialized EvaluateFaithfulnessBlock '{self.block_name}' with model '{self.model}'",
+                f"Initialized EvaluateFaithfulnessBlock '{self.block_name}' with model '{model}'",
                 extra={
                     "block_name": self.block_name,
-                    "model": self.model,
-                    "async_mode": self.async_mode,
-                    "filter_value": self.filter_value,
+                    "model": model,
+                    "async_mode": self.llm_params.get("async_mode", True),
+                    "filter_value": self.filter_params.get("filter_value", "YES"),
                 },
             )
 
     def _create_internal_blocks(self) -> None:
-        """Create and configure the internal blocks."""
+        """Create and configure the internal blocks using dynamic parameter forwarding."""
         # 1. PromptBuilderBlock
-        self.prompt_builder = PromptBuilderBlock(
-            block_name=f"{self.block_name}_prompt_builder",
-            input_cols=["document", "response"],
-            output_cols=["eval_faithfulness_prompt"],
-            prompt_config_path=self.prompt_config_path,
-            format_as_messages=self.format_as_messages,
-        )
+        prompt_kwargs = {
+            **self.prompt_params,  # Forward all prompt parameters dynamically
+            "block_name": f"{self.block_name}_prompt_builder",
+            "input_cols": ["document", "response"],
+            "output_cols": ["eval_faithfulness_prompt"],
+            "prompt_config_path": self.prompt_params.get("prompt_config_path"),
+            "format_as_messages": self.prompt_params.get("format_as_messages", True),
+        }
+        self.prompt_builder = PromptBuilderBlock(**prompt_kwargs)
 
         # 2. LLMChatBlock
         llm_kwargs = {
+            **self.llm_params,  # Forward all LLM parameters dynamically
             "block_name": f"{self.block_name}_llm_chat",
             "input_cols": ["eval_faithfulness_prompt"],
             "output_cols": ["raw_eval_faithfulness"],
-            "model": self.model,
-            "api_base": self.api_base,
-            "api_key": self.api_key,
-            "async_mode": self.async_mode,
-            "timeout": self.timeout,
-            "max_retries": self.max_retries,
         }
-
-        # Add generation parameters if specified
-        if self.temperature is not None:
-            llm_kwargs["temperature"] = self.temperature
-        if self.max_tokens is not None:
-            llm_kwargs["max_tokens"] = self.max_tokens
-        if self.top_p is not None:
-            llm_kwargs["top_p"] = self.top_p
-        if self.frequency_penalty is not None:
-            llm_kwargs["frequency_penalty"] = self.frequency_penalty
-        if self.presence_penalty is not None:
-            llm_kwargs["presence_penalty"] = self.presence_penalty
-        if self.stop is not None:
-            llm_kwargs["stop"] = self.stop
-        if self.seed is not None:
-            llm_kwargs["seed"] = self.seed
-        if self.response_format is not None:
-            llm_kwargs["response_format"] = self.response_format
-        if self.stream is not None:
-            llm_kwargs["stream"] = self.stream
-        if self.n is not None:
-            llm_kwargs["n"] = self.n
-        if self.logprobs is not None:
-            llm_kwargs["logprobs"] = self.logprobs
-        if self.top_logprobs is not None:
-            llm_kwargs["top_logprobs"] = self.top_logprobs
-        if self.user is not None:
-            llm_kwargs["user"] = self.user
-        if self.extra_headers is not None:
-            llm_kwargs["extra_headers"] = self.extra_headers
-        if self.extra_body is not None:
-            llm_kwargs["extra_body"] = self.extra_body
-
-        # Add any additional kwargs
-        llm_kwargs.update(self.llm_kwargs)
-
         self.llm_chat = LLMChatBlock(**llm_kwargs)
 
         # 3. TextParserBlock
         text_parser_kwargs = {
+            **self.parser_params,  # Forward all parser parameters dynamically
             "block_name": f"{self.block_name}_text_parser",
             "input_cols": ["raw_eval_faithfulness"],
             "output_cols": ["faithfulness_explanation", "faithfulness_judgment"],
-            "start_tags": self.start_tags,
-            "end_tags": self.end_tags,
+            "start_tags": self.parser_params.get(
+                "start_tags", ["[Start of Explanation]", "[Start of Answer]"]
+            ),
+            "end_tags": self.parser_params.get(
+                "end_tags", ["[End of Explanation]", "[End of Answer]"]
+            ),
         }
-
-        # Add optional TextParserBlock parameters if specified
-        if self.parsing_pattern is not None:
-            text_parser_kwargs["parsing_pattern"] = self.parsing_pattern
-        if self.parser_cleanup_tags is not None:
-            text_parser_kwargs["parser_cleanup_tags"] = self.parser_cleanup_tags
-
         self.text_parser = TextParserBlock(**text_parser_kwargs)
 
         # 4. ColumnValueFilterBlock
         filter_kwargs = {
+            **self.filter_params,  # Forward all filter parameters dynamically
             "block_name": f"{self.block_name}_filter",
             "input_cols": ["faithfulness_judgment"],
             "output_cols": [],  # Filter blocks don't create new columns
-            "filter_value": self.filter_value,
-            "operation": self.operation,
+            "filter_value": self.filter_params.get("filter_value", "YES"),
+            "operation": self.filter_params.get("operation", "eq"),
+            "convert_dtype": self.filter_params.get("convert_dtype", None),
         }
-
-        if self.convert_dtype is not None:
-            filter_kwargs["convert_dtype"] = self.convert_dtype
-
         self.filter_block = ColumnValueFilterBlock(**filter_kwargs)
 
     def _reinitialize_client_manager(self) -> None:
@@ -356,10 +214,10 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         the internal LLM chat block uses the updated model configuration.
         """
         if self.llm_chat and hasattr(self.llm_chat, "_reinitialize_client_manager"):
-            # Update the internal LLM chat block's model config
-            self.llm_chat.model = self.model
-            self.llm_chat.api_base = self.api_base
-            self.llm_chat.api_key = self.api_key
+            # Update the internal LLM chat block's model config from stored params
+            for key in ["model", "api_base", "api_key"]:
+                if key in self.llm_params:
+                    setattr(self.llm_chat, key, self.llm_params[key])
             # Reinitialize its client manager
             self.llm_chat._reinitialize_client_manager()
 
@@ -390,7 +248,8 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             If model is not configured before calling generate().
         """
         # Validate that model is configured
-        if not self.model:
+        model = self.llm_params.get("model")
+        if not model:
             # Local
             from ...utils.error_handling import BlockValidationError
 
@@ -402,7 +261,7 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             f"Starting faithfulness evaluation for {len(samples)} samples",
             extra={
                 "block_name": self.block_name,
-                "model": self.model,
+                "model": model,
                 "batch_size": len(samples),
             },
         )
@@ -412,20 +271,20 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         try:
             # Step 1: Build prompts
             logger.debug("Step 1: Building faithfulness evaluation prompts")
-            current_dataset = self.prompt_builder.generate(current_dataset, **kwargs)
+            current_dataset = self.prompt_builder(current_dataset, **kwargs)
 
             # Step 2: Generate LLM responses
             logger.debug("Step 2: Generating LLM responses")
-            current_dataset = self.llm_chat.generate(current_dataset, **kwargs)
+            current_dataset = self.llm_chat(current_dataset, **kwargs)
 
             # Step 3: Parse responses
             logger.debug("Step 3: Parsing faithfulness evaluation responses")
-            current_dataset = self.text_parser.generate(current_dataset, **kwargs)
+            current_dataset = self.text_parser(current_dataset, **kwargs)
 
             # Step 4: Filter based on judgment
             logger.debug("Step 4: Filtering based on faithfulness judgment")
             original_count = len(current_dataset)
-            current_dataset = self.filter_block.generate(current_dataset, **kwargs)
+            current_dataset = self.filter_block(current_dataset, **kwargs)
             filtered_count = len(current_dataset)
 
             logger.info(
@@ -448,96 +307,11 @@ class EvaluateFaithfulnessBlock(BaseBlock):
                 f"Error during faithfulness evaluation: {e}",
                 extra={
                     "block_name": self.block_name,
-                    "model": self.model,
+                    "model": model,
                     "error": str(e),
                 },
             )
             raise
-
-    def _validate_custom(self, dataset: Dataset) -> None:
-        """Custom validation for faithfulness evaluation.
-
-        This method validates the entire chain of internal blocks by simulating
-        the data flow through each block to ensure they can all process the data correctly.
-        """
-        # Validate that required columns exist
-        required_columns = ["document", "response"]
-        missing_columns = [
-            col for col in required_columns if col not in dataset.column_names
-        ]
-        if missing_columns:
-            raise ValueError(
-                f"EvaluateFaithfulnessBlock requires columns {required_columns}, "
-                f"missing: {missing_columns}"
-            )
-
-        # Validate the entire chain of internal blocks
-        if not all(
-            [self.prompt_builder, self.llm_chat, self.text_parser, self.filter_block]
-        ):
-            raise ValueError(
-                "All internal blocks must be initialized before validation"
-            )
-
-        # Simulate data flow through the chain to validate each block
-        current_dataset = dataset
-
-        try:
-            # 1. Validate PromptBuilderBlock
-            logger.debug("Validating prompt builder block")
-            self.prompt_builder._validate_custom(current_dataset)
-
-            # Simulate prompt builder output for next validation
-            # Add the expected output column temporarily for validation
-            if "eval_faithfulness_prompt" not in current_dataset.column_names:
-                # Create a temporary dataset with the expected column for validation
-                temp_data = []
-                for sample in current_dataset:
-                    temp_sample = dict(sample)
-                    temp_sample["eval_faithfulness_prompt"] = [
-                        {"role": "user", "content": "test"}
-                    ]
-                    temp_data.append(temp_sample)
-                current_dataset = Dataset.from_list(temp_data)
-
-            # 2. Validate LLMChatBlock
-            logger.debug("Validating LLM chat block")
-            self.llm_chat._validate_custom(current_dataset)
-
-            # Simulate LLM chat output for next validation
-            if "raw_eval_faithfulness" not in current_dataset.column_names:
-                temp_data = []
-                for sample in current_dataset:
-                    temp_sample = dict(sample)
-                    temp_sample["raw_eval_faithfulness"] = (
-                        "[Start of Explanation]Test explanation[End of Explanation]\n[Start of Answer]YES[End of Answer]"
-                    )
-                    temp_data.append(temp_sample)
-                current_dataset = Dataset.from_list(temp_data)
-
-            # 3. Validate TextParserBlock
-            logger.debug("Validating text parser block")
-            self.text_parser._validate_custom(current_dataset)
-
-            # Simulate text parser output for final validation
-            if "faithfulness_judgment" not in current_dataset.column_names:
-                temp_data = []
-                for sample in current_dataset:
-                    temp_sample = dict(sample)
-                    temp_sample["faithfulness_explanation"] = "Test explanation"
-                    temp_sample["faithfulness_judgment"] = "YES"
-                    temp_data.append(temp_sample)
-                current_dataset = Dataset.from_list(temp_data)
-
-            # 4. Validate ColumnValueFilterBlock
-            logger.debug("Validating filter block")
-            self.filter_block._validate_custom(current_dataset)
-
-            logger.debug("All internal blocks validated successfully")
-
-        except Exception as e:
-            logger.error(f"Validation failed in internal blocks: {e}")
-            raise ValueError(f"Internal block validation failed: {e}") from e
 
     def get_internal_blocks_info(self) -> dict[str, Any]:
         """Get information about the internal blocks.
@@ -558,7 +332,9 @@ class EvaluateFaithfulnessBlock(BaseBlock):
 
     def __repr__(self) -> str:
         """String representation of the block."""
+        model = self.llm_params.get("model", "None")
+        filter_value = self.filter_params.get("filter_value", "YES")
         return (
             f"EvaluateFaithfulnessBlock(name='{self.block_name}', "
-            f"model='{self.model}', filter_value='{self.filter_value}')"
+            f"model='{model}', filter_value='{filter_value}')"
         )
