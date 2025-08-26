@@ -1121,3 +1121,48 @@ class TestFlow:
         with open(checkpoint_files[0], "r") as f:
             checkpoint_data = json.loads(f.readline())
             assert "final" in checkpoint_data
+
+    def test_create_block_from_config_block_not_found(self):
+        """Test _create_block_from_config when block type is not found in registry."""
+        # Standard
+        from pathlib import Path
+        
+        # Mock BlockRegistry to simulate available blocks
+        with patch("sdg_hub.core.flow.base.BlockRegistry.get") as mock_get, \
+             patch("sdg_hub.core.flow.base.BlockRegistry.list_blocks") as mock_list_blocks:
+            
+            # Configure mocks
+            mock_get.side_effect = KeyError("Block 'nonexistent_block' not found")
+            mock_list_blocks.return_value = {
+                "llm": ["llm_chat", "prompt_builder"],
+                "transform": ["text_concat", "rename_columns"],
+                "filtering": ["column_value_filter"]
+            }
+            
+            # Create block config with nonexistent block type
+            block_config = {
+                "block_type": "nonexistent_block",
+                "block_config": {"param": "value"}
+            }
+            yaml_dir = Path(self.temp_dir)
+            
+            # Test that FlowValidationError is raised with helpful message
+            with pytest.raises(FlowValidationError) as exc_info:
+                Flow._create_block_from_config(block_config, yaml_dir)
+            
+            error_message = str(exc_info.value)
+            
+            # Verify error message contains expected information
+            assert "Block type 'nonexistent_block' not found in registry" in error_message
+            assert "Available blocks:" in error_message
+            
+            # Verify all available blocks are listed in the error message
+            assert "llm_chat" in error_message
+            assert "prompt_builder" in error_message
+            assert "text_concat" in error_message
+            assert "rename_columns" in error_message
+            assert "column_value_filter" in error_message
+            
+            # Verify the blocks are flattened from all categories
+            mock_list_blocks.assert_called_once()
+            mock_get.assert_called_once_with("nonexistent_block")
