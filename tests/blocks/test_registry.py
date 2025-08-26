@@ -169,13 +169,13 @@ class TestBlockRegistry:
             def generate(self, samples: Dataset, **kwargs) -> Dataset:
                 return samples
 
-        retrieved_class = BlockRegistry.get("TestBlock")
+        retrieved_class = BlockRegistry._get("TestBlock")
         assert retrieved_class == TestBlock
 
     def test_get_block_class_not_found(self):
         """Test error when block not found."""
         with pytest.raises(KeyError) as exc_info:
-            BlockRegistry.get("NonExistentBlock")
+            BlockRegistry._get("NonExistentBlock")
 
         error_msg = str(exc_info.value)
         assert "NonExistentBlock" in error_msg
@@ -190,7 +190,7 @@ class TestBlockRegistry:
                 return samples
 
         with pytest.raises(KeyError) as exc_info:
-            BlockRegistry.get("TestBloc")  # Missing 'k'
+            BlockRegistry._get("TestBloc")  # Missing 'k'
 
         error_msg = str(exc_info.value)
         assert "Did you mean: TestBlock" in error_msg
@@ -209,7 +209,7 @@ class TestBlockRegistry:
             # Clear previous calls from registration
             mock_logger.reset_mock()
 
-            retrieved_class = BlockRegistry.get("OldBlock")
+            retrieved_class = BlockRegistry._get("OldBlock")
             assert retrieved_class == OldBlock
 
             # Check deprecation warning was logged
@@ -252,13 +252,13 @@ class TestBlockRegistry:
             def generate(self, samples: Dataset, **kwargs) -> Dataset:
                 return samples
 
-        test_blocks = BlockRegistry.category("test")
+        test_blocks = BlockRegistry.get_category_blocks("test")
         assert test_blocks == ["Block1", "Block2"]
 
     def test_get_blocks_by_category_not_found(self):
         """Test error when category not found."""
         with pytest.raises(KeyError) as exc_info:
-            BlockRegistry.category("NonExistentCategory")
+            BlockRegistry.get_category_blocks("NonExistentCategory")
 
         error_msg = str(exc_info.value)
         assert "NonExistentCategory" in error_msg
@@ -359,7 +359,7 @@ class TestBlockRegistry:
                 return samples
 
         # Check both blocks are in the same category
-        blocks_in_category = BlockRegistry.category("shared_category")
+        blocks_in_category = BlockRegistry.get_category_blocks("shared_category")
         assert "Block1" in blocks_in_category
         assert "Block2" in blocks_in_category
         assert len(blocks_in_category) == 2
@@ -373,7 +373,7 @@ class TestBlockRegistry:
                 return samples
 
         with pytest.raises(KeyError) as exc_info:
-            BlockRegistry.get("NonExistentBlock")
+            BlockRegistry._get("NonExistentBlock")
 
         error_msg = str(exc_info.value)
         assert "Available blocks: ExistingBlock" in error_msg

@@ -123,15 +123,16 @@ Create comprehensive tests following this pattern:
 
 import pytest
 from datasets import Dataset
-from sdg_hub.core.blocks import BlockRegistry
 from sdg_hub.core.utils.error_handling import MissingColumnError
+# Import your custom block directly
+from .my_new_block import MyNewBlock
 
 class TestMyNewBlock:
     """Test suite for MyNewBlock."""
     
     def test_basic_functionality(self):
         """Test basic block functionality."""
-        block = BlockRegistry.get_block("MyNewBlock")(
+        block = MyNewBlock(
             block_name="test_block",
             input_cols=["input"],
             output_cols=["output"]
@@ -149,7 +150,7 @@ class TestMyNewBlock:
     def test_configuration_validation(self):
         """Test parameter validation."""
         with pytest.raises(ValueError):
-            BlockRegistry.get_block("MyNewBlock")(
+            MyNewBlock(
                 block_name="bad_config",
                 input_cols=["input"],
                 output_cols=["output"],
@@ -158,7 +159,7 @@ class TestMyNewBlock:
     
     def test_missing_columns(self):
         """Test error handling for missing columns."""
-        block = BlockRegistry.get_block("MyNewBlock")(
+        block = MyNewBlock(
             block_name="test_block",
             input_cols=["missing_column"],
             output_cols=["output"]

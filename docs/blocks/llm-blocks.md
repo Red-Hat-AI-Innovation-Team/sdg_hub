@@ -34,11 +34,8 @@ The unified chat block that replaces provider-specific implementations with a si
 ### Basic Usage
 
 ```python
-from sdg_hub.core.blocks import BlockRegistry
+from sdg_hub.core.blocks import LLMChatBlock
 from datasets import Dataset
-
-# Get the LLM chat block
-LLMChatBlock = BlockRegistry.get_block("LLMChatBlock")
 
 # Configure for OpenAI
 chat_block = LLMChatBlock(

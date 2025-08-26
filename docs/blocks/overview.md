@@ -30,14 +30,15 @@ All blocks inherit from `BaseBlock`, which provides:
 
 ### Standard Configuration
 ```python
-from sdg_hub.core.blocks import BlockRegistry
+# Import the specific block you need
+from sdg_hub.core.blocks import LLMChatBlock
 
 # Every block has these standard fields
-MyBlock = BlockRegistry.get_block("SomeBlockType")
-block = MyBlock(
+block = LLMChatBlock(
     block_name="my_unique_block",     # Required: unique identifier
-    input_cols=["column1", "column2"], # Columns this block needs
-    output_cols=["new_column"],       # Columns this block creates
+    input_cols=["input_text"],        # Column this block needs
+    output_cols=["response"],         # Column this block creates
+    model="openai/gpt-4o",            # Required: provider/model format
     # ... block-specific configuration
 )
 ```
@@ -86,13 +87,13 @@ print(f"Found {len(available_blocks)} blocks")
 
 ### 2. Block Instantiation
 ```python
-# Get a block class by name
-ChatBlock = BlockRegistry.get_block("LLMChatBlock")
+# Import the specific block you need
+from sdg_hub.core.blocks import LLMChatBlock
 
 # Create an instance with configuration
-chat_block = ChatBlock(
+chat_block = LLMChatBlock(
     block_name="question_answerer",
-    llm_config={"model": "gpt-4o"},
+    model="openai/gpt-4o",
     input_cols=["question"],
     output_cols=["answer"],
     prompt_template="Answer this question: {question}"

@@ -113,10 +113,10 @@ for category, blocks in all_blocks.items():
     print(f"Blocks for category {category}: {blocks}")
 
 # Find blocks by category
-llm_blocks = BlockRegistry.search_blocks(category="llm")
+llm_blocks = BlockRegistry.get_category_blocks("llm")
 print(f"🧠 LLM Blocks: {llm_blocks}")
 
-transform_blocks = BlockRegistry.search_blocks(category="transform") 
+transform_blocks = BlockRegistry.get_category_blocks("transform") 
 print(f"🔄 Transform Blocks: {transform_blocks}")
 ```
 

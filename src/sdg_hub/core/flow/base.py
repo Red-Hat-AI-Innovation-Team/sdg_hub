@@ -306,7 +306,7 @@ class Flow(BaseModel):
 
         # Get block class from registry
         try:
-            block_class = BlockRegistry.get(block_type_name)
+            block_class = BlockRegistry._get(block_type_name)
         except KeyError as exc:
             # Get all available blocks from all categories
             all_blocks = BlockRegistry.list_blocks()
