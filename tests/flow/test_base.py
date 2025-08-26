@@ -1136,11 +1136,13 @@ class TestFlow:
         ):
             # Configure mocks
             mock_get.side_effect = KeyError("Block 'nonexistent_block' not found")
-            mock_list_blocks.return_value = {
-                "llm": ["llm_chat", "prompt_builder"],
-                "transform": ["text_concat", "rename_columns"],
-                "filtering": ["column_value_filter"],
-            }
+            mock_list_blocks.return_value = [
+                "llm_chat",
+                "prompt_builder",
+                "text_concat",
+                "rename_columns",
+                "column_value_filter",
+            ]
 
             # Create block config with nonexistent block type
             block_config = {
@@ -1169,5 +1171,5 @@ class TestFlow:
             assert "column_value_filter" in error_message
 
             # Verify the blocks are flattened from all categories
-            mock_list_blocks.assert_called_once()
+            mock_list_blocks.assert_called_once_with()
             mock_get.assert_called_once_with("nonexistent_block")

@@ -234,7 +234,7 @@ class TestBlockRegistry:
         categories = BlockRegistry.categories()
         assert categories == ["category1", "category2"]
 
-    def test_get_blocks_by_category(self):
+    def test_list_blocks_by_category(self):
         """Test getting blocks by category using list_blocks."""
 
         @BlockRegistry.register("Block1", "test")
@@ -255,7 +255,7 @@ class TestBlockRegistry:
         test_blocks = BlockRegistry.list_blocks(category="test")
         assert test_blocks == ["Block1", "Block2"]
 
-    def test_get_blocks_by_category_not_found(self):
+    def test_list_blocks_by_category_not_found(self):
         """Test error when category not found using list_blocks."""
         with pytest.raises(KeyError) as exc_info:
             BlockRegistry.list_blocks(category="NonExistentCategory")
