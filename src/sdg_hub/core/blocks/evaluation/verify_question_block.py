@@ -1,21 +1,22 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Composite block for question verification and quality assessment.
+"""Thin wrapper for question verification using 4 composed blocks.
 
-This module provides the VerifyQuestionBlock that encapsulates the complete
-question verification workflow, combining prompt building, LLM chat, text parsing,
-and filtering into a single block for simplified configuration.
+This module provides a simple, lightweight wrapper that composes:
+- PromptBuilderBlock: builds verification prompts
+- LLMChatBlock: generates LLM responses
+- TextParserBlock: parses structured output
+- ColumnValueFilterBlock: filters based on rating
 
-The block uses dynamic parameter forwarding to support all parameters from its
-internal blocks (LLMChatBlock, PromptBuilderBlock, TextParserBlock, ColumnValueFilterBlock)
-without requiring manual parameter declarations.
+The wrapper exposes minimal LLM interface for flow detection while
+delegating all functionality to the internal blocks.
 """
 
 # Standard
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 # Third Party
 from datasets import Dataset
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import Field, field_validator
 
 # Local
 from ...utils.logger_config import setup_logger
@@ -32,16 +33,13 @@ logger = setup_logger(__name__)
 @BlockRegistry.register(
     "VerifyQuestionBlock",
     "evaluation",
-    "Composite block for question verification and quality assessment",
+    "Thin wrapper composing 4 blocks for question verification",
 )
 class VerifyQuestionBlock(BaseBlock):
-    """Composite block for question verification workflow.
+    """Thin wrapper for question verification using composed blocks.
 
-    This block combines four separate blocks into a single cohesive verification block:
-    1. PromptBuilderBlock - builds verification prompt from question
-    2. LLMChatBlock - generates question quality assessment using LLM
-    3. TextParserBlock - parses explanation and rating from raw output
-    4. ColumnValueFilterBlock - filters based on verification rating
+    Composes PromptBuilderBlock + LLMChatBlock + TextParserBlock + ColumnValueFilterBlock
+    into a single verification pipeline with smart parameter routing.
 
     Parameters
     ----------
@@ -51,290 +49,227 @@ class VerifyQuestionBlock(BaseBlock):
         Input columns: ["question"]
     output_cols : List[str]
         Output columns: ["verification_explanation", "verification_rating"]
+    prompt_config_path : str
+        Path to YAML prompt template file.
+    model : Optional[str]
+        LLM model identifier (for flow detection).
+    api_base : Optional[str]
+        API base URL (for flow detection).
+    api_key : Optional[str]
+        API key (for flow detection).
+    filter_value : str, optional
+        Value to filter on (default: "1.0").
+    operation : str, optional
+        Filter operation (default: "eq").
+    convert_dtype : str, optional
+        Data type conversion (default: "float").
     **kwargs : Any
-        All parameters from internal blocks are supported with automatic forwarding:
-
-        - **LLMChatBlock parameters**: model, api_base, api_key, temperature, max_tokens,
-          top_p, frequency_penalty, presence_penalty, stop, seed, response_format, stream,
-          n, logprobs, top_logprobs, user, extra_headers, extra_body, timeout, max_retries,
-          async_mode, provider_specific, and more.
-
-        - **PromptBuilderBlock parameters**: prompt_config_path (REQUIRED), format_as_messages (default: True).
-
-        - **TextParserBlock parameters**: start_tags (default: ["[Start of Explanation]", "[Start of Rating]"]),
-          end_tags (default: ["[End of Explanation]", "[End of Rating]"]), parsing_pattern,
-          parser_cleanup_tags, expand_lists.
-
-        - **ColumnValueFilterBlock parameters**: filter_value (default: 1.0), operation (default: "ge"),
-          convert_dtype (default: "float").
-
-        See the respective block documentation for complete parameter details.
+        All other parameters are automatically routed to appropriate internal blocks.
     """
 
-    model_config = ConfigDict(
-        extra="allow"  # Allow extra fields for dynamic parameter forwarding
+    # --- Block-specific configuration ---
+    prompt_config_path: str = Field(..., description="Path to YAML prompt template")
+    filter_value: Union[str, float] = Field(
+        "1.0", description="Filter value for rating"
+    )
+    operation: str = Field("eq", description="Filter operation")
+    convert_dtype: str = Field("float", description="Data type conversion")
+
+    # --- Minimal LLM interface (for flow detection) ---
+    model: Optional[str] = Field(None, description="LLM model identifier")
+    api_base: Optional[str] = Field(None, description="API base URL")
+    api_key: Optional[str] = Field(None, description="API key")
+    extra_headers: Optional[dict] = Field(
+        None, description="Extra headers for LLM requests"
     )
 
-    # No composite-specific configuration - all parameters are forwarded dynamically
-
-    # Store parameters for internal blocks
-    llm_params: dict[str, Any] = Field(default_factory=dict, exclude=True)
-    prompt_params: dict[str, Any] = Field(default_factory=dict, exclude=True)
-    parser_params: dict[str, Any] = Field(default_factory=dict, exclude=True)
-    filter_params: dict[str, Any] = Field(default_factory=dict, exclude=True)
-
-    # Internal blocks - excluded from serialization
-    prompt_builder: Optional[PromptBuilderBlock] = Field(default=None, exclude=True)
-    llm_chat: Optional[LLMChatBlock] = Field(default=None, exclude=True)
-    text_parser: Optional[TextParserBlock] = Field(default=None, exclude=True)
-    filter_block: Optional[ColumnValueFilterBlock] = Field(default=None, exclude=True)
+    # --- Internal blocks (composition) ---
+    prompt_builder: PromptBuilderBlock = Field(None, exclude=True)
+    llm_chat: LLMChatBlock = Field(None, exclude=True)
+    text_parser: TextParserBlock = Field(None, exclude=True)
+    filter_block: ColumnValueFilterBlock = Field(None, exclude=True)
 
     @field_validator("input_cols")
     @classmethod
     def validate_input_cols(cls, v):
-        """Validate that input columns are exactly ["question"]."""
-        expected = ["question"]
-        if v != expected:
+        """Validate input columns."""
+        if v != ["question"]:
             raise ValueError(
-                f"VerifyQuestionBlock expects input_cols={expected}, got {v}"
+                f"VerifyQuestionBlock expects input_cols ['question'], got {v}"
             )
         return v
 
     @field_validator("output_cols")
     @classmethod
     def validate_output_cols(cls, v):
-        """Validate that output columns are exactly ["verification_explanation", "verification_rating"]."""
-        expected = [
-            "verification_explanation",
-            "verification_rating",
-        ]
+        """Validate output columns."""
+        expected = ["verification_explanation", "verification_rating"]
         if v != expected:
             raise ValueError(
-                f"VerifyQuestionBlock expects output_cols={expected}, got {v}"
+                f"VerifyQuestionBlock expects output_cols {expected}, got {v}"
             )
         return v
 
     def __init__(self, **kwargs):
-        """Initialize with dynamic parameter forwarding."""
-        # No composite-specific parameters - everything is forwarded dynamically
-        composite_params = {}
+        """Initialize with smart parameter routing."""
+        super().__init__(**kwargs)
+        self._create_internal_blocks(**kwargs)
 
-        # Forward parameters to appropriate internal blocks
-        llm_params = {k: v for k, v in kwargs.items() if k in LLMChatBlock.model_fields}
-        prompt_params = {
-            k: v for k, v in kwargs.items() if k in PromptBuilderBlock.model_fields
-        }
-        parser_params = {
-            k: v for k, v in kwargs.items() if k in TextParserBlock.model_fields
-        }
-        filter_params = {
-            k: v for k, v in kwargs.items() if k in ColumnValueFilterBlock.model_fields
-        }
-
-        # Keep only BaseBlock fields for super().__init__
-        base_params = {k: v for k, v in kwargs.items() if k in BaseBlock.model_fields}
-        base_params.update(composite_params)
-        base_params["llm_params"] = llm_params
-        base_params["prompt_params"] = prompt_params
-        base_params["parser_params"] = parser_params
-        base_params["filter_params"] = filter_params
-
-        # Initialize parent with all valid parameters
-        super().__init__(**base_params)
-
-        # Create internal blocks with forwarded parameters
-        self._create_internal_blocks()
-
-        # Log initialization only when model is configured
-        model = self.llm_params.get("model")
-        if model:
+        # Log initialization if model is configured
+        if self.model:
             logger.info(
-                f"Initialized VerifyQuestionBlock '{self.block_name}' with model '{model}'",
-                extra={
-                    "block_name": self.block_name,
-                    "model": model,
-                    "async_mode": self.llm_params.get("async_mode", True),
-                    "filter_value": self.filter_params.get("filter_value", 1.0),
-                },
+                f"Initialized VerifyQuestionBlock '{self.block_name}' with model '{self.model}'"
             )
 
-    def _create_internal_blocks(self) -> None:
-        """Create and configure the internal blocks using dynamic parameter forwarding."""
-        # 1. PromptBuilderBlock
-        prompt_kwargs = {
-            **self.prompt_params,  # Forward all prompt parameters dynamically
-            "block_name": f"{self.block_name}_prompt_builder",
-            "input_cols": ["question"],
-            "output_cols": ["verify_question_prompt"],
-            "prompt_config_path": self.prompt_params.get("prompt_config_path"),
-            "format_as_messages": self.prompt_params.get("format_as_messages", True),
+    def _extract_params(self, kwargs: dict, block_class) -> dict:
+        """Extract parameters belonging to specific block class."""
+        # Exclude parameters we explicitly set for internal blocks
+        exclude_params = {
+            "block_name",
+            "input_cols",
+            "output_cols",
+            "prompt_config_path",
+            "filter_value",
+            "operation",
+            "convert_dtype",
         }
-        self.prompt_builder = PromptBuilderBlock(**prompt_kwargs)
+        return {
+            k: v
+            for k, v in kwargs.items()
+            if k in block_class.model_fields and k not in exclude_params
+        }
 
-        # 2. LLMChatBlock
-        llm_kwargs = {
-            **self.llm_params,  # Forward all LLM parameters dynamically
+    def _create_internal_blocks(self, **kwargs):
+        """Create internal blocks with parameter routing."""
+        # Route parameters to appropriate blocks
+        prompt_params = self._extract_params(kwargs, PromptBuilderBlock)
+        llm_params = self._extract_params(kwargs, LLMChatBlock)
+        parser_params = self._extract_params(kwargs, TextParserBlock)
+        filter_params = self._extract_params(kwargs, ColumnValueFilterBlock)
+
+        # Create prompt builder
+        self.prompt_builder = PromptBuilderBlock(
+            block_name=f"{self.block_name}_prompt_builder",
+            input_cols=["question"],
+            output_cols=["verify_question_prompt"],
+            prompt_config_path=self.prompt_config_path,
+            **prompt_params,
+        )
+
+        # Create LLM chat block with dynamic LLM parameter forwarding
+        llm_config = {
             "block_name": f"{self.block_name}_llm_chat",
             "input_cols": ["verify_question_prompt"],
             "output_cols": ["raw_verify_question"],
+            **llm_params,
         }
-        self.llm_chat = LLMChatBlock(**llm_kwargs)
 
-        # 3. TextParserBlock
-        text_parser_kwargs = {
-            **self.parser_params,  # Forward all parser parameters dynamically
-            "block_name": f"{self.block_name}_text_parser",
-            "input_cols": ["raw_verify_question"],
-            "output_cols": ["verification_explanation", "verification_rating"],
-            "start_tags": self.parser_params.get(
-                "start_tags", ["[Start of Explanation]", "[Start of Rating]"]
-            ),
-            "end_tags": self.parser_params.get(
-                "end_tags", ["[End of Explanation]", "[End of Rating]"]
-            ),
-        }
-        self.text_parser = TextParserBlock(**text_parser_kwargs)
+        # Only add LLM parameters if they are provided
+        if self.model is not None:
+            llm_config["model"] = self.model
+        if self.api_base is not None:
+            llm_config["api_base"] = self.api_base
+        if self.api_key is not None:
+            llm_config["api_key"] = self.api_key
+        if self.extra_headers is not None:
+            llm_config["extra_headers"] = self.extra_headers
 
-        # 4. ColumnValueFilterBlock
-        filter_kwargs = {
-            **self.filter_params,  # Forward all filter parameters dynamically
-            "block_name": f"{self.block_name}_filter",
-            "input_cols": ["verification_rating"],
-            "output_cols": [],  # Filter blocks don't create new columns
-            "filter_value": self.filter_params.get("filter_value", 1.0),
-            "operation": self.filter_params.get("operation", "ge"),
-            "convert_dtype": self.filter_params.get("convert_dtype", "float"),
-        }
-        self.filter_block = ColumnValueFilterBlock(**filter_kwargs)
+        self.llm_chat = LLMChatBlock(**llm_config)
 
-    def _reinitialize_client_manager(self) -> None:
-        """Reinitialize the internal LLM chat block's client manager.
+        # Create text parser
+        self.text_parser = TextParserBlock(
+            block_name=f"{self.block_name}_text_parser",
+            input_cols=["raw_verify_question"],
+            output_cols=["verification_explanation", "verification_rating"],
+            **parser_params,
+        )
 
-        This should be called after model configuration changes to ensure
-        the internal LLM chat block uses the updated model configuration.
-        """
-        if self.llm_chat and hasattr(self.llm_chat, "_reinitialize_client_manager"):
-            # Update the internal LLM chat block's model config from stored params
-            for key in ["model", "api_base", "api_key"]:
-                if key in self.llm_params:
-                    setattr(self.llm_chat, key, self.llm_params[key])
-            # Reinitialize its client manager
-            self.llm_chat._reinitialize_client_manager()
+        # Create filter block
+        self.filter_block = ColumnValueFilterBlock(
+            block_name=f"{self.block_name}_filter",
+            input_cols=["verification_rating"],
+            output_cols=[],  # Filter doesn't create new columns
+            filter_value=self.filter_value,
+            operation=self.operation,
+            convert_dtype=self.convert_dtype,
+            **filter_params,
+        )
 
     def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
-        """Generate question verification for all samples.
-
-        This method chains the four internal blocks in sequence:
-        1. Build question verification prompts
-        2. Generate LLM responses
-        3. Parse explanation and rating
-        4. Filter based on rating
+        """Execute the 4-block question verification pipeline.
 
         Parameters
         ----------
         samples : Dataset
-            Input dataset containing 'question' column.
+            Input dataset with 'question' column.
         **kwargs : Any
-            Additional keyword arguments passed to internal blocks.
+            Additional arguments passed to internal blocks.
 
         Returns
         -------
         Dataset
-            Dataset with question verification results and filtering applied.
-
-        Raises
-        ------
-        BlockValidationError
-            If model is not configured before calling generate().
+            Filtered dataset with question verification results.
         """
-        # Validate that model is configured
-        model = self.llm_params.get("model")
-        if not model:
-            # Local
+        # Validate model is configured
+        if not self.model:
             from ...utils.error_handling import BlockValidationError
 
             raise BlockValidationError(
                 f"Model not configured for block '{self.block_name}'. "
                 f"Call flow.set_model_config() before generating."
             )
+
         logger.info(
             f"Starting question verification for {len(samples)} samples",
-            extra={
-                "block_name": self.block_name,
-                "model": model,
-                "batch_size": len(samples),
-            },
+            extra={"block_name": self.block_name, "model": self.model},
         )
 
-        current_dataset = samples
-
         try:
-            # Step 1: Build prompts
-            logger.debug("Step 1: Building question verification prompts")
-            current_dataset = self.prompt_builder(current_dataset, **kwargs)
-
-            # Step 2: Generate LLM responses
-            logger.debug("Step 2: Generating LLM responses")
-            current_dataset = self.llm_chat(current_dataset, **kwargs)
-
-            # Step 3: Parse responses
-            logger.debug("Step 3: Parsing question verification responses")
-            current_dataset = self.text_parser(current_dataset, **kwargs)
-
-            # Step 4: Filter based on rating
-            logger.debug("Step 4: Filtering based on verification rating")
-            original_count = len(current_dataset)
-            current_dataset = self.filter_block(current_dataset, **kwargs)
-            filtered_count = len(current_dataset)
+            # Execute 4-block pipeline with validation delegation
+            result = self.prompt_builder(samples, **kwargs)
+            result = self.llm_chat(result, **kwargs)
+            result = self.text_parser(result, **kwargs)
+            result = self.filter_block(result, **kwargs)
 
             logger.info(
-                f"Question verification completed: {original_count} → {filtered_count} samples "
-                f"(filtered {original_count - filtered_count} samples)",
-                extra={
-                    "block_name": self.block_name,
-                    "original_count": original_count,
-                    "filtered_count": filtered_count,
-                    "filter_rate": (original_count - filtered_count) / original_count
-                    if original_count > 0
-                    else 0,
-                },
+                f"Question verification completed: {len(samples)} → {len(result)} samples",
+                extra={"block_name": self.block_name},
             )
 
-            return current_dataset
+            return result
 
         except Exception as e:
             logger.error(
                 f"Error during question verification: {e}",
-                extra={
-                    "block_name": self.block_name,
-                    "model": model,
-                    "error": str(e),
-                },
+                extra={"block_name": self.block_name, "error": str(e)},
             )
             raise
 
-    def get_internal_blocks_info(self) -> dict[str, Any]:
-        """Get information about the internal blocks.
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Handle dynamic parameter updates from flow.set_model_config()."""
+        super().__setattr__(name, value)
 
-        Returns
-        -------
-        Dict[str, Any]
-            Information about each internal block.
-        """
+        # Propagate LLM parameters to internal LLM block
+        if name in LLMChatBlock.model_fields and hasattr(self, "llm_chat"):
+            setattr(self.llm_chat, name, value)
+
+    def _reinitialize_client_manager(self) -> None:
+        """Reinitialize internal LLM block's client manager."""
+        if hasattr(self.llm_chat, "_reinitialize_client_manager"):
+            self.llm_chat._reinitialize_client_manager()
+
+    def get_internal_blocks_info(self) -> dict[str, Any]:
+        """Get information about internal blocks."""
         return {
-            "prompt_builder": self.prompt_builder.get_info()
-            if self.prompt_builder
-            else None,
-            "llm_chat": self.llm_chat.get_info() if self.llm_chat else None,
-            "text_parser": self.text_parser.get_info() if self.text_parser else None,
-            "filter": self.filter_block.get_info() if self.filter_block else None,
+            "prompt_builder": self.prompt_builder.get_info(),
+            "llm_chat": self.llm_chat.get_info(),
+            "text_parser": self.text_parser.get_info(),
+            "filter": self.filter_block.get_info(),
         }
 
     def __repr__(self) -> str:
         """String representation of the block."""
-        model = self.llm_params.get("model", "None")
-        filter_value = self.filter_params.get("filter_value", 1.0)
         return (
             f"VerifyQuestionBlock(name='{self.block_name}', "
-            f"model='{model}', filter_value='{filter_value}')"
+            f"model='{self.model}', filter_value='{self.filter_value}')"
         )

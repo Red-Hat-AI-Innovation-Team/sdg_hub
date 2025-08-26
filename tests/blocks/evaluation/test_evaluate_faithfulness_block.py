@@ -68,6 +68,8 @@ class TestEvaluateFaithfulnessBlock:
             model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
             api_base="http://localhost:8000/v1",
             api_key="EMPTY",
+            start_tags=["[Start of Explanation]", "[Start of Answer]"],
+            end_tags=["[End of Explanation]", "[End of Answer]"],
         )
 
         # Test basic block properties
@@ -78,13 +80,11 @@ class TestEvaluateFaithfulnessBlock:
             "faithfulness_judgment",
         ]
 
-        # Test parameters are stored in appropriate dictionaries
-        assert "model" in block.llm_params
-        assert (
-            block.llm_params["model"] == "hosted_vllm/meta-llama/Llama-3.3-70B-Instruct"
-        )
-        assert "prompt_config_path" in block.prompt_params
-        assert block.prompt_params["prompt_config_path"] == test_yaml_config
+        # Test parameters are stored as direct attributes (new thin wrapper design)
+        assert block.model == "hosted_vllm/meta-llama/Llama-3.3-70B-Instruct"
+        assert block.api_base == "http://localhost:8000/v1"
+        assert block.api_key == "EMPTY"
+        assert block.prompt_config_path == test_yaml_config
 
         # Check internal blocks are created
         assert block.prompt_builder is not None
@@ -123,6 +123,8 @@ class TestEvaluateFaithfulnessBlock:
             output_cols=["faithfulness_explanation", "faithfulness_judgment"],
             prompt_config_path=test_yaml_config,
             model="openai/gpt-4",
+            start_tags=["[Start of Explanation]", "[Start of Answer]"],
+            end_tags=["[End of Explanation]", "[End of Answer]"],
         )
 
         info = block.get_internal_blocks_info()
@@ -142,6 +144,8 @@ class TestEvaluateFaithfulnessBlock:
             ],
             prompt_config_path=test_yaml_config,
             model="openai/gpt-4",
+            start_tags=["[Start of Explanation]", "[Start of Answer]"],
+            end_tags=["[End of Explanation]", "[End of Answer]"],
         )
 
         repr_str = repr(block)
@@ -159,6 +163,8 @@ class TestEvaluateFaithfulnessBlock:
                 "faithfulness_judgment",
             ],
             prompt_config_path=test_yaml_config,
+            start_tags=["[Start of Explanation]", "[Start of Answer]"],
+            end_tags=["[End of Explanation]", "[End of Answer]"],
             # No model provided
         )
 

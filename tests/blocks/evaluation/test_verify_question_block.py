@@ -63,6 +63,8 @@ class TestVerifyQuestionBlock:
             ],
             prompt_config_path=test_yaml_config,
             model="openai/gpt-4",
+            start_tags=["[Start of Explanation]", "[Start of Rating]"],
+            end_tags=["[End of Explanation]", "[End of Rating]"],
         )
 
         assert block.block_name == "test_verify"

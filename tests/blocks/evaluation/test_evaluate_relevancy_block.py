@@ -67,6 +67,8 @@ class TestEvaluateRelevancyBlock:
             ],
             prompt_config_path=test_yaml_config,
             model="openai/gpt-4",
+            start_tags=["[Start of Feedback]", "[Start of Score]"],
+            end_tags=["[End of Feedback]", "[End of Score]"],
         )
 
         assert block.block_name == "test_relevancy"
