@@ -86,11 +86,13 @@ def executed_notebook_cache(tmp_path_factory):
 # All fixtures are now consolidated in the session-scoped executed_notebook_cache
 
 
+@pytest.mark.integration
 def test_notebook_exists():
     """Test that the target notebook file exists."""
     assert NOTEBOOK_PATH.exists(), f"Notebook not found at {NOTEBOOK_PATH}"
 
 
+@pytest.mark.integration
 def test_knowledge_generation_dependencies_exist():
     """Test that required flow files and dependencies exist."""
     # Check that the target notebook exists
@@ -174,6 +176,7 @@ def test_knowledge_generation_output_files_created(executed_notebook_cache):
     print("[OK] Output file validation complete")
 
 
+@pytest.mark.integration
 def test_mock_cells_structure():
     """Test that the mock injection cells are properly structured."""
     from .mock_utils import get_knowledge_generation_mock_cells
