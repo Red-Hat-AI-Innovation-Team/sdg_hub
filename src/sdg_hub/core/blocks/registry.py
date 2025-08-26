@@ -283,11 +283,7 @@ class BlockRegistry:
         def filter_deprecated(block_names: list[str]) -> list[str]:
             if include_deprecated:
                 return block_names
-            return [
-                name
-                for name in block_names
-                if not cls._metadata[name].deprecated
-            ]
+            return [name for name in block_names if not cls._metadata[name].deprecated]
 
         if category:
             block_names = cls._get_category_blocks(category)

@@ -354,7 +354,9 @@ class TestBlockRegistry:
             def generate(self, samples: Dataset, **kwargs) -> Dataset:
                 return samples
 
-        @BlockRegistry.register("DeprecatedBlock", "test", "A deprecated block", deprecated=True)
+        @BlockRegistry.register(
+            "DeprecatedBlock", "test", "A deprecated block", deprecated=True
+        )
         class DeprecatedBlock(BaseBlock):
             def generate(self, samples: Dataset, **kwargs) -> Dataset:
                 return samples
@@ -382,7 +384,9 @@ class TestBlockRegistry:
             def generate(self, samples: Dataset, **kwargs) -> Dataset:
                 return samples
 
-        @BlockRegistry.register("DeprecatedBlock", "test", "A deprecated block", deprecated=True)
+        @BlockRegistry.register(
+            "DeprecatedBlock", "test", "A deprecated block", deprecated=True
+        )
         class DeprecatedBlock(BaseBlock):
             def generate(self, samples: Dataset, **kwargs) -> Dataset:
                 return samples
@@ -397,7 +401,9 @@ class TestBlockRegistry:
         assert test_blocks_with_deprecated == ["ActiveBlock", "DeprecatedBlock"]
 
         # Category with deprecated excluded
-        test_blocks_without_deprecated = BlockRegistry.list_blocks(category="test", include_deprecated=False)
+        test_blocks_without_deprecated = BlockRegistry.list_blocks(
+            category="test", include_deprecated=False
+        )
         assert test_blocks_without_deprecated == ["ActiveBlock"]
 
     def test_list_blocks_grouped_with_deprecated(self):
@@ -408,12 +414,19 @@ class TestBlockRegistry:
             def generate(self, samples: Dataset, **kwargs) -> Dataset:
                 return samples
 
-        @BlockRegistry.register("DeprecatedBlock", "test", "A deprecated block", deprecated=True)
+        @BlockRegistry.register(
+            "DeprecatedBlock", "test", "A deprecated block", deprecated=True
+        )
         class DeprecatedBlock(BaseBlock):
             def generate(self, samples: Dataset, **kwargs) -> Dataset:
                 return samples
 
-        @BlockRegistry.register("OnlyDeprecatedBlock", "deprecated_category", "Only deprecated", deprecated=True)
+        @BlockRegistry.register(
+            "OnlyDeprecatedBlock",
+            "deprecated_category",
+            "Only deprecated",
+            deprecated=True,
+        )
         class OnlyDeprecatedBlock(BaseBlock):
             def generate(self, samples: Dataset, **kwargs) -> Dataset:
                 return samples
@@ -422,12 +435,14 @@ class TestBlockRegistry:
         grouped_with_deprecated = BlockRegistry.list_blocks(grouped=True)
         expected_with = {
             "test": ["ActiveBlock", "DeprecatedBlock"],
-            "deprecated_category": ["OnlyDeprecatedBlock"]
+            "deprecated_category": ["OnlyDeprecatedBlock"],
         }
         assert grouped_with_deprecated == expected_with
 
         # Grouped with deprecated excluded
-        grouped_without_deprecated = BlockRegistry.list_blocks(grouped=True, include_deprecated=False)
+        grouped_without_deprecated = BlockRegistry.list_blocks(
+            grouped=True, include_deprecated=False
+        )
         expected_without = {
             "test": ["ActiveBlock"]
             # Note: deprecated_category should be omitted since it has no non-deprecated blocks
@@ -436,19 +451,19 @@ class TestBlockRegistry:
 
     def test_private_get_category_blocks_not_accessible(self):
         """Test that _get_category_blocks is private and not part of public API."""
-        
+
         @BlockRegistry.register("TestBlock", "test")
         class TestBlock(BaseBlock):
             def generate(self, samples: Dataset, **kwargs) -> Dataset:
                 return samples
 
         # The private method should exist but not be part of public API
-        assert hasattr(BlockRegistry, '_get_category_blocks')
-        
+        assert hasattr(BlockRegistry, "_get_category_blocks")
+
         # It should work when called directly (for internal use)
         private_result = BlockRegistry._get_category_blocks("test")
         assert private_result == ["TestBlock"]
-        
+
         # But the public API should use list_blocks instead
         public_result = BlockRegistry.list_blocks(category="test")
         assert public_result == private_result
