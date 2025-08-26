@@ -61,7 +61,7 @@ class TestVerifyQuestionBlock:
         assert block_class == VerifyQuestionBlock
 
         # Check category
-        eval_blocks = BlockRegistry.get_category_blocks("evaluation")
+        eval_blocks = BlockRegistry.list_blocks(category="evaluation")
         assert "VerifyQuestionBlock" in eval_blocks
 
     def test_init_with_valid_params(self, test_yaml_config):

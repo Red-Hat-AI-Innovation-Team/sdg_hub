@@ -230,8 +230,8 @@ class BlockRegistry:
         return sorted(cls._categories.keys())
 
     @classmethod
-    def get_category_blocks(cls, category: str) -> list[str]:
-        """Get all blocks in a specific category.
+    def _get_category_blocks(cls, category: str) -> list[str]:
+        """Get all blocks in a specific category (private method).
 
         Parameters
         ----------
@@ -257,17 +257,56 @@ class BlockRegistry:
         return sorted(cls._categories[category])
 
     @classmethod
-    def list_blocks(cls) -> dict[str, list[str]]:
-        """List all blocks organized by category.
+    def list_blocks(
+        cls,
+        category: Optional[str] = None,
+        *,
+        grouped: bool = False,
+        include_deprecated: bool = True,
+    ) -> list[str] | dict[str, list[str]]:
+        """
+        List registered blocks, optionally filtered by category.
+
+        Args:
+            category: If provided, return only blocks in this category.
+            grouped: If True (and category is None), return a dict
+                    mapping categories to lists of blocks.
+            include_deprecated: If True, return deprecated blocks.
 
         Returns
         -------
-        Dict[str, List[str]]
-            Dictionary mapping categories to lists of block names.
+        List[str] | Dict[str, List[str]]
+            If grouped is False, returns a list of block names.
+            If grouped is True, returns a dict mapping categories to lists of block names.
         """
-        return {
-            category: sorted(blocks) for category, blocks in cls._categories.items()
-        }
+
+        def filter_deprecated(block_names: list[str]) -> list[str]:
+            if include_deprecated:
+                return block_names
+            return [
+                name
+                for name in block_names
+                if not cls._metadata[name].deprecated
+            ]
+
+        if category:
+            block_names = cls._get_category_blocks(category)
+            return filter_deprecated(block_names)
+
+        if grouped:
+            result = {}
+            for cat, blocks in cls._categories.items():
+                filtered = filter_deprecated(sorted(blocks))
+                if filtered:
+                    result[cat] = filtered
+            return result
+
+        # Flat list of all block names (across all categories)
+        all_block_names = []
+        for blocks in cls._categories.values():
+            all_block_names.extend(blocks)
+        filtered = filter_deprecated(sorted(all_block_names))
+        return filtered
 
     @classmethod
     def discover_blocks(cls) -> None:

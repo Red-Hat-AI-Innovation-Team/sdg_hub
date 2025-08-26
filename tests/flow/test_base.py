@@ -1129,7 +1129,7 @@ class TestFlow:
 
         # Mock BlockRegistry to simulate available blocks
         with (
-            patch("sdg_hub.core.flow.base.BlockRegistry.get") as mock_get,
+            patch("sdg_hub.core.flow.base.BlockRegistry._get") as mock_get,
             patch(
                 "sdg_hub.core.flow.base.BlockRegistry.list_blocks"
             ) as mock_list_blocks,
