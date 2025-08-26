@@ -240,6 +240,7 @@ class LLMConfig:
             "logprobs",
             "top_logprobs",
             "user",
+            "timeout",
         ]:
             value = getattr(self, param)
             if value is not None:
