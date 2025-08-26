@@ -1,5 +1,5 @@
 # InstructLab: Synthetic Data Generation for Knowledge Tuning
-![InstructLab Banner](../../../assets/imgs/instructlab-banner.png)
+![InstructLab Banner](assets/imgs/instructlab-banner.png)
 
 The provided notebooks show a sdg_hub pipeline for generating high-quality synthetic data from your documents. By following the methodology of the **LAB (Large-scale Alignment for Chatbots)** framework, as detailed in our [research paper](https://arxiv.org/pdf/2403.01081), you can effectively tune language models to master the knowledge contained within your specific-domain documentation.
 
