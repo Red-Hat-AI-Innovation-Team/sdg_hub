@@ -310,7 +310,7 @@ class TestBlockRegistry:
         assert blocks == expected
         assert isinstance(blocks, dict)
 
-    def test_list_blocks_by_category(self):
+    def test_list_blocks_filtered_by_category(self):
         """Test listing blocks filtered by category."""
 
         @BlockRegistry.register("Block1", "category1")
