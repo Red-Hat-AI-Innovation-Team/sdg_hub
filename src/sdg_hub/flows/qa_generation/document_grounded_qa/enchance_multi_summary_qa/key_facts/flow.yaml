@@ -68,7 +68,7 @@ blocks:
       block_name: gen_atomic_facts
       input_cols: atomic_facts_prompt
       output_cols: raw_summary
-      max_completion_tokens: 4096
+      max_tokens: 4096
       temperature: 0.7
       n: 50
       async_mode: true
@@ -99,7 +99,7 @@ blocks:
       block_name: question_generation
       input_cols: question_generation_prompt
       output_cols: question_list
-      max_completion_tokens: 256
+      max_tokens: 256
       temperature: 0.7
       n: 1
       async_mode: true
@@ -121,7 +121,7 @@ blocks:
       filter_value: 1.0
       operation: ge
       convert_dtype: float
-      max_completion_tokens: 2048
+      max_tokens: 2048
       async_mode: true
       format_as_messages: true
       start_tags: ["[Start of Explanation]", "[Start of Rating]"]
@@ -140,7 +140,7 @@ blocks:
       block_name: answer_generation
       input_cols: answer_generation_prompt
       output_cols: response
-      max_completion_tokens: 4096
+      max_tokens: 4096
       temperature: 0.7
       n: 1
       async_mode: true
@@ -167,7 +167,7 @@ blocks:
       filter_value: 2.0
       operation: eq
       convert_dtype: float
-      max_completion_tokens: 2048
+      max_tokens: 2048
       async_mode: true
       format_as_messages: true
       start_tags: ["[Start of Feedback]", "[Start of Score]"]
