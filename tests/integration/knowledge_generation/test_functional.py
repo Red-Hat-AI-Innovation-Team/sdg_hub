@@ -100,17 +100,19 @@ def test_knowledge_generation_dependencies_exist():
 
     # Test that FlowRegistry can actually discover flows (behavior-based test)
     from sdg_hub import FlowRegistry
-    
+
     FlowRegistry.discover_flows()
     all_flows = FlowRegistry.list_flows()
-    
+
     # Should discover at least some flows
     assert len(all_flows) > 0, "FlowRegistry should discover flows"
-    
+
     # Should be able to find the specific flow we need
     expected_flow = "Advanced Document Grounded Question-Answer Generation Flow for Knowledge Tuning"
-    flow_names = [flow['name'] for flow in all_flows]
-    assert expected_flow in flow_names, f"Should discover the knowledge generation flow: {expected_flow}"
+    flow_names = [flow["name"] for flow in all_flows]
+    assert (
+        expected_flow in flow_names
+    ), f"Should discover the knowledge generation flow: {expected_flow}"
 
     print("[OK] All dependencies and flow discovery validated")
 
@@ -198,9 +200,9 @@ def test_mock_cells_structure():
 @pytest.mark.integration
 def test_knowledge_generation_logic(executed_notebook_cache):
     """Test that the notebook uses the exact expected business logic values."""
+    from pathlib import Path
     import json
     import re
-    from pathlib import Path
 
     # Load cached artifacts
     artifacts_file = executed_notebook_cache / "execution_artifacts.json"
@@ -224,100 +226,125 @@ def test_knowledge_generation_logic(executed_notebook_cache):
                 notebook_source += str(source_lines) + "\n"
 
     # Test 1: Flow search uses correct tag "question-generation"
-    assert 'search_flows(tag="question-generation")' in notebook_source, \
-        "Notebook should search flows with tag 'question-generation'"
+    assert (
+        'search_flows(tag="question-generation")' in notebook_source
+    ), "Notebook should search flows with tag 'question-generation'"
 
     # Test 2: Exact flow name is used
     expected_flow_name = "Advanced Document Grounded Question-Answer Generation Flow for Knowledge Tuning"
-    assert f'flow_name = "{expected_flow_name}"' in notebook_source, \
-        f"Notebook should use exact flow name: {expected_flow_name}"
+    assert (
+        f'flow_name = "{expected_flow_name}"' in notebook_source
+    ), f"Notebook should use exact flow name: {expected_flow_name}"
 
     # Test 3: Correct model configuration
     expected_model = "hosted_vllm/meta-llama/Llama-3.3-70B-Instruct"
-    assert f'model="{expected_model}"' in notebook_source, \
-        f"Notebook should configure model: {expected_model}"
+    assert (
+        f'model="{expected_model}"' in notebook_source
+    ), f"Notebook should configure model: {expected_model}"
 
     # Test 4: Dataset loading path
     # Check for the exact pattern f'{seed_data_dir}/seed_data.jsonl'
     dataset_pattern = r"f'\{seed_data_dir\}/seed_data\.jsonl'"
-    assert re.search(dataset_pattern, notebook_source), \
-        "Notebook should load dataset using f'{seed_data_dir}/seed_data.jsonl' pattern"
+    assert re.search(
+        dataset_pattern, notebook_source
+    ), "Notebook should load dataset using f'{seed_data_dir}/seed_data.jsonl' pattern"
 
     print("[OK] All business logic values validated")
 
 
-@pytest.mark.integration 
+@pytest.mark.integration
 def test_knowledge_generation_data_integrity(executed_notebook_cache):
     """Test that generated dataset has exact expected shape and content by analyzing saved files."""
+
     from datasets import Dataset
-    from pathlib import Path
 
     # Check for the output files that the notebook should create
     notebook_dir = NOTEBOOK_PATH.parent
     output_dir = notebook_dir / "sdg_demo_output"
-    
+
     phase1_file = output_dir / "instructlab_phase_1_ds.jsonl"
     phase2_file = output_dir / "instructlab_phase_2_ds.jsonl"
-    
+
     # Both files should exist (created by the notebook)
     assert phase1_file.exists(), f"Phase 1 dataset file not found at {phase1_file}"
     assert phase2_file.exists(), f"Phase 2 dataset file not found at {phase2_file}"
-    
+
     # Load the phase 2 dataset (this is the main knowledge generation output)
     phase2_dataset = Dataset.from_json(str(phase2_file))
-    
+
     # Expected exact row count based on our mock setup:
     # The knowledge generation flow with 2 input docs should produce a specific number of QA pairs
     # We can determine the exact count by analyzing what we get
     expected_min_rows = 2  # At least one QA pair per input document
-    
+
     # Validate basic dataset properties
-    assert len(phase2_dataset) >= expected_min_rows, f"Expected at least {expected_min_rows} rows, got {len(phase2_dataset)}"
-    
+    assert (
+        len(phase2_dataset) >= expected_min_rows
+    ), f"Expected at least {expected_min_rows} rows, got {len(phase2_dataset)}"
+
     # Expected columns for InstructLab Phase 2 format (actual InstructLab format)
     expected_phase2_columns = {"metadata", "id", "messages"}  # InstructLab chat format
     actual_columns = set(phase2_dataset.column_names)
-    
-    assert actual_columns == expected_phase2_columns, f"Phase 2 columns mismatch. Expected: {expected_phase2_columns}, Got: {actual_columns}"
-    
+
+    assert (
+        actual_columns == expected_phase2_columns
+    ), f"Phase 2 columns mismatch. Expected: {expected_phase2_columns}, Got: {actual_columns}"
+
     # Validate content integrity - check first few rows
     for i in range(min(3, len(phase2_dataset))):
         row = phase2_dataset[i]
-        
+
         # InstructLab format has messages as a list of {"role": "user/assistant", "content": "..."}
         messages = row["messages"]
         assert isinstance(messages, list), f"Messages should be a list, row {i}"
         assert len(messages) >= 2, f"Should have user and assistant messages, row {i}"
-        
+
         # Find user and assistant messages
         user_messages = [msg for msg in messages if msg.get("role") == "user"]
         assistant_messages = [msg for msg in messages if msg.get("role") == "assistant"]
-        
+
         assert len(user_messages) > 0, f"Should have user message, row {i}"
         assert len(assistant_messages) > 0, f"Should have assistant message, row {i}"
-        
+
         # Check content quality
         user_content = user_messages[0].get("content", "")
         assistant_content = assistant_messages[0].get("content", "")
-        
-        assert len(user_content) > 10, f"User content should have substance, row {i}: {user_content[:50]}..."
-        assert len(assistant_content) > 10, f"Assistant content should have substance, row {i}: {assistant_content[:50]}..."
-    
-    # Also check phase 1 dataset structure  
-    phase1_dataset = Dataset.from_json(str(phase1_file))
-    expected_phase1_columns = {"messages", "id", "unmask", "metadata"}  # InstructLab pretraining format
-    actual_phase1_columns = set(phase1_dataset.column_names)
-    
-    assert actual_phase1_columns == expected_phase1_columns, f"Phase 1 columns mismatch. Expected: {expected_phase1_columns}, Got: {actual_phase1_columns}"
 
-    print(f"[OK] Phase 1 dataset: {len(phase1_dataset)} rows, columns: {list(phase1_dataset.column_names)}")
-    print(f"[OK] Phase 2 dataset: {len(phase2_dataset)} rows, columns: {list(phase2_dataset.column_names)}")
-    
+        assert (
+            len(user_content) > 10
+        ), f"User content should have substance, row {i}: {user_content[:50]}..."
+        assert (
+            len(assistant_content) > 10
+        ), f"Assistant content should have substance, row {i}: {assistant_content[:50]}..."
+
+    # Also check phase 1 dataset structure
+    phase1_dataset = Dataset.from_json(str(phase1_file))
+    expected_phase1_columns = {
+        "messages",
+        "id",
+        "unmask",
+        "metadata",
+    }  # InstructLab pretraining format
+    actual_phase1_columns = set(phase1_dataset.column_names)
+
+    assert (
+        actual_phase1_columns == expected_phase1_columns
+    ), f"Phase 1 columns mismatch. Expected: {expected_phase1_columns}, Got: {actual_phase1_columns}"
+
+    print(
+        f"[OK] Phase 1 dataset: {len(phase1_dataset)} rows, columns: {list(phase1_dataset.column_names)}"
+    )
+    print(
+        f"[OK] Phase 2 dataset: {len(phase2_dataset)} rows, columns: {list(phase2_dataset.column_names)}"
+    )
+
     # Show sample content from InstructLab format
-    sample_messages = phase2_dataset[0]['messages']
-    user_msg = next(msg for msg in sample_messages if msg['role'] == 'user')['content']
-    assistant_msg = next(msg for msg in sample_messages if msg['role'] == 'assistant')['content']
-    
+    sample_messages = phase2_dataset[0]["messages"]
+    user_msg = next(msg for msg in sample_messages if msg["role"] == "user")["content"]
+    assistant_msg = next(msg for msg in sample_messages if msg["role"] == "assistant")[
+        "content"
+    ]
+
     print(f"[OK] Sample user message: {user_msg[:100]}...")
     print(f"[OK] Sample assistant response: {assistant_msg[:100]}...")
     print("[OK] All dataset integrity validations passed!")
