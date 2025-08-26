@@ -37,13 +37,16 @@ metadata:
     description: "Input dataset should contain documents with text content and domain classification. Each document should be substantial enough for meaningful question generation (minimum 100 words recommended). The flow generates three types of summaries: detailed (n=20), extractive (n=10), and key facts (n=50), each producing corresponding QA pairs designed to help LLMs internalize document knowledge for knowledge tuning."
 
   output_columns:
-    - "summary_detailed"
+    - "summary"
     - "question"
     - "response"
-    - "summary_extractive" 
-    - "key_facts"
     - "raw_document"
-
+    - "relevancy_explanation"
+    - "relevancy_score"
+    - "faithfulness_explanation"
+    - "faithfulness_judgment"
+    - "verification_explanation"
+    - "verification_rating"
 
 blocks:
   - block_type: DuplicateColumnsBlock
@@ -64,7 +67,7 @@ blocks:
       block_name: gen_extractive_summary
       input_cols: extractive_summary_prompt
       output_cols: raw_summary
-      max_completion_tokens: 4096
+      max_tokens: 4096
       temperature: 0.7
       n: 50
       async_mode: true
@@ -95,7 +98,7 @@ blocks:
       block_name: question_generation
       input_cols: question_generation_prompt
       output_cols: question_list
-      max_completion_tokens: 256
+      max_tokens: 256
       temperature: 0.7
       n: 1
       async_mode: true
@@ -118,7 +121,7 @@ blocks:
       filter_value: 1.0
       operation: ge
       convert_dtype: float
-      max_completion_tokens: 2048
+      max_tokens: 2048
       async_mode: true
       format_as_messages: true
       start_tags: ["[Start of Explanation]", "[Start of Rating]"]
@@ -137,7 +140,7 @@ blocks:
       block_name: answer_generation
       input_cols: answer_generation_prompt
       output_cols: response
-      max_completion_tokens: 4096
+      max_tokens: 4096
       temperature: 0.7
       n: 1
       async_mode: true
@@ -164,7 +167,7 @@ blocks:
       filter_value: 2.0
       operation: eq
       convert_dtype: float
-      max_completion_tokens: 2048
+      max_tokens: 2048
       async_mode: true
       format_as_messages: true
       start_tags: ["[Start of Feedback]", "[Start of Score]"]
