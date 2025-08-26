@@ -148,6 +148,7 @@ class TestLLMConfig:
             max_tokens=100,
             seed=42,
             extra_headers={"x-custom": "value"},
+            timeout=120,
         )
 
         kwargs = config.get_generation_kwargs()
@@ -155,6 +156,7 @@ class TestLLMConfig:
         assert kwargs["max_tokens"] == 100
         assert kwargs["seed"] == 42
         assert kwargs["extra_headers"] == {"x-custom": "value"}
+        assert kwargs["timeout"] == 120
 
     def test_merge_overrides(self):
         """Test configuration merging with overrides."""
