@@ -282,7 +282,7 @@ class TestBlockRegistry:
             def generate(self, samples: Dataset, **kwargs) -> Dataset:
                 return samples
 
-        blocks = BlockRegistry.all()
+        blocks = BlockRegistry.list_blocks()
         expected = {"category1": ["Block1", "Block2"], "category2": ["Block3"]}
         assert blocks == expected
 

@@ -309,7 +309,7 @@ class Flow(BaseModel):
             block_class = BlockRegistry.get(block_type_name)
         except KeyError as exc:
             # Get all available blocks from all categories
-            all_blocks = BlockRegistry.all()
+            all_blocks = BlockRegistry.list_blocks()
             available_blocks = ", ".join(
                 [block for blocks in all_blocks.values() for block in blocks]
             )

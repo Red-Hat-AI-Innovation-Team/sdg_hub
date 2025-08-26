@@ -255,7 +255,7 @@ class BlockRegistry:
         return sorted(cls._categories[category])
 
     @classmethod
-    def all(cls) -> dict[str, list[str]]:
+    def list_blocks(cls) -> dict[str, list[str]]:
         """List all blocks organized by category.
 
         Returns

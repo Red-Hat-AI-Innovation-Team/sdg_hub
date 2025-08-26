@@ -107,6 +107,11 @@ print(f"🔎 QA Generation Flows: {qa_flows}")
 eval_flows = FlowRegistry.search_flows(tag="evaluation")
 print(f"📊 Evaluation Flows: {eval_flows}")
 
+# List all blocks by categories
+all_blocks = BlockRegistry.list_blocks()
+for category, blocks in all_blocks.items():
+    print(f"Blocks for category {category}: {blocks}")
+
 # Find blocks by category
 llm_blocks = BlockRegistry.search_blocks(category="llm")
 print(f"🧠 LLM Blocks: {llm_blocks}")
