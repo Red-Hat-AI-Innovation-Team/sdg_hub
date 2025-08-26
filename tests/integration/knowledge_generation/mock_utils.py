@@ -91,9 +91,9 @@ def create_llm_mock_cell() -> dict:
     }
 
 
-def create_test_data_cell() -> dict:
+def create_test_data_setup_cell() -> dict:
     """
-    Create test data setup cell.
+    Create test data setup cell that copies static test data.
 
     Returns:
         Dictionary representing a Jupyter notebook cell
@@ -105,44 +105,19 @@ def create_test_data_cell() -> dict:
         "outputs": [],
         "source": [
             "import os\n",
-            "from datasets import Dataset\n",
+            "import shutil\n",
+            "from pathlib import Path\n",
             "\n",
-            "test_data = [\n",
-            "    {\n",
-            "        'document': 'Machine learning is a subset of artificial intelligence that focuses on algorithms and statistical models. It enables computers to learn and improve from experience without being explicitly programmed for every task.',\n",
-            "        'document_outline': '1. Definition of machine learning\\\\n2. Relationship to AI\\\\n3. Core concepts: algorithms and statistical models\\\\n4. Learning from experience\\\\n5. Automation benefits',\n",
-            "        'domain': 'technology',\n",
-            "        'seed_examples': 'Examples of ML applications include recommendation systems, image recognition, and natural language processing.',\n",
-            "        'icl_document': 'Artificial intelligence encompasses machine learning, deep learning, and other computational approaches to simulate human intelligence.',\n",
-            "        'icl_query_1': 'What is the relationship between AI and machine learning?',\n",
-            "        'icl_response_1': 'Machine learning is a subset of artificial intelligence, focusing specifically on algorithms that can learn from data.',\n",
-            "        'icl_query_2': 'How do machine learning algorithms work?',\n",
-            "        'icl_response_2': 'They analyze patterns in data to make predictions or decisions without explicit programming for each scenario.',\n",
-            "        'icl_query_3': 'What are common applications of machine learning?',\n",
-            "        'icl_response_3': 'Common applications include recommendation engines, fraud detection, image recognition, and autonomous vehicles.'\n",
-            "    },\n",
-            "    {\n",
-            "        'document': 'Cloud computing provides on-demand access to computing resources over the internet. It offers scalability, flexibility, and cost-effectiveness for businesses of all sizes by eliminating the need for physical infrastructure management.',\n",
-            "        'document_outline': '1. Cloud computing definition\\\\n2. On-demand resource access\\\\n3. Internet-based delivery\\\\n4. Scalability benefits\\\\n5. Cost advantages\\\\n6. Infrastructure management',\n",
-            "        'domain': 'technology',\n",
-            "        'seed_examples': 'Cloud services include Infrastructure as a Service (IaaS), Platform as a Service (PaaS), and Software as a Service (SaaS).',\n",
-            "        'icl_document': 'Traditional computing required organizations to maintain physical servers and infrastructure on-premises.',\n",
-            "        'icl_query_1': 'What are the main benefits of cloud computing?',\n",
-            "        'icl_response_1': 'Key benefits include scalability, cost reduction, flexibility, and reduced infrastructure management overhead.',\n",
-            "        'icl_query_2': 'What are the different types of cloud services?',\n",
-            "        'icl_response_2': 'The main types are IaaS (infrastructure), PaaS (platform), and SaaS (software) as a service.',\n",
-            "        'icl_query_3': 'How does cloud computing differ from traditional computing?',\n",
-            "        'icl_response_3': 'Cloud computing provides remote access to resources over the internet, while traditional computing relies on local physical infrastructure.'\n",
-            "    }\n",
-            "]\n",
-            "\n",
+            "# Copy static test data to expected location\n",
+            "test_data_source = Path('tests/integration/knowledge_generation/test_data/seed_data.jsonl')\n",
             "test_output_dir = 'sdg_demo_output'\n",
             "os.makedirs(test_output_dir, exist_ok=True)\n",
             "\n",
-            "test_ds = Dataset.from_list(test_data)\n",
-            "test_ds.to_json(f'{test_output_dir}/seed_data.jsonl', orient='records', lines=True)\n",
-            "\n",
-            "print(f'Test data setup complete - {len(test_data)} samples saved to {test_output_dir}/seed_data.jsonl')\n",
+            "if test_data_source.exists():\n",
+            "    shutil.copy2(test_data_source, f'{test_output_dir}/seed_data.jsonl')\n",
+            "    print(f'Test data copied from {test_data_source} to {test_output_dir}/seed_data.jsonl')\n",
+            "else:\n",
+            "    print(f'Warning: Test data source not found at {test_data_source}')\n",
         ],
     }
 
@@ -154,4 +129,4 @@ def get_knowledge_generation_mock_cells() -> list:
     Returns:
         List of mock cell dictionaries
     """
-    return [create_llm_mock_cell(), create_test_data_cell()]
+    return [create_llm_mock_cell(), create_test_data_setup_cell()]

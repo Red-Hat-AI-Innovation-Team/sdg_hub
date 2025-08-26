@@ -90,7 +90,7 @@ async def mock_async_completion(*_args, **_kwargs):
 def mock_litellm_completion(*args, **kwargs):
     """Completely bypass LiteLLM and return mock response immediately."""
     print(
-        f"🔍 MOCK INTERCEPTED: litellm.completion called with model: {kwargs.get('model', 'unknown')}"
+        f"[MOCK] litellm.completion called with model: {kwargs.get('model', 'unknown')}"
     )
     return next(response_iter)
 
@@ -98,7 +98,7 @@ def mock_litellm_completion(*args, **kwargs):
 async def mock_litellm_acompletion(*args, **kwargs):
     """Completely bypass LiteLLM async and return mock response immediately."""
     print(
-        f"🔍 MOCK INTERCEPTED: litellm.acompletion called with model: {kwargs.get('model', 'unknown')}"
+        f"[MOCK] litellm.acompletion called with model: {kwargs.get('model', 'unknown')}"
     )
     return next(response_iter)
 
@@ -148,7 +148,7 @@ openai_patcher.start()
 openai_async_patcher = patch("openai.AsyncOpenAI", return_value=mock_openai_client)
 openai_async_patcher.start()
 
-print("✅ Mock LLM setup complete for knowledge generation")
+print("[OK] Mock LLM setup complete for knowledge generation")
 print(f"   - Mocked {len(mock_responses)} responses with cycling iterator")
 print("   - Patched: sdg_hub.core.blocks.llm.client_manager.completion")
 print("   - Patched: sdg_hub.core.blocks.llm.client_manager.acompletion")

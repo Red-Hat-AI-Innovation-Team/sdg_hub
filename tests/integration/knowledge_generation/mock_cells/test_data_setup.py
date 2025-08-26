@@ -51,5 +51,5 @@ test_ds = Dataset.from_list(test_data)
 test_ds.to_json(f"{test_output_dir}/seed_data.jsonl", orient="records", lines=True)
 
 print(
-    f"✅ Test data setup complete - {len(test_data)} samples saved to {test_output_dir}/seed_data.jsonl"
+    f"[OK] Test data setup complete - {len(test_data)} samples saved to {test_output_dir}/seed_data.jsonl"
 )

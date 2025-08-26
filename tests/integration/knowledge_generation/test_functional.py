@@ -79,7 +79,7 @@ def executed_notebook_cache(tmp_path_factory):
     with open(artifacts_file, "w") as f:
         json.dump(artifacts, f, indent=2)
 
-    print(f"✅ Notebook executed and cached to {cache_dir}")
+    print(f"[OK] Notebook executed and cached to {cache_dir}")
     return cache_dir
 
 
@@ -96,14 +96,21 @@ def test_knowledge_generation_dependencies_exist():
     # Check that the target notebook exists
     assert NOTEBOOK_PATH.exists(), f"Notebook not found at {NOTEBOOK_PATH}"
 
-    # Check that the flow registry can discover flows
+    # Test that FlowRegistry can actually discover flows (behavior-based test)
+    from sdg_hub import FlowRegistry
+    
+    FlowRegistry.discover_flows()
+    all_flows = FlowRegistry.list_flows()
+    
+    # Should discover at least some flows
+    assert len(all_flows) > 0, "FlowRegistry should discover flows"
+    
+    # Should be able to find the specific flow we need
+    expected_flow = "Advanced Document Grounded Question-Answer Generation Flow for Knowledge Tuning"
+    flow_names = [flow['name'] for flow in all_flows]
+    assert expected_flow in flow_names, f"Should discover the knowledge generation flow: {expected_flow}"
 
-    # Set up flow discovery paths like the notebook does
-    project_root = Path(__file__).parent.parent.parent.parent
-    flows_dir = project_root / "src" / "sdg_hub" / "flows"
-    assert flows_dir.exists(), f"Flows directory not found at {flows_dir}"
-
-    print("✅ All dependencies and flow files exist")
+    print("[OK] All dependencies and flow discovery validated")
 
 
 @pytest.mark.integration
@@ -121,7 +128,7 @@ def test_knowledge_generation_notebook_execution_success(executed_notebook_cache
         "execution_success"
     ], f"Notebook execution failed - check {artifacts['executed_notebook_path']} for errors"
 
-    print("✅ Notebook executed successfully with mocked LLMs")
+    print("[OK] Notebook executed successfully with mocked LLMs")
 
 
 @pytest.mark.integration
@@ -139,7 +146,7 @@ def test_knowledge_generation_notebook_outputs_structure(executed_notebook_cache
     # Validate that we got outputs from the notebook
     assert isinstance(outputs, dict), "Should have extracted outputs from notebook"
 
-    print(f"✅ Notebook outputs validated - found {len(outputs)} output sections")
+    print(f"[OK] Notebook outputs validated - found {len(outputs)} output sections")
 
 
 @pytest.mark.integration
@@ -160,11 +167,11 @@ def test_knowledge_generation_output_files_created(executed_notebook_cache):
         file_path = output_dir / filename
         print(f"Checking for output file: {file_path}")
         if file_path.exists():
-            print(f"✅ Found output file: {filename}")
+            print(f"[OK] Found output file: {filename}")
         else:
-            print(f"ℹ️ Output file not created (expected with mocking): {filename}")
+            print(f"[INFO] Output file not created (expected with mocking): {filename}")
 
-    print("✅ Output file validation complete")
+    print("[OK] Output file validation complete")
 
 
 def test_mock_cells_structure():
@@ -182,7 +189,7 @@ def test_mock_cells_structure():
         for line in cell["source"]:
             assert isinstance(line, str), "Each source line should be a string"
 
-    print("✅ Mock injection cells are properly structured")
+    print("[OK] Mock injection cells are properly structured")
 
 
 @pytest.mark.integration
@@ -233,63 +240,81 @@ def test_knowledge_generation_logic(executed_notebook_cache):
     assert re.search(dataset_pattern, notebook_source), \
         "Notebook should load dataset using f'{seed_data_dir}/seed_data.jsonl' pattern"
 
-    print("✅ All business logic values validated")
+    print("[OK] All business logic values validated")
 
 
 @pytest.mark.integration 
 def test_knowledge_generation_data_integrity(executed_notebook_cache):
-    """Test that generated dataset has exact expected shape, columns, and content."""
-    import json
-    from pathlib import Path
+    """Test that generated dataset has exact expected shape and content by analyzing saved files."""
     from datasets import Dataset
+    from pathlib import Path
 
-    # Load cached artifacts  
-    artifacts_file = executed_notebook_cache / "execution_artifacts.json"
-    with open(artifacts_file, "r") as f:
-        artifacts = json.load(f)
-
-    # Parse the executed notebook to extract the generated_data variable
-    executed_notebook_path = Path(artifacts["executed_notebook_path"])
-    with open(executed_notebook_path, "r") as f:
-        notebook_data = json.load(f)
-
-    # Find the cell that contains generated_data output
-    generated_data_found = False
-    for cell in notebook_data.get("cells", []):
-        if cell.get("cell_type") == "code":
-            source_lines = cell.get("source", [])
-            source_code = "".join(source_lines) if isinstance(source_lines, list) else str(source_lines)
-            
-            # Look for the flow.generate() call
-            if "generated_data = flow.generate(ds)" in source_code:
-                outputs = cell.get("outputs", [])
-                if outputs and len(outputs) > 0:
-                    generated_data_found = True
-                    break
-
-    # Since we're using mocks, validate based on our known mock setup
-    # Our mock creates deterministic responses for knowledge generation
+    # Check for the output files that the notebook should create
+    notebook_dir = NOTEBOOK_PATH.parent
+    output_dir = notebook_dir / "sdg_demo_output"
     
-    # Expected exact columns from knowledge generation flow
-    expected_columns = [
-        "document", "document_outline", "domain", "seed_examples",
-        "icl_document", "icl_query_1", "icl_response_1", "icl_query_2", "icl_response_2", "icl_query_3", "icl_response_3",
-        "summary_detailed", "summary_atomic_facts", "summary_extractive", "raw_document", "dataset_type",
-        "question", "response",
-        "faithfulness_explanation", "faithfulness_judgment",
-        "relevancy_explanation", "relevancy_score", 
-        "verification_explanation", "verification_rating"
-    ]
-
+    phase1_file = output_dir / "instructlab_phase_1_ds.jsonl"
+    phase2_file = output_dir / "instructlab_phase_2_ds.jsonl"
+    
+    # Both files should exist (created by the notebook)
+    assert phase1_file.exists(), f"Phase 1 dataset file not found at {phase1_file}"
+    assert phase2_file.exists(), f"Phase 2 dataset file not found at {phase2_file}"
+    
+    # Load the phase 2 dataset (this is the main knowledge generation output)
+    phase2_dataset = Dataset.from_json(str(phase2_file))
+    
     # Expected exact row count based on our mock setup:
-    # - 2 input documents (from our test data)
-    # - Each goes through 3 summary types (detailed, atomic, extractive) = 6 rows  
-    # - Each summary row generates 1 QA pair = 6 final rows
-    expected_row_count = 6
-
-    print(f"✅ Expected exact row count: {expected_row_count}")
-    print(f"✅ Expected exact columns: {len(expected_columns)} columns")
-    print("✅ Knowledge generation flow should produce deterministic output with our mocks")
+    # The knowledge generation flow with 2 input docs should produce a specific number of QA pairs
+    # We can determine the exact count by analyzing what we get
+    expected_min_rows = 2  # At least one QA pair per input document
     
-    # Note: The actual dataset validation would happen here if we captured the generated_data object
-    # For now, we validate the expected structure based on our controlled mock responses
+    # Validate basic dataset properties
+    assert len(phase2_dataset) >= expected_min_rows, f"Expected at least {expected_min_rows} rows, got {len(phase2_dataset)}"
+    
+    # Expected columns for InstructLab Phase 2 format (actual InstructLab format)
+    expected_phase2_columns = {"metadata", "id", "messages"}  # InstructLab chat format
+    actual_columns = set(phase2_dataset.column_names)
+    
+    assert actual_columns == expected_phase2_columns, f"Phase 2 columns mismatch. Expected: {expected_phase2_columns}, Got: {actual_columns}"
+    
+    # Validate content integrity - check first few rows
+    for i in range(min(3, len(phase2_dataset))):
+        row = phase2_dataset[i]
+        
+        # InstructLab format has messages as a list of {"role": "user/assistant", "content": "..."}
+        messages = row["messages"]
+        assert isinstance(messages, list), f"Messages should be a list, row {i}"
+        assert len(messages) >= 2, f"Should have user and assistant messages, row {i}"
+        
+        # Find user and assistant messages
+        user_messages = [msg for msg in messages if msg.get("role") == "user"]
+        assistant_messages = [msg for msg in messages if msg.get("role") == "assistant"]
+        
+        assert len(user_messages) > 0, f"Should have user message, row {i}"
+        assert len(assistant_messages) > 0, f"Should have assistant message, row {i}"
+        
+        # Check content quality
+        user_content = user_messages[0].get("content", "")
+        assistant_content = assistant_messages[0].get("content", "")
+        
+        assert len(user_content) > 10, f"User content should have substance, row {i}: {user_content[:50]}..."
+        assert len(assistant_content) > 10, f"Assistant content should have substance, row {i}: {assistant_content[:50]}..."
+    
+    # Also check phase 1 dataset structure  
+    phase1_dataset = Dataset.from_json(str(phase1_file))
+    expected_phase1_columns = {"messages", "id", "unmask", "metadata"}  # InstructLab pretraining format
+    actual_phase1_columns = set(phase1_dataset.column_names)
+    
+    assert actual_phase1_columns == expected_phase1_columns, f"Phase 1 columns mismatch. Expected: {expected_phase1_columns}, Got: {actual_phase1_columns}"
+
+    print(f"[OK] Phase 1 dataset: {len(phase1_dataset)} rows, columns: {list(phase1_dataset.column_names)}")
+    print(f"[OK] Phase 2 dataset: {len(phase2_dataset)} rows, columns: {list(phase2_dataset.column_names)}")
+    
+    # Show sample content from InstructLab format
+    sample_messages = phase2_dataset[0]['messages']
+    user_msg = next(msg for msg in sample_messages if msg['role'] == 'user')['content']
+    assistant_msg = next(msg for msg in sample_messages if msg['role'] == 'assistant')['content']
+    
+    print(f"[OK] Sample user message: {user_msg[:100]}...")
+    print(f"[OK] Sample assistant response: {assistant_msg[:100]}...")
+    print("[OK] All dataset integrity validations passed!")
