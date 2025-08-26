@@ -37,12 +37,16 @@ metadata:
     description: "Input dataset should contain documents with text content and domain classification. Each document should be substantial enough for meaningful question generation (minimum 100 words recommended). The flow generates three types of summaries: detailed (n=20), extractive (n=10), and key facts (n=50), each producing corresponding QA pairs designed to help LLMs internalize document knowledge for knowledge tuning."
 
   output_columns:
-    - "summary_detailed"
+    - "summary"
     - "question"
     - "response"
-    - "summary_extractive" 
-    - "key_facts"
     - "raw_document"
+    - "relevancy_explanation"
+    - "relevancy_score"
+    - "faithfulness_explanation"
+    - "faithfulness_judgment"
+    - "verification_explanation"
+    - "verification_rating"
 
 
 blocks:
@@ -74,7 +78,7 @@ blocks:
       block_name: parse_atomic_facts
       input_cols: raw_summary
       output_cols: summary
-      start_tags: ["### Key Facts"]
+      start_tags: ["### Key Facts With Context"]
       end_tags: [""]
 
   - block_type: RenameColumnsBlock
