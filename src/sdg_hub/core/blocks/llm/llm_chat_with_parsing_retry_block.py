@@ -415,7 +415,9 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                                     temp_parse_dataset, **kwargs
                                 )
                             except Exception as parse_e:
-                                logger.debug(f"Failed to parse individual response: {parse_e}")
+                                logger.debug(
+                                    f"Failed to parse individual response: {parse_e}"
+                                )
                                 continue
                             finally:
                                 self.text_parser.expand_lists = original_expand_lists
@@ -428,7 +430,9 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                                     # Add parsed values to accumulated lists
                                     for col in self.output_cols:
                                         if col in parsed_row:
-                                            accumulated_parsed_items[col].append(parsed_row[col])
+                                            accumulated_parsed_items[col].append(
+                                                parsed_row[col]
+                                            )
                                     total_parsed_count += 1
                                     new_parsed_count += 1
 

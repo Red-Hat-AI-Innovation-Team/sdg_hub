@@ -962,12 +962,17 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
 
             # Mock the text parser to throw an exception during generate
             original_generate = block.text_parser.generate
+
             def mock_generate_with_exception(*args, **kwargs):
-                if block.text_parser.expand_lists is True:  # Only throw when temporarily True
+                if (
+                    block.text_parser.expand_lists is True
+                ):  # Only throw when temporarily True
                     raise ValueError("Simulated parsing exception")
                 return original_generate(*args, **kwargs)
 
-            with patch.object(block.text_parser, 'generate', side_effect=mock_generate_with_exception):
+            with patch.object(
+                block.text_parser, "generate", side_effect=mock_generate_with_exception
+            ):
                 single_dataset = Dataset.from_dict(
                     {"messages": [sample_dataset["messages"][0]]}
                 )
