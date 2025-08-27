@@ -1136,9 +1136,6 @@ class Flow(BaseModel):
 
     def _map_column_type_to_feature(self, col_type: str):
         """Map column type string to HuggingFace feature type."""
-        # Third Party
-        import datasets
-
         # Map common type names to HuggingFace types
         if col_type in ["str", "string", "text"]:
             return datasets.Value("string")
