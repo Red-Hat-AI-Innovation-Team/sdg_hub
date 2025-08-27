@@ -4,6 +4,25 @@ import polars as pl
 from datasets import Dataset
 
 
+def get_avg_summaries_per_raw_doc(df: pl.DataFrame) -> float:
+    """
+    Calculate average summaries per raw document in the dataset.
+    
+    Args:
+        df: Input dataframe with document and raw_document columns
+        
+    Returns:
+        Average number of summaries per raw document
+    """
+    # Calculate average summaries per raw document
+    summary_counts = df.group_by("raw_document").agg(
+        pl.col("document").n_unique().alias("unique_summaries")
+    )
+    avg_summaries = summary_counts["unique_summaries"].mean()
+    
+    return avg_summaries
+
+
 def sample_doc_qa(
     df: pl.DataFrame, 
     n_docs_per_raw: int = 50, 
@@ -12,10 +31,13 @@ def sample_doc_qa(
     """
     Sample Q&A pairs from documents with optional reasoning.
     
+    Note: 'document' column contains summaries, 'raw_document' contains original documents.
+    n_docs_per_raw is the number of unique summaries to sample per raw document.
+    
     Args:
         df: Input dataframe with document and Q&A data
-        n_docs_per_raw: Maximum number of documents to sample per raw document
-        qa_per_doc: Maximum number of Q&A pairs per document
+        n_docs_per_raw: Maximum number of unique summaries to sample per raw document (cut size)
+        qa_per_doc: Maximum number of Q&A pairs per document/summary
         
     Returns:
         Sampled dataframe with Q&A pairs
@@ -25,6 +47,11 @@ def sample_doc_qa(
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
         raise ValueError(f"Missing required columns: {missing_cols}")
+    
+    # Check if cut size is feasible
+    avg_summaries = get_avg_summaries_per_raw_doc(df)
+    if avg_summaries < n_docs_per_raw:
+        print(f"⚠️ Warning: Cut size {n_docs_per_raw} exceeds available summaries (avg: {avg_summaries:.1f} per raw document)")
     
     # Create Q&A pair structure
     df = df.with_columns([
@@ -44,15 +71,15 @@ def sample_doc_qa(
         ])
         agg_cols.append(pl.col('reasoning').first())
     
-    # Group by document and aggregate
+    # Group by document (summaries) and aggregate Q&A pairs
     df = df.group_by('document').agg(agg_cols)
     
-    # Sample documents per raw document
+    # Sample unique summaries per raw document
     sampled_docs = df.group_by("raw_document").map_groups(
         lambda g: g.sample(n=min(n_docs_per_raw, g.height))
     )
     
-    # Limit Q&A pairs per document and explode
+    # Limit Q&A pairs per summary and explode
     sampled_docs = sampled_docs.with_columns(
         pl.col("qa_pair").list.slice(0, qa_per_doc)
     ).explode(pl.col("qa_pair"))
