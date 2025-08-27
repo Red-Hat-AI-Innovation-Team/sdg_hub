@@ -13,6 +13,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
+import datasets
 import yaml
 
 # Local
@@ -24,7 +25,7 @@ from ..utils.logger_config import setup_logger
 from ..utils.path_resolution import resolve_path
 from ..utils.yaml_utils import save_flow_yaml
 from .checkpointer import FlowCheckpointer
-from .metadata import FlowMetadata, FlowParameter
+from .metadata import DatasetRequirements, FlowMetadata, FlowParameter
 from .migration import FlowMigration
 from .validation import FlowValidator
 
@@ -1064,7 +1065,7 @@ class Flow(BaseModel):
             "block_names": [block.block_name for block in self.blocks],
         }
 
-    def get_dataset_requirements(self) -> Optional["DatasetRequirements"]:
+    def get_dataset_requirements(self) -> Optional[DatasetRequirements]:
         """Get the dataset requirements for this flow.
 
         Returns
@@ -1094,52 +1095,50 @@ class Flow(BaseModel):
         --------
         >>> flow = Flow.from_yaml("path/to/flow.yaml")
         >>> schema_dataset = flow.get_dataset_schema()
-        >>> 
+        >>>
         >>> # Add your data
         >>> schema_dataset = schema_dataset.add_item({
         ...     "document": "Your document text",
         ...     "domain": "Computer Science",
         ...     "icl_document": "Example document"
         ... })
-        >>> 
+        >>>
         >>> # Or validate your existing dataset schema
         >>> my_dataset = Dataset.from_dict(my_data)
         >>> if my_dataset.features == schema_dataset.features:
         ...     print("Schema matches!")
         """
-        # Third Party
-        import datasets
-        
+
         requirements = self.get_dataset_requirements()
-        
+
         if requirements is None:
             # Return empty dataset with no schema requirements
             return Dataset.from_dict({})
-            
+
         # Build schema features
         schema_features = {}
-        
+
         # Process required columns
         for col_name in requirements.required_columns:
             col_type = requirements.column_types.get(col_name, "string")
             schema_features[col_name] = self._map_column_type_to_feature(col_type)
-                
+
         # Process optional columns
         for col_name in requirements.optional_columns:
             col_type = requirements.column_types.get(col_name, "string")
             schema_features[col_name] = self._map_column_type_to_feature(col_type)
-        
+
         # Create empty dataset with the correct features
         features = datasets.Features(schema_features)
         empty_data = {col_name: [] for col_name in schema_features.keys()}
-        
+
         return Dataset.from_dict(empty_data, features=features)
 
     def _map_column_type_to_feature(self, col_type: str):
         """Map column type string to HuggingFace feature type."""
         # Third Party
         import datasets
-        
+
         # Map common type names to HuggingFace types
         if col_type in ["str", "string", "text"]:
             return datasets.Value("string")

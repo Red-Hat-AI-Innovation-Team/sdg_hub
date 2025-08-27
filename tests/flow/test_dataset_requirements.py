@@ -7,13 +7,13 @@ from unittest.mock import Mock, patch
 
 # Third Party
 from datasets import Dataset
-import datasets
-import pytest
-import yaml
 
 # First Party
 from sdg_hub import Flow
 from sdg_hub.core.flow.metadata import DatasetRequirements
+import datasets
+import pytest
+import yaml
 
 
 class TestDatasetRequirements:
@@ -130,7 +130,9 @@ class TestDatasetRequirements:
         }
         assert requirements.description == "Test dataset requirements"
 
-    def test_get_dataset_requirements_without_requirements(self, flow_without_requirements):
+    def test_get_dataset_requirements_without_requirements(
+        self, flow_without_requirements
+    ):
         """Test get_dataset_requirements with flow that has no requirements."""
         requirements = flow_without_requirements.get_dataset_requirements()
 
@@ -175,7 +177,13 @@ class TestDatasetRequirements:
                 "version": "1.0.0",
                 "author": "Test Suite",
                 "dataset_requirements": {
-                    "required_columns": ["text_col", "int_col", "float_col", "bool_col", "unknown_col"],
+                    "required_columns": [
+                        "text_col",
+                        "int_col",
+                        "float_col",
+                        "bool_col",
+                        "unknown_col",
+                    ],
                     "column_types": {
                         "text_col": "string",
                         "int_col": "integer",
@@ -220,7 +228,9 @@ class TestDatasetRequirements:
         assert schema_dataset.features["int_col"].dtype == "int64"
         assert schema_dataset.features["float_col"].dtype == "float64"
         assert schema_dataset.features["bool_col"].dtype == "bool"
-        assert schema_dataset.features["unknown_col"].dtype == "string"  # Unknown types default to string
+        assert (
+            schema_dataset.features["unknown_col"].dtype == "string"
+        )  # Unknown types default to string
 
     def test_get_dataset_schema_alternative_type_names(self, temp_dir, mock_block):
         """Test that alternative type names are correctly mapped."""
@@ -231,7 +241,13 @@ class TestDatasetRequirements:
                 "version": "1.0.0",
                 "author": "Test Suite",
                 "dataset_requirements": {
-                    "required_columns": ["str_col", "text_col", "int_col", "number_col", "bool_col"],
+                    "required_columns": [
+                        "str_col",
+                        "text_col",
+                        "int_col",
+                        "number_col",
+                        "bool_col",
+                    ],
                     "column_types": {
                         "str_col": "str",
                         "text_col": "text",
@@ -278,7 +294,9 @@ class TestDatasetRequirements:
         assert schema_dataset.features["number_col"].dtype == "float64"
         assert schema_dataset.features["bool_col"].dtype == "bool"
 
-    def test_dataset_schema_compatibility_with_huggingface(self, flow_with_requirements):
+    def test_dataset_schema_compatibility_with_huggingface(
+        self, flow_with_requirements
+    ):
         """Test that the schema dataset can be used with HuggingFace datasets."""
         schema_dataset = flow_with_requirements.get_dataset_schema()
 
@@ -286,7 +304,7 @@ class TestDatasetRequirements:
         sample_data = {
             col_name: "sample_value" for col_name in schema_dataset.column_names
         }
-        
+
         populated_dataset = schema_dataset.add_item(sample_data)
 
         # Verify dataset was created successfully
@@ -352,48 +370,50 @@ class TestDatasetRequirements:
     def test_dataset_schema_validation_workflow(self, flow_with_requirements):
         """Test the typical workflow of using schema dataset for validation."""
         schema_dataset = flow_with_requirements.get_dataset_schema()
-        
+
         # Create a user dataset with correct schema
         correct_data = {
             "document": ["Sample document"],
-            "domain": ["Computer Science"], 
+            "domain": ["Computer Science"],
             "icl_document": ["Example document"],
-            "additional_info": ["Extra info"]
+            "additional_info": ["Extra info"],
         }
         user_dataset = Dataset.from_dict(correct_data)
-        
+
         # Schema validation should pass
         assert user_dataset.features == schema_dataset.features
-        
+
         # Create a user dataset with incorrect schema
         incorrect_data = {
             "document": ["Sample document"],
-            "wrong_column": ["Wrong data"]
+            "wrong_column": ["Wrong data"],
         }
         incorrect_dataset = Dataset.from_dict(incorrect_data)
-        
+
         # Schema validation should fail
         assert incorrect_dataset.features != schema_dataset.features
 
     def test_add_data_to_schema_dataset(self, flow_with_requirements):
         """Test adding data to the schema dataset."""
         schema_dataset = flow_with_requirements.get_dataset_schema()
-        
+
         # Should start empty
         assert len(schema_dataset) == 0
-        
+
         # Add a single item
-        populated_dataset = schema_dataset.add_item({
-            "document": "Test document",
-            "domain": "Test domain",
-            "icl_document": "Test ICL document", 
-            "additional_info": "Test info"
-        })
-        
+        populated_dataset = schema_dataset.add_item(
+            {
+                "document": "Test document",
+                "domain": "Test domain",
+                "icl_document": "Test ICL document",
+                "additional_info": "Test info",
+            }
+        )
+
         # Should now have one item
         assert len(populated_dataset) == 1
         assert populated_dataset["document"][0] == "Test document"
         assert populated_dataset["domain"][0] == "Test domain"
-        
+
         # Original schema dataset should still be empty
         assert len(schema_dataset) == 0
