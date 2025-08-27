@@ -934,6 +934,51 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
             assert result_true[0]["answer"] == "Response 1"
             assert result_true[1]["answer"] == "Response 2"
 
+    def test_expand_lists_flag_restored_on_exception(self, sample_dataset):
+        """Test that expand_lists flag is properly restored even when parsing throws an exception."""
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
+            # Mock successful LLM response
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "<answer>Response</answer>"
+            mock_completion.return_value = mock_response
+
+            block = LLMChatWithParsingRetryBlock(
+                block_name="test_flag_restore",
+                input_cols="messages",
+                output_cols="answer",
+                model="openai/gpt-4",
+                start_tags=["<answer>"],
+                end_tags=["</answer>"],
+                expand_lists=False,  # Original setting should be restored
+                n=1,
+                parsing_max_retries=2,
+            )
+
+            # Verify initial state
+            assert block.text_parser.expand_lists is False
+
+            # Mock the text parser to throw an exception during generate
+            original_generate = block.text_parser.generate
+            def mock_generate_with_exception(*args, **kwargs):
+                if block.text_parser.expand_lists is True:  # Only throw when temporarily True
+                    raise ValueError("Simulated parsing exception")
+                return original_generate(*args, **kwargs)
+
+            with patch.object(block.text_parser, 'generate', side_effect=mock_generate_with_exception):
+                single_dataset = Dataset.from_dict(
+                    {"messages": [sample_dataset["messages"][0]]}
+                )
+
+                # This should fail due to parsing exceptions, but expand_lists should be restored
+                with pytest.raises(MaxRetriesExceededError):
+                    block.generate(single_dataset)
+
+            # Critical assertion: expand_lists should be back to original False value
+            assert block.text_parser.expand_lists is False
+
     def test_non_list_columns_preserved_both_modes(self):
         """Test that non-output columns are preserved with correct types in both expand_lists modes."""
         with patch(

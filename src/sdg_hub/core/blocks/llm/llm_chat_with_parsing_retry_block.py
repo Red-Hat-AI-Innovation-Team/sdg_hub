@@ -407,34 +407,30 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                             temp_parse_data = [{**sample, raw_response_col: response}]
                             temp_parse_dataset = Dataset.from_list(temp_parse_data)
 
+                            # Force expand_lists=True temporarily to get individual parsed items
+                            original_expand_lists = self.text_parser.expand_lists
                             try:
-                                # Force expand_lists=True temporarily to get individual parsed items
-                                original_expand_lists = self.text_parser.expand_lists
                                 self.text_parser.expand_lists = True
                                 parsed_result = self.text_parser.generate(
                                     temp_parse_dataset, **kwargs
                                 )
+                            except Exception as parse_e:
+                                logger.debug(f"Failed to parse individual response: {parse_e}")
+                                continue
+                            finally:
                                 self.text_parser.expand_lists = original_expand_lists
 
-                                # If parsing was successful, accumulate the results
-                                if len(parsed_result) > 0:
-                                    for parsed_row in parsed_result:
-                                        if total_parsed_count >= target:
-                                            break
-                                        # Add parsed values to accumulated lists
-                                        for col in self.output_cols:
-                                            if col in parsed_row:
-                                                accumulated_parsed_items[col].append(
-                                                    parsed_row[col]
-                                                )
-                                        total_parsed_count += 1
-                                        new_parsed_count += 1
-
-                            except Exception as parse_e:
-                                logger.debug(
-                                    f"Failed to parse individual response: {parse_e}"
-                                )
-                                continue
+                            # If parsing was successful, accumulate the results
+                            if len(parsed_result) > 0:
+                                for parsed_row in parsed_result:
+                                    if total_parsed_count >= target:
+                                        break
+                                    # Add parsed values to accumulated lists
+                                    for col in self.output_cols:
+                                        if col in parsed_row:
+                                            accumulated_parsed_items[col].append(parsed_row[col])
+                                    total_parsed_count += 1
+                                    new_parsed_count += 1
 
                         logger.debug(
                             f"Attempt {attempt + 1} for sample {sample_idx}: {new_parsed_count} successful parses "
