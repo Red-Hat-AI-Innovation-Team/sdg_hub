@@ -110,14 +110,14 @@ def create_test_data_setup_cell() -> dict:
             "\n",
             "# Copy static test data to expected location\n",
             "test_data_source = Path('tests/integration/knowledge_generation/test_data/seed_data.jsonl')\n",
-            "test_output_dir = 'sdg_demo_output'\n",
+            "test_output_dir = 'test_sdg_demo_output'  # Match the notebook parameter\n",
             "os.makedirs(test_output_dir, exist_ok=True)\n",
             "\n",
             "if test_data_source.exists():\n",
             "    shutil.copy2(test_data_source, f'{test_output_dir}/seed_data.jsonl')\n",
-            "    print(f'Test data copied from {test_data_source} to {test_output_dir}/seed_data.jsonl')\n",
+            "    print(f'[OK] Test data copied from {test_data_source} to {test_output_dir}/seed_data.jsonl')\n",
             "else:\n",
-            "    print(f'Warning: Test data source not found at {test_data_source}')\n",
+            "    print(f'[WARNING] Test data source not found at {test_data_source}')\n",
         ],
     }
 

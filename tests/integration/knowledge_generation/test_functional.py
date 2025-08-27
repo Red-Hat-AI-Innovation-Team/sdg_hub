@@ -60,7 +60,7 @@ def executed_notebook_cache(tmp_path_factory):
     outputs = extract_notebook_outputs(executed_notebook_path)
     execution_success = validate_notebook_execution(executed_notebook_path)
 
-    # Check for output files
+    # Check for output files (should match the seed_data_dir parameter)
     notebook_dir = NOTEBOOK_PATH.parent
     output_dir = notebook_dir / "test_sdg_demo_output"
 
@@ -260,7 +260,7 @@ def test_knowledge_generation_data_integrity(executed_notebook_cache):
 
     # Check for the output files that the notebook should create
     notebook_dir = NOTEBOOK_PATH.parent
-    output_dir = notebook_dir / "sdg_demo_output"
+    output_dir = notebook_dir / "test_sdg_demo_output"  # Match seed_data_dir parameter
 
     phase1_file = output_dir / "instructlab_phase_1_ds.jsonl"
     phase2_file = output_dir / "instructlab_phase_2_ds.jsonl"
