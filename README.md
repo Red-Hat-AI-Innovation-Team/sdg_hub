@@ -24,6 +24,8 @@ A modular Python framework for building synthetic data generation pipelines usin
 
 **📊 Rich Monitoring** - Detailed logging with progress bars and execution summaries.
 
+**📋 Dataset Schema Discovery** - Instantly discover required data formats. Get empty datasets with correct schema for easy validation and data preparation.
+
 **🧩 Easily Extensible** - Create custom blocks with simple inheritance. Rich logging and monitoring built-in.
 
 
@@ -108,22 +110,46 @@ flow.set_model_config(
     api_key="your_key",
 )
 ```
-#### Load your dataset and run the flow
+#### Discover dataset requirements and create your dataset
 ```python
-# Create your dataset with required columns
-dataset = Dataset.from_dict({
-    'document': ['Your document text here...'],
-    'document_outline': ['1. Topic A; 2. Topic B; 3. Topic C'],
-    'domain': ['Computer Science'],
-    'icl_document': ['Example document for in-context learning...'],
-    'icl_query_1': ['Example question 1?'],
-    'icl_response_1': ['Example answer 1'],
-    'icl_query_2': ['Example question 2?'], 
-    'icl_response_2': ['Example answer 2'],
-    'icl_query_3': ['Example question 3?'],
-    'icl_response_3': ['Example answer 3']
+# First, discover what data the flow needs
+# Get an empty dataset with the exact schema needed
+schema_dataset = flow.get_dataset_schema()  # Get empty dataset with correct schema
+print(f"Required columns: {schema_dataset.column_names}")
+print(f"Schema: {schema_dataset.features}")
+
+# Option 1: Add data directly to the schema dataset
+dataset = schema_dataset.add_item({
+    'document': 'Your document text here...',
+    'document_outline': '1. Topic A; 2. Topic B; 3. Topic C',
+    'domain': 'Computer Science',
+    'icl_document': 'Example document for in-context learning...',
+    'icl_query_1': 'Example question 1?',
+    'icl_response_1': 'Example answer 1',
+    'icl_query_2': 'Example question 2?', 
+    'icl_response_2': 'Example answer 2',
+    'icl_query_3': 'Example question 3?',
+    'icl_response_3': 'Example answer 3'
 })
 
+# Option 2: Create your own dataset and validate the schema
+my_dataset = Dataset.from_dict(my_data_dict)
+if my_dataset.features == schema_dataset.features:
+    print("✅ Schema matches - ready to generate!")
+    dataset = my_dataset
+else:
+    print("❌ Schema mismatch - check your columns")
+
+# Option 3: Get raw requirements for detailed inspection
+requirements = flow.get_dataset_requirements()
+if requirements:
+    print(f"Required: {requirements.required_columns}")
+    print(f"Optional: {requirements.optional_columns}")
+    print(f"Min samples: {requirements.min_samples}")
+```
+
+#### Dry Run and Generate
+```python
 # Quick Testing with Dry Run
 dry_result = flow.dry_run(dataset, sample_size=1)
 print(f"Dry run completed in {dry_result['execution_time_seconds']:.2f}s")

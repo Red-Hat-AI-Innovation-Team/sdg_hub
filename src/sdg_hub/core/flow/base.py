@@ -1064,6 +1064,95 @@ class Flow(BaseModel):
             "block_names": [block.block_name for block in self.blocks],
         }
 
+    def get_dataset_requirements(self) -> Optional["DatasetRequirements"]:
+        """Get the dataset requirements for this flow.
+
+        Returns
+        -------
+        Optional[DatasetRequirements]
+            Dataset requirements object or None if not defined.
+
+        Examples
+        --------
+        >>> flow = Flow.from_yaml("path/to/flow.yaml")
+        >>> requirements = flow.get_dataset_requirements()
+        >>> if requirements:
+        ...     print(f"Required columns: {requirements.required_columns}")
+        """
+        return self.metadata.dataset_requirements
+
+    def get_dataset_schema(self) -> Dataset:
+        """Get an empty dataset with the correct schema for this flow.
+
+        Returns
+        -------
+        Dataset
+            Empty HuggingFace Dataset with the correct schema/features for this flow.
+            Users can add data to this dataset or use it to validate their own dataset schema.
+
+        Examples
+        --------
+        >>> flow = Flow.from_yaml("path/to/flow.yaml")
+        >>> schema_dataset = flow.get_dataset_schema()
+        >>> 
+        >>> # Add your data
+        >>> schema_dataset = schema_dataset.add_item({
+        ...     "document": "Your document text",
+        ...     "domain": "Computer Science",
+        ...     "icl_document": "Example document"
+        ... })
+        >>> 
+        >>> # Or validate your existing dataset schema
+        >>> my_dataset = Dataset.from_dict(my_data)
+        >>> if my_dataset.features == schema_dataset.features:
+        ...     print("Schema matches!")
+        """
+        # Third Party
+        import datasets
+        
+        requirements = self.get_dataset_requirements()
+        
+        if requirements is None:
+            # Return empty dataset with no schema requirements
+            return Dataset.from_dict({})
+            
+        # Build schema features
+        schema_features = {}
+        
+        # Process required columns
+        for col_name in requirements.required_columns:
+            col_type = requirements.column_types.get(col_name, "string")
+            schema_features[col_name] = self._map_column_type_to_feature(col_type)
+                
+        # Process optional columns
+        for col_name in requirements.optional_columns:
+            col_type = requirements.column_types.get(col_name, "string")
+            schema_features[col_name] = self._map_column_type_to_feature(col_type)
+        
+        # Create empty dataset with the correct features
+        features = datasets.Features(schema_features)
+        empty_data = {col_name: [] for col_name in schema_features.keys()}
+        
+        return Dataset.from_dict(empty_data, features=features)
+
+    def _map_column_type_to_feature(self, col_type: str):
+        """Map column type string to HuggingFace feature type."""
+        # Third Party
+        import datasets
+        
+        # Map common type names to HuggingFace types
+        if col_type in ["str", "string", "text"]:
+            return datasets.Value("string")
+        elif col_type in ["int", "integer"]:
+            return datasets.Value("int64")
+        elif col_type in ["float", "number"]:
+            return datasets.Value("float64")
+        elif col_type in ["bool", "boolean"]:
+            return datasets.Value("bool")
+        else:
+            # Default to string for unknown types
+            return datasets.Value("string")
+
     def print_info(self) -> None:
         """
         Print an interactive summary of the Flow in the console.
