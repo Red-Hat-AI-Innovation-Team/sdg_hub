@@ -1,3 +1,4 @@
+# Knowledge Tuning with Enhanced Summaries
 ### 1\. Document Summarization
 
 To kickstart the process, we generate three unique summaries of your source documents. This multi-faceted approach helps the model to thoroughly memorize and recall the key information. The summaries include:
