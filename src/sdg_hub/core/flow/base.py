@@ -2,9 +2,12 @@
 """Pydantic-based Flow class for managing data generation pipelines."""
 
 # Standard
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Union
+import os
 import time
+import uuid
 
 # Third Party
 from datasets import Dataset
@@ -405,20 +408,14 @@ class Flow(BaseModel):
         # Set up file logging if log_dir is provided
         flow_logger = logger  # Use global logger by default
         if log_dir is not None:
-            from datetime import datetime
-
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             flow_name = self.metadata.name.replace(" ", "_").lower()
             log_filename = f"{flow_name}_{timestamp}.log"
 
             # Ensure log directory exists
-            import os
-
             os.makedirs(log_dir, exist_ok=True)
 
             # Create a flow-specific logger for this execution
-            import uuid
-
             unique_id = str(uuid.uuid4())[:8]  # Short unique ID
             flow_logger_name = f"{__name__}.flow_{flow_name}_{timestamp}_{unique_id}"
             flow_logger = setup_logger(
