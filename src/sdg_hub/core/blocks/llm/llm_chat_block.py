@@ -296,7 +296,7 @@ class LLMChatBlock(BaseBlock):
             Valid parameters depend on the provider but typically include:
             temperature, max_tokens, top_p, frequency_penalty, presence_penalty,
             stop, seed, response_format, stream, n, and provider-specific params.
-            
+
             Special flow-level parameters:
             _flow_semaphore : asyncio.Semaphore, optional
                 Semaphore for controlling concurrency (passed by Flow).
@@ -327,7 +327,7 @@ class LLMChatBlock(BaseBlock):
         # Log generation start
         logger.info(
             f"Starting {'async' if self.async_mode else 'sync'} generation for {len(messages_list)} samples"
-            + (f" (max_concurrency controlled by flow)" if flow_semaphore else ""),
+            + (" (max_concurrency controlled by flow)" if flow_semaphore else ""),
             extra={
                 "block_name": self.block_name,
                 "model": self.model,
@@ -445,7 +445,7 @@ class LLMChatBlock(BaseBlock):
                         return await self.client_manager.acreate_completion(
                             messages, **override_kwargs
                         )
-                
+
                 # Create tasks for all messages
                 tasks = [_create_with_semaphore(messages) for messages in messages_list]
                 responses = await asyncio.gather(*tasks)
@@ -454,7 +454,7 @@ class LLMChatBlock(BaseBlock):
                 responses = await self.client_manager.acreate_completions_batch(
                     messages_list, **override_kwargs
                 )
-            
+
             return responses
 
         except Exception as e:

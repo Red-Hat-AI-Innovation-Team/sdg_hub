@@ -432,6 +432,7 @@ class Flow(BaseModel):
         semaphore = None
         if max_concurrency is not None:
             import asyncio
+
             semaphore = asyncio.Semaphore(max_concurrency)
             logger.info(f"Created semaphore with max_concurrency={max_concurrency}")
 
@@ -533,8 +534,8 @@ class Flow(BaseModel):
         return final_dataset
 
     def _execute_blocks_on_dataset(
-        self, 
-        dataset: Dataset, 
+        self,
+        dataset: Dataset,
         runtime_params: dict[str, dict[str, Any]],
         semaphore: Optional[Any] = None,
     ) -> Dataset:
@@ -565,7 +566,7 @@ class Flow(BaseModel):
 
             # Prepare block execution parameters
             block_kwargs = self._prepare_block_kwargs(block, runtime_params)
-            
+
             # Add semaphore to block kwargs if provided
             if semaphore is not None:
                 block_kwargs["_flow_semaphore"] = semaphore
