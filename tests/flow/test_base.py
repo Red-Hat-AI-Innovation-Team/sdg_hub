@@ -1121,7 +1121,7 @@ class TestFlow:
         with open(checkpoint_files[0], "r") as f:
             checkpoint_data = json.loads(f.readline())
             assert "final" in checkpoint_data
-            
+
     def test_generate_with_log_dir(self):
         """Test generation with log_dir parameter for dual logging."""
         block = self.create_mock_block("test_block", output_cols=["output"])
@@ -1214,7 +1214,7 @@ class TestFlow:
         # Should have checkpoint files
         checkpoint_files = list(checkpoint_dir.glob("checkpoint_*.jsonl"))
         assert len(checkpoint_files) == 2
-        
+
     def test_create_block_from_config_block_not_found(self):
         """Test _create_block_from_config when block type is not found in registry."""
         # Standard
