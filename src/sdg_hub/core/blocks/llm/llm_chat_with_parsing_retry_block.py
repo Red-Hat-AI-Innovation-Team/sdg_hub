@@ -427,11 +427,15 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                                 for parsed_row in parsed_result:
                                     if total_parsed_count >= target:
                                         break
-                                    
+
                                     # Only count as successful if ALL output columns are present
-                                    if all(col in parsed_row for col in self.output_cols):
+                                    if all(
+                                        col in parsed_row for col in self.output_cols
+                                    ):
                                         for col in self.output_cols:
-                                            accumulated_parsed_items[col].append(parsed_row[col])
+                                            accumulated_parsed_items[col].append(
+                                                parsed_row[col]
+                                            )
                                         total_parsed_count += 1
                                         new_parsed_count += 1
                                     # If any column is missing, skip this parsed response entirely

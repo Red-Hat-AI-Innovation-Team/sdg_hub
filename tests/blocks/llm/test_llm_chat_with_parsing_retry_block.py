@@ -993,17 +993,19 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
             mock_response = MagicMock()
             mock_response.choices = [MagicMock(), MagicMock(), MagicMock()]
             # Response 1: Complete parse (both explanation and answer)
-            mock_response.choices[0].message.content = (
-                "<explanation>Complete explanation</explanation><answer>Complete answer</answer>"
-            )
+            mock_response.choices[
+                0
+            ].message.content = "<explanation>Complete explanation</explanation><answer>Complete answer</answer>"
             # Response 2: Partial parse (only explanation, missing answer)
-            mock_response.choices[1].message.content = (
+            mock_response.choices[
+                1
+            ].message.content = (
                 "<explanation>Partial explanation</explanation>No answer tag here"
             )
             # Response 3: Another complete parse
-            mock_response.choices[2].message.content = (
-                "<explanation>Another explanation</explanation><answer>Another answer</answer>"
-            )
+            mock_response.choices[
+                2
+            ].message.content = "<explanation>Another explanation</explanation><answer>Another answer</answer>"
             mock_completion.return_value = mock_response
 
             block = LLMChatWithParsingRetryBlock(
@@ -1027,17 +1029,19 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
             # Should have 1 row with lists containing only the 2 complete parses
             assert len(result) == 1
             row = result[0]
-            
+
             # Both lists should have exactly 2 items (only complete parses counted)
             assert len(row["explanation"]) == 2
             assert len(row["answer"]) == 2
-            
+
             # Should contain only the complete parses, skipping the partial one
             assert row["explanation"] == ["Complete explanation", "Another explanation"]
             assert row["answer"] == ["Complete answer", "Another answer"]
-            
+
             # Verify lists are properly aligned (same indices correspond to same response)
-            assert "Complete" in row["explanation"][0] and "Complete" in row["answer"][0]
+            assert (
+                "Complete" in row["explanation"][0] and "Complete" in row["answer"][0]
+            )
             assert "Another" in row["explanation"][1] and "Another" in row["answer"][1]
 
     def test_non_list_columns_preserved_both_modes(self):
