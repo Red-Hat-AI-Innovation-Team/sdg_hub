@@ -119,12 +119,19 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             "output_cols",
         }
 
-        # Only pass parameters that the target block accepts
-        return {
+        # Extract parameters that the target block accepts
+        params = {
             k: v
             for k, v in kwargs.items()
             if k in block_class.model_fields and k not in wrapper_params
         }
+
+        # Add required defaults for ColumnValueFilterBlock
+        if block_class.__name__ == "ColumnValueFilterBlock":
+            params.setdefault("filter_value", "YES")
+            params.setdefault("operation", "eq")
+
+        return params
 
     def _create_internal_blocks(self, **kwargs):
         """Create internal blocks with parameter routing."""
@@ -134,22 +141,11 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         parser_params = self._extract_params(kwargs, TextParserBlock)
         filter_params = self._extract_params(kwargs, ColumnValueFilterBlock)
 
-        # Create prompt builder - requires prompt_config_path
-        prompt_config_path = kwargs.get("prompt_config_path")
-        if not prompt_config_path:
-            raise ValueError("prompt_config_path is required")
-
-        # Remove prompt_config_path from prompt_params to avoid duplicate
-        prompt_params_clean = {
-            k: v for k, v in prompt_params.items() if k != "prompt_config_path"
-        }
-
         self.prompt_builder = PromptBuilderBlock(
             block_name=f"{self.block_name}_prompt_builder",
             input_cols=["document", "response"],
             output_cols=["eval_faithfulness_prompt"],
-            prompt_config_path=prompt_config_path,
-            **prompt_params_clean,
+            **prompt_params,
         )
 
         # Create LLM chat block with dynamic LLM parameter forwarding
@@ -178,16 +174,10 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             **parser_params,
         )
 
-        # Create filter block - requires filter_value and operation
-        filter_value = kwargs.get("filter_value", "YES")
-        operation = kwargs.get("operation", "eq")
-
         self.filter_block = ColumnValueFilterBlock(
             block_name=f"{self.block_name}_filter",
             input_cols=["faithfulness_judgment"],
             output_cols=[],  # Filter doesn't create new columns
-            filter_value=filter_value,
-            operation=operation,
             **filter_params,
         )
 
