@@ -19,6 +19,7 @@ from datasets import Dataset
 from pydantic import Field, field_validator
 
 # Local
+from ...utils.error_handling import BlockValidationError
 from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
 from ..filtering.column_value_filter import ColumnValueFilterBlock
@@ -49,40 +50,33 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         Input columns: ["document", "response"]
     output_cols : List[str]
         Output columns: ["faithfulness_explanation", "faithfulness_judgment"]
-    prompt_config_path : str
-        Path to YAML prompt template file.
     model : Optional[str]
         LLM model identifier (for flow detection).
     api_base : Optional[str]
         API base URL (for flow detection).
     api_key : Optional[str]
         API key (for flow detection).
+    prompt_config_path : str
+        Path to YAML prompt template file (required in kwargs).
     filter_value : str, optional
-        Value to filter on (default: "YES").
+        Value to filter on (default: "YES", passed in kwargs).
     operation : str, optional
-        Filter operation (default: "eq").
+        Filter operation (default: "eq", passed in kwargs).
     **kwargs : Any
-        All other parameters are automatically routed to appropriate internal blocks.
+        All other parameters are automatically routed to appropriate internal blocks
+        based on each block's accepted parameters.
     """
-
-    # --- Block-specific configuration ---
-    prompt_config_path: str = Field(..., description="Path to YAML prompt template")
-    filter_value: str = Field("YES", description="Filter value for judgment")
-    operation: str = Field("eq", description="Filter operation")
 
     # --- Minimal LLM interface (for flow detection) ---
     model: Optional[str] = Field(None, description="LLM model identifier")
     api_base: Optional[str] = Field(None, description="API base URL")
     api_key: Optional[str] = Field(None, description="API key")
-    extra_headers: Optional[dict] = Field(
-        None, description="Extra headers for LLM requests"
-    )
 
     # --- Internal blocks (composition) ---
-    prompt_builder: PromptBuilderBlock = Field(None, exclude=True)
-    llm_chat: LLMChatBlock = Field(None, exclude=True)
-    text_parser: TextParserBlock = Field(None, exclude=True)
-    filter_block: ColumnValueFilterBlock = Field(None, exclude=True)
+    prompt_builder: PromptBuilderBlock = Field(None, exclude=True)  # type: ignore
+    llm_chat: LLMChatBlock = Field(None, exclude=True)  # type: ignore
+    text_parser: TextParserBlock = Field(None, exclude=True)  # type: ignore
+    filter_block: ColumnValueFilterBlock = Field(None, exclude=True)  # type: ignore
 
     @field_validator("input_cols")
     @classmethod
@@ -117,20 +111,19 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             )
 
     def _extract_params(self, kwargs: dict, block_class) -> dict:
-        """Extract parameters belonging to specific block class."""
-        # Exclude parameters we explicitly set for internal blocks
-        exclude_params = {
+        """Extract parameters for specific block class based on its model_fields."""
+        # Exclude parameters that are handled by this wrapper
+        wrapper_params = {
             "block_name",
             "input_cols",
             "output_cols",
-            "prompt_config_path",
-            "filter_value",
-            "operation",
         }
+
+        # Only pass parameters that the target block accepts
         return {
             k: v
             for k, v in kwargs.items()
-            if k in block_class.model_fields and k not in exclude_params
+            if k in block_class.model_fields and k not in wrapper_params
         }
 
     def _create_internal_blocks(self, **kwargs):
@@ -141,13 +134,22 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         parser_params = self._extract_params(kwargs, TextParserBlock)
         filter_params = self._extract_params(kwargs, ColumnValueFilterBlock)
 
-        # Create prompt builder
+        # Create prompt builder - requires prompt_config_path
+        prompt_config_path = kwargs.get("prompt_config_path")
+        if not prompt_config_path:
+            raise ValueError("prompt_config_path is required")
+
+        # Remove prompt_config_path from prompt_params to avoid duplicate
+        prompt_params_clean = {
+            k: v for k, v in prompt_params.items() if k != "prompt_config_path"
+        }
+
         self.prompt_builder = PromptBuilderBlock(
             block_name=f"{self.block_name}_prompt_builder",
             input_cols=["document", "response"],
             output_cols=["eval_faithfulness_prompt"],
-            prompt_config_path=self.prompt_config_path,
-            **prompt_params,
+            prompt_config_path=prompt_config_path,
+            **prompt_params_clean,
         )
 
         # Create LLM chat block with dynamic LLM parameter forwarding
@@ -165,8 +167,6 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             llm_config["api_base"] = self.api_base
         if self.api_key is not None:
             llm_config["api_key"] = self.api_key
-        if self.extra_headers is not None:
-            llm_config["extra_headers"] = self.extra_headers
 
         self.llm_chat = LLMChatBlock(**llm_config)
 
@@ -178,13 +178,16 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             **parser_params,
         )
 
-        # Create filter block
+        # Create filter block - requires filter_value and operation
+        filter_value = kwargs.get("filter_value", "YES")
+        operation = kwargs.get("operation", "eq")
+
         self.filter_block = ColumnValueFilterBlock(
             block_name=f"{self.block_name}_filter",
             input_cols=["faithfulness_judgment"],
             output_cols=[],  # Filter doesn't create new columns
-            filter_value=self.filter_value,
-            operation=self.operation,
+            filter_value=filter_value,
+            operation=operation,
             **filter_params,
         )
 
@@ -205,8 +208,6 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         """
         # Validate model is configured
         if not self.model:
-            from ...utils.error_handling import BlockValidationError
-
             raise BlockValidationError(
                 f"Model not configured for block '{self.block_name}'. "
                 f"Call flow.set_model_config() before generating."
@@ -262,7 +263,12 @@ class EvaluateFaithfulnessBlock(BaseBlock):
 
     def __repr__(self) -> str:
         """String representation of the block."""
+        filter_value = (
+            getattr(self.filter_block, "filter_value", "YES")
+            if hasattr(self, "filter_block")
+            else "YES"
+        )
         return (
             f"EvaluateFaithfulnessBlock(name='{self.block_name}', "
-            f"model='{self.model}', filter_value='{self.filter_value}')"
+            f"model='{self.model}', filter_value='{filter_value}')"
         )
