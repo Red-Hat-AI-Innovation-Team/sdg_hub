@@ -296,6 +296,10 @@ class LLMChatBlock(BaseBlock):
             Valid parameters depend on the provider but typically include:
             temperature, max_tokens, top_p, frequency_penalty, presence_penalty,
             stop, seed, response_format, stream, n, and provider-specific params.
+            
+            Special flow-level parameters:
+            _flow_semaphore : asyncio.Semaphore, optional
+                Semaphore for controlling concurrency (passed by Flow).
 
         Returns
         -------
@@ -314,18 +318,23 @@ class LLMChatBlock(BaseBlock):
                 f"Call flow.set_model_config() before generating."
             )
 
+        # Extract semaphore if provided by flow
+        flow_semaphore = override_kwargs.pop("_flow_semaphore", None)
+
         # Extract messages
         messages_list = samples[self.input_cols[0]]
 
         # Log generation start
         logger.info(
-            f"Starting {'async' if self.async_mode else 'sync'} generation for {len(messages_list)} samples",
+            f"Starting {'async' if self.async_mode else 'sync'} generation for {len(messages_list)} samples"
+            + (f" (max_concurrency controlled by flow)" if flow_semaphore else ""),
             extra={
                 "block_name": self.block_name,
                 "model": self.model,
                 "provider": self.client_manager.config.get_provider(),
                 "batch_size": len(messages_list),
                 "async_mode": self.async_mode,
+                "has_flow_semaphore": flow_semaphore is not None,
                 "override_params": override_kwargs,
             },
         )
@@ -333,7 +342,7 @@ class LLMChatBlock(BaseBlock):
         # Generate responses
         if self.async_mode:
             responses = asyncio.run(
-                self._generate_async(messages_list, **override_kwargs)
+                self._generate_async(messages_list, flow_semaphore, **override_kwargs)
             )
         else:
             responses = self._generate_sync(messages_list, **override_kwargs)
@@ -409,6 +418,7 @@ class LLMChatBlock(BaseBlock):
     async def _generate_async(
         self,
         messages_list: list[list[dict[str, Any]]],
+        flow_semaphore: Optional[Any] = None,
         **override_kwargs: dict[str, Any],
     ) -> list[Union[str, list[str]]]:
         """Generate responses asynchronously.
@@ -417,6 +427,8 @@ class LLMChatBlock(BaseBlock):
         ----------
         messages_list : List[List[Dict[str, Any]]]
             List of message lists to process.
+        flow_semaphore : Optional[asyncio.Semaphore], optional
+            Semaphore for controlling concurrency.
         **override_kwargs : Dict[str, Any]
             Runtime parameter overrides.
 
@@ -426,9 +438,23 @@ class LLMChatBlock(BaseBlock):
             List of response strings or lists of response strings (when n > 1).
         """
         try:
-            responses = await self.client_manager.acreate_completions_batch(
-                messages_list, **override_kwargs
-            )
+            if flow_semaphore:
+                # Process with semaphore control
+                async def _create_with_semaphore(messages):
+                    async with flow_semaphore:
+                        return await self.client_manager.acreate_completion(
+                            messages, **override_kwargs
+                        )
+                
+                # Create tasks for all messages
+                tasks = [_create_with_semaphore(messages) for messages in messages_list]
+                responses = await asyncio.gather(*tasks)
+            else:
+                # Use existing batch method without semaphore
+                responses = await self.client_manager.acreate_completions_batch(
+                    messages_list, **override_kwargs
+                )
+            
             return responses
 
         except Exception as e:
