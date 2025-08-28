@@ -278,8 +278,6 @@ class TextParserBlock(BaseBlock):
                     return []
 
                 # Return single row with lists as values
-                # TODO: This breaks retry counting in LLMChatWithParsingRetryBlock until LLMChatWithParsingRetryBlock is re-based
-                # which expects one row per successful parse for counting
                 return [{**sample, **all_parsed_outputs}]
 
             else:

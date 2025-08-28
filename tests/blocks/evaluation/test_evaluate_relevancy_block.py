@@ -65,11 +65,11 @@ class TestEvaluateRelevancyBlock:
 
     def test_block_registry(self):
         """Test that EvaluateRelevancyBlock is properly registered."""
-        block_class = BlockRegistry.get("EvaluateRelevancyBlock")
+        block_class = BlockRegistry._get("EvaluateRelevancyBlock")
         assert block_class == EvaluateRelevancyBlock
 
         # Check category
-        eval_blocks = BlockRegistry.category("evaluation")
+        eval_blocks = BlockRegistry.list_blocks(category="evaluation")
         assert "EvaluateRelevancyBlock" in eval_blocks
 
     def test_init_with_valid_params(self, test_yaml_config):

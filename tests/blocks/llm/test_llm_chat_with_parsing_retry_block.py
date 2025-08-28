@@ -770,6 +770,374 @@ class TestLLMChatWithParsingRetryBlockRegistration:
         )
 
 
+class TestLLMChatWithParsingRetryBlockExpandListsFalse:
+    """Test expand_lists=False behavior for retry counting."""
+
+    def test_expand_lists_false_successful_first_attempt(
+        self, mock_litellm_completion_multiple, sample_dataset
+    ):
+        """Test expand_lists=False with successful parsing on first attempt."""
+        block = LLMChatWithParsingRetryBlock(
+            block_name="test_expand_false",
+            input_cols="messages",
+            output_cols="answer",
+            model="openai/gpt-4",
+            start_tags=["<answer>"],
+            end_tags=["</answer>"],
+            expand_lists=False,  # Key: disable list expansion
+            n=3,  # Request 3 responses
+            parsing_max_retries=2,
+        )
+
+        result = block.generate(sample_dataset)
+
+        # Should return 2 rows (one per input sample) with lists as values
+        assert len(result) == 2
+        for row in result:
+            assert "answer" in row
+            assert isinstance(row["answer"], list)
+            assert len(row["answer"]) == 3  # All 3 responses parsed successfully
+            assert row["answer"] == ["Response 1", "Response 2", "Response 3"]
+
+        # Should only call LLM once per sample (no retries needed)
+        assert mock_litellm_completion_multiple.call_count == 2
+
+    def test_expand_lists_false_partial_success_with_retry(self, sample_dataset):
+        """Test expand_lists=False with partial success requiring retries."""
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
+            # First call: 2 responses, only 1 parseable
+            mock_response_1 = MagicMock()
+            mock_response_1.choices = [MagicMock(), MagicMock()]
+            mock_response_1.choices[0].message.content = "<answer>First good</answer>"
+            mock_response_1.choices[1].message.content = "Unparseable response"
+
+            # Second call: 2 responses, only 1 parseable (should reach target of 2)
+            mock_response_2 = MagicMock()
+            mock_response_2.choices = [MagicMock(), MagicMock()]
+            mock_response_2.choices[0].message.content = "<answer>Second good</answer>"
+            mock_response_2.choices[1].message.content = "Also unparseable"
+
+            mock_completion.side_effect = [mock_response_1, mock_response_2] * 2
+
+            block = LLMChatWithParsingRetryBlock(
+                block_name="test_expand_false_retry",
+                input_cols="messages",
+                output_cols="answer",
+                model="openai/gpt-4",
+                start_tags=["<answer>"],
+                end_tags=["</answer>"],
+                expand_lists=False,
+                n=2,  # Need 2 successful parses
+                parsing_max_retries=3,
+            )
+
+            result = block.generate(sample_dataset)
+
+            # Should return 2 rows with accumulated successful parses as lists
+            assert len(result) == 2
+            for row in result:
+                assert isinstance(row["answer"], list)
+                assert len(row["answer"]) == 2
+                assert row["answer"] == ["First good", "Second good"]
+
+            # Should call LLM twice per sample (1 retry each)
+            assert mock_completion.call_count == 4
+
+    def test_expand_lists_false_max_retries_exceeded(self, sample_dataset):
+        """Test expand_lists=False with MaxRetriesExceededError."""
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
+            # Always return 1 parseable out of 3 needed
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock(), MagicMock()]
+            mock_response.choices[0].message.content = "<answer>Only one good</answer>"
+            mock_response.choices[1].message.content = "Unparseable"
+            mock_completion.return_value = mock_response
+
+            block = LLMChatWithParsingRetryBlock(
+                block_name="test_expand_false_failure",
+                input_cols="messages",
+                output_cols="answer",
+                model="openai/gpt-4",
+                start_tags=["<answer>"],
+                end_tags=["</answer>"],
+                expand_lists=False,
+                n=3,  # Need 3 successful parses
+                parsing_max_retries=2,
+            )
+
+            single_dataset = Dataset.from_dict(
+                {"messages": [sample_dataset["messages"][0]]}
+            )
+
+            with pytest.raises(MaxRetriesExceededError) as exc_info:
+                block.generate(single_dataset)
+
+            error = exc_info.value
+            assert error.target_count == 3
+            assert error.actual_count == 2  # Got 1 per retry × 2 retries
+            assert error.max_retries == 2
+
+    def test_expand_lists_false_vs_true_comparison(self, sample_dataset):
+        """Test that expand_lists=False vs True produce different output structures."""
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock(), MagicMock()]
+            mock_response.choices[0].message.content = "<answer>Response 1</answer>"
+            mock_response.choices[1].message.content = "<answer>Response 2</answer>"
+            mock_completion.return_value = mock_response
+
+            # Test expand_lists=False
+            block_false = LLMChatWithParsingRetryBlock(
+                block_name="test_false",
+                input_cols="messages",
+                output_cols="answer",
+                model="openai/gpt-4",
+                start_tags=["<answer>"],
+                end_tags=["</answer>"],
+                expand_lists=False,
+                n=2,
+            )
+
+            # Test expand_lists=True (default)
+            block_true = LLMChatWithParsingRetryBlock(
+                block_name="test_true",
+                input_cols="messages",
+                output_cols="answer",
+                model="openai/gpt-4",
+                start_tags=["<answer>"],
+                end_tags=["</answer>"],
+                expand_lists=True,
+                n=2,
+            )
+
+            single_dataset = Dataset.from_dict(
+                {"messages": [sample_dataset["messages"][0]]}
+            )
+
+            result_false = block_false.generate(single_dataset)
+            mock_completion.reset_mock()  # Reset call count
+            result_true = block_true.generate(single_dataset)
+
+            # expand_lists=False: 1 row with list values
+            assert len(result_false) == 1
+            assert isinstance(result_false[0]["answer"], list)
+            assert result_false[0]["answer"] == ["Response 1", "Response 2"]
+
+            # expand_lists=True: 2 rows with individual values
+            assert len(result_true) == 2
+            assert result_true[0]["answer"] == "Response 1"
+            assert result_true[1]["answer"] == "Response 2"
+
+    def test_expand_lists_flag_restored_on_exception(self, sample_dataset):
+        """Test that expand_lists flag is properly restored even when parsing throws an exception."""
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
+            # Mock successful LLM response
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "<answer>Response</answer>"
+            mock_completion.return_value = mock_response
+
+            block = LLMChatWithParsingRetryBlock(
+                block_name="test_flag_restore",
+                input_cols="messages",
+                output_cols="answer",
+                model="openai/gpt-4",
+                start_tags=["<answer>"],
+                end_tags=["</answer>"],
+                expand_lists=False,  # Original setting should be restored
+                n=1,
+                parsing_max_retries=2,
+            )
+
+            # Verify initial state
+            assert block.text_parser.expand_lists is False
+
+            # Mock the text parser to throw an exception during generate
+            original_generate = block.text_parser.generate
+
+            def mock_generate_with_exception(*args, **kwargs):
+                if (
+                    block.text_parser.expand_lists is True
+                ):  # Only throw when temporarily True
+                    raise ValueError("Simulated parsing exception")
+                return original_generate(*args, **kwargs)
+
+            with patch.object(
+                block.text_parser, "generate", side_effect=mock_generate_with_exception
+            ):
+                single_dataset = Dataset.from_dict(
+                    {"messages": [sample_dataset["messages"][0]]}
+                )
+
+                # This should fail due to parsing exceptions, but expand_lists should be restored
+                with pytest.raises(MaxRetriesExceededError):
+                    block.generate(single_dataset)
+
+            # Critical assertion: expand_lists should be back to original False value
+            assert block.text_parser.expand_lists is False
+
+    def test_partial_parses_rejected_expand_lists_false(self, sample_dataset):
+        """Test that partial parses (missing some output columns) are rejected when expand_lists=False."""
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
+            # Mock responses where some have complete parses, others have partial parses
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock(), MagicMock(), MagicMock()]
+            # Response 1: Complete parse (both explanation and answer)
+            mock_response.choices[
+                0
+            ].message.content = "<explanation>Complete explanation</explanation><answer>Complete answer</answer>"
+            # Response 2: Partial parse (only explanation, missing answer)
+            mock_response.choices[
+                1
+            ].message.content = (
+                "<explanation>Partial explanation</explanation>No answer tag here"
+            )
+            # Response 3: Another complete parse
+            mock_response.choices[
+                2
+            ].message.content = "<explanation>Another explanation</explanation><answer>Another answer</answer>"
+            mock_completion.return_value = mock_response
+
+            block = LLMChatWithParsingRetryBlock(
+                block_name="test_partial_reject",
+                input_cols="messages",
+                output_cols=["explanation", "answer"],  # Both columns required
+                model="openai/gpt-4",
+                start_tags=["<explanation>", "<answer>"],
+                end_tags=["</explanation>", "</answer>"],
+                expand_lists=False,
+                n=2,  # Want 2 complete parses
+                parsing_max_retries=3,
+            )
+
+            single_dataset = Dataset.from_dict(
+                {"messages": [sample_dataset["messages"][0]]}
+            )
+
+            result = block.generate(single_dataset)
+
+            # Should have 1 row with lists containing only the 2 complete parses
+            assert len(result) == 1
+            row = result[0]
+
+            # Both lists should have exactly 2 items (only complete parses counted)
+            assert len(row["explanation"]) == 2
+            assert len(row["answer"]) == 2
+
+            # Should contain only the complete parses, skipping the partial one
+            assert row["explanation"] == ["Complete explanation", "Another explanation"]
+            assert row["answer"] == ["Complete answer", "Another answer"]
+
+            # Verify lists are properly aligned (same indices correspond to same response)
+            assert (
+                "Complete" in row["explanation"][0] and "Complete" in row["answer"][0]
+            )
+            assert "Another" in row["explanation"][1] and "Another" in row["answer"][1]
+
+    def test_non_list_columns_preserved_both_modes(self):
+        """Test that non-output columns are preserved with correct types in both expand_lists modes."""
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock(), MagicMock()]
+            mock_response.choices[0].message.content = "<answer>Response 1</answer>"
+            mock_response.choices[1].message.content = "<answer>Response 2</answer>"
+            mock_completion.return_value = mock_response
+
+            # Create dataset with various column types that should be preserved
+            test_dataset = Dataset.from_dict(
+                {
+                    "messages": [[{"role": "user", "content": "test"}]],
+                    "context_id": [123],  # integer
+                    "user_name": ["alice"],  # string
+                    "is_premium": [True],  # boolean
+                    "metadata": [{"key": "value"}],  # dict
+                }
+            )
+
+            # Test expand_lists=False
+            block_false = LLMChatWithParsingRetryBlock(
+                block_name="test_preserve_false",
+                input_cols="messages",
+                output_cols="answer",
+                model="openai/gpt-4",
+                start_tags=["<answer>"],
+                end_tags=["</answer>"],
+                expand_lists=False,
+                n=2,
+            )
+
+            result_false = block_false.generate(test_dataset)
+
+            # Should have 1 row (expand_lists=False)
+            assert len(result_false) == 1
+            row = result_false[0]
+
+            # New parsed output column should be a list
+            assert isinstance(row["answer"], list)
+            assert row["answer"] == ["Response 1", "Response 2"]
+
+            # All original columns should be preserved with original types
+            assert row["context_id"] == 123
+            assert isinstance(row["context_id"], int)
+            assert row["user_name"] == "alice"
+            assert isinstance(row["user_name"], str)
+            assert row["is_premium"] is True
+            assert isinstance(row["is_premium"], bool)
+            assert row["metadata"] == {"key": "value"}
+            assert isinstance(row["metadata"], dict)
+            assert row["messages"] == [{"role": "user", "content": "test"}]
+            assert isinstance(row["messages"], list)
+
+            mock_completion.reset_mock()
+
+            # Test expand_lists=True
+            block_true = LLMChatWithParsingRetryBlock(
+                block_name="test_preserve_true",
+                input_cols="messages",
+                output_cols="answer",
+                model="openai/gpt-4",
+                start_tags=["<answer>"],
+                end_tags=["</answer>"],
+                expand_lists=True,
+                n=2,
+            )
+
+            result_true = block_true.generate(test_dataset)
+
+            # Should have 2 rows (expand_lists=True)
+            assert len(result_true) == 2
+
+            for i, row in enumerate(result_true):
+                # New parsed output column should be individual strings
+                expected_answer = f"Response {i + 1}"
+                assert row["answer"] == expected_answer
+                assert isinstance(row["answer"], str)
+
+                # All original columns should be preserved with original types
+                assert row["context_id"] == 123
+                assert isinstance(row["context_id"], int)
+                assert row["user_name"] == "alice"
+                assert isinstance(row["user_name"], str)
+                assert row["is_premium"] is True
+                assert isinstance(row["is_premium"], bool)
+                assert row["metadata"] == {"key": "value"}
+                assert isinstance(row["metadata"], dict)
+                assert row["messages"] == [{"role": "user", "content": "test"}]
+                assert isinstance(row["messages"], list)
+
+
 class TestLLMChatWithParsingRetryBlockIntegration:
     """Integration tests with real internal block behavior."""
 

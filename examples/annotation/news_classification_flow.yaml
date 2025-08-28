@@ -1,0 +1,185 @@
+metadata:
+  name: news_classification_flow
+  id: open-forest-413
+  description: A flow for news article classification with assessment and revision
+  version: 1.0.0
+  author: sdg_hub
+  recommended_models: null
+  tags: []
+  created_at: '2025-08-19T21:19:34.860381'
+  updated_at: '2025-08-19T21:19:34.860389'
+  license: Apache-2.0
+  min_sdg_hub_version: ''
+  dataset_requirements: null
+  estimated_cost: medium
+  estimated_duration: ''
+blocks:
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: annotation_prompt_builder
+    input_cols:
+    - text
+    output_cols:
+    - annotation_prompt
+    prompt_config_path: news_classification_prompt.yaml
+    format_as_messages: true
+- block_type: LLMChatBlock
+  block_config:
+    block_name: annotation_llm_chat_block
+    input_cols:
+    - annotation_prompt
+    output_cols:
+    - raw_output
+    model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
+    api_key: ''
+    api_base: http://localhost:8000/v1
+    async_mode: true
+    timeout: 120.0
+    max_retries: 6
+    temperature: 0.0
+    max_tokens: 5
+    top_p: null
+    frequency_penalty: null
+    presence_penalty: null
+    stop: null
+    seed: null
+    response_format: null
+    stream: null
+    n: null
+    logprobs: null
+    top_logprobs: null
+    user: null
+    extra_headers: null
+    extra_body:
+      guided_choice:
+      - World
+      - Sports
+      - Business
+      - Sci/Tech
+    provider_specific: null
+- block_type: TextParserBlock
+  block_config:
+    block_name: annotation_text_parser_block
+    input_cols:
+    - raw_output
+    output_cols:
+    - output
+    start_tags:
+    - ''
+    end_tags:
+    - ''
+    parsing_pattern: null
+    parser_cleanup_tags: null
+    expand_lists: true
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: verifier_prompt_builder
+    input_cols:
+    - text
+    - output
+    output_cols:
+    - assessment_prompt
+    prompt_config_path: news_classification_assessment_prompt.yaml
+    format_as_messages: true
+- block_type: LLMChatBlock
+  block_config:
+    block_name: verifier_llm_chat_block
+    input_cols:
+    - assessment_prompt
+    output_cols:
+    - raw_assessment_output
+    model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
+    api_key: ''
+    api_base: http://localhost:8000/v1
+    async_mode: true
+    timeout: 120.0
+    max_retries: 6
+    temperature: null
+    max_tokens: null
+    top_p: null
+    frequency_penalty: null
+    presence_penalty: null
+    stop: null
+    seed: null
+    response_format: null
+    stream: null
+    n: null
+    logprobs: null
+    top_logprobs: null
+    user: null
+    extra_headers: null
+    extra_body: null
+    provider_specific: null
+- block_type: TextParserBlock
+  block_config:
+    block_name: verifier_text_parser_block
+    input_cols:
+    - raw_assessment_output
+    output_cols:
+    - assessment_output
+    start_tags:
+    - ''
+    end_tags:
+    - ''
+    parsing_pattern: null
+    parser_cleanup_tags: null
+    expand_lists: true
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: revised_prompt_builder
+    input_cols:
+    - text
+    - output
+    - assessment_output
+    output_cols:
+    - revised_prompt
+    prompt_config_path: revise_news_classification_prompt.yaml
+    format_as_messages: true
+- block_type: LLMChatBlock
+  block_config:
+    block_name: revised_llm_chat_block
+    input_cols:
+    - revised_prompt
+    output_cols:
+    - raw_revised_output
+    model: hosted_vllm/meta-llama/Llama-3.3-70B-Instruct
+    api_key: ''
+    api_base: http://localhost:8000/v1
+    async_mode: true
+    timeout: 120.0
+    max_retries: 6
+    temperature: 0.0
+    max_tokens: 5
+    top_p: null
+    frequency_penalty: null
+    presence_penalty: null
+    stop: null
+    seed: null
+    response_format: null
+    stream: null
+    n: null
+    logprobs: null
+    top_logprobs: null
+    user: null
+    extra_headers: null
+    extra_body:
+      guided_choice:
+      - World
+      - Sports
+      - Business
+      - Sci/Tech
+    provider_specific: null
+- block_type: TextParserBlock
+  block_config:
+    block_name: revised_text_parser_block
+    input_cols:
+    - raw_revised_output
+    output_cols:
+    - revised_output
+    start_tags:
+    - ''
+    end_tags:
+    - ''
+    parsing_pattern: null
+    parser_cleanup_tags: null
+    expand_lists: true
