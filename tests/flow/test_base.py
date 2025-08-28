@@ -1173,3 +1173,72 @@ class TestFlow:
             # Verify the blocks are flattened from all categories
             mock_list_blocks.assert_called_once_with()
             mock_get.assert_called_once_with("nonexistent_block")
+
+    def test_generate_with_max_concurrency_limit(self):
+        """Test that max_concurrency limits concurrent requests."""
+        import asyncio
+        
+        active, max_concurrent = [0], [0]
+        
+        async def mock_acreate(*args, **kwargs):
+            active[0] += 1
+            max_concurrent[0] = max(max_concurrent[0], active[0])
+            await asyncio.sleep(0.01)
+            active[0] -= 1
+            return "response"
+        
+        # Use real LLMChatBlock
+        from sdg_hub.core.blocks.llm.llm_chat_block import LLMChatBlock
+        
+        messages_data = [[{"role": "user", "content": f"test {i}"}] for i in range(10)]
+        dataset = Dataset.from_dict({"messages": messages_data})
+        
+        llm_block = LLMChatBlock(
+            block_name="llm_block", 
+            input_cols="messages",
+            output_cols="output",
+            model="test/model",
+            async_mode=True
+        )
+        llm_block.client_manager.acreate_completion = mock_acreate
+        
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+        flow._model_config_set = True
+        
+        flow.generate(Dataset.from_dict({"messages": messages_data}), max_concurrency=3)
+        assert max_concurrent[0] <= 3
+
+    def test_generate_without_concurrency_limit(self):
+        """Test that without max_concurrency, all requests run concurrently."""
+        import asyncio
+        
+        active, max_concurrent = [0], [0]
+        
+        async def mock_acreate(*args, **kwargs):
+            active[0] += 1
+            max_concurrent[0] = max(max_concurrent[0], active[0])
+            await asyncio.sleep(0.01)
+            active[0] -= 1
+            return "response"
+        
+        # Use real LLMChatBlock instead of MockBlock
+        from sdg_hub.core.blocks.llm.llm_chat_block import LLMChatBlock
+        
+        # Create dataset with messages format (required for LLMChatBlock)
+        messages_data = [[{"role": "user", "content": f"test {i}"}] for i in range(5)]
+        dataset = Dataset.from_dict({"messages": messages_data})
+        
+        llm_block = LLMChatBlock(
+            block_name="llm_block",
+            input_cols="messages",
+            output_cols="output",
+            model="test/model",
+            async_mode=True
+        )
+        llm_block.client_manager.acreate_completion = mock_acreate
+        
+        flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
+        flow._model_config_set = True
+        
+        flow.generate(dataset)
+        assert max_concurrent[0] == 5
