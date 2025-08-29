@@ -1,10 +1,10 @@
 # Third Party
-import pytest
 from datasets import Dataset
 
 # First Party
 from sdg_hub.core.utils.datautils import validate_no_duplicates
 from sdg_hub.core.utils.error_handling import FlowValidationError
+import pytest
 
 
 def test_validate_no_duplicates_with_unique_data():
