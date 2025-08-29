@@ -400,10 +400,15 @@ class Flow(BaseModel):
             )
 
         # Validate max_concurrency parameter
-        if max_concurrency is not None and max_concurrency <= 0:
-            raise FlowValidationError(
-                f"max_concurrency must be greater than 0, got {max_concurrency}"
-            )
+        if max_concurrency is not None:
+            if not isinstance(max_concurrency, int):
+                raise FlowValidationError(
+                    f"max_concurrency must be an int, got {type(max_concurrency).__name__}"
+                )
+            if max_concurrency <= 0:
+                raise FlowValidationError(
+                    f"max_concurrency must be greater than 0, got {max_concurrency}"
+                )
 
         # Validate preconditions
         if not self.blocks:
@@ -428,13 +433,9 @@ class Flow(BaseModel):
                 "Dataset validation failed:\n" + "\n".join(dataset_errors)
             )
 
-        # Create semaphore for concurrency control if specified
-        semaphore = None
+        # Log concurrency control if specified
         if max_concurrency is not None:
-            import asyncio
-
-            semaphore = asyncio.Semaphore(max_concurrency)
-            logger.info(f"Created semaphore with max_concurrency={max_concurrency}")
+            logger.info(f"Using max_concurrency={max_concurrency} for LLM requests")
 
         # Initialize checkpointer if enabled
         checkpointer = None
@@ -485,7 +486,7 @@ class Flow(BaseModel):
 
                 # Execute all blocks on this chunk
                 processed_chunk = self._execute_blocks_on_dataset(
-                    chunk_dataset, runtime_params, semaphore
+                    chunk_dataset, runtime_params, max_concurrency
                 )
                 all_processed.append(processed_chunk)
 
@@ -510,7 +511,7 @@ class Flow(BaseModel):
         else:
             # Process entire dataset at once
             final_dataset = self._execute_blocks_on_dataset(
-                dataset, runtime_params, semaphore
+                dataset, runtime_params, max_concurrency
             )
 
             # Save final checkpoint if checkpointing enabled
@@ -537,7 +538,7 @@ class Flow(BaseModel):
         self,
         dataset: Dataset,
         runtime_params: dict[str, dict[str, Any]],
-        semaphore: Optional[Any] = None,
+        max_concurrency: Optional[int] = None,
     ) -> Dataset:
         """Execute all blocks in sequence on the given dataset.
 
@@ -547,8 +548,8 @@ class Flow(BaseModel):
             Dataset to process through all blocks.
         runtime_params : Dict[str, Dict[str, Any]]
             Runtime parameters for block execution.
-        semaphore : Optional[asyncio.Semaphore], optional
-            Semaphore for controlling concurrency across blocks.
+        max_concurrency : Optional[int], optional
+            Maximum concurrency for LLM requests across blocks.
 
         Returns
         -------
@@ -567,9 +568,9 @@ class Flow(BaseModel):
             # Prepare block execution parameters
             block_kwargs = self._prepare_block_kwargs(block, runtime_params)
 
-            # Add semaphore to block kwargs if provided
-            if semaphore is not None:
-                block_kwargs["_flow_semaphore"] = semaphore
+            # Add max_concurrency to block kwargs if provided
+            if max_concurrency is not None:
+                block_kwargs["_flow_max_concurrency"] = max_concurrency
 
             try:
                 # Check if this is a deprecated block and skip validations

@@ -298,8 +298,8 @@ class LLMChatBlock(BaseBlock):
             stop, seed, response_format, stream, n, and provider-specific params.
 
             Special flow-level parameters:
-            _flow_semaphore : asyncio.Semaphore, optional
-                Semaphore for controlling concurrency (passed by Flow).
+            _flow_max_concurrency : int, optional
+                Maximum concurrency for async requests (passed by Flow).
 
         Returns
         -------
@@ -318,8 +318,8 @@ class LLMChatBlock(BaseBlock):
                 f"Call flow.set_model_config() before generating."
             )
 
-        # Extract semaphore if provided by flow
-        flow_semaphore = override_kwargs.pop("_flow_semaphore", None)
+        # Extract max_concurrency if provided by flow
+        flow_max_concurrency = override_kwargs.pop("_flow_max_concurrency", None)
 
         # Extract messages
         messages_list = samples[self.input_cols[0]]
@@ -327,23 +327,40 @@ class LLMChatBlock(BaseBlock):
         # Log generation start
         logger.info(
             f"Starting {'async' if self.async_mode else 'sync'} generation for {len(messages_list)} samples"
-            + (" (max_concurrency controlled by flow)" if flow_semaphore else ""),
+            + (
+                f" (max_concurrency={flow_max_concurrency})"
+                if flow_max_concurrency
+                else ""
+            ),
             extra={
                 "block_name": self.block_name,
                 "model": self.model,
                 "provider": self.client_manager.config.get_provider(),
                 "batch_size": len(messages_list),
                 "async_mode": self.async_mode,
-                "has_flow_semaphore": flow_semaphore is not None,
+                "flow_max_concurrency": flow_max_concurrency,
                 "override_params": override_kwargs,
             },
         )
 
         # Generate responses
         if self.async_mode:
-            responses = asyncio.run(
-                self._generate_async(messages_list, flow_semaphore, **override_kwargs)
-            )
+            try:
+                # Check if there's already a running event loop
+                asyncio.get_running_loop()
+            except RuntimeError:
+                # No running loop; safe to create one
+                responses = asyncio.run(
+                    self._generate_async(
+                        messages_list, flow_max_concurrency, **override_kwargs
+                    )
+                )
+            else:
+                # Running inside an event loop, which is not supported
+                raise BlockValidationError(
+                    f"async_mode=True cannot be used from within a running event loop for '{self.block_name}'. "
+                    "Use an async entrypoint or set async_mode=False."
+                )
         else:
             responses = self._generate_sync(messages_list, **override_kwargs)
 
@@ -418,7 +435,7 @@ class LLMChatBlock(BaseBlock):
     async def _generate_async(
         self,
         messages_list: list[list[dict[str, Any]]],
-        flow_semaphore: Optional[Any] = None,
+        flow_max_concurrency: Optional[int] = None,
         **override_kwargs: dict[str, Any],
     ) -> list[Union[str, list[str]]]:
         """Generate responses asynchronously.
@@ -427,8 +444,8 @@ class LLMChatBlock(BaseBlock):
         ----------
         messages_list : List[List[Dict[str, Any]]]
             List of message lists to process.
-        flow_semaphore : Optional[asyncio.Semaphore], optional
-            Semaphore for controlling concurrency.
+        flow_max_concurrency : Optional[int], optional
+            Maximum concurrency for async requests.
         **override_kwargs : Dict[str, Any]
             Runtime parameter overrides.
 
@@ -438,22 +455,10 @@ class LLMChatBlock(BaseBlock):
             List of response strings or lists of response strings (when n > 1).
         """
         try:
-            if flow_semaphore:
-                # Process with semaphore control
-                async def _create_with_semaphore(messages):
-                    async with flow_semaphore:
-                        return await self.client_manager.acreate_completion(
-                            messages, **override_kwargs
-                        )
-
-                # Create tasks for all messages
-                tasks = [_create_with_semaphore(messages) for messages in messages_list]
-                responses = await asyncio.gather(*tasks)
-            else:
-                # Use existing batch method without semaphore
-                responses = await self.client_manager.acreate_completions_batch(
-                    messages_list, **override_kwargs
-                )
+            # Use unified client manager method with optional concurrency control
+            responses = await self.client_manager.acreate_completion(
+                messages_list, max_concurrency=flow_max_concurrency, **override_kwargs
+            )
 
             return responses
 
