@@ -304,7 +304,7 @@ For flows containing LLM blocks, you can control the maximum number of concurren
 # Basic concurrency control
 result = flow.generate(
     dataset,
-    max_concurrency=5  # Max 5 concurrent requests across all LLM blocks
+    max_concurrency=5  # Max 5 concurrent requests per LLM block execution
 )
 
 # Combined with other parameters

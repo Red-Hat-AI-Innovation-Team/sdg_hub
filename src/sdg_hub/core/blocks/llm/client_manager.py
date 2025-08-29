@@ -164,7 +164,7 @@ class LLMClientManager:
         messages: Union[list[dict[str, Any]], list[list[dict[str, Any]]]],
         max_concurrency: Optional[int] = None,
         **overrides: Any,
-    ) -> Union[str, list[str]]:
+    ) -> Union[str, list[str], list[Union[str, list[str]]]]:
         """Create async completion(s) using LiteLLM with optional concurrency control.
 
         Parameters
@@ -181,9 +181,9 @@ class LLMClientManager:
 
         Returns
         -------
-        Union[str, List[str]]
+        Union[str, List[str], List[Union[str, List[str]]]]
             For single message: completion text (string when n=1, list when n>1)
-            For multiple messages: list of completion texts
+            For multiple messages: list of completion texts (each element can be str or List[str])
 
         Raises
         ------

@@ -174,7 +174,7 @@ class IndexBasedMapperBlock(BaseBlock):
             sample[output_col] = sample[source_col]
         return sample
 
-    def generate(self, samples: Dataset) -> Dataset:
+    def generate(self, samples: Dataset, **kwargs) -> Dataset:
         """Generate a new dataset with selected values.
 
         Parameters

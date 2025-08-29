@@ -155,7 +155,7 @@ from sdg_hub import Flow
 flow = Flow.from_yaml("path/to/your/flow.yaml")
 flow.set_model_config(model="openai/gpt-4o", api_key="your-key")
 
-# Control concurrency across all LLM blocks in the flow
+# Control concurrency for each LLM block in the flow
 result = flow.generate(
     dataset, 
     max_concurrency=5  # Max 5 concurrent requests at any time

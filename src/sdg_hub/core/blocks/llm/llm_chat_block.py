@@ -339,7 +339,17 @@ class LLMChatBlock(BaseBlock):
                 "batch_size": len(messages_list),
                 "async_mode": self.async_mode,
                 "flow_max_concurrency": flow_max_concurrency,
-                "override_params": override_kwargs,
+                "override_params": {
+                    k: (
+                        "***"
+                        if any(
+                            s in k.lower()
+                            for s in ["key", "token", "secret", "authorization"]
+                        )
+                        else v
+                    )
+                    for k, v in override_kwargs.items()
+                },
             },
         )
 

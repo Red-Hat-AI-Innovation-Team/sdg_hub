@@ -401,7 +401,10 @@ class Flow(BaseModel):
 
         # Validate max_concurrency parameter
         if max_concurrency is not None:
-            if not isinstance(max_concurrency, int):
+            # Explicitly reject boolean values (bool is a subclass of int in Python)
+            if isinstance(max_concurrency, bool) or not isinstance(
+                max_concurrency, int
+            ):
                 raise FlowValidationError(
                     f"max_concurrency must be an int, got {type(max_concurrency).__name__}"
                 )
