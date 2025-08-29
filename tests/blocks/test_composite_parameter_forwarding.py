@@ -5,16 +5,16 @@ were not being properly forwarded from Flow.set_model_config() to internal LLM b
 in composite blocks.
 """
 
+# Standard
 from unittest.mock import MagicMock, patch
 
+# First Party
 from sdg_hub.core.blocks.evaluation.evaluate_faithfulness_block import (
     EvaluateFaithfulnessBlock,
 )
 from sdg_hub.core.blocks.evaluation.evaluate_relevancy_block import (
     EvaluateRelevancyBlock,
 )
-
-# Test imports
 from sdg_hub.core.blocks.evaluation.verify_question_block import VerifyQuestionBlock
 from sdg_hub.core.blocks.llm.llm_chat_with_parsing_retry_block import (
     LLMChatWithParsingRetryBlock,

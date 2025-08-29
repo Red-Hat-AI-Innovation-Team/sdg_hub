@@ -2,16 +2,14 @@
 """Tests for VerifyQuestionBlock."""
 
 # Standard
-from unittest.mock import MagicMock, patch
 import os
 import tempfile
-
-# Third Party
-from datasets import Dataset
 
 # First Party
 from sdg_hub import BlockRegistry
 from sdg_hub.core.blocks.evaluation.verify_question_block import VerifyQuestionBlock
+
+# Third Party
 import pytest
 
 

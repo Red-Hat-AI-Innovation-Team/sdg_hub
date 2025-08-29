@@ -2,18 +2,16 @@
 """Tests for EvaluateRelevancyBlock."""
 
 # Standard
-from unittest.mock import MagicMock, patch
 import os
 import tempfile
-
-# Third Party
-from datasets import Dataset
 
 # First Party
 from sdg_hub import BlockRegistry
 from sdg_hub.core.blocks.evaluation.evaluate_relevancy_block import (
     EvaluateRelevancyBlock,
 )
+
+# Third Party
 import pytest
 
 
