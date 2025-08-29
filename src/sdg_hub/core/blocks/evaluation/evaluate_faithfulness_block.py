@@ -12,11 +12,11 @@ delegating all functionality to the internal blocks.
 """
 
 # Standard
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 # Third Party
 from datasets import Dataset
-from pydantic import Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
 # Local
 from ...utils.error_handling import BlockValidationError
@@ -51,26 +51,54 @@ class EvaluateFaithfulnessBlock(BaseBlock):
     output_cols : List[str]
         Output columns: ["faithfulness_explanation", "faithfulness_judgment"]
     model : Optional[str]
-        LLM model identifier (for flow detection).
+        LLM model identifier.
     api_base : Optional[str]
-        API base URL (for flow detection).
+        API base URL.
     api_key : Optional[str]
-        API key (for flow detection).
+        API key.
     prompt_config_path : str
-        Path to YAML prompt template file (required in kwargs).
-    filter_value : str, optional
-        Value to filter on (default: "YES", passed in kwargs).
-    operation : str, optional
-        Filter operation (default: "eq", passed in kwargs).
+        Path to YAML prompt template file (required).
     **kwargs : Any
         All other parameters are automatically routed to appropriate internal blocks
-        based on each block's accepted parameters.
+        based on each block's accepted parameters. This includes all LLM parameters
+        (temperature, max_tokens, extra_body, extra_headers, etc.), text parser 
+        parameters, and filter parameters.
     """
 
-    # --- Minimal LLM interface (for flow detection) ---
+    model_config = ConfigDict(extra="allow")  # Allow extra fields for dynamic forwarding
+
+    # --- Core configuration ---
+    prompt_config_path: str = Field(
+        ..., description="Path to YAML file containing the faithfulness evaluation prompt template"
+    )
+    
+    # --- LLM interface (for flow detection) ---
     model: Optional[str] = Field(None, description="LLM model identifier")
     api_base: Optional[str] = Field(None, description="API base URL")
     api_key: Optional[str] = Field(None, description="API key")
+
+    # --- Filter configuration ---
+    filter_value: str = Field(
+        "YES", description="Value to filter on for faithfulness judgment"
+    )
+    operation: str = Field("eq", description="Filter operation")
+    convert_dtype: Optional[str] = Field(
+        None, description="Data type conversion for filter column"
+    )
+
+    # --- Parser configuration ---
+    start_tags: list[str] = Field(
+        ["[Start of Explanation]", "[Start of Answer]"],
+        description="Start tags for parsing explanation and judgment",
+    )
+    end_tags: list[str] = Field(
+        ["[End of Explanation]", "[End of Answer]"],
+        description="End tags for parsing explanation and judgment",
+    )
+    parsing_pattern: Optional[str] = Field(
+        None,
+        description="Regex pattern for custom parsing. If provided, takes precedence over tag-based parsing",
+    )
 
     # --- Internal blocks (composition) ---
     prompt_builder: PromptBuilderBlock = Field(None, exclude=True)  # type: ignore
@@ -112,10 +140,10 @@ class EvaluateFaithfulnessBlock(BaseBlock):
 
     def _extract_params(self, kwargs: dict, block_class) -> dict:
         """Extract parameters for specific block class based on its model_fields."""
-        # Exclude parameters that are handled by this wrapper
+        # Exclude parameters that are handled by this wrapper's structure
         wrapper_params = {
             "block_name",
-            "input_cols",
+            "input_cols", 
             "output_cols",
         }
 
@@ -125,11 +153,13 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             for k, v in kwargs.items()
             if k in block_class.model_fields and k not in wrapper_params
         }
-
-        # Add required defaults for ColumnValueFilterBlock
-        if block_class.__name__ == "ColumnValueFilterBlock":
-            params.setdefault("filter_value", "YES")
-            params.setdefault("operation", "eq")
+        
+        # Also include declared fields from this composite block that the target block accepts
+        for field_name in self.__class__.model_fields:
+            if field_name in block_class.model_fields and field_name not in wrapper_params:
+                field_value = getattr(self, field_name)
+                if field_value is not None:  # Only forward non-None values
+                    params[field_name] = field_value
 
         return params
 
@@ -229,13 +259,32 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             )
             raise
 
+    def __getattr__(self, name: str) -> Any:
+        """Forward attribute access to appropriate internal block."""
+        # Check each internal block to see which one has this parameter
+        for block_attr, block_class in [
+            ("prompt_builder", PromptBuilderBlock),
+            ("llm_chat", LLMChatBlock),
+            ("text_parser", TextParserBlock),
+            ("filter_block", ColumnValueFilterBlock),
+        ]:
+            if hasattr(self, block_attr) and name in block_class.model_fields:
+                return getattr(getattr(self, block_attr), name)
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+
     def __setattr__(self, name: str, value: Any) -> None:
         """Handle dynamic parameter updates from flow.set_model_config()."""
         super().__setattr__(name, value)
 
-        # Propagate LLM parameters to internal LLM block
-        if name in LLMChatBlock.model_fields and hasattr(self, "llm_chat"):
-            setattr(self.llm_chat, name, value)
+        # Forward to appropriate internal blocks
+        for block_attr, block_class in [
+            ("prompt_builder", PromptBuilderBlock),
+            ("llm_chat", LLMChatBlock),
+            ("text_parser", TextParserBlock),
+            ("filter_block", ColumnValueFilterBlock),
+        ]:
+            if hasattr(self, block_attr) and name in block_class.model_fields:
+                setattr(getattr(self, block_attr), name, value)
 
     def _reinitialize_client_manager(self) -> None:
         """Reinitialize internal LLM block's client manager."""

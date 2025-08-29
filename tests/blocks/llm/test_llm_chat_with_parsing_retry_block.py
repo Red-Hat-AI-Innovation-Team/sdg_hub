@@ -99,10 +99,10 @@ class TestLLMChatWithParsingRetryBlockInitialization:
         assert block.block_name == "test_retry_block"
         assert block.input_cols == ["messages"]
         assert block.output_cols == ["parsed_answer"]
-        assert block.llm_params["model"] == "openai/gpt-4"
+        assert block.model == "openai/gpt-4"
         assert block.parsing_max_retries == 3
-        assert block.parser_params["start_tags"] == ["<answer>"]
-        assert block.parser_params["end_tags"] == ["</answer>"]
+        assert block.start_tags == ["<answer>"]
+        assert block.end_tags == ["</answer>"]
 
         # Check internal blocks are created
         assert block.llm_chat is not None
@@ -121,7 +121,7 @@ class TestLLMChatWithParsingRetryBlockInitialization:
             parsing_max_retries=5,
         )
 
-        assert block.parser_params["parsing_pattern"] == r'"result":\s*"([^"]*)"'
+        assert block.parsing_pattern == r'"result":\s*"([^"]*)"'
         assert block.parsing_max_retries == 5
         assert block.text_parser.parsing_pattern == r'"result":\s*"([^"]*)"'
 
@@ -138,8 +138,8 @@ class TestLLMChatWithParsingRetryBlockInitialization:
 
         assert len(block.output_cols) == 2
         assert block.output_cols == ["explanation", "answer"]
-        assert len(block.parser_params["start_tags"]) == 2
-        assert len(block.parser_params["end_tags"]) == 2
+        assert len(block.start_tags) == 2
+        assert len(block.end_tags) == 2
 
     def test_initialization_all_llm_parameters(self, mock_litellm_completion):
         """Test initialization with all LLM generation parameters."""
@@ -707,9 +707,9 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
             end_tags=["</answer>"],
         )
 
-        # Change model configuration
-        block.llm_params["model"] = "anthropic/claude-3-sonnet-20240229"
-        block.llm_params["api_key"] = "new-api-key"
+        # Change model configuration (simulates Flow.set_model_config)
+        block.model = "anthropic/claude-3-sonnet-20240229"
+        block.api_key = "new-api-key"
 
         # Reinitialize client manager
         block._reinitialize_client_manager()
@@ -753,7 +753,7 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
 
         # Verify async mode is passed to internal LLM block
         assert block.llm_chat.async_mode is True
-        assert block.llm_params["async_mode"] is True
+        assert block.async_mode is True
 
 
 class TestLLMChatWithParsingRetryBlockRegistration:

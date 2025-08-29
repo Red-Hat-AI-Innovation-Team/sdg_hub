@@ -12,11 +12,11 @@ delegating all functionality to the internal blocks.
 """
 
 # Standard
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 # Third Party
 from datasets import Dataset
-from pydantic import Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
 # Local
 from ...utils.error_handling import BlockValidationError
@@ -51,28 +51,54 @@ class EvaluateRelevancyBlock(BaseBlock):
     output_cols : List[str]
         Output columns: ["relevancy_explanation", "relevancy_score"]
     model : Optional[str]
-        LLM model identifier (for flow detection).
+        LLM model identifier.
     api_base : Optional[str]
-        API base URL (for flow detection).
+        API base URL.
     api_key : Optional[str]
-        API key (for flow detection).
+        API key.
     prompt_config_path : str
-        Path to YAML prompt template file (required in kwargs).
-    filter_value : float, optional
-        Value to filter on (default: 2.0, passed in kwargs).
-    operation : str, optional
-        Filter operation (default: "eq", passed in kwargs).
-    convert_dtype : str, optional
-        Data type conversion (default: "float", passed in kwargs).
+        Path to YAML prompt template file (required).
     **kwargs : Any
         All other parameters are automatically routed to appropriate internal blocks
-        based on each block's accepted parameters.
+        based on each block's accepted parameters. This includes all LLM parameters
+        (temperature, max_tokens, extra_body, extra_headers, etc.), text parser 
+        parameters, and filter parameters.
     """
 
-    # --- Minimal LLM interface (for flow detection) ---
+    model_config = ConfigDict(extra="allow")  # Allow extra fields for dynamic forwarding
+
+    # --- Core configuration ---
+    prompt_config_path: str = Field(
+        ..., description="Path to YAML file containing the relevancy evaluation prompt template"
+    )
+    
+    # --- LLM interface (for flow detection) ---
     model: Optional[str] = Field(None, description="LLM model identifier")
     api_base: Optional[str] = Field(None, description="API base URL")
     api_key: Optional[str] = Field(None, description="API key")
+
+    # --- Filter configuration ---
+    filter_value: Union[str, int, float] = Field(
+        2.0, description="Value to filter on for relevancy score"
+    )
+    operation: str = Field("eq", description="Filter operation")
+    convert_dtype: Optional[str] = Field(
+        "float", description="Data type conversion for filter column"
+    )
+
+    # --- Parser configuration ---
+    start_tags: list[str] = Field(
+        ["[Start of Feedback]", "[Start of Score]"],
+        description="Start tags for parsing feedback and score",
+    )
+    end_tags: list[str] = Field(
+        ["[End of Feedback]", "[End of Score]"],
+        description="End tags for parsing feedback and score",
+    )
+    parsing_pattern: Optional[str] = Field(
+        None,
+        description="Regex pattern for custom parsing. If provided, takes precedence over tag-based parsing",
+    )
 
     # --- Internal blocks (composition) ---
     prompt_builder: PromptBuilderBlock = Field(None, exclude=True)  # type: ignore
@@ -128,11 +154,12 @@ class EvaluateRelevancyBlock(BaseBlock):
             if k in block_class.model_fields and k not in wrapper_params
         }
 
-        # Add required defaults for ColumnValueFilterBlock
-        if block_class.__name__ == "ColumnValueFilterBlock":
-            params.setdefault("filter_value", 2.0)
-            params.setdefault("operation", "eq")
-            params.setdefault("convert_dtype", "float")
+        # Also include declared fields from this composite block that the target block accepts
+        for field_name in self.__class__.model_fields:
+            if field_name in block_class.model_fields and field_name not in wrapper_params:
+                field_value = getattr(self, field_name)
+                if field_value is not None:  # Only forward non-None values
+                    params[field_name] = field_value
 
         return params
 
@@ -232,13 +259,32 @@ class EvaluateRelevancyBlock(BaseBlock):
             )
             raise
 
+    def __getattr__(self, name: str) -> Any:
+        """Forward attribute access to appropriate internal block."""
+        # Check each internal block to see which one has this parameter
+        for block_attr, block_class in [
+            ("prompt_builder", PromptBuilderBlock),
+            ("llm_chat", LLMChatBlock),
+            ("text_parser", TextParserBlock),
+            ("filter_block", ColumnValueFilterBlock),
+        ]:
+            if hasattr(self, block_attr) and name in block_class.model_fields:
+                return getattr(getattr(self, block_attr), name)
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+
     def __setattr__(self, name: str, value: Any) -> None:
         """Handle dynamic parameter updates from flow.set_model_config()."""
         super().__setattr__(name, value)
 
-        # Propagate LLM parameters to internal LLM block
-        if name in LLMChatBlock.model_fields and hasattr(self, "llm_chat"):
-            setattr(self.llm_chat, name, value)
+        # Forward to appropriate internal blocks
+        for block_attr, block_class in [
+            ("prompt_builder", PromptBuilderBlock),
+            ("llm_chat", LLMChatBlock),
+            ("text_parser", TextParserBlock),
+            ("filter_block", ColumnValueFilterBlock),
+        ]:
+            if hasattr(self, block_attr) and name in block_class.model_fields:
+                setattr(getattr(self, block_attr), name, value)
 
     def _reinitialize_client_manager(self) -> None:
         """Reinitialize internal LLM block's client manager."""
