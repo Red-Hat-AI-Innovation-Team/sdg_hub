@@ -275,7 +275,9 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             ("filter_block", ColumnValueFilterBlock),
         ]:
             if hasattr(self, block_attr) and name in block_class.model_fields:
-                return getattr(getattr(self, block_attr), name)
+                internal_block = getattr(self, block_attr)
+                if internal_block is not None:
+                    return getattr(internal_block, name)
         raise AttributeError(
             f"'{self.__class__.__name__}' object has no attribute '{name}'"
         )

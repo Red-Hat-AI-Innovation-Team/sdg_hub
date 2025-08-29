@@ -2,6 +2,7 @@
 """Tests for VerifyQuestionBlock."""
 
 # Standard
+from unittest.mock import patch
 import os
 import tempfile
 
@@ -133,8 +134,6 @@ class TestVerifyQuestionBlock:
         This simulates the exact Flow.set_model_config() workflow and verifies
         that parameters reach the internal LLM blocks correctly.
         """
-        from unittest.mock import patch
-
         block = VerifyQuestionBlock(
             block_name="test_verify",
             input_cols=["question"],
