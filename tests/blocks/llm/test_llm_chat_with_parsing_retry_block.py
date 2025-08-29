@@ -1234,3 +1234,96 @@ class TestLLMChatWithParsingRetryBlockIntegration:
             # Error should propagate through and eventually cause MaxRetriesExceededError
             with pytest.raises(MaxRetriesExceededError):
                 block.generate(single_dataset)
+
+    def test_llm_chat_with_parsing_retry_parameter_forwarding(self):
+        """Test parameter forwarding for LLMChatWithParsingRetryBlock.
+
+        This block has a different structure but must follow the same parameter
+        forwarding pattern as evaluation blocks.
+        """
+        block = LLMChatWithParsingRetryBlock(
+            block_name="test_retry",
+            input_cols=["messages"],
+            output_cols=["parsed_output"],
+            parsing_pattern=r"test pattern",  # Required for TextParser
+            parsing_max_retries=3,
+        )
+
+        # Test LLM parameters
+        llm_params = {
+            "model": "test-model",
+            "extra_body": {"test": "value"},
+            "extra_headers": {"X-Test": "header"},
+            "temperature": 0.8,
+        }
+
+        # Test parser parameters
+        parser_params = {
+            "start_tags": ["<start>"],
+            "end_tags": ["<end>"],
+        }
+
+        all_params = {**llm_params, **parser_params}
+
+        # hasattr() must work for Flow detection
+        for param_name in all_params:
+            assert hasattr(
+                block, param_name
+            ), f"LLMChatWithParsingRetryBlock must have attribute '{param_name}'"
+
+        # Parameter setting must work
+        for param_name, param_value in all_params.items():
+            setattr(block, param_name, param_value)
+
+        # Parameters must be accessible
+        for param_name, expected_value in all_params.items():
+            actual_value = getattr(block, param_name)
+            assert actual_value == expected_value
+
+        # LLM parameters must forward to internal LLM block
+        for param_name, expected_value in llm_params.items():
+            internal_value = getattr(block.llm_chat, param_name)
+            assert (
+                internal_value == expected_value
+            ), f"LLM parameter {param_name} not forwarded to internal LLM block"
+
+        # Parser parameters must forward to internal parser block
+        for param_name, expected_value in parser_params.items():
+            internal_value = getattr(block.text_parser, param_name)
+            assert (
+                internal_value == expected_value
+            ), f"Parser parameter {param_name} not forwarded to internal parser block"
+
+    def test_llm_chat_with_parsing_retry_validation_requirements(self):
+        """Test that LLMChatWithParsingRetryBlock properly validates parsing requirements."""
+        # Should work with parsing_pattern
+        block1 = LLMChatWithParsingRetryBlock(
+            block_name="test1",
+            input_cols=["messages"],
+            output_cols=["output"],
+            parsing_pattern=r"test",
+        )
+        assert block1.parsing_pattern == r"test"
+
+        # Should work with start_tags/end_tags
+        block2 = LLMChatWithParsingRetryBlock(
+            block_name="test2",
+            input_cols=["messages"],
+            output_cols=["output"],
+            start_tags=["<start>"],
+            end_tags=["<end>"],
+        )
+        assert block2.start_tags == ["<start>"]
+        assert block2.end_tags == ["<end>"]
+
+        # Should work with both (parsing_pattern takes precedence)
+        block3 = LLMChatWithParsingRetryBlock(
+            block_name="test3",
+            input_cols=["messages"],
+            output_cols=["output"],
+            parsing_pattern=r"test",
+            start_tags=["<start>"],
+            end_tags=["<end>"],
+        )
+        assert block3.parsing_pattern == r"test"
+        assert block3.start_tags == ["<start>"]

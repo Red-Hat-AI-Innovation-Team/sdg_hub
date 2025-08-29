@@ -178,3 +178,94 @@ class TestEvaluateFaithfulnessBlock:
 
         with pytest.raises(BlockValidationError, match="Model not configured"):
             block.generate(test_dataset)
+
+    def test_flow_set_model_config_detection(self, test_yaml_config):
+        """Test that hasattr() works for Flow.set_model_config() detection."""
+        block = EvaluateFaithfulnessBlock(
+            block_name="test_faithfulness",
+            input_cols=["document", "response"],
+            output_cols=["faithfulness_explanation", "faithfulness_judgment"],
+            prompt_config_path=test_yaml_config,
+        )
+
+        # Critical parameters that were failing before
+        critical_params = [
+            "model",
+            "api_base",
+            "api_key",
+            "extra_body",
+            "extra_headers",
+            "temperature",
+            "max_tokens",
+            "top_p",
+        ]
+
+        for param in critical_params:
+            assert hasattr(block, param), (
+                f"EvaluateFaithfulnessBlock must have attribute '{param}' "
+                f"for Flow.set_model_config() detection"
+            )
+
+    def test_runtime_parameter_forwarding_to_internal_blocks(self, test_yaml_config):
+        """Test that runtime parameter updates forward to internal LLM blocks."""
+
+        block = EvaluateFaithfulnessBlock(
+            block_name="test_faithfulness",
+            input_cols=["document", "response"],
+            output_cols=["faithfulness_explanation", "faithfulness_judgment"],
+            prompt_config_path=test_yaml_config,
+        )
+
+        test_params = {
+            "model": "anthropic/claude-3-sonnet-20240229",
+            "api_base": "http://localhost:8000/v1",
+            "api_key": "test-key",
+            "extra_headers": {"X-Custom": "header"},
+            "extra_body": {"test": "value"},
+            "temperature": 0.5,
+            "max_tokens": 1024,
+        }
+
+        # Test hasattr, setattr, getattr, and forwarding
+        for param_name in test_params:
+            assert hasattr(block, param_name)
+
+        for param_name, param_value in test_params.items():
+            setattr(block, param_name, param_value)
+
+        for param_name, expected_value in test_params.items():
+            # Check composite block
+            actual_value = getattr(block, param_name)
+            assert actual_value == expected_value
+
+            # Check internal LLM block
+            internal_value = getattr(block.llm_chat, param_name)
+            assert internal_value == expected_value
+
+    def test_meaningful_defaults_for_faithfulness(self, test_yaml_config):
+        """Test meaningful defaults specific to faithfulness evaluation."""
+        block = EvaluateFaithfulnessBlock(
+            block_name="test_faithfulness",
+            input_cols=["document", "response"],
+            output_cols=["faithfulness_explanation", "faithfulness_judgment"],
+            prompt_config_path=test_yaml_config,
+        )
+
+        # Verify meaningful defaults for EvaluateFaithfulnessBlock
+        assert (
+            block.filter_value == "YES"
+        ), "EvaluateFaithfulnessBlock should default to 'YES'"
+        assert block.operation == "eq"
+        assert block.start_tags == [
+            "[Start of Explanation]",
+            "[Start of Answer]",
+        ]
+        assert block.end_tags == ["[End of Explanation]", "[End of Answer]"]
+
+        # Test that defaults are properly forwarded to internal blocks
+        assert block.filter_block.filter_value == "YES"
+        assert block.filter_block.operation == "eq"
+        assert block.text_parser.start_tags == [
+            "[Start of Explanation]",
+            "[Start of Answer]",
+        ]
