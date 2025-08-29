@@ -347,19 +347,33 @@ class LLMChatBlock(BaseBlock):
         if self.async_mode:
             try:
                 # Check if there's already a running event loop
-                asyncio.get_running_loop()
+                loop = asyncio.get_running_loop()
+                # Check if nest_asyncio is applied (allows nested asyncio.run)
+                # Use multiple detection methods for robustness
+                nest_asyncio_applied = (
+                    hasattr(loop, "_nest_patched")
+                    or getattr(asyncio.run, "__module__", "") == "nest_asyncio"
+                )
+
+                if nest_asyncio_applied:
+                    # nest_asyncio is applied, safe to use asyncio.run
+                    responses = asyncio.run(
+                        self._generate_async(
+                            messages_list, flow_max_concurrency, **override_kwargs
+                        )
+                    )
+                else:
+                    # Running inside an event loop without nest_asyncio
+                    raise BlockValidationError(
+                        f"async_mode=True cannot be used from within a running event loop for '{self.block_name}'. "
+                        "Use an async entrypoint, set async_mode=False, or apply nest_asyncio.apply() in notebook environments."
+                    )
             except RuntimeError:
                 # No running loop; safe to create one
                 responses = asyncio.run(
                     self._generate_async(
                         messages_list, flow_max_concurrency, **override_kwargs
                     )
-                )
-            else:
-                # Running inside an event loop, which is not supported
-                raise BlockValidationError(
-                    f"async_mode=True cannot be used from within a running event loop for '{self.block_name}'. "
-                    "Use an async entrypoint or set async_mode=False."
                 )
         else:
             responses = self._generate_sync(messages_list, **override_kwargs)
