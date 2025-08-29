@@ -157,7 +157,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         None, description="Start tags for tag-based parsing"
     )
     end_tags: Optional[list[str]] = Field(
-        None, description="End tags for tag-based parsing"  
+        None, description="End tags for tag-based parsing"
     )
     parsing_pattern: Optional[str] = Field(
         None, description="Regex pattern for custom parsing"
@@ -198,7 +198,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         self._create_internal_blocks(**kwargs)
 
         # Log initialization if model is configured
-        if hasattr(self, 'model') and self.model:
+        if hasattr(self, "model") and self.model:
             logger.info(
                 f"Initialized LLMChatWithParsingRetryBlock '{self.block_name}' with model '{self.model}'",
                 extra={
@@ -227,7 +227,10 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
 
         # Also include declared fields from this composite block that the target block accepts
         for field_name in self.__class__.model_fields:
-            if field_name in block_class.model_fields and field_name not in wrapper_params:
+            if (
+                field_name in block_class.model_fields
+                and field_name not in wrapper_params
+            ):
                 field_value = getattr(self, field_name)
                 if field_value is not None:  # Only forward non-None values
                     params[field_name] = field_value
@@ -265,7 +268,9 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         ]:
             if hasattr(self, block_attr) and name in block_class.model_fields:
                 return getattr(getattr(self, block_attr), name)
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Handle dynamic parameter updates from flow.set_model_config()."""
@@ -320,7 +325,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
             If target count not reached after max retries for any sample.
         """
         # Validate that model is configured
-        if not hasattr(self, 'model') or not self.model:
+        if not hasattr(self, "model") or not self.model:
             raise BlockValidationError(
                 f"Model not configured for block '{self.block_name}'. "
                 f"Call flow.set_model_config() before generating."

@@ -12,7 +12,7 @@ delegating all functionality to the internal blocks.
 """
 
 # Standard
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 # Third Party
 from datasets import Dataset
@@ -61,17 +61,20 @@ class EvaluateFaithfulnessBlock(BaseBlock):
     **kwargs : Any
         All other parameters are automatically routed to appropriate internal blocks
         based on each block's accepted parameters. This includes all LLM parameters
-        (temperature, max_tokens, extra_body, extra_headers, etc.), text parser 
+        (temperature, max_tokens, extra_body, extra_headers, etc.), text parser
         parameters, and filter parameters.
     """
 
-    model_config = ConfigDict(extra="allow")  # Allow extra fields for dynamic forwarding
+    model_config = ConfigDict(
+        extra="allow"
+    )  # Allow extra fields for dynamic forwarding
 
     # --- Core configuration ---
     prompt_config_path: str = Field(
-        ..., description="Path to YAML file containing the faithfulness evaluation prompt template"
+        ...,
+        description="Path to YAML file containing the faithfulness evaluation prompt template",
     )
-    
+
     # --- LLM interface (for flow detection) ---
     model: Optional[str] = Field(None, description="LLM model identifier")
     api_base: Optional[str] = Field(None, description="API base URL")
@@ -143,7 +146,7 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         # Exclude parameters that are handled by this wrapper's structure
         wrapper_params = {
             "block_name",
-            "input_cols", 
+            "input_cols",
             "output_cols",
         }
 
@@ -153,10 +156,13 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             for k, v in kwargs.items()
             if k in block_class.model_fields and k not in wrapper_params
         }
-        
+
         # Also include declared fields from this composite block that the target block accepts
         for field_name in self.__class__.model_fields:
-            if field_name in block_class.model_fields and field_name not in wrapper_params:
+            if (
+                field_name in block_class.model_fields
+                and field_name not in wrapper_params
+            ):
                 field_value = getattr(self, field_name)
                 if field_value is not None:  # Only forward non-None values
                     params[field_name] = field_value
@@ -270,7 +276,9 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         ]:
             if hasattr(self, block_attr) and name in block_class.model_fields:
                 return getattr(getattr(self, block_attr), name)
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Handle dynamic parameter updates from flow.set_model_config()."""
