@@ -901,6 +901,8 @@ class Flow(BaseModel):
         if len(dataset) == 0:
             raise EmptyDatasetError("Input dataset is empty")
 
+        validate_no_duplicates(dataset)
+
         # Use smaller sample size if dataset is smaller
         actual_sample_size = min(sample_size, len(dataset))
 

@@ -15,11 +15,11 @@ def safe_concatenate_datasets(datasets: list):
     return concatenate_datasets(filtered_datasets)
 
 
-def validate_no_duplicates(dataset):
+def validate_no_duplicates(dataset: Dataset) -> None:
     """
     Validate that the input dataset contains only unique rows.
 
-    Uses pandas `.drop_duplicates()` for efficient duplicate detection.
+    Uses pandas `.duplicated()` for efficient duplicate detection.
     Raises FlowValidationError if duplicates are found, including a count
     of the duplicate rows detected.
 
@@ -33,11 +33,10 @@ def validate_no_duplicates(dataset):
     FlowValidationError
         If duplicate rows are detected in the dataset.
     """
-    input_data = dataset.to_pandas()
-    unique_data = input_data.drop_duplicates()
+    df = dataset.to_pandas()
+    duplicate_count = int(df.duplicated(keep="first").sum())
 
-    if len(input_data) != len(unique_data):
-        duplicate_count = len(input_data) - len(unique_data)
+    if duplicate_count > 0:
         raise FlowValidationError(
             f"Input dataset contains {duplicate_count} duplicate rows. "
             f"SDG Hub operations require unique input rows. "
