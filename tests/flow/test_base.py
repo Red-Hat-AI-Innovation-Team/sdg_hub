@@ -1130,7 +1130,9 @@ class TestFlow:
 
         log_dir = Path(self.temp_dir) / "test_logs"
 
-        result = flow.generate(dataset, log_dir=str(log_dir))
+        # Ensure INFO level logging for this test regardless of LOG_LEVEL env var
+        with patch.dict("os.environ", {"LOG_LEVEL": "INFO"}):
+            result = flow.generate(dataset, log_dir=str(log_dir))
 
         assert len(result) == 2
         assert "output" in result.column_names
