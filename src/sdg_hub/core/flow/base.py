@@ -5,7 +5,6 @@
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Union
-import os
 import time
 import uuid
 
@@ -415,15 +414,13 @@ class Flow(BaseModel):
             flow_name = self.metadata.name.replace(" ", "_").lower()
             log_filename = f"{flow_name}_{timestamp}.log"
 
-            # Ensure log directory exists
-            os.makedirs(log_dir, exist_ok=True)
-
             # Create a flow-specific logger for this execution
             unique_id = str(uuid.uuid4())[:8]  # Short unique ID
             flow_logger_name = f"{__name__}.flow_{flow_name}_{timestamp}_{unique_id}"
             flow_logger = setup_logger(
                 flow_logger_name, log_dir=log_dir, log_filename=log_filename
             )
+            flow_logger.propagate = False
             flow_logger.info(
                 f"Flow logging enabled - logs will be saved to: {log_dir}/{log_filename}"
             )
@@ -489,6 +486,16 @@ class Flow(BaseModel):
                 flow_logger.info(
                     "All samples already completed, returning existing results"
                 )
+                if log_dir is not None and flow_logger is not logger:
+                    for h in list(getattr(flow_logger, "handlers", [])):
+                        try:
+                            h.flush()
+                            h.close()
+                        except Exception:
+                            pass
+                        finally:
+                            flow_logger.removeHandler(h)
+                        
                 return completed_dataset
 
             dataset = remaining_dataset
