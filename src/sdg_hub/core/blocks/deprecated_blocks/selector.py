@@ -81,7 +81,7 @@ class SelectorBlock(BaseBlock):
             choice_cols=[choice_col],
         )
 
-    def generate(self, samples: Dataset) -> Dataset:
+    def generate(self, samples: Dataset, **kwargs) -> Dataset:
         """Generate a new dataset with selected values.
 
         Parameters

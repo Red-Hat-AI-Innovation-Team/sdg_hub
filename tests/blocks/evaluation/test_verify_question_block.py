@@ -2,16 +2,15 @@
 """Tests for VerifyQuestionBlock."""
 
 # Standard
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import os
 import tempfile
-
-# Third Party
-from datasets import Dataset
 
 # First Party
 from sdg_hub import BlockRegistry
 from sdg_hub.core.blocks.evaluation.verify_question_block import VerifyQuestionBlock
+
+# Third Party
 import pytest
 
 
@@ -23,18 +22,18 @@ class TestVerifyQuestionBlock:
         """Create a temporary YAML config file for testing."""
         yaml_content = """- role: "user"
   content: |
-    Please evaluate the quality and validity of the following question.
+    Please verify the quality of the following question.
     
     Question: {{ question }}
     
     Please provide your evaluation in the following format:
     
     [Start of Explanation]
-    Provide a detailed explanation of why the question is or is not well-formed and valid.
+    Provide explanation of the quality assessment.
     [End of Explanation]
     
     [Start of Rating]
-    2.0 (for high quality) or 1.0 (for acceptable quality) or 0.0 (for poor quality)
+    1.0
     [End of Rating]"""
 
         temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)
@@ -42,18 +41,6 @@ class TestVerifyQuestionBlock:
         temp_file.close()
         yield temp_file.name
         os.unlink(temp_file.name)
-
-    @pytest.fixture
-    def sample_dataset(self):
-        """Create a sample dataset for testing."""
-        return Dataset.from_dict(
-            {
-                "question": [
-                    "What color is the sky?",
-                    "What is the meaning of life?",
-                ],
-            }
-        )
 
     def test_block_registry(self):
         """Test that VerifyQuestionBlock is properly registered."""
@@ -67,39 +54,7 @@ class TestVerifyQuestionBlock:
     def test_init_with_valid_params(self, test_yaml_config):
         """Test initialization with valid parameters."""
         block = VerifyQuestionBlock(
-            block_name="test_verify_question",
-            input_cols=["question"],
-            output_cols=[
-                "verification_explanation",
-                "verification_rating",
-            ],
-            prompt_config_path=test_yaml_config,
-            model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
-            api_base="http://localhost:8000/v1",
-            api_key="EMPTY",
-        )
-
-        assert block.block_name == "test_verify_question"
-        assert block.input_cols == ["question"]
-        assert block.output_cols == [
-            "verification_explanation",
-            "verification_rating",
-        ]
-        assert block.model == "hosted_vllm/meta-llama/Llama-3.3-70B-Instruct"
-        assert block.filter_value == 1.0  # default
-        assert block.operation == "ge"  # default
-        assert block.convert_dtype == "float"  # default
-
-        # Check internal blocks are created
-        assert block.prompt_builder is not None
-        assert block.llm_chat is not None
-        assert block.text_parser is not None
-        assert block.filter_block is not None
-
-    def test_init_with_custom_params(self, test_yaml_config):
-        """Test initialization with custom parameters."""
-        block = VerifyQuestionBlock(
-            block_name="custom_verify_question",
+            block_name="test_verify",
             input_cols=["question"],
             output_cols=[
                 "verification_explanation",
@@ -107,374 +62,270 @@ class TestVerifyQuestionBlock:
             ],
             prompt_config_path=test_yaml_config,
             model="openai/gpt-4",
-            filter_value=1.5,
-            operation="ge",
-            convert_dtype="float",
-            async_mode=False,
-            temperature=0.7,
-            max_tokens=1024,
-            start_tags=["<explanation>", "<rating>"],
-            end_tags=["</explanation>", "</rating>"],
+            start_tags=["[Start of Explanation]", "[Start of Rating]"],
+            end_tags=["[End of Explanation]", "[End of Rating]"],
         )
 
-        assert block.filter_value == 1.5
-        assert block.operation == "ge"
-        assert block.convert_dtype == "float"
-        assert block.async_mode is False
-        assert block.temperature == 0.7
-        assert block.max_tokens == 1024
-        assert block.start_tags == ["<explanation>", "<rating>"]
-        assert block.end_tags == ["</explanation>", "</rating>"]
+        assert block.block_name == "test_verify"
+        assert block.input_cols == ["question"]
+        assert block.output_cols == [
+            "verification_explanation",
+            "verification_rating",
+        ]
 
     def test_init_with_invalid_input_cols(self, test_yaml_config):
         """Test initialization with invalid input columns."""
-        with pytest.raises(ValueError, match="VerifyQuestionBlock expects input_cols"):
+        with pytest.raises(ValueError, match="expects input_cols"):
             VerifyQuestionBlock(
-                block_name="test_verify_question",
-                input_cols=["wrong", "columns"],
+                block_name="test_verify",
+                input_cols=["wrong"],
                 output_cols=[
                     "verification_explanation",
                     "verification_rating",
                 ],
                 prompt_config_path=test_yaml_config,
-                model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
             )
 
     def test_init_with_invalid_output_cols(self, test_yaml_config):
         """Test initialization with invalid output columns."""
-        with pytest.raises(ValueError, match="VerifyQuestionBlock expects output_cols"):
+        with pytest.raises(ValueError, match="expects output_cols"):
             VerifyQuestionBlock(
-                block_name="test_verify_question",
+                block_name="test_verify",
                 input_cols=["question"],
                 output_cols=["wrong", "columns"],
                 prompt_config_path=test_yaml_config,
-                model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
             )
 
-    def test_init_with_invalid_yaml(self):
-        """Test initialization with invalid YAML file."""
-        with pytest.raises(FileNotFoundError):
-            VerifyQuestionBlock(
-                block_name="test_verify_question",
-                input_cols=["question"],
-                output_cols=[
-                    "verification_explanation",
-                    "verification_rating",
-                ],
-                prompt_config_path="/nonexistent/path.yaml",
-                model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
-            )
+    def test_flow_set_model_config_detection(self, test_yaml_config):
+        """Test that hasattr() works for Flow.set_model_config() detection.
 
-    def test_validate_custom_with_valid_dataset(self, test_yaml_config, sample_dataset):
-        """Test _validate_custom with valid dataset."""
+        This was the core issue - Flow.set_model_config() uses hasattr() to detect
+        which blocks support LLM parameters, but composite blocks were returning False.
+        """
         block = VerifyQuestionBlock(
-            block_name="test_verify_question",
+            block_name="test_verify",
             input_cols=["question"],
-            output_cols=[
-                "verification_explanation",
-                "verification_rating",
-            ],
+            output_cols=["verification_explanation", "verification_rating"],
             prompt_config_path=test_yaml_config,
-            model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
-            api_base="http://localhost:8000/v1",
-            api_key="EMPTY",
         )
 
-        # Should not raise any exception
-        block._validate_custom(sample_dataset)
-
-    def test_validate_custom_with_missing_columns(self, test_yaml_config):
-        """Test _validate_custom with missing required columns."""
-        block = VerifyQuestionBlock(
-            block_name="test_verify_question",
-            input_cols=["question"],
-            output_cols=[
-                "verification_explanation",
-                "verification_rating",
-            ],
-            prompt_config_path=test_yaml_config,
-            model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
-            api_base="http://localhost:8000/v1",
-            api_key="EMPTY",
-        )
-
-        # Dataset missing required columns
-        invalid_dataset = Dataset.from_dict({"wrong_column": ["value"]})
-
-        with pytest.raises(ValueError, match="VerifyQuestionBlock requires columns"):
-            block._validate_custom(invalid_dataset)
-
-    def test_validate_custom_with_uninitialized_blocks(
-        self, test_yaml_config, sample_dataset
-    ):
-        """Test _validate_custom with uninitialized internal blocks."""
-        block = VerifyQuestionBlock(
-            block_name="test_verify_question",
-            input_cols=["question"],
-            output_cols=[
-                "verification_explanation",
-                "verification_rating",
-            ],
-            prompt_config_path=test_yaml_config,
-            model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
-            api_base="http://localhost:8000/v1",
-            api_key="EMPTY",
-        )
-
-        # Manually set one of the internal blocks to None
-        block.prompt_builder = None
-
-        with pytest.raises(ValueError, match="All internal blocks must be initialized"):
-            block._validate_custom(sample_dataset)
-
-    @patch("sdg_hub.core.blocks.evaluation.verify_question_block.LLMChatBlock")
-    @patch("sdg_hub.core.blocks.evaluation.verify_question_block.PromptBuilderBlock")
-    @patch("sdg_hub.core.blocks.evaluation.verify_question_block.TextParserBlock")
-    @patch(
-        "sdg_hub.core.blocks.evaluation.verify_question_block.ColumnValueFilterBlock"
-    )
-    def test_generate_method_calls_internal_blocks(
-        self,
-        mock_filter,
-        mock_parser,
-        mock_prompt,
-        mock_llm,
-        test_yaml_config,
-        sample_dataset,
-    ):
-        """Test that generate method calls all internal blocks in correct order."""
-        # Set up mocks to return expected datasets
-        mock_prompt_instance = MagicMock()
-        mock_llm_instance = MagicMock()
-        mock_parser_instance = MagicMock()
-        mock_filter_instance = MagicMock()
-
-        mock_prompt.return_value = mock_prompt_instance
-        mock_llm.return_value = mock_llm_instance
-        mock_parser.return_value = mock_parser_instance
-        mock_filter.return_value = mock_filter_instance
-
-        # Mock the generate methods to return progressive datasets
-        step1_dataset = sample_dataset.add_column(
-            "verify_question_prompt",
-            [
-                [{"role": "user", "content": "test prompt 1"}],
-                [{"role": "user", "content": "test prompt 2"}],
-            ],
-        )
-        step2_dataset = step1_dataset.add_column(
-            "raw_verify_question",
-            [
-                "[Start of Explanation]Good question[End of Explanation]\n[Start of Rating]2.0[End of Rating]",
-                "[Start of Explanation]Poor question[End of Explanation]\n[Start of Rating]0.0[End of Rating]",
-            ],
-        )
-        step3_dataset = step2_dataset.add_column(
-            "verification_explanation", ["Good question", "Poor question"]
-        ).add_column("verification_rating", ["2.0", "0.0"])
-        step4_dataset = Dataset.from_dict(
-            {
-                "question": ["What color is the sky?"],
-                "verify_question_prompt": [
-                    [{"role": "user", "content": "test prompt 1"}]
-                ],
-                "raw_verify_question": [
-                    "[Start of Explanation]Good question[End of Explanation]\n[Start of Rating]2.0[End of Rating]"
-                ],
-                "verification_explanation": ["Good question"],
-                "verification_rating": ["2.0"],
-            }
-        )
-
-        mock_prompt_instance.generate.return_value = step1_dataset
-        mock_llm_instance.generate.return_value = step2_dataset
-        mock_parser_instance.generate.return_value = step3_dataset
-        mock_filter_instance.generate.return_value = step4_dataset
-
-        # Create block and call generate
-        block = VerifyQuestionBlock(
-            block_name="test_verify_question",
-            input_cols=["question"],
-            output_cols=[
-                "verification_explanation",
-                "verification_rating",
-            ],
-            prompt_config_path=test_yaml_config,
-            model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
-            api_base="http://localhost:8000/v1",
-            api_key="EMPTY",
-        )
-
-        result = block.generate(sample_dataset)
-
-        # Verify all internal blocks were called in order
-        mock_prompt_instance.generate.assert_called_once()
-        mock_llm_instance.generate.assert_called_once()
-        mock_parser_instance.generate.assert_called_once()
-        mock_filter_instance.generate.assert_called_once()
-
-        # Verify result contains expected columns
-        assert "verification_explanation" in result.column_names
-        assert "verification_rating" in result.column_names
-
-    def test_get_internal_blocks_info(self, test_yaml_config):
-        """Test get_internal_blocks_info method."""
-        block = VerifyQuestionBlock(
-            block_name="test_verify_question",
-            input_cols=["question"],
-            output_cols=[
-                "verification_explanation",
-                "verification_rating",
-            ],
-            prompt_config_path=test_yaml_config,
-            model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
-            api_base="http://localhost:8000/v1",
-            api_key="EMPTY",
-        )
-
-        info = block.get_internal_blocks_info()
-
-        assert "prompt_builder" in info
-        assert "llm_chat" in info
-        assert "text_parser" in info
-        assert "filter" in info
-
-        # Check that each internal block info is not None
-        assert info["prompt_builder"] is not None
-        assert info["llm_chat"] is not None
-        assert info["text_parser"] is not None
-        assert info["filter"] is not None
-
-    def test_get_info_method(self, test_yaml_config):
-        """Test get_info method from BaseBlock."""
-        block = VerifyQuestionBlock(
-            block_name="test_verify_question",
-            input_cols=["question"],
-            output_cols=[
-                "verification_explanation",
-                "verification_rating",
-            ],
-            prompt_config_path=test_yaml_config,
-            model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
-            api_base="http://localhost:8000/v1",
-            api_key="EMPTY",
-        )
-
-        info = block.get_info()
-
-        assert info["block_name"] == "test_verify_question"
-        assert info["block_type"] == "VerifyQuestionBlock"
-        assert info["input_cols"] == ["question"]
-        assert info["output_cols"] == [
-            "verification_explanation",
-            "verification_rating",
+        # Critical parameters that were failing before
+        critical_params = [
+            "model",
+            "api_base",
+            "api_key",
+            "extra_body",
+            "extra_headers",
+            "temperature",
+            "max_tokens",
+            "top_p",
         ]
-        assert info["model"] == "hosted_vllm/meta-llama/Llama-3.3-70B-Instruct"
 
-    def test_repr_method(self, test_yaml_config):
-        """Test __repr__ method."""
+        for param in critical_params:
+            # This is the exact check Flow.set_model_config() uses
+            assert hasattr(block, param), (
+                f"VerifyQuestionBlock must have attribute '{param}' "
+                f"for Flow.set_model_config() detection"
+            )
+
+    def test_runtime_parameter_forwarding_to_internal_blocks(self, test_yaml_config):
+        """Test that runtime parameter updates forward to internal LLM blocks.
+
+        This simulates the exact Flow.set_model_config() workflow and verifies
+        that parameters reach the internal LLM blocks correctly.
+        """
         block = VerifyQuestionBlock(
-            block_name="test_verify_question",
+            block_name="test_verify",
             input_cols=["question"],
-            output_cols=[
-                "verification_explanation",
-                "verification_rating",
-            ],
+            output_cols=["verification_explanation", "verification_rating"],
             prompt_config_path=test_yaml_config,
-            model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
-            filter_value=1.5,
         )
 
-        repr_str = repr(block)
-        assert "VerifyQuestionBlock" in repr_str
-        assert "test_verify_question" in repr_str
-        assert "1.5" in repr_str
+        # Simulate exact Flow.set_model_config() parameters from user's issue
+        test_params = {
+            "model": "hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
+            "api_base": "http://localhost:9000/v1",
+            "api_key": "EMPTY",
+            "extra_headers": {"XXX": "YYY"},
+            "extra_body": {"guided_choice": ["YES", "NO"]},
+            "temperature": 0.7,
+            "max_tokens": 2048,
+        }
 
-    def test_internal_block_configuration(self, test_yaml_config):
-        """Test that internal blocks are configured correctly."""
+        # Step 1: Flow.set_model_config() checks hasattr() - must pass
+        for param_name in test_params:
+            assert hasattr(block, param_name), f"hasattr check failed for {param_name}"
+
+        # Step 2: Flow.set_model_config() sets parameters - must work
+        for param_name, param_value in test_params.items():
+            setattr(block, param_name, param_value)
+
+        # Step 3: Composite block must have the parameters accessible
+        for param_name, expected_value in test_params.items():
+            actual_value = getattr(block, param_name)
+            assert (
+                actual_value == expected_value
+            ), f"Composite block {param_name}: expected {expected_value}, got {actual_value}"
+
+        # Step 4: CRITICAL - Internal LLM block must receive the parameters
+        for param_name, expected_value in test_params.items():
+            internal_value = getattr(block.llm_chat, param_name)
+            assert (
+                internal_value == expected_value
+            ), f"Internal LLM block {param_name}: expected {expected_value}, got {internal_value}"
+
+        # Step 5: Client manager reinitialization must work
+        with patch.object(
+            block.llm_chat, "_reinitialize_client_manager"
+        ) as mock_reinit:
+            block._reinitialize_client_manager()
+            mock_reinit.assert_called_once()
+
+    def test_meaningful_defaults_are_provided(self, test_yaml_config):
+        """Test that meaningful defaults are provided for required internal block parameters.
+
+        Users should be able to create composite blocks without specifying every parameter,
+        and the blocks should provide sensible defaults for their specific use cases.
+        """
+        # Test that blocks can be created with minimal parameters
         block = VerifyQuestionBlock(
-            block_name="test_verify_question",
+            block_name="test_verify",
             input_cols=["question"],
-            output_cols=[
-                "verification_explanation",
-                "verification_rating",
-            ],
+            output_cols=["verification_explanation", "verification_rating"],
             prompt_config_path=test_yaml_config,
-            model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
-            api_base="http://localhost:8000/v1",
-            api_key="EMPTY",
-            temperature=0.8,
-            max_tokens=512,
-            filter_value=1.5,
+            # No filter/parser params specified - should use meaningful defaults
+        )
+
+        # Verify meaningful defaults for VerifyQuestionBlock
+        assert (
+            block.filter_value == 1.0
+        ), "VerifyQuestionBlock should default to rating 1.0"
+        assert (
+            block.operation == "eq"
+        ), "VerifyQuestionBlock should default to 'eq' operation"
+        assert (
+            block.convert_dtype == "float"
+        ), "VerifyQuestionBlock should default to float conversion"
+        assert block.start_tags == [
+            "[Start of Explanation]",
+            "[Start of Rating]",
+        ]
+        assert block.end_tags == ["[End of Explanation]", "[End of Rating]"]
+
+        # Test that defaults are properly forwarded to internal blocks
+        assert block.filter_block.filter_value == 1.0
+        assert block.filter_block.operation == "eq"
+        assert block.text_parser.start_tags == [
+            "[Start of Explanation]",
+            "[Start of Rating]",
+        ]
+
+    def test_parameter_overrides_work_correctly(self, test_yaml_config):
+        """Test that user-provided parameters override defaults correctly.
+
+        When users provide explicit parameters, they should take precedence over defaults,
+        and both initialization-time and runtime parameter setting should work.
+        """
+        # Test initialization-time parameter override
+        block = VerifyQuestionBlock(
+            block_name="test_verify",
+            input_cols=["question"],
+            output_cols=["verification_explanation", "verification_rating"],
+            prompt_config_path=test_yaml_config,
+            # Override defaults
+            filter_value=0.8,
             operation="ge",
+            start_tags=["<custom_explanation>", "<custom_rating>"],
+            temperature=0.9,
+            extra_body={"init_param": "value"},
         )
 
-        # Check PromptBuilderBlock configuration
-        assert block.prompt_builder.block_name == "test_verify_question_prompt_builder"
-        assert block.prompt_builder.input_cols == ["question"]
-        assert block.prompt_builder.output_cols == ["verify_question_prompt"]
+        # Verify overrides worked
+        assert block.filter_value == 0.8, "Initialization override failed"
+        assert block.operation == "ge", "Initialization override failed"
+        assert block.start_tags == ["<custom_explanation>", "<custom_rating>"]
+        assert block.temperature == 0.9
+        assert block.extra_body == {"init_param": "value"}
 
-        # Check LLMChatBlock configuration
-        assert block.llm_chat.block_name == "test_verify_question_llm_chat"
-        assert block.llm_chat.model == "hosted_vllm/meta-llama/Llama-3.3-70B-Instruct"
-        assert block.llm_chat.temperature == 0.8
-        assert block.llm_chat.max_tokens == 512
-
-        # Check TextParserBlock configuration
-        assert block.text_parser.block_name == "test_verify_question_text_parser"
-        assert block.text_parser.input_cols == ["raw_verify_question"]
-        assert block.text_parser.output_cols == [
-            "verification_explanation",
-            "verification_rating",
-        ]
-
-        # Check ColumnValueFilterBlock configuration
-        assert block.filter_block.block_name == "test_verify_question_filter"
-        assert block.filter_block.input_cols == ["verification_rating"]
-        assert block.filter_block.filter_value == 1.5
+        # Verify overrides forwarded to internal blocks
+        assert block.filter_block.filter_value == 0.8
         assert block.filter_block.operation == "ge"
+        assert block.text_parser.start_tags == [
+            "<custom_explanation>",
+            "<custom_rating>",
+        ]
+        assert block.llm_chat.temperature == 0.9
+        assert block.llm_chat.extra_body == {"init_param": "value"}
 
-    def test_error_handling_in_generate(self, test_yaml_config, sample_dataset):
-        """Test error handling in generate method."""
+        # Test runtime parameter override (simulating Flow.set_model_config)
+        block.filter_value = 0.5
+        block.temperature = 0.3
+        block.extra_body = {"runtime_param": "new_value"}
+
+        # Verify runtime overrides worked
+        assert block.filter_value == 0.5, "Runtime override failed"
+        assert block.temperature == 0.3, "Runtime override failed"
+        assert block.extra_body == {"runtime_param": "new_value"}
+
+        # Verify runtime overrides forwarded to internal blocks
+        assert block.filter_block.filter_value == 0.5
+        assert block.llm_chat.temperature == 0.3
+        assert block.llm_chat.extra_body == {"runtime_param": "new_value"}
+
+    def test_unknown_parameter_handling(self, test_yaml_config):
+        """Test that unknown parameters raise appropriate errors."""
         block = VerifyQuestionBlock(
-            block_name="test_verify_question",
+            block_name="test_verify",
             input_cols=["question"],
-            output_cols=[
-                "verification_explanation",
-                "verification_rating",
-            ],
+            output_cols=["verification_explanation", "verification_rating"],
             prompt_config_path=test_yaml_config,
-            model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
-            api_base="http://localhost:8000/v1",
-            api_key="EMPTY",
         )
 
-        # Mock the prompt builder to raise an exception
-        with (
-            patch.object(
-                block.prompt_builder, "generate", side_effect=Exception("Test error")
-            ),
-            pytest.raises(Exception, match="Test error"),
-        ):
-            block.generate(sample_dataset)
+        # hasattr() should return False for unknown parameters
+        assert not hasattr(block, "completely_unknown_parameter")
+        assert not hasattr(block, "fake_llm_param")
+        assert not hasattr(block, "nonexistent_attribute")
 
-    def test_validation_with_empty_dataset(self, test_yaml_config):
-        """Test validation with empty dataset."""
+        # Accessing unknown parameters should raise AttributeError
+        with pytest.raises(AttributeError):
+            _ = block.completely_unknown_parameter
+
+        with pytest.raises(AttributeError):
+            _ = block.fake_llm_param
+
+        # Verify that no unknown parameters end up on internal blocks
+        assert not hasattr(block.llm_chat, "completely_unknown_parameter")
+        assert not hasattr(block.filter_block, "fake_filter_param")
+        assert not hasattr(block.text_parser, "unknown_parser_param")
+
+    def test_none_values_handling(self, test_yaml_config):
+        """Test that None values are handled correctly."""
+        # Create block with some None values
         block = VerifyQuestionBlock(
-            block_name="test_verify_question",
+            block_name="test_verify",
             input_cols=["question"],
-            output_cols=[
-                "verification_explanation",
-                "verification_rating",
-            ],
+            output_cols=["verification_explanation", "verification_rating"],
             prompt_config_path=test_yaml_config,
-            model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
-            api_base="http://localhost:8000/v1",
-            api_key="EMPTY",
+            model=None,
+            api_base=None,
+            temperature=None,
         )
 
-        # Create empty dataset with required columns
-        empty_dataset = Dataset.from_dict({"question": []})
+        # None values should be accessible
+        assert block.model is None
+        assert block.api_base is None
+        assert block.temperature is None
 
-        # Should not raise exception even with empty dataset
-        block._validate_custom(empty_dataset)
+        # None values should be forwarded to internal blocks
+        assert block.llm_chat.model is None
+        assert block.llm_chat.api_base is None
+        assert block.llm_chat.temperature is None
+
+        # Setting None at runtime should work
+        block.extra_body = None
+        block.extra_headers = None
+
+        assert block.extra_body is None
+        assert block.extra_headers is None
+        assert block.llm_chat.extra_body is None
+        assert block.llm_chat.extra_headers is None

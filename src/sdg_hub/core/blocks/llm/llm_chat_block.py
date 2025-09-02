@@ -297,6 +297,10 @@ class LLMChatBlock(BaseBlock):
             temperature, max_tokens, top_p, frequency_penalty, presence_penalty,
             stop, seed, response_format, stream, n, and provider-specific params.
 
+            Special flow-level parameters:
+            _flow_max_concurrency : int, optional
+                Maximum concurrency for async requests (passed by Flow).
+
         Returns
         -------
         Dataset
@@ -314,27 +318,73 @@ class LLMChatBlock(BaseBlock):
                 f"Call flow.set_model_config() before generating."
             )
 
+        # Extract max_concurrency if provided by flow
+        flow_max_concurrency = override_kwargs.pop("_flow_max_concurrency", None)
+
         # Extract messages
         messages_list = samples[self.input_cols[0]]
 
         # Log generation start
         logger.info(
-            f"Starting {'async' if self.async_mode else 'sync'} generation for {len(messages_list)} samples",
+            f"Starting {'async' if self.async_mode else 'sync'} generation for {len(messages_list)} samples"
+            + (
+                f" (max_concurrency={flow_max_concurrency})"
+                if flow_max_concurrency
+                else ""
+            ),
             extra={
                 "block_name": self.block_name,
                 "model": self.model,
                 "provider": self.client_manager.config.get_provider(),
                 "batch_size": len(messages_list),
                 "async_mode": self.async_mode,
-                "override_params": override_kwargs,
+                "flow_max_concurrency": flow_max_concurrency,
+                "override_params": {
+                    k: (
+                        "***"
+                        if any(
+                            s in k.lower()
+                            for s in ["key", "token", "secret", "authorization"]
+                        )
+                        else v
+                    )
+                    for k, v in override_kwargs.items()
+                },
             },
         )
 
         # Generate responses
         if self.async_mode:
-            responses = asyncio.run(
-                self._generate_async(messages_list, **override_kwargs)
-            )
+            try:
+                # Check if there's already a running event loop
+                loop = asyncio.get_running_loop()
+                # Check if nest_asyncio is applied (allows nested asyncio.run)
+                # Use multiple detection methods for robustness
+                nest_asyncio_applied = (
+                    hasattr(loop, "_nest_patched")
+                    or getattr(asyncio.run, "__module__", "") == "nest_asyncio"
+                )
+
+                if nest_asyncio_applied:
+                    # nest_asyncio is applied, safe to use asyncio.run
+                    responses = asyncio.run(
+                        self._generate_async(
+                            messages_list, flow_max_concurrency, **override_kwargs
+                        )
+                    )
+                else:
+                    # Running inside an event loop without nest_asyncio
+                    raise BlockValidationError(
+                        f"async_mode=True cannot be used from within a running event loop for '{self.block_name}'. "
+                        "Use an async entrypoint, set async_mode=False, or apply nest_asyncio.apply() in notebook environments."
+                    )
+            except RuntimeError:
+                # No running loop; safe to create one
+                responses = asyncio.run(
+                    self._generate_async(
+                        messages_list, flow_max_concurrency, **override_kwargs
+                    )
+                )
         else:
             responses = self._generate_sync(messages_list, **override_kwargs)
 
@@ -409,6 +459,7 @@ class LLMChatBlock(BaseBlock):
     async def _generate_async(
         self,
         messages_list: list[list[dict[str, Any]]],
+        flow_max_concurrency: Optional[int] = None,
         **override_kwargs: dict[str, Any],
     ) -> list[Union[str, list[str]]]:
         """Generate responses asynchronously.
@@ -417,6 +468,8 @@ class LLMChatBlock(BaseBlock):
         ----------
         messages_list : List[List[Dict[str, Any]]]
             List of message lists to process.
+        flow_max_concurrency : Optional[int], optional
+            Maximum concurrency for async requests.
         **override_kwargs : Dict[str, Any]
             Runtime parameter overrides.
 
@@ -426,9 +479,11 @@ class LLMChatBlock(BaseBlock):
             List of response strings or lists of response strings (when n > 1).
         """
         try:
-            responses = await self.client_manager.acreate_completions_batch(
-                messages_list, **override_kwargs
+            # Use unified client manager method with optional concurrency control
+            responses = await self.client_manager.acreate_completion(
+                messages_list, max_concurrency=flow_max_concurrency, **override_kwargs
             )
+
             return responses
 
         except Exception as e:

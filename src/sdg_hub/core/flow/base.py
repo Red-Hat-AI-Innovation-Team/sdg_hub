@@ -22,7 +22,7 @@ import yaml
 # Local
 from ..blocks.base import BaseBlock
 from ..blocks.registry import BlockRegistry
-from ..utils.datautils import safe_concatenate_with_validation
+from ..utils.datautils import safe_concatenate_with_validation, validate_no_duplicates
 from ..utils.error_handling import EmptyDatasetError, FlowValidationError
 from ..utils.logger_config import setup_logger
 from ..utils.path_resolution import resolve_path
@@ -360,6 +360,7 @@ class Flow(BaseModel):
         checkpoint_dir: Optional[str] = None,
         save_freq: Optional[int] = None,
         log_dir: Optional[str] = None,
+        max_concurrency: Optional[int] = None,
     ) -> Dataset:
         """Execute the flow blocks in sequence to generate data.
 
@@ -385,6 +386,9 @@ class Flow(BaseModel):
             Directory to save execution logs. If provided, logs will be written to both
             console and a log file in this directory. Maintains backward compatibility
             when None.
+        max_concurrency : Optional[int], optional
+            Maximum number of concurrent requests across all blocks.
+            Controls async request concurrency to prevent overwhelming servers.
 
         Returns
         -------
@@ -423,6 +427,19 @@ class Flow(BaseModel):
             flow_logger.info(
                 f"Flow logging enabled - logs will be saved to: {log_dir}/{log_filename}"
             )
+        # Validate max_concurrency parameter
+        if max_concurrency is not None:
+            # Explicitly reject boolean values (bool is a subclass of int in Python)
+            if isinstance(max_concurrency, bool) or not isinstance(
+                max_concurrency, int
+            ):
+                raise FlowValidationError(
+                    f"max_concurrency must be an int, got {type(max_concurrency).__name__}"
+                )
+            if max_concurrency <= 0:
+                raise FlowValidationError(
+                    f"max_concurrency must be greater than 0, got {max_concurrency}"
+                )
 
         # Validate preconditions
         if not self.blocks:
@@ -430,6 +447,8 @@ class Flow(BaseModel):
 
         if len(dataset) == 0:
             raise EmptyDatasetError("Input dataset is empty")
+
+        validate_no_duplicates(dataset)
 
         # Check if model configuration has been set for flows with LLM blocks
         llm_blocks = self._detect_llm_blocks()
@@ -446,6 +465,10 @@ class Flow(BaseModel):
             raise FlowValidationError(
                 "Dataset validation failed:\n" + "\n".join(dataset_errors)
             )
+
+        # Log concurrency control if specified
+        if max_concurrency is not None:
+            logger.info(f"Using max_concurrency={max_concurrency} for LLM requests")
 
         # Initialize checkpointer if enabled
         checkpointer = None
@@ -474,6 +497,7 @@ class Flow(BaseModel):
         flow_logger.info(
             f"Starting flow '{self.metadata.name}' v{self.metadata.version} "
             f"with {len(dataset)} samples across {len(self.blocks)} blocks"
+            + (f" (max_concurrency={max_concurrency})" if max_concurrency else "")
         )
 
         # Merge migrated runtime params with provided ones (provided ones take precedence)
@@ -497,7 +521,7 @@ class Flow(BaseModel):
 
                 # Execute all blocks on this chunk
                 processed_chunk = self._execute_blocks_on_dataset(
-                    chunk_dataset, runtime_params, flow_logger
+                    chunk_dataset, runtime_params, flow_logger, max_concurrency
                 )
                 all_processed.append(processed_chunk)
 
@@ -522,7 +546,7 @@ class Flow(BaseModel):
         else:
             # Process entire dataset at once
             final_dataset = self._execute_blocks_on_dataset(
-                dataset, runtime_params, flow_logger
+                dataset, runtime_params, flow_logger, max_concurrency
             )
 
             # Save final checkpoint if checkpointing enabled
@@ -550,6 +574,7 @@ class Flow(BaseModel):
         dataset: Dataset,
         runtime_params: dict[str, dict[str, Any]],
         flow_logger=None,
+        max_concurrency: Optional[int] = None,
     ) -> Dataset:
         """Execute all blocks in sequence on the given dataset.
 
@@ -561,6 +586,8 @@ class Flow(BaseModel):
             Runtime parameters for block execution.
         flow_logger : logging.Logger, optional
             Logger to use for this execution. Falls back to global logger if None.
+        max_concurrency : Optional[int], optional
+            Maximum concurrency for LLM requests across blocks.
 
         Returns
         -------
@@ -580,6 +607,10 @@ class Flow(BaseModel):
 
             # Prepare block execution parameters
             block_kwargs = self._prepare_block_kwargs(block, runtime_params)
+
+            # Add max_concurrency to block kwargs if provided
+            if max_concurrency is not None:
+                block_kwargs["_flow_max_concurrency"] = max_concurrency
 
             try:
                 # Check if this is a deprecated block and skip validations
@@ -936,6 +967,8 @@ class Flow(BaseModel):
 
         if len(dataset) == 0:
             raise EmptyDatasetError("Input dataset is empty")
+
+        validate_no_duplicates(dataset)
 
         # Use smaller sample size if dataset is smaller
         actual_sample_size = min(sample_size, len(dataset))

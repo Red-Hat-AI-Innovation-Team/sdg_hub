@@ -296,6 +296,51 @@ result = flow.generate(
 )
 ```
 
+### Concurrency Control
+
+For flows containing LLM blocks, you can control the maximum number of concurrent API requests to prevent overwhelming servers or hitting rate limits:
+
+```python
+# Basic concurrency control
+result = flow.generate(
+    dataset,
+    max_concurrency=5  # Max 5 concurrent requests per LLM block execution
+)
+
+# Combined with other parameters
+result = flow.generate(
+    dataset,
+    max_concurrency=10,
+    runtime_params={
+        "temperature": 0.7,
+        "max_tokens": 200
+    }
+)
+```
+
+**When to Use Concurrency Control:**
+
+- **Large Datasets** - Process thousands of samples without overwhelming APIs
+- **Rate Limit Management** - Respect provider-specific concurrent request limits
+- **Production Workloads** - Ensure stable, predictable resource usage
+- **Cost Optimization** - Prevent burst API charges from uncontrolled parallelism
+
+**Recommended Settings:**
+
+```python
+# Conservative (recommended for production)
+result = flow.generate(dataset, max_concurrency=5)
+
+# Moderate (good for development/testing)  
+result = flow.generate(dataset, max_concurrency=10)
+
+# Aggressive (only for robust APIs and small datasets)
+result = flow.generate(dataset, max_concurrency=20)
+
+# No limit (maximum speed, use with caution)
+result = flow.generate(dataset)  # Default behavior
+```
+
 ## 🚀 Next Steps
 
 Ready to master the flow system? Explore these detailed guides:

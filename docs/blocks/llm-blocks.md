@@ -130,7 +130,7 @@ dataset = Dataset.from_dict({
 })
 ```
 
-#### Async Processing
+#### Async Processing & Concurrency Control
 ```python
 chat_block = LLMChatBlock(
     block_name="async_chat",
@@ -143,6 +143,56 @@ chat_block = LLMChatBlock(
 # Automatically handles concurrent API calls for better throughput
 result = chat_block.generate(large_dataset)
 ```
+
+**Flow-Level Concurrency Control:**
+
+When using LLM blocks within flows, you can control concurrency to prevent overwhelming API servers or hitting rate limits:
+
+```python
+from sdg_hub import Flow
+
+# Load a flow with LLM blocks
+flow = Flow.from_yaml("path/to/your/flow.yaml")
+flow.set_model_config(model="openai/gpt-4o", api_key="your-key")
+
+# Control concurrency for each LLM block in the flow
+result = flow.generate(
+    dataset, 
+    max_concurrency=5  # Max 5 concurrent requests at any time
+)
+```
+
+**Benefits of Concurrency Control:**
+- **Rate Limit Management** - Prevent API throttling by limiting concurrent requests
+- **Resource Control** - Manage memory and network usage for large datasets  
+- **Provider-Friendly** - Respect API provider recommendations for concurrent requests
+- **Automatic Scaling** - No concurrency limit = maximum parallelism for fastest processing
+
+**How It Works:**
+
+The unified async system automatically detects whether you're processing single or multiple messages and applies concurrency control appropriately:
+
+```python
+# Single message - processed immediately
+single_message = [{"role": "user", "content": "Hello"}]
+
+# Multiple messages - concurrency controlled via semaphore
+batch_messages = [
+    [{"role": "user", "content": "Question 1"}],
+    [{"role": "user", "content": "Question 2"}],
+    [{"role": "user", "content": "Question 3"}],
+    # ... up to thousands of messages
+]
+
+# Both cases use the same unified API under the hood
+# Concurrency is managed transparently
+```
+
+**Performance Guidelines:**
+- **Small datasets (<100 samples)**: No concurrency limit needed
+- **Medium datasets (100-1000 samples)**: `max_concurrency=10-20`
+- **Large datasets (1000+ samples)**: `max_concurrency=5-10` (respect API limits)
+- **Production workloads**: Start conservative and tune based on error rates
 
 ### Message Format
 

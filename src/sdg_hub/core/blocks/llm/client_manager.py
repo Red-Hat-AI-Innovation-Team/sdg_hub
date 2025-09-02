@@ -160,9 +160,69 @@ class LLMClientManager:
             return response.choices[0].message.content
 
     async def acreate_completion(
+        self,
+        messages: Union[list[dict[str, Any]], list[list[dict[str, Any]]]],
+        max_concurrency: Optional[int] = None,
+        **overrides: Any,
+    ) -> Union[str, list[str], list[Union[str, list[str]]]]:
+        """Create async completion(s) using LiteLLM with optional concurrency control.
+
+        Parameters
+        ----------
+        messages : Union[List[Dict[str, Any]], List[List[Dict[str, Any]]]]
+            Single message list or list of message lists.
+            - For single: List[Dict[str, Any]] - returns Union[str, List[str]]
+            - For multiple: List[List[Dict[str, Any]]] - returns List[Union[str, List[str]]]
+        max_concurrency : Optional[int], optional
+            Maximum number of concurrent requests when processing multiple messages.
+            If None, all requests run concurrently.
+        **overrides : Any
+            Runtime parameter overrides.
+
+        Returns
+        -------
+        Union[str, List[str], List[Union[str, List[str]]]]
+            For single message: completion text (string when n=1, list when n>1)
+            For multiple messages: list of completion texts (each element can be str or List[str])
+
+        Raises
+        ------
+        Exception
+            If the completion fails after all retries.
+        """
+        # Detect if we have single message or multiple messages
+        if not messages:
+            raise ValueError("messages cannot be empty")
+
+        # Check if first element is a dict (single message) or list (multiple messages)
+        if isinstance(messages[0], dict):
+            # Single message case
+            return await self._acreate_single(messages, **overrides)
+        else:
+            # Multiple messages case
+            messages_list = messages
+
+            if max_concurrency is not None:
+                # Use semaphore for concurrency control
+                semaphore = asyncio.Semaphore(max_concurrency)
+
+                async def _create_with_semaphore(msgs):
+                    async with semaphore:
+                        return await self._acreate_single(msgs, **overrides)
+
+                tasks = [_create_with_semaphore(msgs) for msgs in messages_list]
+                return await asyncio.gather(*tasks)
+            else:
+                # No concurrency limit - process all at once
+                tasks = [
+                    self._acreate_single(msgs, **overrides) for msgs in messages_list
+                ]
+                return await asyncio.gather(*tasks)
+
+    async def _acreate_single(
         self, messages: list[dict[str, Any]], **overrides: Any
     ) -> Union[str, list[str]]:
-        """Create an async completion using LiteLLM.
+        """Create a single async completion using LiteLLM.
 
         Parameters
         ----------
@@ -234,29 +294,6 @@ class LLMClientManager:
             result = self.create_completion(messages, **overrides)
             results.append(result)
         return results
-
-    async def acreate_completions_batch(
-        self, messages_list: list[list[dict[str, Any]]], **overrides: Any
-    ) -> list[Union[str, list[str]]]:
-        """Create multiple completions in batch asynchronously.
-
-        Parameters
-        ----------
-        messages_list : List[List[Dict[str, Any]]]
-            List of message lists to process.
-        **overrides : Any
-            Runtime parameter overrides.
-
-        Returns
-        -------
-        List[Union[str, List[str]]]
-            List of completion texts. Each element is a single string when n=1 or n is None,
-            or a list of strings when n>1.
-        """
-        tasks = [
-            self.acreate_completion(messages, **overrides) for messages in messages_list
-        ]
-        return await asyncio.gather(*tasks)
 
     def _build_completion_kwargs(
         self, messages: list[dict[str, Any]], config: LLMConfig

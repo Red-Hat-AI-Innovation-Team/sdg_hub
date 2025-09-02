@@ -159,7 +159,13 @@ Every block validates data at runtime:
 - Watch execution logs for bottlenecks
 - Use async-friendly blocks for LLM operations
 
-### 4. Design for Reuse
+### 4. Optimize for Scale
+- Use `max_concurrency` parameter to control API request rates
+- Start with conservative concurrency limits (5-10) for production
+- Increase concurrency carefully while monitoring error rates
+- Consider provider-specific rate limits and costs
+
+### 5. Design for Reuse
 - Create modular flows that can be combined
 - Use parameters for customization points
 
