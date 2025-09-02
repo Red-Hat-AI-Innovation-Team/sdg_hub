@@ -495,7 +495,7 @@ class Flow(BaseModel):
                             pass
                         finally:
                             flow_logger.removeHandler(h)
-                        
+
                 return completed_dataset
 
             dataset = remaining_dataset
