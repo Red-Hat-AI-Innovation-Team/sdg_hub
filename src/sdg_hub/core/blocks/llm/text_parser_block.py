@@ -51,6 +51,7 @@ class TextParserBlock(BaseBlock):
     expand_lists : bool
         Whether to expand list inputs into individual rows (True) or preserve lists (False).
         Default is True for backward compatibility.
+    
     """
 
     start_tags: list[str] = Field(
@@ -234,6 +235,21 @@ class TextParserBlock(BaseBlock):
                 value = value.replace(clean_tag, "")
         return value
 
+    
+    def _handle_message_object(self, sample: Any) -> dict:
+        return self._parse(sample['content'])
+        
+    
+    def _handle_message(self, sample: Any) -> dict[str, list[str]]:
+        if isinstance(sample, str):
+            return self._parse(sample['content'])
+        elif isinstance(sample, object):
+            return self._handle_message_object(sample)
+        else:
+            logger.warning(f"Invalid message type: {type(sample)}")
+        return {}        
+        
+
     def _generate(self, sample: dict) -> list[dict]:
         input_column = self.input_cols[0]
         raw_output = sample[input_column]
@@ -243,28 +259,27 @@ class TextParserBlock(BaseBlock):
             if not raw_output:
                 logger.warning(f"Input column '{input_column}' contains empty list")
                 return []
-
+            
             if not self.expand_lists:
                 # When expand_lists=False, preserve the list structure
                 # Parse each response in the list and collect results as lists
                 all_parsed_outputs = {col: [] for col in self.output_cols}
                 valid_responses = 0
 
-                for i, response in enumerate(raw_output):
-                    if not response or not isinstance(response, str):
+                for i, message in enumerate(raw_output):
+                    if not message:
                         logger.warning(
-                            f"List item {i} in column '{input_column}' contains invalid data "
-                            f"(empty or non-string): {type(response)}"
+                            f"List item {i} in column '{input_column}' is empty"
                         )
                         continue
-
-                    parsed_outputs = self._parse(response)
+                    parsed_outputs = self._handle_message(message)
+                    # parsed_outputs = self._parse(response)
 
                     if not parsed_outputs or not any(
                         len(value) > 0 for value in parsed_outputs.values()
                     ):
                         logger.warning(
-                            f"Failed to parse content from list item {i}. Raw output length: {len(response)}, "
+                            f"Failed to parse content from list item {i}. Raw output length: {len(message)}, "
                             f"parsing method: {'regex' if self.parsing_pattern else 'tags'}"
                         )
                         continue
@@ -283,21 +298,21 @@ class TextParserBlock(BaseBlock):
             else:
                 # When expand_lists=True, use existing expanding behavior
                 all_results = []
-                for i, response in enumerate(raw_output):
-                    if not response or not isinstance(response, str):
+                for i, message in enumerate(raw_output):
+                    if not message:
                         logger.warning(
-                            f"List item {i} in column '{input_column}' contains invalid data "
-                            f"(empty or non-string): {type(response)}"
+                            f"List item {i} in column '{input_column}' is empty"
                         )
                         continue
 
-                    parsed_outputs = self._parse(response)
+                    # parsed_outputs = self._parse(message)
+                    parsed_outputs = self._handle_message(message)
 
                     if not parsed_outputs or not any(
                         len(value) > 0 for value in parsed_outputs.values()
                     ):
                         logger.warning(
-                            f"Failed to parse content from list item {i}. Raw output length: {len(response)}, "
+                            f"Failed to parse content from list item {i}. Raw output length: {len(message)}, "
                             f"parsing method: {'regex' if self.parsing_pattern else 'tags'}"
                         )
                         continue
@@ -314,12 +329,12 @@ class TextParserBlock(BaseBlock):
                 return all_results
 
         # Handle string inputs (existing logic)
-        elif isinstance(raw_output, str):
+        elif isinstance(raw_output, dict):
             if not raw_output:
                 logger.warning(f"Input column '{input_column}' contains empty string")
                 return []
 
-            parsed_outputs = self._parse(raw_output)
+            parsed_outputs = self._handle_message(raw_output)
 
             if not parsed_outputs or not any(
                 len(value) > 0 for value in parsed_outputs.values()
