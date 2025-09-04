@@ -150,7 +150,7 @@ blocks:
       block_name: eval_faithfulness
       input_cols: [document, response]
       output_cols: [faithfulness_explanation, faithfulness_judgment]
-      prompt_config_path: ../evaluate_faithfulnqess.yaml
+      prompt_config_path: ../evaluate_faithfulness.yaml
       filter_value: "YES"
       operation: eq
       async_mode: true
