@@ -160,8 +160,8 @@ def test_generate_basic_functionality(postprocessing_block):
     postprocessing_block.end_tags = ["</output>"]
 
     data = [
-        {"raw_output": "Text <output>Result 1</output> more text"},
-        {"raw_output": "Text <output>Result 2</output> more text"},
+        {"raw_output": {"content": "Text <output>Result 1</output> more text"}},
+        {"raw_output": {"content": "Text <output>Result 2</output> more text"}},
     ]
     dataset = Dataset.from_list(data)
 
@@ -175,8 +175,8 @@ def test_generate_basic_functionality(postprocessing_block):
 def test_generate_custom_regex(postprocessing_block_with_custom_parser):
     """Test generate functionality with custom regex parsing."""
     data = [
-        {"raw_output": "Question: Q1\nAnswer: A1"},
-        {"raw_output": "Question: Q2\nAnswer: A2"},
+        {"raw_output": {"content": "Question: Q1\nAnswer: A1"}},
+        {"raw_output": {"content": "Question: Q2\nAnswer: A2"}},
     ]
     dataset = Dataset.from_list(data)
 
@@ -191,12 +191,14 @@ def test_generate_multiple_matches_per_input(postprocessing_block_multi_column):
     """Test generate functionality with multiple matches per input."""
     data = [
         {
-            "raw_output": """
+            "raw_output": {
+                "content": """
             <title>Title 1</title>
             <content>Content 1</content>
             <title>Title 2</title>
             <content>Content 2</content>
             """
+            }
         }
     ]
     dataset = Dataset.from_list(data)
@@ -238,8 +240,8 @@ def test_generate_all_empty_parsed_outputs(postprocessing_block):
     postprocessing_block.end_tags = ["</output>"]
 
     data = [
-        {"raw_output": "Text without any tags"},
-        {"raw_output": "More text without tags"},
+        {"raw_output": {"content": "Text without any tags"}},
+        {"raw_output": {"content": "More text without tags"}},
     ]
     dataset = Dataset.from_list(data)
 
@@ -254,8 +256,12 @@ def test_generate_all_empty_parsed_outputs_custom_parser(
 ):
     """Test generate functionality with custom parser when all parsed outputs are empty."""
     data = [
-        {"raw_output": "Question: What is the answer?\nNo answer provided"},
-        {"raw_output": "Another question without answer"},
+        {
+            "raw_output": {
+                "content": "Question: What is the answer?\nNo answer provided"
+            }
+        },
+        {"raw_output": {"content": "Another question without answer"}},
     ]
     dataset = Dataset.from_list(data)
 
@@ -618,7 +624,7 @@ def test_validation_regex_only_configuration():
         # No tags specified - this should be valid
     )
 
-    data = [{"raw_output": "Answer: test response"}]
+    data = [{"raw_output": {"content": "Answer: test response"}}]
     dataset = Dataset.from_list(data)
 
     # Should not raise validation errors
@@ -638,7 +644,7 @@ def test_validation_tags_only_configuration():
         # No parsing_pattern - this should be valid
     )
 
-    data = [{"raw_output": "<answer>test response</answer>"}]
+    data = [{"raw_output": {"content": "<answer>test response</answer>"}}]
     dataset = Dataset.from_list(data)
 
     # Should not raise validation errors
@@ -689,7 +695,7 @@ def test_enhanced_logging_for_parsing_failures():
     )
 
     # Test with input that won't match the pattern
-    data = [{"raw_output": "No tags in this text"}]
+    data = [{"raw_output": {"content": "No tags in this text"}}]
     dataset = Dataset.from_list(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
@@ -733,17 +739,17 @@ def test_enhanced_logging_regex_parsing():
         parsing_pattern=r"Answer: (.*)",
     )
 
-    data = [{"raw_output": "Answer: test response"}]
+    data = [{"raw_output": {"content": "Answer: test response"}}]
     dataset = Dataset.from_list(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
         block.generate(dataset)
 
-        # Should log debug info about matches found
+        # Should log debug info about parsing
         mock_logger.debug.assert_called()
-        debug_call = mock_logger.debug.call_args[0][0]
-        assert "Regex parsing found" in debug_call
-        assert "matches with pattern" in debug_call
+        debug_calls = [call[0][0] for call in mock_logger.debug.call_args_list]
+        # Check for the general parsing message
+        assert any("Parsing outputs for" in call for call in debug_calls)
 
 
 def test_enhanced_logging_tag_parsing():
@@ -756,18 +762,17 @@ def test_enhanced_logging_tag_parsing():
         end_tags=["</answer>"],
     )
 
-    data = [{"raw_output": "<answer>test response</answer>"}]
+    data = [{"raw_output": {"content": "<answer>test response</answer>"}}]
     dataset = Dataset.from_list(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
         block.generate(dataset)
 
-        # Should log debug info about tag parsing
+        # Should log debug info about parsing
         mock_logger.debug.assert_called()
-        debug_call = mock_logger.debug.call_args[0][0]
-        assert "Tag parsing for" in debug_call
-        assert "found" in debug_call
-        assert "matches" in debug_call
+        debug_calls = [call[0][0] for call in mock_logger.debug.call_args_list]
+        # Check for the general parsing message
+        assert any("Parsing outputs for" in call for call in debug_calls)
 
 
 def test_generate_with_list_input_tag_parsing():
@@ -784,9 +789,9 @@ def test_generate_with_list_input_tag_parsing():
     data = [
         {
             "raw_output": [
-                "<answer>First response</answer>",
-                "<answer>Second response</answer>",
-                "<answer>Third response</answer>",
+                {"content": "<answer>First response</answer>"},
+                {"content": "<answer>Second response</answer>"},
+                {"content": "<answer>Third response</answer>"},
             ]
         }
     ]
@@ -814,8 +819,8 @@ def test_generate_with_list_input_regex_parsing():
     data = [
         {
             "raw_output": [
-                "Question: What is 2+2?\nAnswer: Four",
-                "Question: What is 3+3?\nAnswer: Six",
+                {"content": "Question: What is 2+2?\nAnswer: Four"},
+                {"content": "Question: What is 3+3?\nAnswer: Six"},
             ]
         }
     ]
@@ -843,8 +848,10 @@ def test_generate_with_list_input_multiple_matches_per_response():
     data = [
         {
             "raw_output": [
-                "<title>Title 1</title><content>Content 1</content><title>Title 2</title><content>Content 2</content>",
-                "<title>Title 3</title><content>Content 3</content>",
+                {
+                    "content": "<title>Title 1</title><content>Content 1</content><title>Title 2</title><content>Content 2</content>"
+                },
+                {"content": "<title>Title 3</title><content>Content 3</content>"},
             ]
         }
     ]
@@ -900,9 +907,9 @@ def test_generate_with_mixed_valid_invalid_list_items():
     data_with_empty = [
         {
             "raw_output": [
-                "<answer>Valid response 1</answer>",
-                "",  # Empty string
-                "<answer>Valid response 2</answer>",
+                {"content": "<answer>Valid response 1</answer>"},
+                {"content": ""},  # Empty string
+                {"content": "<answer>Valid response 2</answer>"},
             ]
         }
     ]
@@ -916,9 +923,11 @@ def test_generate_with_mixed_valid_invalid_list_items():
         assert result[0]["output"] == "Valid response 1"
         assert result[1]["output"] == "Valid response 2"
 
-        # Should log warning for empty string
+        # Should log warning for failed parsing (empty content)
         warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
-        assert any("List item 1" in call and "empty" in call for call in warning_calls)
+        assert any(
+            "Failed to parse content from list item 1" in call for call in warning_calls
+        )
 
 
 def test_generate_with_list_input_parsing_failures():
@@ -935,10 +944,10 @@ def test_generate_with_list_input_parsing_failures():
     data = [
         {
             "raw_output": [
-                "<answer>Parseable response 1</answer>",
-                "No tags in this response",  # Won't parse
-                "<answer>Parseable response 2</answer>",
-                "Another response without tags",  # Won't parse
+                {"content": "<answer>Parseable response 1</answer>"},
+                {"content": "No tags in this response"},  # Won't parse
+                {"content": "<answer>Parseable response 2</answer>"},
+                {"content": "Another response without tags"},  # Won't parse
             ]
         }
     ]
@@ -972,7 +981,16 @@ def test_generate_with_list_input_all_invalid():
         end_tags=["</answer>"],
     )
 
-    data = [{"raw_output": ["No tags here", "", None, "Also no tags"]}]
+    data = [
+        {
+            "raw_output": [
+                {"content": "No tags here"},
+                {"content": ""},
+                None,
+                {"content": "Also no tags"},
+            ]
+        }
+    ]
     dataset = Dataset.from_list(data)
 
     result = block.generate(dataset)
@@ -982,7 +1000,7 @@ def test_generate_with_list_input_all_invalid():
 
 
 def test_backwards_compatibility_string_input():
-    """Test that string inputs still work exactly as before (backwards compatibility)."""
+    """Test that dict inputs work as expected."""
     block = TextParserBlock(
         block_name="test_block",
         input_cols="raw_output",
@@ -991,19 +1009,19 @@ def test_backwards_compatibility_string_input():
         end_tags=["</answer>"],
     )
 
-    # Traditional string input (existing behavior)
-    data = [{"raw_output": "<answer>Single string response</answer>"}]
+    # Dict input (new behavior)
+    data = [{"raw_output": {"content": "<answer>Single string response</answer>"}}]
     dataset = Dataset.from_list(data)
 
     result = block.generate(dataset)
 
-    # Should work exactly as before
+    # Should work as expected
     assert len(result) == 1
     assert result[0]["output"] == "Single string response"
 
 
 def test_generate_with_invalid_input_type():
-    """Test handling of completely invalid input types (not string or list)."""
+    """Test handling of completely invalid input types (not dict or list)."""
     block = TextParserBlock(
         block_name="test_block",
         input_cols="raw_output",
@@ -1012,18 +1030,18 @@ def test_generate_with_invalid_input_type():
         end_tags=["</answer>"],
     )
 
-    # Dictionary input (invalid type)
-    data = [{"raw_output": {"not": "valid"}}]
+    # Test with integer input (invalid type)
+    data = [{"raw_output": 123}]  # Integer instead of dict or list
     dataset = Dataset.from_list(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
         result = block.generate(dataset)
 
-        # Should log warning about invalid type
+        # Should log warning about invalid data type
         mock_logger.warning.assert_called()
-        warning_call = mock_logger.warning.call_args[0][0]
-        assert "invalid data type" in warning_call
-        assert "Expected str or List[str]" in warning_call
+        warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
+        assert any("invalid data type" in call for call in warning_calls)
+        assert any("Expected str or List[str]" in call for call in warning_calls)
 
         # Should return empty result
         assert len(result) == 0
@@ -1045,8 +1063,8 @@ def test_expand_lists_false_basic_functionality():
     data = [
         {
             "raw_output": [
-                "<entity>A</entity><entity>B</entity>",
-                "<entity>C</entity>",
+                {"content": "<entity>A</entity><entity>B</entity>"},
+                {"content": "<entity>C</entity>"},
             ]
         }
     ]
@@ -1074,8 +1092,8 @@ def test_expand_lists_false_multiple_output_columns():
     data = [
         {
             "raw_output": [
-                "<title>Title 1</title><content>Content 1</content>",
-                "<title>Title 2</title><content>Content 2</content>",
+                {"content": "<title>Title 1</title><content>Content 1</content>"},
+                {"content": "<title>Title 2</title><content>Content 2</content>"},
             ]
         }
     ]
@@ -1103,8 +1121,8 @@ def test_expand_lists_false_with_regex_parsing():
     data = [
         {
             "raw_output": [
-                "Question 1\nAnswer: Response 1",
-                "Question 2\nAnswer: Response 2\nAnswer: Response 3",
+                {"content": "Question 1\nAnswer: Response 1"},
+                {"content": "Question 2\nAnswer: Response 2\nAnswer: Response 3"},
             ]
         }
     ]
@@ -1132,9 +1150,9 @@ def test_expand_lists_false_with_parsing_failures():
     data = [
         {
             "raw_output": [
-                "<entity>Valid 1</entity>",
-                "No tags here",  # Will fail to parse
-                "<entity>Valid 2</entity>",
+                {"content": "<entity>Valid 1</entity>"},
+                {"content": "No tags here"},  # Will fail to parse
+                {"content": "<entity>Valid 2</entity>"},
             ]
         }
     ]
@@ -1193,8 +1211,8 @@ def test_expand_lists_false_all_parsing_failures():
     data = [
         {
             "raw_output": [
-                "No tags here",
-                "Also no tags",
+                {"content": "No tags here"},
+                {"content": "Also no tags"},
             ]
         }
     ]
@@ -1221,8 +1239,8 @@ def test_expand_lists_true_backward_compatibility():
     data = [
         {
             "raw_output": [
-                "<entity>A</entity><entity>B</entity>",
-                "<entity>C</entity>",
+                {"content": "<entity>A</entity><entity>B</entity>"},
+                {"content": "<entity>C</entity>"},
             ]
         }
     ]
@@ -1255,8 +1273,8 @@ def test_expand_lists_default_value():
     data = [
         {
             "raw_output": [
-                "<entity>A</entity>",
-                "<entity>B</entity>",
+                {"content": "<entity>A</entity>"},
+                {"content": "<entity>B</entity>"},
             ]
         }
     ]

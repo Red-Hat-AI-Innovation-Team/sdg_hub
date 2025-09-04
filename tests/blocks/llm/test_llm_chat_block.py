@@ -13,13 +13,38 @@ from sdg_hub.core.utils.error_handling import BlockValidationError
 import pytest
 
 
+class MockMessage:
+    """Mock message class that behaves like LiteLLM message for dict() conversion."""
+
+    def __init__(self, content):
+        self.content = content
+
+    def __iter__(self):
+        return iter(["content"])
+
+    def __getitem__(self, key):
+        if key == "content":
+            return self.content
+        raise KeyError(key)
+
+    def keys(self):
+        return ["content"]
+
+    def values(self):
+        return [self.content]
+
+    def items(self):
+        return [("content", self.content)]
+
+
 @pytest.fixture
 def mock_litellm_completion():
     """Mock LiteLLM completion function."""
     with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "Test response"
+        choice = MagicMock()
+        choice.message = MockMessage("Test response")
+        mock_response.choices = [choice]
         mock_completion.return_value = mock_response
         yield mock_completion
 
@@ -29,11 +54,12 @@ def mock_litellm_completion_multiple():
     """Mock LiteLLM completion function for multiple responses (n > 1)."""
     with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
         mock_response = MagicMock()
-        # Mock 3 choices for n=3
-        mock_response.choices = [MagicMock(), MagicMock(), MagicMock()]
-        mock_response.choices[0].message.content = "Response 1"
-        mock_response.choices[1].message.content = "Response 2"
-        mock_response.choices[2].message.content = "Response 3"
+        choices = []
+        for i in range(3):
+            choice = MagicMock()
+            choice.message = MockMessage(f"Response {i + 1}")
+            choices.append(choice)
+        mock_response.choices = choices
         mock_completion.return_value = mock_response
         yield mock_completion
 
@@ -45,8 +71,9 @@ def mock_litellm_acompletion():
         "sdg_hub.core.blocks.llm.client_manager.acompletion"
     ) as mock_acompletion:
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "Test async response"
+        choice = MagicMock()
+        choice.message = MockMessage("Test async response")
+        mock_response.choices = [choice]
 
         async def mock_async_completion(*_args, **_kwargs):
             return mock_response
@@ -263,7 +290,9 @@ class TestLLMChatBlock:
 
         assert "response" in result.column_names
         assert len(result["response"]) == 2
-        assert all(response == "Test response" for response in result["response"])
+        assert all(
+            response["content"] == "Test response" for response in result["response"]
+        )
         assert mock_litellm_completion.call_count == 2
 
     def test_async_generation(self, mock_litellm_acompletion, sample_dataset):
@@ -281,7 +310,10 @@ class TestLLMChatBlock:
 
         assert "response" in result.column_names
         assert len(result["response"]) == 2
-        assert all(response == "Test async response" for response in result["response"])
+        assert all(
+            response["content"] == "Test async response"
+            for response in result["response"]
+        )
         assert (
             mock_litellm_acompletion.call_count == 2
         )  # Concurrent calls, one per message
@@ -331,7 +363,7 @@ class TestLLMChatBlock:
 
             assert "response" in result.column_names
             assert len(result["response"]) == 1
-            assert result["response"][0] == "Test response"
+            assert result["response"][0]["content"] == "Test response"
 
     def test_generation_with_all_parameters(
         self, mock_litellm_completion, sample_dataset
@@ -466,8 +498,9 @@ class TestErrorHandling:
 
             # Mock successful response for retry
             mock_response = MagicMock()
-            mock_response.choices = [MagicMock()]
-            mock_response.choices[0].message.content = "Success after retry"
+            choice = MagicMock()
+            choice.message = MockMessage("Success after retry")
+            mock_response.choices = [choice]
 
             # First call raises rate limit error, second succeeds
             mock_completion.side_effect = [
@@ -489,7 +522,7 @@ class TestErrorHandling:
             )
             result = block.generate(single_dataset)
 
-            assert result["response"][0] == "Success after retry"
+            assert result["response"][0]["content"] == "Success after retry"
             assert mock_completion.call_count == 2
 
     def test_litellm_authentication_error(self, sample_dataset):
@@ -615,11 +648,15 @@ class TestMultipleResponses:
         assert "responses" in result.column_names
         assert len(result["responses"]) == 2  # Two input samples
 
-        # Each response should be a list of 3 strings
+        # Each response should be a list of 3 dicts
         for responses in result["responses"]:
             assert isinstance(responses, list)
             assert len(responses) == 3
-            assert responses == ["Response 1", "Response 2", "Response 3"]
+            assert [r["content"] for r in responses] == [
+                "Response 1",
+                "Response 2",
+                "Response 3",
+            ]
 
         assert mock_litellm_completion_multiple.call_count == 2  # One call per sample
 
@@ -638,10 +675,10 @@ class TestMultipleResponses:
         result_n1 = block_n1.generate(sample_dataset)
         assert "response" in result_n1.column_names
         assert len(result_n1["response"]) == 2
-        # Each response should be a single string, not a list
+        # Each response should be a single dict, not a list
         for response in result_n1["response"]:
-            assert isinstance(response, str)
-            assert response == "Test response"
+            assert isinstance(response, dict)
+            assert response["content"] == "Test response"
 
         # Test n=None (default)
         block_none = LLMChatBlock(
@@ -655,10 +692,10 @@ class TestMultipleResponses:
         result_none = block_none.generate(sample_dataset)
         assert "response" in result_none.column_names
         assert len(result_none["response"]) == 2
-        # Each response should be a single string, not a list
+        # Each response should be a single dict, not a list
         for response in result_none["response"]:
-            assert isinstance(response, str)
-            assert response == "Test response"
+            assert isinstance(response, dict)
+            assert response["content"] == "Test response"
 
     def test_multiple_responses_with_override(
         self, mock_litellm_completion_multiple, sample_dataset
@@ -679,11 +716,15 @@ class TestMultipleResponses:
         assert "responses" in result.column_names
         assert len(result["responses"]) == 2
 
-        # Each response should be a list of 3 strings due to override
+        # Each response should be a list of 3 dicts due to override
         for responses in result["responses"]:
             assert isinstance(responses, list)
             assert len(responses) == 3
-            assert responses == ["Response 1", "Response 2", "Response 3"]
+            assert [r["content"] for r in responses] == [
+                "Response 1",
+                "Response 2",
+                "Response 3",
+            ]
 
     def test_config_validation_with_n_parameter(self):
         """Test that n parameter is properly validated in config."""
