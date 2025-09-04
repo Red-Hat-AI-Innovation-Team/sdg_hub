@@ -284,7 +284,7 @@ class LLMClientManager:
 
         Returns
         -------
-        List[dict] | List[List[dict]]   
+        List[dict] | List[List[dict]]
             List of completion responses. Each element is a dict when n=1 or n is None,
             or a list of dicts when n>1. Response dicts contain 'content' and may contain 'reasoning_content'.
         """

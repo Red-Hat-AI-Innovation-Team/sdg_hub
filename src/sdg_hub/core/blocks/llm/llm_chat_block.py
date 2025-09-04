@@ -44,7 +44,7 @@ class LLMChatBlock(BaseBlock):
         Input column name(s). Should contain the messages list.
     output_cols : Union[dict, List[dict]]
         Output column name(s) for the response. When n > 1, the column will contain
-        a list of responses instead of a single response. Responses contain 'content', 
+        a list of responses instead of a single response. Responses contain 'content',
         may contain 'reasoning_content' and other fields if any.
     model : str
         Model identifier in LiteLLM format. Examples:
