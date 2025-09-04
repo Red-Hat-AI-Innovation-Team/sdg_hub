@@ -27,8 +27,8 @@ This process filters out inaccuracies and ensures that only high-quality, faithf
 ### Data Generation Statistics
 
 #### Quality
-n: Number of summaries/document augmentation per type (types: detailed summary, extractive summary, and key facts)
-| Cut (n=3) | Token Count |  
+NUMBER_OF_SUMMARIES: Number of document augmentation per type (types: detailed summary, extractive summary, and key facts)
+| Cut (NUMBER_OF_SUMMARIES=3) | Token Count |  
 |-----------|-------------|  
 |     1 |       2,193,502 |
 |     2 |       4,383,655 |
@@ -41,6 +41,6 @@ n: Number of summaries/document augmentation per type (types: detailed summary, 
 
 
 #### Finance Bench
-| Cut/n=1   | Token Count   |
+| Cut/NUMBER_OF_SUMMARIES=1   | Token Count   |
 |-------|---------------|
 |    50 |     213,333,192 |
