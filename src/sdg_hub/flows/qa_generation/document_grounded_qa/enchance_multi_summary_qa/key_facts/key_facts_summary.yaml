@@ -3,7 +3,7 @@
 
 - role: user
   content: |
-    Please break down the following snippet from an article about {domain} into atomic facts.
+    Please break down the following snippet from an article about {{domain}} into atomic facts.
     Follow these principles to summarize the key facts:
     1. Identify atomic facts/key facts from the text.
     2. Break down compound sentences into atomic facts.
