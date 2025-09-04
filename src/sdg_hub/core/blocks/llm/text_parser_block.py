@@ -51,7 +51,10 @@ class TextParserBlock(BaseBlock):
     expand_lists : bool
         Whether to expand list inputs into individual rows (True) or preserve lists (False).
         Default is True for backward compatibility.
-    
+    save_reasoning_content : bool
+        Whether to save the reasoning content to the output.
+    reasoning_content_field : Optional[str]
+        The field name of the reasoning content to save to the output.
     """
 
     start_tags: list[str] = Field(
@@ -69,6 +72,14 @@ class TextParserBlock(BaseBlock):
     expand_lists: bool = Field(
         default=True,
         description="Whether to expand list inputs into individual rows (True) or preserve lists (False). ",
+    )
+    save_reasoning_content: bool = Field(
+        default=False,
+        description="Whether to save the reasoning content to the output.",
+    )
+    reasoning_content_field: Optional[str] = Field(
+        default='reasoning_content',
+        description="The field name of the reasoning content to save to the output.",
     )
 
     @field_validator("start_tags", "end_tags", mode="before")
@@ -236,23 +247,25 @@ class TextParserBlock(BaseBlock):
         return value
 
     
-    def _handle_message_object(self, sample: Any) -> dict:
-        return self._parse(sample['content'])
-        
+    def _handle_message(self, sample: dict) -> dict[str, list[str]]:
+        parsed_output = self._parse(sample['content'])
+        if self.save_reasoning_content:
+            parsed_output[self.reasoning_content_field] = self._get_reasoning_content(sample)
+        return parsed_output
     
-    def _handle_message(self, sample: Any) -> dict[str, list[str]]:
-        if isinstance(sample, str):
-            return self._parse(sample['content'])
-        elif isinstance(sample, object):
-            return self._handle_message_object(sample)
-        else:
-            logger.warning(f"Invalid message type: {type(sample)}")
-        return {}        
+    def _get_reasoning_content(self, sample: dict) -> str:
+        if self.save_reasoning_content:
+            if self.reasoning_content_field in sample:
+                return sample[self.reasoning_content_field]
+            else:
+                logger.warning(f"Reasoning content field '{self.reasoning_content_field}' not found in response")
+                return ""
+            
         
-
     def _generate(self, sample: dict) -> list[dict]:
         input_column = self.input_cols[0]
         raw_output = sample[input_column]
+        
 
         # Handle list inputs (e.g., from LLMChatBlock with n > 1)
         if isinstance(raw_output, list):
@@ -272,8 +285,10 @@ class TextParserBlock(BaseBlock):
                             f"List item {i} in column '{input_column}' is empty"
                         )
                         continue
+                    
                     parsed_outputs = self._handle_message(message)
-                    # parsed_outputs = self._parse(response)
+                    if self.save_reasoning_content:
+                        reasoning_content = parsed_outputs.pop(self.reasoning_content_field)
 
                     if not parsed_outputs or not any(
                         len(value) > 0 for value in parsed_outputs.values()
@@ -288,6 +303,8 @@ class TextParserBlock(BaseBlock):
                     # Collect all parsed values for each column as lists
                     for col in self.output_cols:
                         all_parsed_outputs[col].extend(parsed_outputs.get(col, []))
+                    if self.save_reasoning_content:
+                        all_parsed_outputs[self.block_name + '_' + self.reasoning_content_field].append(reasoning_content)
 
                 if valid_responses == 0:
                     return []
@@ -305,8 +322,9 @@ class TextParserBlock(BaseBlock):
                         )
                         continue
 
-                    # parsed_outputs = self._parse(message)
                     parsed_outputs = self._handle_message(message)
+                    if self.save_reasoning_content:
+                        reasoning_content = parsed_outputs.pop(self.reasoning_content_field)
 
                     if not parsed_outputs or not any(
                         len(value) > 0 for value in parsed_outputs.values()
@@ -322,9 +340,11 @@ class TextParserBlock(BaseBlock):
                     for values in zip(
                         *(lst[:max_length] for lst in parsed_outputs.values())
                     ):
-                        all_results.append(
-                            {**sample, **dict(zip(parsed_outputs.keys(), values))}
-                        )
+                        result_row = {**sample, **dict(zip(parsed_outputs.keys(), values))}
+                        if self.save_reasoning_content:
+                            result_row[self.block_name + '_' + self.reasoning_content_field] = reasoning_content
+                        all_results.append(result_row)
+                        
 
                 return all_results
 
@@ -333,8 +353,10 @@ class TextParserBlock(BaseBlock):
             if not raw_output:
                 logger.warning(f"Input column '{input_column}' contains empty string")
                 return []
-
             parsed_outputs = self._handle_message(raw_output)
+            if self.save_reasoning_content:
+                reasoning_content = parsed_outputs.pop(self.reasoning_content_field)
+
 
             if not parsed_outputs or not any(
                 len(value) > 0 for value in parsed_outputs.values()
@@ -348,7 +370,12 @@ class TextParserBlock(BaseBlock):
             result = []
             max_length = max(len(value) for value in parsed_outputs.values())
             for values in zip(*(lst[:max_length] for lst in parsed_outputs.values())):
-                result.append({**sample, **dict(zip(parsed_outputs.keys(), values))})
+                result_row = {**sample, **dict(zip(parsed_outputs.keys(), values))}
+                if self.save_reasoning_content:
+                    result_row[self.block_name + '_' + self.reasoning_content_field] = reasoning_content
+                result.append(result_row)
+                
+                
             return result
 
         else:
