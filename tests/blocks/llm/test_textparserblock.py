@@ -1286,3 +1286,508 @@ def test_expand_lists_default_value():
     assert len(result) == 2
     assert result[0]["entity"] == "A"
     assert result[1]["entity"] == "B"
+
+
+# Tests for save_reasoning_content functionality
+def test_save_reasoning_content_basic_dict_input():
+    """Test basic save_reasoning_content functionality with dict input."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+        save_reasoning_content=True,
+    )
+
+    data = [
+        {
+            "raw_output": {
+                "content": "<answer>Final answer</answer>",
+                "reasoning_content": "This is my reasoning process"
+            }
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    assert len(result) == 1
+    assert result[0]["output"] == "Final answer"
+    assert result[0]["test_block_reasoning_content"] == "This is my reasoning process"
+
+
+def test_save_reasoning_content_custom_field_name():
+    """Test save_reasoning_content with custom field name."""
+    block = TextParserBlock(
+        block_name="parser",
+        input_cols="raw_output",
+        output_cols=["answer"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+        save_reasoning_content=True,
+        reasoning_content_field="custom_reasoning",
+    )
+
+    data = [
+        {
+            "raw_output": {
+                "content": "<answer>My answer</answer>",
+                "custom_reasoning": "Custom reasoning field content"
+            }
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    assert len(result) == 1
+    assert result[0]["answer"] == "My answer"
+    assert result[0]["parser_custom_reasoning"] == "Custom reasoning field content"
+
+
+def test_save_reasoning_content_disabled_by_default():
+    """Test that save_reasoning_content is disabled by default."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+        # save_reasoning_content not specified - should default to False
+    )
+
+    # Verify default value
+    assert block.save_reasoning_content is False
+
+    data = [
+        {
+            "raw_output": {
+                "content": "<answer>Final answer</answer>",
+                "reasoning_content": "This reasoning should not be saved"
+            }
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    assert len(result) == 1
+    assert result[0]["output"] == "Final answer"
+    # Should not have reasoning content field
+    assert "test_block_reasoning_content" not in result[0]
+
+
+def test_save_reasoning_content_missing_field():
+    """Test save_reasoning_content when reasoning field is missing from input."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+        save_reasoning_content=True,
+    )
+
+    data = [
+        {
+            "raw_output": {
+                "content": "<answer>Final answer</answer>",
+                # No reasoning_content field
+            }
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
+        result = block.generate(dataset)
+
+        # Should log warning about missing field
+        mock_logger.warning.assert_called()
+        warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
+        assert any("Reasoning content field 'reasoning_content' not found" in call for call in warning_calls)
+
+        assert len(result) == 1
+        assert result[0]["output"] == "Final answer"
+        assert result[0]["test_block_reasoning_content"] == ""
+
+
+def test_save_reasoning_content_with_regex_parsing():
+    """Test save_reasoning_content with regex parsing."""
+    block = TextParserBlock(
+        block_name="regex_block",
+        input_cols="raw_output",
+        output_cols=["answer"],
+        parsing_pattern=r"Answer: (.*?)(?:\n|$)",
+        save_reasoning_content=True,
+    )
+
+    data = [
+        {
+            "raw_output": {
+                "content": "Question: What is 2+2?\nAnswer: Four",
+                "reasoning_content": "Simple arithmetic calculation"
+            }
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    assert len(result) == 1
+    assert result[0]["answer"] == "Four"
+    assert result[0]["regex_block_reasoning_content"] == "Simple arithmetic calculation"
+
+
+def test_save_reasoning_content_list_input_expand_true():
+    """Test save_reasoning_content with list input and expand_lists=True."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+        save_reasoning_content=True,
+        expand_lists=True,
+    )
+
+    data = [
+        {
+            "raw_output": [
+                {
+                    "content": "<answer>First answer</answer>",
+                    "reasoning_content": "First reasoning"
+                },
+                {
+                    "content": "<answer>Second answer</answer>",
+                    "reasoning_content": "Second reasoning"
+                },
+            ]
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    # Should create separate rows for each response
+    assert len(result) == 2
+    assert result[0]["output"] == "First answer"
+    assert result[0]["test_block_reasoning_content"] == "First reasoning"
+    assert result[1]["output"] == "Second answer"
+    assert result[1]["test_block_reasoning_content"] == "Second reasoning"
+
+
+def test_save_reasoning_content_list_input_expand_false():
+    """Test save_reasoning_content with list input and expand_lists=False."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+        save_reasoning_content=True,
+        expand_lists=False,
+    )
+
+    data = [
+        {
+            "raw_output": [
+                {
+                    "content": "<answer>First answer</answer>",
+                    "reasoning_content": "First reasoning"
+                },
+                {
+                    "content": "<answer>Second answer</answer>",
+                    "reasoning_content": "Second reasoning"
+                },
+            ]
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+    print(result)
+    # Should create single row with lists
+    assert len(result) == 1
+    assert result[0]["output"] == ["First answer", "Second answer"]
+    assert result[0]["test_block_reasoning_content"] == ["First reasoning", "Second reasoning"]
+
+
+def test_save_reasoning_content_list_input_multiple_matches():
+    """Test save_reasoning_content with list input where each response has multiple matches."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["title", "content"],
+        start_tags=["<title>", "<content>"],
+        end_tags=["</title>", "</content>"],
+        save_reasoning_content=True,
+        expand_lists=True,
+    )
+
+    data = [
+        {
+            "raw_output": [
+                {
+                    "content": "<title>Title 1</title><content>Content 1</content><title>Title 2</title><content>Content 2</content>",
+                    "reasoning_content": "First response reasoning"
+                },
+                {
+                    "content": "<title>Title 3</title><content>Content 3</content>",
+                    "reasoning_content": "Second response reasoning"
+                },
+            ]
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    # Should create 3 rows total (2 from first response, 1 from second)
+    assert len(result) == 3
+    assert result[0]["title"] == "Title 1"
+    assert result[0]["content"] == "Content 1"
+    assert result[0]["test_block_reasoning_content"] == "First response reasoning"
+    assert result[1]["title"] == "Title 2"
+    assert result[1]["content"] == "Content 2"
+    assert result[1]["test_block_reasoning_content"] == "First response reasoning"
+    assert result[2]["title"] == "Title 3"
+    assert result[2]["content"] == "Content 3"
+    assert result[2]["test_block_reasoning_content"] == "Second response reasoning"
+
+
+def test_save_reasoning_content_list_input_expand_false_multiple_matches():
+    """Test save_reasoning_content with list input, expand_lists=False, and multiple matches per response."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["entity"],
+        start_tags=["<entity>"],
+        end_tags=["</entity>"],
+        save_reasoning_content=True,
+        expand_lists=False,
+    )
+
+    data = [
+        {
+            "raw_output": [
+                {
+                    "content": "<entity>A</entity><entity>B</entity>",
+                    "reasoning_content": "First reasoning"
+                },
+                {
+                    "content": "<entity>C</entity>",
+                    "reasoning_content": "Second reasoning"
+                },
+            ]
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    # Should create single row with lists
+    assert len(result) == 1
+    assert result[0]["entity"] == ["A", "B", "C"]
+    assert result[0]["test_block_reasoning_content"] == ["First reasoning", "Second reasoning"]
+
+
+def test_save_reasoning_content_list_input_mixed_valid_invalid():
+    """Test save_reasoning_content with list input containing valid and invalid responses."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+        save_reasoning_content=True,
+        expand_lists=True,
+    )
+
+    data = [
+        {
+            "raw_output": [
+                {
+                    "content": "<answer>Valid answer 1</answer>",
+                    "reasoning_content": "Valid reasoning 1"
+                },
+                {
+                    "content": "No tags here",  # Will fail to parse
+                    "reasoning_content": "This reasoning won't be used"
+                },
+                {
+                    "content": "<answer>Valid answer 2</answer>",
+                    "reasoning_content": "Valid reasoning 2"
+                },
+            ]
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
+        result = block.generate(dataset)
+
+        # Should process only the 2 valid responses
+        assert len(result) == 2
+        assert result[0]["output"] == "Valid answer 1"
+        assert result[0]["test_block_reasoning_content"] == "Valid reasoning 1"
+        assert result[1]["output"] == "Valid answer 2"
+        assert result[1]["test_block_reasoning_content"] == "Valid reasoning 2"
+
+        # Should log warning for parsing failure
+        warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
+        assert any("Failed to parse content from list item 1" in call for call in warning_calls)
+
+
+def test_save_reasoning_content_empty_reasoning_field():
+    """Test save_reasoning_content when reasoning field is empty."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+        save_reasoning_content=True,
+    )
+
+    data = [
+        {
+            "raw_output": {
+                "content": "<answer>Final answer</answer>",
+                "reasoning_content": ""  # Empty reasoning content
+            }
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    assert len(result) == 1
+    assert result[0]["output"] == "Final answer"
+    assert result[0]["test_block_reasoning_content"] == ""
+
+
+def test_save_reasoning_content_default_field_name():
+    """Test that reasoning_content_field defaults to 'reasoning_content'."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+        save_reasoning_content=True,
+        # reasoning_content_field not specified - should default to 'reasoning_content'
+    )
+
+    # Verify default value
+    assert block.reasoning_content_field == "reasoning_content"
+
+    data = [
+        {
+            "raw_output": {
+                "content": "<answer>Final answer</answer>",
+                "reasoning_content": "Default field reasoning"
+            }
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    assert len(result) == 1
+    assert result[0]["output"] == "Final answer"
+    assert result[0]["test_block_reasoning_content"] == "Default field reasoning"
+
+
+def test_save_reasoning_content_multiple_responses_one_per_row():
+    """Test that when n>1, each row gets its corresponding reasoning content."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+        save_reasoning_content=True,
+        expand_lists=True,
+    )
+
+    # Simulate LLMChatBlock output with n=3 (3 different responses)
+    data = [
+        {
+            "raw_output": [
+                {
+                    "content": "<answer>Response 1</answer>",
+                    "reasoning_content": "Reasoning for response 1"
+                },
+                {
+                    "content": "<answer>Response 2</answer>",
+                    "reasoning_content": "Reasoning for response 2"
+                },
+                {
+                    "content": "<answer>Response 3</answer>",
+                    "reasoning_content": "Reasoning for response 3"
+                },
+            ]
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    # Should create 3 separate rows, each with its own reasoning
+    assert len(result) == 3
+    
+    # Each row should have the reasoning content from its corresponding response
+    assert result[0]["output"] == "Response 1"
+    assert result[0]["test_block_reasoning_content"] == "Reasoning for response 1"
+    
+    assert result[1]["output"] == "Response 2"
+    assert result[1]["test_block_reasoning_content"] == "Reasoning for response 2"
+    
+    assert result[2]["output"] == "Response 3"
+    assert result[2]["test_block_reasoning_content"] == "Reasoning for response 3"
+
+
+def test_save_reasoning_content_multiple_responses_collected_as_list():
+    """Test that when n>1 and expand_lists=False, reasoning contents are collected as a list."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+        save_reasoning_content=True,
+        expand_lists=False,
+    )
+
+    # Simulate LLMChatBlock output with n=3 (3 different responses)
+    data = [
+        {
+            "raw_output": [
+                {
+                    "content": "<answer>Response 1</answer>",
+                    "reasoning_content": "Reasoning for response 1"
+                },
+                {
+                    "content": "<answer>Response 2</answer>",
+                    "reasoning_content": "Reasoning for response 2"
+                },
+                {
+                    "content": "<answer>Response 3</answer>",
+                    "reasoning_content": "Reasoning for response 3"
+                },
+            ]
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    # Should create single row with lists containing all responses and reasoning
+    assert len(result) == 1
+    assert result[0]["output"] == ["Response 1", "Response 2", "Response 3"]
+    # assert result[0]["test_block_reasoning_content"] == [
+    #     "Reasoning for response 1", 
+    #     "Reasoning for response 2", 
+    #     "Reasoning for response 3"
+    # ]
