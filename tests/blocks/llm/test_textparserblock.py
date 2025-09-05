@@ -1031,7 +1031,7 @@ def test_generate_with_invalid_input_type():
     )
 
     # Test with list of strings (invalid type - should be list of dicts)
-    data = [{"raw_output": ['test']}]  # list of strings instead of list of dicts
+    data = [{"raw_output": ["test"]}]  # list of strings instead of list of dicts
     dataset = Dataset.from_list(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
@@ -1041,7 +1041,9 @@ def test_generate_with_invalid_input_type():
         mock_logger.warning.assert_called()
         warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
         assert any("Content not found in sample" in call for call in warning_calls)
-        assert any("Failed to parse content from list item" in call for call in warning_calls)
+        assert any(
+            "Failed to parse content from list item" in call for call in warning_calls
+        )
 
         # Should return empty result
         assert len(result) == 0

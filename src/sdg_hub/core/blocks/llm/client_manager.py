@@ -115,8 +115,7 @@ class LLMClientManager:
             return message.__dict__
         else:
             return dict(message)
-    
-        
+
     def create_completion(
         self, messages: list[dict[str, Any]], **overrides: Any
     ) -> Union[dict, list[dict]]:
@@ -165,7 +164,9 @@ class LLMClientManager:
         # Check if n > 1 to determine return type
         n_value = final_config.n or 1
         if n_value > 1:
-            return [self._message_to_dict(choice.message) for choice in response.choices]
+            return [
+                self._message_to_dict(choice.message) for choice in response.choices
+            ]
         else:
             return self._message_to_dict(response.choices[0].message)
 
@@ -276,7 +277,9 @@ class LLMClientManager:
         # Check if n > 1 to determine return type
         n_value = final_config.n or 1
         if n_value > 1:
-            return [self._message_to_dict(choice.message) for choice in response.choices]
+            return [
+                self._message_to_dict(choice.message) for choice in response.choices
+            ]
         else:
             return self._message_to_dict(response.choices[0].message)
 
