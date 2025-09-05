@@ -1304,7 +1304,7 @@ def test_save_reasoning_content_basic_dict_input():
         {
             "raw_output": {
                 "content": "<answer>Final answer</answer>",
-                "reasoning_content": "This is my reasoning process"
+                "reasoning_content": "This is my reasoning process",
             }
         }
     ]
@@ -1333,7 +1333,7 @@ def test_save_reasoning_content_custom_field_name():
         {
             "raw_output": {
                 "content": "<answer>My answer</answer>",
-                "custom_reasoning": "Custom reasoning field content"
+                "custom_reasoning": "Custom reasoning field content",
             }
         }
     ]
@@ -1364,7 +1364,7 @@ def test_save_reasoning_content_disabled_by_default():
         {
             "raw_output": {
                 "content": "<answer>Final answer</answer>",
-                "reasoning_content": "This reasoning should not be saved"
+                "reasoning_content": "This reasoning should not be saved",
             }
         }
     ]
@@ -1405,7 +1405,10 @@ def test_save_reasoning_content_missing_field():
         # Should log warning about missing field
         mock_logger.warning.assert_called()
         warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
-        assert any("Reasoning content field 'reasoning_content' not found" in call for call in warning_calls)
+        assert any(
+            "Reasoning content field 'reasoning_content' not found" in call
+            for call in warning_calls
+        )
 
         assert len(result) == 1
         assert result[0]["output"] == "Final answer"
@@ -1426,7 +1429,7 @@ def test_save_reasoning_content_with_regex_parsing():
         {
             "raw_output": {
                 "content": "Question: What is 2+2?\nAnswer: Four",
-                "reasoning_content": "Simple arithmetic calculation"
+                "reasoning_content": "Simple arithmetic calculation",
             }
         }
     ]
@@ -1456,11 +1459,11 @@ def test_save_reasoning_content_list_input_expand_true():
             "raw_output": [
                 {
                     "content": "<answer>First answer</answer>",
-                    "reasoning_content": "First reasoning"
+                    "reasoning_content": "First reasoning",
                 },
                 {
                     "content": "<answer>Second answer</answer>",
-                    "reasoning_content": "Second reasoning"
+                    "reasoning_content": "Second reasoning",
                 },
             ]
         }
@@ -1494,11 +1497,11 @@ def test_save_reasoning_content_list_input_expand_false():
             "raw_output": [
                 {
                     "content": "<answer>First answer</answer>",
-                    "reasoning_content": "First reasoning"
+                    "reasoning_content": "First reasoning",
                 },
                 {
                     "content": "<answer>Second answer</answer>",
-                    "reasoning_content": "Second reasoning"
+                    "reasoning_content": "Second reasoning",
                 },
             ]
         }
@@ -1510,7 +1513,10 @@ def test_save_reasoning_content_list_input_expand_false():
     # Should create single row with lists
     assert len(result) == 1
     assert result[0]["output"] == ["First answer", "Second answer"]
-    assert result[0]["test_block_reasoning_content"] == ["First reasoning", "Second reasoning"]
+    assert result[0]["test_block_reasoning_content"] == [
+        "First reasoning",
+        "Second reasoning",
+    ]
 
 
 def test_save_reasoning_content_list_input_multiple_matches():
@@ -1530,11 +1536,11 @@ def test_save_reasoning_content_list_input_multiple_matches():
             "raw_output": [
                 {
                     "content": "<title>Title 1</title><content>Content 1</content><title>Title 2</title><content>Content 2</content>",
-                    "reasoning_content": "First response reasoning"
+                    "reasoning_content": "First response reasoning",
                 },
                 {
                     "content": "<title>Title 3</title><content>Content 3</content>",
-                    "reasoning_content": "Second response reasoning"
+                    "reasoning_content": "Second response reasoning",
                 },
             ]
         }
@@ -1573,11 +1579,11 @@ def test_save_reasoning_content_list_input_expand_false_multiple_matches():
             "raw_output": [
                 {
                     "content": "<entity>A</entity><entity>B</entity>",
-                    "reasoning_content": "First reasoning"
+                    "reasoning_content": "First reasoning",
                 },
                 {
                     "content": "<entity>C</entity>",
-                    "reasoning_content": "Second reasoning"
+                    "reasoning_content": "Second reasoning",
                 },
             ]
         }
@@ -1589,7 +1595,10 @@ def test_save_reasoning_content_list_input_expand_false_multiple_matches():
     # Should create single row with lists
     assert len(result) == 1
     assert result[0]["entity"] == ["A", "B", "C"]
-    assert result[0]["test_block_reasoning_content"] == ["First reasoning", "Second reasoning"]
+    assert result[0]["test_block_reasoning_content"] == [
+        "First reasoning",
+        "Second reasoning",
+    ]
 
 
 def test_save_reasoning_content_list_input_mixed_valid_invalid():
@@ -1609,15 +1618,15 @@ def test_save_reasoning_content_list_input_mixed_valid_invalid():
             "raw_output": [
                 {
                     "content": "<answer>Valid answer 1</answer>",
-                    "reasoning_content": "Valid reasoning 1"
+                    "reasoning_content": "Valid reasoning 1",
                 },
                 {
                     "content": "No tags here",  # Will fail to parse
-                    "reasoning_content": "This reasoning won't be used"
+                    "reasoning_content": "This reasoning won't be used",
                 },
                 {
                     "content": "<answer>Valid answer 2</answer>",
-                    "reasoning_content": "Valid reasoning 2"
+                    "reasoning_content": "Valid reasoning 2",
                 },
             ]
         }
@@ -1636,7 +1645,9 @@ def test_save_reasoning_content_list_input_mixed_valid_invalid():
 
         # Should log warning for parsing failure
         warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
-        assert any("Failed to parse content from list item 1" in call for call in warning_calls)
+        assert any(
+            "Failed to parse content from list item 1" in call for call in warning_calls
+        )
 
 
 def test_save_reasoning_content_empty_reasoning_field():
@@ -1654,7 +1665,7 @@ def test_save_reasoning_content_empty_reasoning_field():
         {
             "raw_output": {
                 "content": "<answer>Final answer</answer>",
-                "reasoning_content": ""  # Empty reasoning content
+                "reasoning_content": "",  # Empty reasoning content
             }
         }
     ]
@@ -1686,7 +1697,7 @@ def test_save_reasoning_content_default_field_name():
         {
             "raw_output": {
                 "content": "<answer>Final answer</answer>",
-                "reasoning_content": "Default field reasoning"
+                "reasoning_content": "Default field reasoning",
             }
         }
     ]
@@ -1717,15 +1728,15 @@ def test_save_reasoning_content_multiple_responses_one_per_row():
             "raw_output": [
                 {
                     "content": "<answer>Response 1</answer>",
-                    "reasoning_content": "Reasoning for response 1"
+                    "reasoning_content": "Reasoning for response 1",
                 },
                 {
                     "content": "<answer>Response 2</answer>",
-                    "reasoning_content": "Reasoning for response 2"
+                    "reasoning_content": "Reasoning for response 2",
                 },
                 {
                     "content": "<answer>Response 3</answer>",
-                    "reasoning_content": "Reasoning for response 3"
+                    "reasoning_content": "Reasoning for response 3",
                 },
             ]
         }
@@ -1736,14 +1747,14 @@ def test_save_reasoning_content_multiple_responses_one_per_row():
 
     # Should create 3 separate rows, each with its own reasoning
     assert len(result) == 3
-    
+
     # Each row should have the reasoning content from its corresponding response
     assert result[0]["output"] == "Response 1"
     assert result[0]["test_block_reasoning_content"] == "Reasoning for response 1"
-    
+
     assert result[1]["output"] == "Response 2"
     assert result[1]["test_block_reasoning_content"] == "Reasoning for response 2"
-    
+
     assert result[2]["output"] == "Response 3"
     assert result[2]["test_block_reasoning_content"] == "Reasoning for response 3"
 
@@ -1766,15 +1777,15 @@ def test_save_reasoning_content_multiple_responses_collected_as_list():
             "raw_output": [
                 {
                     "content": "<answer>Response 1</answer>",
-                    "reasoning_content": "Reasoning for response 1"
+                    "reasoning_content": "Reasoning for response 1",
                 },
                 {
                     "content": "<answer>Response 2</answer>",
-                    "reasoning_content": "Reasoning for response 2"
+                    "reasoning_content": "Reasoning for response 2",
                 },
                 {
                     "content": "<answer>Response 3</answer>",
-                    "reasoning_content": "Reasoning for response 3"
+                    "reasoning_content": "Reasoning for response 3",
                 },
             ]
         }
@@ -1787,7 +1798,7 @@ def test_save_reasoning_content_multiple_responses_collected_as_list():
     assert len(result) == 1
     assert result[0]["output"] == ["Response 1", "Response 2", "Response 3"]
     assert result[0]["test_block_reasoning_content"] == [
-        "Reasoning for response 1", 
-        "Reasoning for response 2", 
-        "Reasoning for response 3"
+        "Reasoning for response 1",
+        "Reasoning for response 2",
+        "Reasoning for response 3",
     ]
