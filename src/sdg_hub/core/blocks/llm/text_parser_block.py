@@ -247,6 +247,9 @@ class TextParserBlock(BaseBlock):
         return value
 
     def _handle_message(self, sample: dict) -> dict[str, list[str]]:
+        if "content" not in sample:
+            logger.warning(f"Content not found in sample: {sample}")
+            return {}
         parsed_output = self._parse(sample["content"])
         if self.save_reasoning_content:
             parsed_output[self.reasoning_content_field] = self._get_reasoning_content(
@@ -400,7 +403,7 @@ class TextParserBlock(BaseBlock):
         else:
             logger.warning(
                 f"Input column '{input_column}' contains invalid data type: {type(raw_output)}. "
-                f"Expected str or List[str]"
+                f"Expected dict or List[dict]"
             )
             return []
 

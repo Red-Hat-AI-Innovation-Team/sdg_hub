@@ -1030,18 +1030,18 @@ def test_generate_with_invalid_input_type():
         end_tags=["</answer>"],
     )
 
-    # Test with integer input (invalid type)
-    data = [{"raw_output": 123}]  # Integer instead of dict or list
+    # Test with list of strings (invalid type - should be list of dicts)
+    data = [{"raw_output": ['test']}]  # list of strings instead of list of dicts
     dataset = Dataset.from_list(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
         result = block.generate(dataset)
 
-        # Should log warning about invalid data type
+        # Should log warnings about content not found and parsing failure
         mock_logger.warning.assert_called()
         warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
-        assert any("invalid data type" in call for call in warning_calls)
-        assert any("Expected str or List[str]" in call for call in warning_calls)
+        assert any("Content not found in sample" in call for call in warning_calls)
+        assert any("Failed to parse content from list item" in call for call in warning_calls)
 
         # Should return empty result
         assert len(result) == 0
@@ -1509,7 +1509,6 @@ def test_save_reasoning_content_list_input_expand_false():
     dataset = Dataset.from_list(data)
 
     result = block.generate(dataset)
-    print(result)
     # Should create single row with lists
     assert len(result) == 1
     assert result[0]["output"] == ["First answer", "Second answer"]

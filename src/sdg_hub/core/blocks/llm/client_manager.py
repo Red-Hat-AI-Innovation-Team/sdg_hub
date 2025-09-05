@@ -107,6 +107,16 @@ class LLMClientManager:
                 f"Could not validate setup for model '{self.config.model}': {e}"
             )
 
+    def _message_to_dict(self, message: Any) -> dict[str, Any]:
+        """Convert a message to a dict."""
+        if hasattr(message, "to_dict"):
+            return message.to_dict()
+        elif hasattr(message, "__dict__"):
+            return message.__dict__
+        else:
+            return dict(message)
+    
+        
     def create_completion(
         self, messages: list[dict[str, Any]], **overrides: Any
     ) -> Union[dict, list[dict]]:
@@ -155,9 +165,9 @@ class LLMClientManager:
         # Check if n > 1 to determine return type
         n_value = final_config.n or 1
         if n_value > 1:
-            return [dict(choice.message) for choice in response.choices]
+            return [self._message_to_dict(choice.message) for choice in response.choices]
         else:
-            return dict(response.choices[0].message)
+            return self._message_to_dict(response.choices[0].message)
 
     async def acreate_completion(
         self,
@@ -266,9 +276,9 @@ class LLMClientManager:
         # Check if n > 1 to determine return type
         n_value = final_config.n or 1
         if n_value > 1:
-            return [dict(choice.message) for choice in response.choices]
+            return [self._message_to_dict(choice.message) for choice in response.choices]
         else:
-            return dict(response.choices[0].message)
+            return self._message_to_dict(response.choices[0].message)
 
     def create_completions_batch(
         self, messages_list: list[list[dict[str, Any]]], **overrides: Any
