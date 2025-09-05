@@ -1786,8 +1786,8 @@ def test_save_reasoning_content_multiple_responses_collected_as_list():
     # Should create single row with lists containing all responses and reasoning
     assert len(result) == 1
     assert result[0]["output"] == ["Response 1", "Response 2", "Response 3"]
-    # assert result[0]["test_block_reasoning_content"] == [
-    #     "Reasoning for response 1", 
-    #     "Reasoning for response 2", 
-    #     "Reasoning for response 3"
-    # ]
+    assert result[0]["test_block_reasoning_content"] == [
+        "Reasoning for response 1", 
+        "Reasoning for response 2", 
+        "Reasoning for response 3"
+    ]
