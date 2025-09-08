@@ -1345,6 +1345,49 @@ class TestLLMChatWithParsingRetryBlockSeedModification:
                 expected_seeds = [200, 201]
                 assert seeds_used == expected_seeds, f"Failed for expand_lists={expand_lists}"
 
+    def test_seed_increments_with_block_attribute_n(self, sample_dataset):
+        """Test that seed increments correctly when n is set as block attribute rather than kwargs."""
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
+            seeds_used = []
+
+            def capture_seed_and_return_unparseable(*args, **kwargs):
+                seeds_used.append(kwargs.get("seed"))
+                mock_response = MagicMock()
+                mock_response.choices = [MagicMock()]
+                mock_response.choices[0].message.content = "Unparseable response"
+                return mock_response
+
+            mock_completion.side_effect = capture_seed_and_return_unparseable
+
+            # Set n as a block attribute rather than passing in kwargs
+            block = LLMChatWithParsingRetryBlock(
+                block_name="test_seed_block_attr",
+                input_cols="messages",
+                output_cols="answer",
+                model="openai/gpt-4",
+                start_tags=["<answer>"],
+                end_tags=["</answer>"],
+                n=4,  # Set as block attribute
+                parsing_max_retries=3,
+            )
+
+            single_dataset = Dataset.from_dict(
+                {"messages": [sample_dataset["messages"][0]]}
+            )
+
+            # Don't pass n in kwargs - should use block attribute
+            with pytest.raises(MaxRetriesExceededError):
+                block.generate(single_dataset, seed=75)
+
+            # Should have made 3 attempts
+            assert len(seeds_used) == 3
+
+            # Verify seed progression: 75, 79, 83 (increment by n=4 from block attribute)
+            expected_seeds = [75, 79, 83]
+            assert seeds_used == expected_seeds
+
 
 class TestLLMChatWithParsingRetryBlockIntegration:
     """Integration tests with real internal block behavior."""

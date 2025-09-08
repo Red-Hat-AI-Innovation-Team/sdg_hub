@@ -373,7 +373,8 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                         retry_kwargs = kwargs.copy()
                         original_seed = kwargs.get("seed", 42)
                         if attempt > 0:
-                            retry_kwargs["seed"] = original_seed + attempt * kwargs.get("n", 1)
+                            n_value = kwargs.get("n", getattr(self, "n", None)) or 1
+                            retry_kwargs["seed"] = original_seed + attempt * n_value
                         else:
                             # Ensure seed is set for first attempt when not provided
                             if "seed" not in kwargs:
@@ -444,7 +445,8 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                         retry_kwargs = kwargs.copy()
                         original_seed = kwargs.get("seed", 42)
                         if attempt > 0:
-                            retry_kwargs["seed"] = original_seed + attempt * kwargs.get("n", 1)
+                            n_value = kwargs.get("n", getattr(self, "n", None)) or 1
+                            retry_kwargs["seed"] = original_seed + attempt * n_value
                         else:
                             # Ensure seed is set for first attempt when not provided
                             if "seed" not in kwargs:
