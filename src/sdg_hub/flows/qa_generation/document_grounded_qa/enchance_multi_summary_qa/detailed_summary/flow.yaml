@@ -118,7 +118,7 @@ blocks:
       block_name: verify_question
       input_cols: [question]
       output_cols: [verification_explanation, verification_rating]
-      prompt_config_path: ../evaluate_question.yaml
+      prompt_config_path: ../../multi_summary_qa/instructlab/evaluate_question.yaml
       filter_value: 1.0
       operation: ge
       convert_dtype: float
@@ -151,7 +151,7 @@ blocks:
       block_name: eval_faithfulness
       input_cols: [document, response]
       output_cols: [faithfulness_explanation, faithfulness_judgment]
-      prompt_config_path: ../evaluate_faithfulness.yaml
+      prompt_config_path: ../../multi_summary_qa/instructlab/evaluate_faithfulness.yaml
       filter_value: "YES"
       operation: eq
       async_mode: true
@@ -164,7 +164,7 @@ blocks:
       block_name: eval_relevancy
       input_cols: [question, response]
       output_cols: [relevancy_explanation, relevancy_score]
-      prompt_config_path: ../evaluate_relevancy.yaml
+      prompt_config_path: ../../multi_summary_qa/instructlab/evaluate_relevancy.yaml
       filter_value: 2.0
       operation: eq
       convert_dtype: float
