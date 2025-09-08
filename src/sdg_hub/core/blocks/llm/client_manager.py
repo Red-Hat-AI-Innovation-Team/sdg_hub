@@ -81,6 +81,12 @@ class LLMClientManager:
         """Configure LiteLLM settings."""
         # Set global timeout for LiteLLM
         litellm.request_timeout = self.config.timeout
+        
+        # Suppress litellm logs to reduce noise
+        import logging
+        logging.getLogger('litellm').setLevel(logging.WARNING)
+        logging.getLogger('litellm.proxy').setLevel(logging.WARNING)
+        logging.getLogger('litellm.router').setLevel(logging.WARNING)
 
         # Note: API keys are now passed directly in completion calls
         # instead of modifying environment variables for thread-safety
