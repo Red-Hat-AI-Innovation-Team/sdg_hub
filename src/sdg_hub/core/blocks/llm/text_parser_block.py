@@ -252,9 +252,9 @@ class TextParserBlock(BaseBlock):
             return {}
         parsed_output = self._parse(sample["content"])
         if self.save_reasoning_content:
-            parsed_output[self.reasoning_content_field] = [self._get_reasoning_content(
-                sample
-            )]
+            parsed_output[self.reasoning_content_field] = [
+                self._get_reasoning_content(sample)
+            ]
         return parsed_output
 
     def _get_reasoning_content(self, sample: dict) -> str:
@@ -362,9 +362,10 @@ class TextParserBlock(BaseBlock):
                             **dict(zip(parsed_outputs.keys(), values)),
                         }
                         if self.save_reasoning_content:
-                            result_row[self.block_name + "_" + self.reasoning_content_field] = reasoning_content[0]
+                            result_row[
+                                self.block_name + "_" + self.reasoning_content_field
+                            ] = reasoning_content[0]
                         all_results.append(result_row)
-                        
 
                 return all_results
 
@@ -392,7 +393,9 @@ class TextParserBlock(BaseBlock):
             for values in zip(*(lst[:max_length] for lst in parsed_outputs.values())):
                 result_row = {**sample, **dict(zip(parsed_outputs.keys(), values))}
                 if self.save_reasoning_content:
-                    result_row[self.block_name + "_" + self.reasoning_content_field] = reasoning_content[0]
+                    result_row[self.block_name + "_" + self.reasoning_content_field] = (
+                        reasoning_content[0]
+                    )
                 result.append(result_row)
 
             return result
