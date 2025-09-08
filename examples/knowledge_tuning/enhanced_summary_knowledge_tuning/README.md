@@ -1,46 +1,76 @@
 # Knowledge Tuning with Enhanced Summaries
-### 1\. Document Summarization
 
-To kickstart the process, we generate three unique summaries of your source documents. This multi-faceted approach helps the model to thoroughly memorize and recall the key information. The summaries include:
+## Objective
 
-  * **Detailed Summaries:** Comprehensive overviews of the content.
-  * **Extractive Summaries:** Key sentences and passages pulled directly from the text.
-  * **Atomic Facts:** A list of the most critical, standalone pieces of information.
+Pre-trained language models typically encounter most facts in their training data only **once or twice**, if at all. As a result, knowledge of specific details—especially **proprietary or domain-specific documents**—is often incomplete or missing.
 
+This pipeline is designed to **inject new knowledge** from a given set of documents into an instruction-tuned model. By generating **multiple document augmentations** (summaries, extractive passages, atomic facts) and **synthetic Q\&A pairs**, we repeat and reinforce important information. This repetition helps the model:
 
-### 2\. Synthetic Q\&A Generation
+* **Memorize facts** it has rarely or never seen before.
+* **Generalize across augmentations**, improving reliability when queried.
+* **Adapt to proprietary knowledge sources** that were absent from pre-training.
 
-Next, our pipeline leverages user-provided "seed examples"—sample questions and answers—to generate a wealth of synthetic Q\&A pairs. These new pairs are contextually grounded in the summarized documents, effectively scaling up your initial examples into a diverse training dataset.
+The final product is a **high-quality training dataset** suitable for fine-tuning, enabling models to answer queries more accurately and faithfully based on the injected documents.
 
+---
 
-### 3\. Quality Control
+## 1. Document Summarization
 
-To ensure the integrity of our generated data, we employ a quality-checking phase. Using a "teacher" model, we perform a faithfulness evaluation by:
+To bootstrap the process, we generate **three complementary types of summaries** for each source document. This ensures the model captures content at multiple levels of abstraction:
 
-1.  Providing the model with a generated answer and the original source document.
-2.  Tasking the model to extract every claim made in the answer.
-3.  Verifying that each claim is factually supported by the provided document.
+* **Detailed Summaries** – Rich, comprehensive overviews of the document.
+* **Extractive Summaries** – Directly extracted sentences and passages representing the most important parts.
+* **Atomic Facts** – Concise, standalone factual statements distilled from the text.
 
-This process filters out inaccuracies and ensures that only high-quality, faithful Q\&A pairs make it into the final dataset.
+This multi-perspective approach improves the model’s ability to **memorize, generalize, and recall** key knowledge.
 
+---
 
-### Data Generation Statistics
+## 2. Synthetic Q\&A Generation
 
-#### Quality
-NUMBER_OF_SUMMARIES: Number of document augmentation per type (types: detailed summary, extractive summary, and key facts)
-| Cut (NUMBER_OF_SUMMARIES=3) | Token Count |  
-|-----------|-------------|  
-|     1 |       2,193,502 |
-|     2 |       4,383,655 |
-|     5 |      10,870,396 |
-|    10 |      21,815,170 |
-|    20 |      43,601,976 |
-|    30 |      65,395,710 |
-|    40 |      87,118,308 |
-|    50 |     108,779,213 |
+With summaries in place, we scale up training data via **synthetic Q\&A generation**:
 
+* Users provide a small set of **seed examples** (initial Q\&A pairs).
+* The pipeline uses these seeds to generate a large set of **contextually grounded Q\&A pairs**, tightly linked to the summarized documents.
+* This expands sparse seed data into a **rich, diverse training dataset** suitable for fine-tuning.
 
-#### Finance Bench
-| Cut/NUMBER_OF_SUMMARIES=1   | Token Count   |
-|-------|---------------|
-|    50 |     213,333,192 |
+---
+
+## 3. Quality Control
+
+High-quality training data is essential. To ensure faithfulness and accuracy, we employ a **teacher-model evaluation loop**:
+
+1. Provide the model with a generated answer and the original document.
+2. Ask it to extract each factual claim from the answer.
+3. Verify whether each claim is **explicitly supported** by the document.
+
+Only claims passing this check are retained. This process filters out **hallucinations and unsupported statements**, ensuring reliable Q\&A pairs.
+
+---
+
+## Data Generation Statistics
+
+### Summary Augmentation
+
+Each “cut” represents the total number of summaries generated per document across all three augmentation types.
+
+| Cut (NUMBER\_OF\_SUMMARIES = 3) | Token Count |
+| ------------------------------- | ----------- |
+| 1                               | 2,193,502   |
+| 2                               | 4,383,655   |
+| 5                               | 10,870,396  |
+| 10                              | 21,815,170  |
+| 20                              | 43,601,976  |
+| 30                              | 65,395,710  |
+| 40                              | 87,118,308  |
+| 50                              | 108,779,213 |
+
+---
+
+### Finance Bench Example
+
+For Finance Bench (NUMBER\_OF\_SUMMARIES = 1):
+
+| Cut | Token Count |
+| --- | ----------- |
+| 50  | 213,333,192 |
