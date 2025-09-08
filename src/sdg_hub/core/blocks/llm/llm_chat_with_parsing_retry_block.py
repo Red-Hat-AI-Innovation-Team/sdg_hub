@@ -369,9 +369,19 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                         break  # Already reached target
 
                     try:
+                        # Update seed for each retry attempt
+                        retry_kwargs = kwargs.copy()
+                        original_seed = kwargs.get("seed", 42)
+                        if attempt > 0:
+                            retry_kwargs["seed"] = original_seed + attempt * kwargs.get("n", 1)
+                        else:
+                            # Ensure seed is set for first attempt when not provided
+                            if "seed" not in kwargs:
+                                retry_kwargs["seed"] = original_seed
+
                         # Generate LLM responses for this sample
                         temp_dataset = Dataset.from_list([sample])
-                        llm_result = self.llm_chat.generate(temp_dataset, **kwargs)
+                        llm_result = self.llm_chat.generate(temp_dataset, **retry_kwargs)
 
                         # Parse the responses
                         parsed_result = self.text_parser.generate(llm_result, **kwargs)
@@ -430,9 +440,19 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                         break  # Already reached target
 
                     try:
+                        # Update seed for each retry attempt
+                        retry_kwargs = kwargs.copy()
+                        original_seed = kwargs.get("seed", 42)
+                        if attempt > 0:
+                            retry_kwargs["seed"] = original_seed + attempt * kwargs.get("n", 1)
+                        else:
+                            # Ensure seed is set for first attempt when not provided
+                            if "seed" not in kwargs:
+                                retry_kwargs["seed"] = original_seed
+
                         # Generate LLM responses for this sample
                         temp_dataset = Dataset.from_list([sample])
-                        llm_result = self.llm_chat.generate(temp_dataset, **kwargs)
+                        llm_result = self.llm_chat.generate(temp_dataset, **retry_kwargs)
 
                         # Get the raw responses (should be a list when n > 1)
                         raw_response_col = f"{self.block_name}_raw_response"

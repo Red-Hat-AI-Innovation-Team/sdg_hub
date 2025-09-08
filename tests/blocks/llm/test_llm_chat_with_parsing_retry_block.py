@@ -1138,6 +1138,214 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
                 assert isinstance(row["messages"], list)
 
 
+class TestLLMChatWithParsingRetryBlockSeedModification:
+    """Test seed modification during retry attempts."""
+
+    def test_seed_increments_on_retry_attempts(self, sample_dataset):
+        """Test that seed is incremented correctly for each retry attempt."""
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
+            # Track all seeds used in LLM calls
+            seeds_used = []
+
+            def capture_seed_and_return_unparseable(*args, **kwargs):
+                seeds_used.append(kwargs.get("seed"))
+                mock_response = MagicMock()
+                mock_response.choices = [MagicMock()]
+                mock_response.choices[0].message.content = "Unparseable response"
+                return mock_response
+
+            mock_completion.side_effect = capture_seed_and_return_unparseable
+
+            block = LLMChatWithParsingRetryBlock(
+                block_name="test_seed_increment",
+                input_cols="messages",
+                output_cols="answer",
+                model="openai/gpt-4",
+                start_tags=["<answer>"],
+                end_tags=["</answer>"],
+                parsing_max_retries=3,
+            )
+
+            single_dataset = Dataset.from_dict(
+                {"messages": [sample_dataset["messages"][0]]}
+            )
+
+            # This should fail after 3 attempts, but we'll capture the seeds
+            with pytest.raises(MaxRetriesExceededError):
+                block.generate(single_dataset, seed=100, n=1)
+
+            # Should have made 3 attempts (max retries)
+            assert len(seeds_used) == 3
+
+            # Verify seed progression: 100, 101, 102 (increment by n=1 for each attempt)
+            expected_seeds = [100, 101, 102]
+            assert seeds_used == expected_seeds
+
+    def test_seed_increments_with_n_parameter(self, sample_dataset):
+        """Test that seed increments correctly when n > 1."""
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
+            seeds_used = []
+
+            def capture_seed_and_return_unparseable(*args, **kwargs):
+                seeds_used.append(kwargs.get("seed"))
+                mock_response = MagicMock()
+                mock_response.choices = [MagicMock()]
+                mock_response.choices[0].message.content = "Unparseable response"
+                return mock_response
+
+            mock_completion.side_effect = capture_seed_and_return_unparseable
+
+            block = LLMChatWithParsingRetryBlock(
+                block_name="test_seed_n_increment",
+                input_cols="messages",
+                output_cols="answer",
+                model="openai/gpt-4",
+                start_tags=["<answer>"],
+                end_tags=["</answer>"],
+                parsing_max_retries=3,
+            )
+
+            single_dataset = Dataset.from_dict(
+                {"messages": [sample_dataset["messages"][0]]}
+            )
+
+            # Test with n=3
+            with pytest.raises(MaxRetriesExceededError):
+                block.generate(single_dataset, seed=50, n=3)
+
+            # Should have made 3 attempts
+            assert len(seeds_used) == 3
+
+            # Verify seed progression: 50, 53, 56 (increment by n=3 for each attempt)
+            expected_seeds = [50, 53, 56]
+            assert seeds_used == expected_seeds
+
+    def test_seed_defaults_to_42_when_not_provided(self, sample_dataset):
+        """Test that seed defaults to 42 when not provided in kwargs."""
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
+            seeds_used = []
+
+            def capture_seed_and_return_unparseable(*args, **kwargs):
+                seeds_used.append(kwargs.get("seed"))
+                mock_response = MagicMock()
+                mock_response.choices = [MagicMock()]
+                mock_response.choices[0].message.content = "Unparseable response"
+                return mock_response
+
+            mock_completion.side_effect = capture_seed_and_return_unparseable
+
+            block = LLMChatWithParsingRetryBlock(
+                block_name="test_seed_default",
+                input_cols="messages",
+                output_cols="answer",
+                model="openai/gpt-4",
+                start_tags=["<answer>"],
+                end_tags=["</answer>"],
+                parsing_max_retries=3,
+            )
+
+            single_dataset = Dataset.from_dict(
+                {"messages": [sample_dataset["messages"][0]]}
+            )
+
+            # Don't provide seed parameter
+            with pytest.raises(MaxRetriesExceededError):
+                block.generate(single_dataset, n=2)
+
+            # Should have made 3 attempts
+            assert len(seeds_used) == 3
+
+            # Verify seed progression: 42, 44, 46 (default 42, increment by n=2)
+            expected_seeds = [42, 44, 46]
+            assert seeds_used == expected_seeds
+
+    def test_first_attempt_uses_original_seed(self, mock_litellm_completion, sample_dataset):
+        """Test that the first attempt uses the original seed without modification."""
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
+            seeds_used = []
+
+            def capture_seed_and_return_success(*args, **kwargs):
+                seeds_used.append(kwargs.get("seed"))
+                mock_response = MagicMock()
+                mock_response.choices = [MagicMock()]
+                mock_response.choices[0].message.content = "<answer>Success on first try</answer>"
+                return mock_response
+
+            mock_completion.side_effect = capture_seed_and_return_success
+
+            block = LLMChatWithParsingRetryBlock(
+                block_name="test_first_attempt_seed",
+                input_cols="messages",
+                output_cols="answer",
+                model="openai/gpt-4",
+                start_tags=["<answer>"],
+                end_tags=["</answer>"],
+                parsing_max_retries=3,
+            )
+
+            single_dataset = Dataset.from_dict(
+                {"messages": [sample_dataset["messages"][0]]}
+            )
+
+            # Should succeed on first attempt
+            result = block.generate(single_dataset, seed=123)
+
+            # Should have made only 1 attempt (successful)
+            assert len(seeds_used) == 1
+            assert seeds_used[0] == 123  # Original seed unchanged
+
+            # Verify success
+            assert len(result) == 1
+            assert result[0]["answer"] == "Success on first try"
+
+    def test_seed_modification_both_expand_modes(self, sample_dataset):
+        """Test that seed modification works correctly for both expand_lists=True and False."""
+        for expand_lists in [True, False]:
+            with patch(
+                "sdg_hub.core.blocks.llm.client_manager.completion"
+            ) as mock_completion:
+                seeds_used = []
+
+                def capture_seed_and_return_unparseable(*args, **kwargs):
+                    seeds_used.append(kwargs.get("seed"))
+                    mock_response = MagicMock()
+                    mock_response.choices = [MagicMock()]
+                    mock_response.choices[0].message.content = "Unparseable response"
+                    return mock_response
+
+                mock_completion.side_effect = capture_seed_and_return_unparseable
+
+                block = LLMChatWithParsingRetryBlock(
+                    block_name=f"test_seed_expand_{expand_lists}",
+                    input_cols="messages",
+                    output_cols="answer",
+                    model="openai/gpt-4",
+                    start_tags=["<answer>"],
+                    end_tags=["</answer>"],
+                    expand_lists=expand_lists,
+                    parsing_max_retries=2,
+                )
+
+                single_dataset = Dataset.from_dict(
+                    {"messages": [sample_dataset["messages"][0]]}
+                )
+
+                with pytest.raises(MaxRetriesExceededError):
+                    block.generate(single_dataset, seed=200, n=1)
+
+                # Should have same seed progression regardless of expand_lists mode
+                expected_seeds = [200, 201]
+                assert seeds_used == expected_seeds, f"Failed for expand_lists={expand_lists}"
+
+
 class TestLLMChatWithParsingRetryBlockIntegration:
     """Integration tests with real internal block behavior."""
 
