@@ -382,7 +382,9 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
 
                         # Generate LLM responses for this sample
                         temp_dataset = Dataset.from_list([sample])
-                        llm_result = self.llm_chat.generate(temp_dataset, **retry_kwargs)
+                        llm_result = self.llm_chat.generate(
+                            temp_dataset, **retry_kwargs
+                        )
 
                         # Parse the responses
                         parsed_result = self.text_parser.generate(llm_result, **kwargs)
@@ -454,7 +456,9 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
 
                         # Generate LLM responses for this sample
                         temp_dataset = Dataset.from_list([sample])
-                        llm_result = self.llm_chat.generate(temp_dataset, **retry_kwargs)
+                        llm_result = self.llm_chat.generate(
+                            temp_dataset, **retry_kwargs
+                        )
 
                         # Get the raw responses (should be a list when n > 1)
                         raw_response_col = f"{self.block_name}_raw_response"

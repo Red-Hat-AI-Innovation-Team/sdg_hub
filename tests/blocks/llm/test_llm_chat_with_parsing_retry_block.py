@@ -1265,7 +1265,9 @@ class TestLLMChatWithParsingRetryBlockSeedModification:
             expected_seeds = [42, 44, 46]
             assert seeds_used == expected_seeds
 
-    def test_first_attempt_uses_original_seed(self, mock_litellm_completion, sample_dataset):
+    def test_first_attempt_uses_original_seed(
+        self, mock_litellm_completion, sample_dataset
+    ):
         """Test that the first attempt uses the original seed without modification."""
         with patch(
             "sdg_hub.core.blocks.llm.client_manager.completion"
@@ -1343,7 +1345,9 @@ class TestLLMChatWithParsingRetryBlockSeedModification:
 
                 # Should have same seed progression regardless of expand_lists mode
                 expected_seeds = [200, 201]
-                assert seeds_used == expected_seeds, f"Failed for expand_lists={expand_lists}"
+                assert (
+                    seeds_used == expected_seeds
+                ), f"Failed for expand_lists={expand_lists}"
 
     def test_seed_increments_with_block_attribute_n(self, sample_dataset):
         """Test that seed increments correctly when n is set as block attribute rather than kwargs."""
