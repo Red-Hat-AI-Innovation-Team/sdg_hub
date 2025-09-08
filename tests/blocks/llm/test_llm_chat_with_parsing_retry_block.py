@@ -1278,7 +1278,9 @@ class TestLLMChatWithParsingRetryBlockSeedModification:
                 seeds_used.append(kwargs.get("seed"))
                 mock_response = MagicMock()
                 mock_response.choices = [MagicMock()]
-                mock_response.choices[0].message.content = "<answer>Success on first try</answer>"
+                mock_response.choices[
+                    0
+                ].message.content = "<answer>Success on first try</answer>"
                 return mock_response
 
             mock_completion.side_effect = capture_seed_and_return_success
@@ -1390,6 +1392,90 @@ class TestLLMChatWithParsingRetryBlockSeedModification:
 
             # Verify seed progression: 75, 79, 83 (increment by n=4 from block attribute)
             expected_seeds = [75, 79, 83]
+            assert seeds_used == expected_seeds
+
+    def test_seed_respects_block_configured_seed(self, sample_dataset):
+        """Test that seed increment respects block-configured seed when not provided in kwargs."""
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
+            seeds_used = []
+
+            def capture_seed_and_return_unparseable(*args, **kwargs):
+                seeds_used.append(kwargs.get("seed"))
+                mock_response = MagicMock()
+                mock_response.choices = [MagicMock()]
+                mock_response.choices[0].message.content = "Unparseable response"
+                return mock_response
+
+            mock_completion.side_effect = capture_seed_and_return_unparseable
+
+            block = LLMChatWithParsingRetryBlock(
+                block_name="test_seed_configured",
+                input_cols="messages",
+                output_cols="answer",
+                model="openai/gpt-4",
+                start_tags=["<answer>"],
+                end_tags=["</answer>"],
+                seed=999,  # Configure seed on block
+                parsing_max_retries=3,
+            )
+
+            single_dataset = Dataset.from_dict(
+                {"messages": [sample_dataset["messages"][0]]}
+            )
+
+            # Don't provide seed in kwargs - should use configured block seed
+            with pytest.raises(MaxRetriesExceededError):
+                block.generate(single_dataset, n=2)
+
+            # Should have made 3 attempts
+            assert len(seeds_used) == 3
+
+            # Verify seed progression: 999, 1001, 1003 (configured seed 999, increment by n=2)
+            expected_seeds = [999, 1001, 1003]
+            assert seeds_used == expected_seeds
+
+    def test_kwargs_seed_overrides_block_configured_seed(self, sample_dataset):
+        """Test that kwargs seed takes precedence over block-configured seed."""
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
+            seeds_used = []
+
+            def capture_seed_and_return_unparseable(*args, **kwargs):
+                seeds_used.append(kwargs.get("seed"))
+                mock_response = MagicMock()
+                mock_response.choices = [MagicMock()]
+                mock_response.choices[0].message.content = "Unparseable response"
+                return mock_response
+
+            mock_completion.side_effect = capture_seed_and_return_unparseable
+
+            block = LLMChatWithParsingRetryBlock(
+                block_name="test_seed_precedence",
+                input_cols="messages",
+                output_cols="answer",
+                model="openai/gpt-4",
+                start_tags=["<answer>"],
+                end_tags=["</answer>"],
+                seed=999,  # Configure seed on block
+                parsing_max_retries=2,
+            )
+
+            single_dataset = Dataset.from_dict(
+                {"messages": [sample_dataset["messages"][0]]}
+            )
+
+            # Provide seed in kwargs - should override block configuration
+            with pytest.raises(MaxRetriesExceededError):
+                block.generate(single_dataset, seed=555, n=3)
+
+            # Should have made 2 attempts
+            assert len(seeds_used) == 2
+
+            # Verify seed progression: 555, 558 (kwargs seed 555 overrides block seed 999)
+            expected_seeds = [555, 558]
             assert seeds_used == expected_seeds
 
 

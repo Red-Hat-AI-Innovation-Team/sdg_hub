@@ -371,10 +371,19 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                     try:
                         # Update seed for each retry attempt
                         retry_kwargs = kwargs.copy()
-                        original_seed = kwargs.get("seed", 42)
+                        # Determine effective 'n' and original seed with clear precedence:
+                        # kwargs > block-configured > default
+                        effective_n = kwargs.get("n", getattr(self, "n", None)) or 1
+                        cfg_seed = (
+                            getattr(self.llm_chat, "seed", None)
+                            if self.llm_chat
+                            else None
+                        )
+                        original_seed = kwargs.get(
+                            "seed", cfg_seed if cfg_seed is not None else 42
+                        )
                         if attempt > 0:
-                            n_value = kwargs.get("n", getattr(self, "n", None)) or 1
-                            retry_kwargs["seed"] = original_seed + attempt * n_value
+                            retry_kwargs["seed"] = original_seed + attempt * effective_n
                         else:
                             # Ensure seed is set for first attempt when not provided
                             if "seed" not in kwargs:
@@ -445,10 +454,19 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                     try:
                         # Update seed for each retry attempt
                         retry_kwargs = kwargs.copy()
-                        original_seed = kwargs.get("seed", 42)
+                        # Determine effective 'n' and original seed with clear precedence:
+                        # kwargs > block-configured > default
+                        effective_n = kwargs.get("n", getattr(self, "n", None)) or 1
+                        cfg_seed = (
+                            getattr(self.llm_chat, "seed", None)
+                            if self.llm_chat
+                            else None
+                        )
+                        original_seed = kwargs.get(
+                            "seed", cfg_seed if cfg_seed is not None else 42
+                        )
                         if attempt > 0:
-                            n_value = kwargs.get("n", getattr(self, "n", None)) or 1
-                            retry_kwargs["seed"] = original_seed + attempt * n_value
+                            retry_kwargs["seed"] = original_seed + attempt * effective_n
                         else:
                             # Ensure seed is set for first attempt when not provided
                             if "seed" not in kwargs:
