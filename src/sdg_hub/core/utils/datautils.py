@@ -35,13 +35,13 @@ def validate_no_duplicates(dataset: Dataset) -> None:
         If duplicate rows are detected in the dataset.
     """
     import json
-    
+
     if len(dataset) == 0:
         return
-    
+
     seen_rows = set()
     duplicate_count = 0
-    
+
     for row in dataset:
         # Convert row to a JSON string for comparison
         try:
@@ -49,7 +49,7 @@ def validate_no_duplicates(dataset: Dataset) -> None:
         except (TypeError, ValueError):
             # Fallback to string representation if JSON serialization fails
             row_str = str(sorted(row.items()))
-        
+
         if row_str in seen_rows:
             duplicate_count += 1
         else:
