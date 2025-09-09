@@ -19,7 +19,8 @@ def validate_no_duplicates(dataset: Dataset) -> None:
     """
     Validate that the input dataset contains only unique rows.
 
-    Uses pandas `.duplicated()` for efficient duplicate detection.
+    Uses string representation of rows for duplicate detection, which handles
+    complex data types like numpy arrays that pandas `.duplicated()` cannot process.
     Raises FlowValidationError if duplicates are found, including a count
     of the duplicate rows detected.
 
@@ -33,8 +34,26 @@ def validate_no_duplicates(dataset: Dataset) -> None:
     FlowValidationError
         If duplicate rows are detected in the dataset.
     """
-    df = dataset.to_pandas()
-    duplicate_count = int(df.duplicated(keep="first").sum())
+    import json
+    
+    if len(dataset) == 0:
+        return
+    
+    seen_rows = set()
+    duplicate_count = 0
+    
+    for row in dataset:
+        # Convert row to a JSON string for comparison
+        try:
+            row_str = json.dumps(row, sort_keys=True, default=str)
+        except (TypeError, ValueError):
+            # Fallback to string representation if JSON serialization fails
+            row_str = str(sorted(row.items()))
+        
+        if row_str in seen_rows:
+            duplicate_count += 1
+        else:
+            seen_rows.add(row_str)
 
     if duplicate_count > 0:
         raise FlowValidationError(
