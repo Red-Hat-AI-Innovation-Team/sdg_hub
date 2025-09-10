@@ -19,8 +19,8 @@ def validate_no_duplicates(dataset: Dataset) -> None:
     """
     Validate that the input dataset contains only unique rows.
 
-    Uses string representation of rows for duplicate detection, which handles
-    complex data types like numpy arrays that pandas `.duplicated()` cannot process.
+    Uses deterministic JSON serialization with hash-based storage for duplicate detection.
+    Handles complex data types like numpy arrays that pandas `.duplicated()` cannot process.
     Raises FlowValidationError if duplicates are found, including a count
     of the duplicate rows detected.
 
@@ -35,25 +35,46 @@ def validate_no_duplicates(dataset: Dataset) -> None:
         If duplicate rows are detected in the dataset.
     """
     import json
+    import hashlib
+    import numpy as np
+    
+    def _serialize_value(obj):
+        """Custom serializer for deterministic JSON output."""
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, np.generic):
+            return obj.item()
+        elif isinstance(obj, set):
+            return sorted(list(obj))
+        elif isinstance(obj, (bytes, bytearray, memoryview)):
+            try:
+                return obj.decode('utf-8')
+            except UnicodeDecodeError:
+                return obj.hex()
+        else:
+            return str(obj)
 
     if len(dataset) == 0:
         return
 
-    seen_rows = set()
+    seen_hashes = set()
     duplicate_count = 0
 
     for row in dataset:
-        # Convert row to a JSON string for comparison
+        # Convert row to deterministic JSON string
         try:
-            row_str = json.dumps(row, sort_keys=True, default=str)
+            row_str = json.dumps(row, sort_keys=True, separators=(",", ":"), default=_serialize_value)
         except (TypeError, ValueError):
             # Fallback to string representation if JSON serialization fails
             row_str = str(sorted(row.items()))
-
-        if row_str in seen_rows:
+        
+        # Use hash for memory efficiency
+        row_hash = hashlib.sha256(row_str.encode()).digest()
+        
+        if row_hash in seen_hashes:
             duplicate_count += 1
         else:
-            seen_rows.add(row_str)
+            seen_hashes.add(row_hash)
 
     if duplicate_count > 0:
         raise FlowValidationError(
