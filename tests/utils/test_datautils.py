@@ -1,10 +1,10 @@
 # Third Party
 from datasets import Dataset
-import numpy as np
 
 # First Party
 from sdg_hub.core.utils.datautils import validate_no_duplicates
 from sdg_hub.core.utils.error_handling import FlowValidationError
+import numpy as np
 import pytest
 
 
@@ -48,12 +48,14 @@ def test_validate_no_duplicates_with_numpy_arrays():
     """Test duplicate detection with numpy arrays and scalars."""
     # Create dataset with numpy arrays and scalars that should be considered duplicates
     # when converted to lists/items
-    dataset = Dataset.from_dict({
-        "numpy_array": [np.array([1, 2, 3]), [1, 2, 3], np.array([1, 2, 3])],
-        "numpy_scalar": [np.int64(42), 42, np.int64(42)],
-        "mixed": ["text", "text", "text"]
-    })
-    
+    dataset = Dataset.from_dict(
+        {
+            "numpy_array": [np.array([1, 2, 3]), [1, 2, 3], np.array([1, 2, 3])],
+            "numpy_scalar": [np.int64(42), 42, np.int64(42)],
+            "mixed": ["text", "text", "text"],
+        }
+    )
+
     with pytest.raises(FlowValidationError, match="contains 2 duplicate rows"):
         validate_no_duplicates(dataset)
 
@@ -62,10 +64,12 @@ def test_validate_no_duplicates_with_sets():
     """Test duplicate detection with sets (should be deterministic)."""
     # Sets get converted to lists when stored in HuggingFace datasets,
     # so we test with actual duplicate rows containing the same elements
-    dataset = Dataset.from_dict({
-        "set_col": [[1, 2, 3], [1, 2, 3], [4, 5, 6]],  # Two identical lists  
-        "other": ["a", "a", "b"]  # Two identical values
-    })
-    
+    dataset = Dataset.from_dict(
+        {
+            "set_col": [[1, 2, 3], [1, 2, 3], [4, 5, 6]],  # Two identical lists
+            "other": ["a", "a", "b"],  # Two identical values
+        }
+    )
+
     with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
         validate_no_duplicates(dataset)

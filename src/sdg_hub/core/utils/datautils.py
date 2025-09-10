@@ -34,10 +34,11 @@ def validate_no_duplicates(dataset: Dataset) -> None:
     FlowValidationError
         If duplicate rows are detected in the dataset.
     """
-    import json
     import hashlib
+    import json
+
     import numpy as np
-    
+
     def _serialize_value(obj):
         """Custom serializer for deterministic JSON output."""
         if isinstance(obj, np.ndarray):
@@ -48,7 +49,7 @@ def validate_no_duplicates(dataset: Dataset) -> None:
             return sorted(list(obj))
         elif isinstance(obj, (bytes, bytearray, memoryview)):
             try:
-                return obj.decode('utf-8')
+                return obj.decode("utf-8")
             except UnicodeDecodeError:
                 return obj.hex()
         else:
@@ -63,14 +64,16 @@ def validate_no_duplicates(dataset: Dataset) -> None:
     for row in dataset:
         # Convert row to deterministic JSON string
         try:
-            row_str = json.dumps(row, sort_keys=True, separators=(",", ":"), default=_serialize_value)
+            row_str = json.dumps(
+                row, sort_keys=True, separators=(",", ":"), default=_serialize_value
+            )
         except (TypeError, ValueError):
             # Fallback to string representation if JSON serialization fails
             row_str = str(sorted(row.items()))
-        
+
         # Use hash for memory efficiency
         row_hash = hashlib.sha256(row_str.encode()).digest()
-        
+
         if row_hash in seen_hashes:
             duplicate_count += 1
         else:
