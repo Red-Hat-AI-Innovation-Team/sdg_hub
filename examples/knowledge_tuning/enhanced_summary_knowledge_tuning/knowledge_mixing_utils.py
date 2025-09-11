@@ -143,11 +143,25 @@ def _create_messages_without_reasoning(record: dict) -> List[dict]:
     ]
 
 
+def _create_messages_without_reasoning_no_document(record: dict) -> List[dict]:
+    """Create message structure without reasoning."""
+    return [
+        {
+            "role": "user", 
+            "content": f"In {record['document_outline']}, {record['question']}"
+        },
+        {
+            "role": "assistant", 
+            "content": record['response']
+        }
+    ]
+
 def generate_knowledge_qa_dataset(
     generated_dataset: pl.DataFrame,
     keep_columns: Optional[List[str]] = None,
     pre_training: bool = False,
-    dataset_name: str = "document_knowledge_qa"
+    dataset_name: str = "document_knowledge_qa",
+    keep_document_in_context: bool = False
 ) -> pl.DataFrame:
     """
     Generate knowledge Q&A dataset in chat format.
@@ -183,6 +197,11 @@ def generate_knowledge_qa_dataset(
         message_columns = ['question', 'response', 'document', 'document_outline', 'reasoning']
         messages_expr = pl.struct(message_columns).map_elements(
             _create_messages_with_reasoning
+        ).alias("messages")
+    elif keep_document_in_context:
+        message_columns = ['question', 'response', 'document', 'document_outline']
+        messages_expr = pl.struct(message_columns).map_elements(
+            _create_messages_without_reasoning_no_document
         ).alias("messages")
     else:
         message_columns = ['question', 'response', 'document', 'document_outline']
