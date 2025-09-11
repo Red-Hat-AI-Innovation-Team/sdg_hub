@@ -73,3 +73,40 @@ def test_validate_no_duplicates_with_sets():
 
     with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
         validate_no_duplicates(dataset)
+
+
+def test_validate_no_duplicates_with_string_lists():
+    """Test duplicate detection with columns containing lists of strings.
+
+    This test specifically emulates the original issue where HuggingFace datasets
+    convert list-of-strings columns to numpy arrays, causing TypeError in pandas.duplicated().
+    """
+    # Create dataset with columns containing lists of strings (the original problematic case)
+    dataset = Dataset.from_dict(
+        {
+            "text_chunks": [
+                [
+                    "The coastal town of Willow Creek, once renowned for its pristine beaches, now struggles with rampant pollution.",
+                    "Technologists at the local university have developed an AI-powered buoy system to combat this.",
+                ],
+                [
+                    "Different first paragraph about something else entirely.",
+                    "And a completely different second paragraph as well.",
+                ],
+                [
+                    "The coastal town of Willow Creek, once renowned for its pristine beaches, now struggles with rampant pollution.",
+                    "Technologists at the local university have developed an AI-powered buoy system to combat this.",
+                ],  # Duplicate of first row
+            ],
+            "metadata": [
+                "doc1",
+                "doc2",
+                "doc1",
+            ],  # Make metadata also duplicate so rows are truly identical
+        }
+    )
+
+    # This should detect the duplicate (first and third rows are identical)
+    # Before the fix, this would throw: TypeError: unhashable type: 'numpy.ndarray'
+    with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
+        validate_no_duplicates(dataset)
