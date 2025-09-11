@@ -1,6 +1,6 @@
 metadata:
   name: "Detailed Summary Knowledge Tuning Dataset Generation Flow"
-  description: "Generates training datasets for knowledge tuning by creating diverse question-answer pairs from documents. Uses detailed summaries to help LLMs internalize document knowledge, enabling them to answer queries without requiring the original document in context."
+  description: "Generates high level summaries of the document focusing on overarching themes, main arguments, and core principles. This is then converted into Question-Answer pairs."
   version: "2.0.0"
   author: "SDG Hub Contributors"
   
@@ -13,14 +13,8 @@ metadata:
     - "knowledge-tuning"
     - "document-internalization"
     - "question-generation"
-    - "knowledge-extraction"
     - "qa-pairs"
-    - "document-processing"
-    - "educational"
-    - "multi-strategy-synthesis"
     - "detailed-summaries"
-    - "extractive-summaries"
-    - "key-facts"
   
   license: "Apache-2.0"
   min_sdg_hub_version: "0.2.0"
