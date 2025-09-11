@@ -48,9 +48,14 @@ def validate_no_duplicates(dataset: Dataset) -> None:
             for col in df.columns:
                 if df[col].dtype == "object":  # Only check object columns
                     df[col] = df[col].apply(
-                        lambda x: tuple(x)
-                        if hasattr(x, "__iter__") and not isinstance(x, (str, bytes))
-                        else x
+                        lambda x: (
+                            tuple(sorted(x.items()))
+                            if isinstance(x, dict)
+                            else tuple(x)
+                            if hasattr(x, "__iter__")
+                            and not isinstance(x, (str, bytes))
+                            else x
+                        )
                     )
             duplicate_count = int(df.duplicated(keep="first").sum())
         else:

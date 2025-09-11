@@ -110,3 +110,23 @@ def test_validate_no_duplicates_with_string_lists():
     # Before the fix, this would throw: TypeError: unhashable type: 'numpy.ndarray'
     with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
         validate_no_duplicates(dataset)
+
+
+def test_validate_no_duplicates_with_dictionaries():
+    """Test that dictionaries with different values are not considered duplicates."""
+    # Test the edge case where dict keys are same but values differ - should NOT be duplicates, should not RAISE
+    dataset = Dataset.from_dict(
+        {
+            "config": [
+                {"model": "gpt-4", "temp": 0.7},
+                {
+                    "model": "gpt-4",
+                    "temp": 0.9,
+                },  # Same keys, different values - should NOT be duplicate
+            ]
+        }
+    )
+
+    # Should pass validation (no duplicates)
+    result = validate_no_duplicates(dataset)
+    assert result is None  # Should not raise any exception
