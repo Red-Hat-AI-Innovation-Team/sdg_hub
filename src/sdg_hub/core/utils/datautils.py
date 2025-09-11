@@ -39,16 +39,22 @@ def validate_no_duplicates(dataset: Dataset) -> None:
 
     df = dataset.to_pandas()
 
-    # Convert unhashable types to tuples so pandas can hash them
-    for col in df.columns:
-        if df[col].dtype == "object":  # Only check object columns
-            df[col] = df[col].apply(
-                lambda x: tuple(x)
-                if hasattr(x, "__iter__") and not isinstance(x, (str, bytes))
-                else x
-            )
-
-    duplicate_count = int(df.duplicated(keep="first").sum())
+    # Try pandas duplicated() first - only convert types if we hit unhashable error
+    try:
+        duplicate_count = int(df.duplicated(keep="first").sum())
+    except TypeError as e:
+        if "unhashable type" in str(e):
+            # Convert unhashable types to tuples so pandas can hash them
+            for col in df.columns:
+                if df[col].dtype == "object":  # Only check object columns
+                    df[col] = df[col].apply(
+                        lambda x: tuple(x)
+                        if hasattr(x, "__iter__") and not isinstance(x, (str, bytes))
+                        else x
+                    )
+            duplicate_count = int(df.duplicated(keep="first").sum())
+        else:
+            raise  # Re-raise if it's a different TypeError
 
     if duplicate_count > 0:
         raise FlowValidationError(
