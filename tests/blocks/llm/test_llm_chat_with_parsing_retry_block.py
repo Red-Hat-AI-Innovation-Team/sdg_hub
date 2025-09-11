@@ -573,16 +573,12 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
         assert mock_litellm_completion.call_count == 0
 
     def test_llm_generation_error_handling(self, sample_dataset):
-        """Test handling of LLM generation errors."""
+        """Test that LLM generation errors are raised immediately, not retried."""
         with patch(
             "sdg_hub.core.blocks.llm.client_manager.completion"
         ) as mock_completion:
-            # First call raises exception, continue to next attempt
-            mock_completion.side_effect = [
-                Exception("Network error"),
-                Exception("Another error"),
-                Exception("Final error"),
-            ]
+            # Single error should be raised immediately
+            mock_completion.side_effect = Exception("Network error")
 
             block = LLMChatWithParsingRetryBlock(
                 block_name="test_llm_error",
@@ -598,42 +594,12 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
                 {"messages": [sample_dataset["messages"][0]]}
             )
 
-            # Should eventually raise MaxRetriesExceededError after exhausting attempts
-            with pytest.raises(MaxRetriesExceededError):
+            # Should raise the LLM error immediately, not retry
+            with pytest.raises(Exception, match="Network error"):
                 block.generate(single_dataset)
 
-    def test_mixed_success_failure_across_attempts(self, sample_dataset):
-        """Test mixed success/failure scenarios across retry attempts."""
-        with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
-        ) as mock_completion:
-            # Simulate pattern: error, success, error, success
-            mock_response_good = MagicMock()
-            mock_response_good.choices = [MagicMock()]
-            mock_response_good.choices[0].message.content = "<answer>Success</answer>"
-
-            mock_completion.side_effect = [
-                Exception("First error"),
-                mock_response_good,
-                Exception("Second error"),
-                mock_response_good,
-            ]
-
-            block = LLMChatWithParsingRetryBlock(
-                block_name="test_mixed",
-                input_cols="messages",
-                output_cols="answer",
-                model="openai/gpt-4",
-                start_tags=["<answer>"],
-                end_tags=["</answer>"],
-                parsing_max_retries=4,
-            )
-
-            result = block.generate(sample_dataset)
-
-            # Should get 1 successful response per sample = 2 total
-            assert len(result) == 2
-            assert all(row["answer"] == "Success" for row in result)
+            # Verify that only one call was made (no retries)
+            assert mock_completion.call_count == 1
 
     def test_internal_block_validation(self, mock_litellm_completion):
         """Test validation of internal blocks."""
@@ -933,56 +899,6 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
             assert len(result_true) == 2
             assert result_true[0]["answer"] == "Response 1"
             assert result_true[1]["answer"] == "Response 2"
-
-    def test_expand_lists_flag_restored_on_exception(self, sample_dataset):
-        """Test that expand_lists flag is properly restored even when parsing throws an exception."""
-        with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
-        ) as mock_completion:
-            # Mock successful LLM response
-            mock_response = MagicMock()
-            mock_response.choices = [MagicMock()]
-            mock_response.choices[0].message.content = "<answer>Response</answer>"
-            mock_completion.return_value = mock_response
-
-            block = LLMChatWithParsingRetryBlock(
-                block_name="test_flag_restore",
-                input_cols="messages",
-                output_cols="answer",
-                model="openai/gpt-4",
-                start_tags=["<answer>"],
-                end_tags=["</answer>"],
-                expand_lists=False,  # Original setting should be restored
-                n=1,
-                parsing_max_retries=2,
-            )
-
-            # Verify initial state
-            assert block.text_parser.expand_lists is False
-
-            # Mock the text parser to throw an exception during generate
-            original_generate = block.text_parser.generate
-
-            def mock_generate_with_exception(*args, **kwargs):
-                if (
-                    block.text_parser.expand_lists is True
-                ):  # Only throw when temporarily True
-                    raise ValueError("Simulated parsing exception")
-                return original_generate(*args, **kwargs)
-
-            with patch.object(
-                block.text_parser, "generate", side_effect=mock_generate_with_exception
-            ):
-                single_dataset = Dataset.from_dict(
-                    {"messages": [sample_dataset["messages"][0]]}
-                )
-
-                # This should fail due to parsing exceptions, but expand_lists should be restored
-                with pytest.raises(MaxRetriesExceededError):
-                    block.generate(single_dataset)
-
-            # Critical assertion: expand_lists should be back to original False value
-            assert block.text_parser.expand_lists is False
 
     def test_partial_parses_rejected_expand_lists_false(self, sample_dataset):
         """Test that partial parses (missing some output columns) are rejected when expand_lists=False."""
@@ -1546,35 +1462,6 @@ class TestLLMChatWithParsingRetryBlockIntegration:
         assert all(
             row["clean_answer"] == "This has line breaks to clean" for row in result
         )
-
-    def test_error_propagation_from_internal_blocks(self, sample_dataset):
-        """Test that errors from internal blocks are properly propagated."""
-        with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
-        ) as mock_completion:
-            # Make LLM block raise a specific error
-            from sdg_hub.core.blocks.llm.error_handler import AuthenticationError
-
-            mock_completion.side_effect = AuthenticationError(
-                "Invalid API key", llm_provider="openai", model="gpt-4"
-            )
-
-            block = LLMChatWithParsingRetryBlock(
-                block_name="test_error_prop",
-                input_cols="messages",
-                output_cols="answer",
-                model="openai/gpt-4",
-                start_tags=["<answer>"],
-                end_tags=["</answer>"],
-            )
-
-            single_dataset = Dataset.from_dict(
-                {"messages": [sample_dataset["messages"][0]]}
-            )
-
-            # Error should propagate through and eventually cause MaxRetriesExceededError
-            with pytest.raises(MaxRetriesExceededError):
-                block.generate(single_dataset)
 
     def test_llm_chat_with_parsing_retry_parameter_forwarding(self):
         """Test parameter forwarding for LLMChatWithParsingRetryBlock.

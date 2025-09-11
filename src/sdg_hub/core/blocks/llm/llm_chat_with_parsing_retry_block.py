@@ -368,78 +368,60 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                     if total_parsed_count >= target:
                         break  # Already reached target
 
-                    try:
-                        # Update seed for each retry attempt
-                        retry_kwargs = kwargs.copy()
-                        # Determine effective 'n' and original seed with clear precedence:
-                        # kwargs > block-configured > default
-                        effective_n = kwargs.get("n", getattr(self, "n", None)) or 1
-                        cfg_seed = (
-                            getattr(self.llm_chat, "seed", None)
-                            if self.llm_chat
-                            else None
-                        )
-                        original_seed = kwargs.get(
-                            "seed", cfg_seed if cfg_seed is not None else 42
-                        )
-                        if attempt > 0:
-                            retry_kwargs["seed"] = original_seed + attempt * effective_n
-                        else:
-                            # Ensure seed is set for first attempt when not provided
-                            if "seed" not in kwargs:
-                                retry_kwargs["seed"] = original_seed
+                    # Update seed for each retry attempt
+                    retry_kwargs = kwargs.copy()
+                    # Determine effective 'n' and original seed with clear precedence:
+                    # kwargs > block-configured > default
+                    effective_n = kwargs.get("n", getattr(self, "n", None)) or 1
+                    cfg_seed = (
+                        getattr(self.llm_chat, "seed", None) if self.llm_chat else None
+                    )
+                    original_seed = kwargs.get(
+                        "seed", cfg_seed if cfg_seed is not None else 42
+                    )
+                    if attempt > 0:
+                        retry_kwargs["seed"] = original_seed + attempt * effective_n
+                    else:
+                        # Ensure seed is set for first attempt when not provided
+                        if "seed" not in kwargs:
+                            retry_kwargs["seed"] = original_seed
 
-                        # Generate LLM responses for this sample
-                        temp_dataset = Dataset.from_list([sample])
-                        llm_result = self.llm_chat.generate(
-                            temp_dataset, **retry_kwargs
-                        )
+                    # Generate LLM responses for this sample
+                    temp_dataset = Dataset.from_list([sample])
+                    llm_result = self.llm_chat.generate(temp_dataset, **retry_kwargs)
 
-                        # Parse the responses
-                        parsed_result = self.text_parser.generate(llm_result, **kwargs)
+                    # Parse the responses
+                    parsed_result = self.text_parser.generate(llm_result, **kwargs)
 
-                        # Count successful parses and accumulate results
-                        new_parsed_count = len(parsed_result)
-                        total_parsed_count += new_parsed_count
-                        sample_results.extend(parsed_result)
+                    # Count successful parses and accumulate results
+                    new_parsed_count = len(parsed_result)
+                    total_parsed_count += new_parsed_count
+                    sample_results.extend(parsed_result)
 
+                    logger.debug(
+                        f"Attempt {attempt + 1} for sample {sample_idx}: {new_parsed_count} successful parses "
+                        f"(total: {total_parsed_count}/{target})",
+                        extra={
+                            "block_name": self.block_name,
+                            "sample_idx": sample_idx,
+                            "attempt": attempt + 1,
+                            "new_parses": new_parsed_count,
+                            "total_parses": total_parsed_count,
+                            "target_count": target,
+                        },
+                    )
+
+                    if total_parsed_count >= target:
                         logger.debug(
-                            f"Attempt {attempt + 1} for sample {sample_idx}: {new_parsed_count} successful parses "
-                            f"(total: {total_parsed_count}/{target})",
+                            f"Target reached for sample {sample_idx} after {attempt + 1} attempts",
                             extra={
                                 "block_name": self.block_name,
                                 "sample_idx": sample_idx,
-                                "attempt": attempt + 1,
-                                "new_parses": new_parsed_count,
-                                "total_parses": total_parsed_count,
-                                "target_count": target,
+                                "attempts": attempt + 1,
+                                "final_count": total_parsed_count,
                             },
                         )
-
-                        if total_parsed_count >= target:
-                            logger.debug(
-                                f"Target reached for sample {sample_idx} after {attempt + 1} attempts",
-                                extra={
-                                    "block_name": self.block_name,
-                                    "sample_idx": sample_idx,
-                                    "attempts": attempt + 1,
-                                    "final_count": total_parsed_count,
-                                },
-                            )
-                            break
-
-                    except Exception as e:
-                        logger.warning(
-                            f"Error during attempt {attempt + 1} for sample {sample_idx}: {e}",
-                            extra={
-                                "block_name": self.block_name,
-                                "sample_idx": sample_idx,
-                                "attempt": attempt + 1,
-                                "error": str(e),
-                            },
-                        )
-                        # Continue to next attempt
-                        continue
+                        break
 
             else:
                 # New behavior for expand_lists=False: parse individual responses and accumulate
@@ -451,119 +433,92 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                     if total_parsed_count >= target:
                         break  # Already reached target
 
-                    try:
-                        # Update seed for each retry attempt
-                        retry_kwargs = kwargs.copy()
-                        # Determine effective 'n' and original seed with clear precedence:
-                        # kwargs > block-configured > default
-                        effective_n = kwargs.get("n", getattr(self, "n", None)) or 1
-                        cfg_seed = (
-                            getattr(self.llm_chat, "seed", None)
-                            if self.llm_chat
-                            else None
-                        )
-                        original_seed = kwargs.get(
-                            "seed", cfg_seed if cfg_seed is not None else 42
-                        )
-                        if attempt > 0:
-                            retry_kwargs["seed"] = original_seed + attempt * effective_n
-                        else:
-                            # Ensure seed is set for first attempt when not provided
-                            if "seed" not in kwargs:
-                                retry_kwargs["seed"] = original_seed
+                    # Update seed for each retry attempt
+                    retry_kwargs = kwargs.copy()
+                    # Determine effective 'n' and original seed with clear precedence:
+                    # kwargs > block-configured > default
+                    effective_n = kwargs.get("n", getattr(self, "n", None)) or 1
+                    cfg_seed = (
+                        getattr(self.llm_chat, "seed", None) if self.llm_chat else None
+                    )
+                    original_seed = kwargs.get(
+                        "seed", cfg_seed if cfg_seed is not None else 42
+                    )
+                    if attempt > 0:
+                        retry_kwargs["seed"] = original_seed + attempt * effective_n
+                    else:
+                        # Ensure seed is set for first attempt when not provided
+                        if "seed" not in kwargs:
+                            retry_kwargs["seed"] = original_seed
 
-                        # Generate LLM responses for this sample
-                        temp_dataset = Dataset.from_list([sample])
-                        llm_result = self.llm_chat.generate(
-                            temp_dataset, **retry_kwargs
-                        )
+                    # Generate LLM responses for this sample
+                    temp_dataset = Dataset.from_list([sample])
+                    llm_result = self.llm_chat.generate(temp_dataset, **retry_kwargs)
 
-                        # Get the raw responses (should be a list when n > 1)
-                        raw_response_col = f"{self.block_name}_raw_response"
-                        raw_responses = llm_result[0][raw_response_col]
-                        if not isinstance(raw_responses, list):
-                            raw_responses = [raw_responses]
+                    # Get the raw responses (should be a list when n > 1)
+                    raw_response_col = f"{self.block_name}_raw_response"
+                    raw_responses = llm_result[0][raw_response_col]
+                    if not isinstance(raw_responses, list):
+                        raw_responses = [raw_responses]
 
-                        # Parse each response individually and accumulate successful ones
-                        new_parsed_count = 0
-                        for response in raw_responses:
-                            if total_parsed_count >= target:
-                                break  # Stop if we've reached target
-
-                            # Create temporary dataset with single response for parsing
-                            temp_parse_data = [{**sample, raw_response_col: response}]
-                            temp_parse_dataset = Dataset.from_list(temp_parse_data)
-
-                            # Force expand_lists=True temporarily to get individual parsed items
-                            original_expand_lists = self.text_parser.expand_lists
-                            try:
-                                self.text_parser.expand_lists = True
-                                parsed_result = self.text_parser.generate(
-                                    temp_parse_dataset, **kwargs
-                                )
-                            except Exception as parse_e:
-                                logger.debug(
-                                    f"Failed to parse individual response: {parse_e}"
-                                )
-                                continue
-                            finally:
-                                self.text_parser.expand_lists = original_expand_lists
-
-                            # If parsing was successful, accumulate the results
-                            if len(parsed_result) > 0:
-                                for parsed_row in parsed_result:
-                                    if total_parsed_count >= target:
-                                        break
-
-                                    # Only count as successful if ALL output columns are present
-                                    if all(
-                                        col in parsed_row for col in self.output_cols
-                                    ):
-                                        for col in self.output_cols:
-                                            accumulated_parsed_items[col].append(
-                                                parsed_row[col]
-                                            )
-                                        total_parsed_count += 1
-                                        new_parsed_count += 1
-                                    # If any column is missing, skip this parsed response entirely
-
-                        logger.debug(
-                            f"Attempt {attempt + 1} for sample {sample_idx}: {new_parsed_count} successful parses "
-                            f"(total: {total_parsed_count}/{target})",
-                            extra={
-                                "block_name": self.block_name,
-                                "sample_idx": sample_idx,
-                                "attempt": attempt + 1,
-                                "new_parses": new_parsed_count,
-                                "total_parses": total_parsed_count,
-                                "target_count": target,
-                            },
-                        )
-
+                    # Parse each response individually and accumulate successful ones
+                    new_parsed_count = 0
+                    for response in raw_responses:
                         if total_parsed_count >= target:
-                            logger.debug(
-                                f"Target reached for sample {sample_idx} after {attempt + 1} attempts",
-                                extra={
-                                    "block_name": self.block_name,
-                                    "sample_idx": sample_idx,
-                                    "attempts": attempt + 1,
-                                    "final_count": total_parsed_count,
-                                },
-                            )
-                            break
+                            break  # Stop if we've reached target
 
-                    except Exception as e:
-                        logger.warning(
-                            f"Error during attempt {attempt + 1} for sample {sample_idx}: {e}",
+                        # Create temporary dataset with single response for parsing
+                        temp_parse_data = [{**sample, raw_response_col: response}]
+                        temp_parse_dataset = Dataset.from_list(temp_parse_data)
+
+                        # Force expand_lists=True temporarily to get individual parsed items
+                        original_expand_lists = self.text_parser.expand_lists
+                        self.text_parser.expand_lists = True
+                        parsed_result = self.text_parser.generate(
+                            temp_parse_dataset, **kwargs
+                        )
+                        self.text_parser.expand_lists = original_expand_lists
+
+                        # If parsing was successful, accumulate the results
+                        if len(parsed_result) > 0:
+                            for parsed_row in parsed_result:
+                                if total_parsed_count >= target:
+                                    break
+
+                                # Only count as successful if ALL output columns are present
+                                if all(col in parsed_row for col in self.output_cols):
+                                    for col in self.output_cols:
+                                        accumulated_parsed_items[col].append(
+                                            parsed_row[col]
+                                        )
+                                    total_parsed_count += 1
+                                    new_parsed_count += 1
+                                # If any column is missing, skip this parsed response entirely
+
+                    logger.debug(
+                        f"Attempt {attempt + 1} for sample {sample_idx}: {new_parsed_count} successful parses "
+                        f"(total: {total_parsed_count}/{target})",
+                        extra={
+                            "block_name": self.block_name,
+                            "sample_idx": sample_idx,
+                            "attempt": attempt + 1,
+                            "new_parses": new_parsed_count,
+                            "total_parses": total_parsed_count,
+                            "target_count": target,
+                        },
+                    )
+
+                    if total_parsed_count >= target:
+                        logger.debug(
+                            f"Target reached for sample {sample_idx} after {attempt + 1} attempts",
                             extra={
                                 "block_name": self.block_name,
                                 "sample_idx": sample_idx,
-                                "attempt": attempt + 1,
-                                "error": str(e),
+                                "attempts": attempt + 1,
+                                "final_count": total_parsed_count,
                             },
                         )
-                        # Continue to next attempt
-                        continue
+                        break
 
                 # Create final result row with accumulated lists
                 if total_parsed_count > 0:
