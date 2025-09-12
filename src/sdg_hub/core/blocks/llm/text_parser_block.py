@@ -406,10 +406,82 @@ class TextParserBlock(BaseBlock):
             )
             return []
 
+    def _validate_override_kwargs(
+        self, override_kwargs: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Validate override kwargs using the same validators as field definitions.
+
+        Parameters
+        ----------
+        override_kwargs : dict[str, Any]
+            Runtime parameter overrides to validate.
+
+        Returns
+        -------
+        dict[str, Any]
+            Validated and normalized override kwargs.
+
+        Raises
+        ------
+        ValueError
+            If any override parameter fails validation.
+        """
+        validated_kwargs = {}
+
+        for param_name, param_value in override_kwargs.items():
+            if not hasattr(self, param_name):
+                # Skip parameters that don't exist on the model
+                continue
+
+            # Apply field-specific validation
+            if param_name in ["start_tags", "end_tags"]:
+                validated_kwargs[param_name] = self.normalize_tags(param_value)
+            elif param_name == "parser_cleanup_tags":
+                validated_kwargs[param_name] = self.normalize_cleanup_tags(param_value)
+            else:
+                # For other parameters, just pass through (they'll be validated by setattr)
+                validated_kwargs[param_name] = param_value
+
+        # If we're overriding parsing configuration, validate the combination
+        if any(
+            key in validated_kwargs
+            for key in ["start_tags", "end_tags", "parsing_pattern"]
+        ):
+            # Create a temporary copy of current state with overrides applied
+            temp_values = {}
+            for attr in ["start_tags", "end_tags", "parsing_pattern"]:
+                if attr in validated_kwargs:
+                    temp_values[attr] = validated_kwargs[attr]
+                else:
+                    temp_values[attr] = getattr(self, attr)
+
+            # Validate parsing configuration
+            has_regex = temp_values["parsing_pattern"] is not None
+            has_tags = bool(temp_values["start_tags"]) or bool(temp_values["end_tags"])
+
+            if not has_regex and not has_tags:
+                raise ValueError(
+                    "TextParserBlock requires at least one parsing method: "
+                    "either 'parsing_pattern' (regex) or 'start_tags'/'end_tags' (tag-based parsing)"
+                )
+
+            if has_tags and len(temp_values["start_tags"]) != len(
+                temp_values["end_tags"]
+            ):
+                raise ValueError(
+                    f"start_tags and end_tags must have the same length. "
+                    f"Got {len(temp_values['start_tags'])} start_tags and {len(temp_values['end_tags'])} end_tags"
+                )
+
+        return validated_kwargs
+
     def generate(self, samples: Dataset, **override_kwargs: Any) -> Dataset:
+        # Validate override kwargs before applying them
+        validated_kwargs = self._validate_override_kwargs(override_kwargs)
+
         # Apply runtime parameter overrides
         original_values: dict[str, Any] = {}
-        for param_name, param_value in override_kwargs.items():
+        for param_name, param_value in validated_kwargs.items():
             if hasattr(self, param_name):
                 original_values[param_name] = getattr(self, param_name)
                 setattr(self, param_name, param_value)
