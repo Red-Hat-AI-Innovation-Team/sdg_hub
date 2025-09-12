@@ -152,6 +152,11 @@ class TextParserBlock(BaseBlock):
                 raise ValueError(
                     f"Auto-generated reasoning column '{rc_col}' collides with an output column"
                 )
+
+            if hasattr(self, "column_names") and rc_col in set(self.column_names):
+                raise ValueError(
+                    f"Reasoning column '{rc_col}' collides with an existing dataset column"
+                )
         return self
 
     def _validate_custom(self, dataset: Dataset) -> None:
