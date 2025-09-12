@@ -134,7 +134,7 @@ blocks:
     block_config:
       block_name: answer_generation
       input_cols: answer_generation_prompt
-      output_cols: response
+      output_cols: generated_response
       max_tokens: 4096
       temperature: 0.7
       n: 1
