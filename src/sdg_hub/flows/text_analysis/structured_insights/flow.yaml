@@ -75,7 +75,7 @@ blocks:
   block_config:
     block_name: parse_keywords
     input_cols: raw_keywords
-    output_cols: keywords_raw
+    output_cols: keywords
     start_tags:
     - '[KEYWORDS]'
     end_tags:
@@ -101,7 +101,7 @@ blocks:
   block_config:
     block_name: parse_entities
     input_cols: raw_entities
-    output_cols: entities_raw
+    output_cols: entities
     start_tags:
     - '[ENTITIES]'
     end_tags:
@@ -139,8 +139,8 @@ blocks:
     block_name: create_structured_insights
     json_structure:
       summary: summary
-      keywords: keywords_raw
-      entities: entities_raw
+      keywords: keywords
+      entities: entities
       sentiment: sentiment
     output_cols:
     - structured_insights
