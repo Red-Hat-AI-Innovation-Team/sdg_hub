@@ -1122,6 +1122,101 @@ class TestFlow:
             checkpoint_data = json.loads(f.readline())
             assert "final" in checkpoint_data
 
+    def test_generate_with_log_dir(self):
+        """Test generation with log_dir parameter for dual logging."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+
+        log_dir = Path(self.temp_dir) / "test_logs"
+
+        # Ensure INFO level logging for this test regardless of LOG_LEVEL env var
+        with patch.dict("os.environ", {"LOG_LEVEL": "INFO"}):
+            result = flow.generate(dataset, log_dir=str(log_dir))
+
+        assert len(result) == 2
+        assert "output" in result.column_names
+
+        # Should have created log directory and log file
+        assert log_dir.exists()
+        log_files = list(log_dir.glob("*.log"))
+        assert len(log_files) == 1
+
+        # Check log file content
+        log_file = log_files[0]
+        with open(log_file, "r", encoding="utf-8") as f:
+            log_content = f.read()
+
+        # Should contain flow execution logs
+        assert "Starting flow 'Test Flow'" in log_content
+        assert "completed successfully" in log_content
+        assert "test_block" in log_content
+
+        # Log filename should include flow name and timestamp
+        assert "test_flow_" in log_file.name
+        assert log_file.name.endswith(".log")
+
+    def test_generate_without_log_dir(self):
+        """Test generation without log_dir parameter (original behavior)."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+
+        # Should work without log_dir (backward compatibility)
+        result = flow.generate(dataset)
+
+        assert len(result) == 2
+        assert "output" in result.column_names
+
+    def test_generate_with_log_dir_creates_directory(self):
+        """Test that log_dir is created if it doesn't exist."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset = Dataset.from_dict({"input": ["test1"]})
+
+        # Use a nested path that doesn't exist
+        log_dir = Path(self.temp_dir) / "nested" / "log" / "directory"
+        assert not log_dir.exists()
+
+        result = flow.generate(dataset, log_dir=str(log_dir))
+
+        assert len(result) == 1
+        # Directory should be created
+        assert log_dir.exists()
+        # Log file should be created
+        log_files = list(log_dir.glob("*.log"))
+        assert len(log_files) == 1
+
+    def test_generate_with_log_dir_and_checkpointing(self):
+        """Test generation with both log_dir and checkpointing."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+
+        log_dir = Path(self.temp_dir) / "logs_with_checkpoints"
+        checkpoint_dir = Path(self.temp_dir) / "checkpoints_with_logs"
+
+        result = flow.generate(
+            dataset,
+            log_dir=str(log_dir),
+            checkpoint_dir=str(checkpoint_dir),
+            save_freq=1,
+        )
+
+        assert len(result) == 2
+
+        # Both log and checkpoint directories should exist
+        assert log_dir.exists()
+        assert checkpoint_dir.exists()
+
+        # Should have log files
+        log_files = list(log_dir.glob("*.log"))
+        assert len(log_files) == 1
+
+        # Should have checkpoint files
+        checkpoint_files = list(checkpoint_dir.glob("checkpoint_*.jsonl"))
+        assert len(checkpoint_files) == 2
+
     def test_create_block_from_config_block_not_found(self):
         """Test _create_block_from_config when block type is not found in registry."""
         # Standard

@@ -19,7 +19,8 @@ def validate_no_duplicates(dataset: Dataset) -> None:
     """
     Validate that the input dataset contains only unique rows.
 
-    Uses pandas `.duplicated()` for efficient duplicate detection.
+    Uses pandas `.duplicated()` for efficient duplicate detection, with preprocessing
+    to handle numpy arrays that cause TypeError in pandas duplicate detection.
     Raises FlowValidationError if duplicates are found, including a count
     of the duplicate rows detected.
 
@@ -33,8 +34,32 @@ def validate_no_duplicates(dataset: Dataset) -> None:
     FlowValidationError
         If duplicate rows are detected in the dataset.
     """
+    if len(dataset) == 0:
+        return
+
     df = dataset.to_pandas()
-    duplicate_count = int(df.duplicated(keep="first").sum())
+
+    # Try pandas duplicated() first - only convert types if we hit unhashable error
+    try:
+        duplicate_count = int(df.duplicated(keep="first").sum())
+    except TypeError as e:
+        if "unhashable type" in str(e):
+            # Convert unhashable types to tuples so pandas can hash them
+            for col in df.columns:
+                if df[col].dtype == "object":  # Only check object columns
+                    df[col] = df[col].apply(
+                        lambda x: (
+                            tuple(sorted(x.items()))
+                            if isinstance(x, dict)
+                            else tuple(x)
+                            if hasattr(x, "__iter__")
+                            and not isinstance(x, (str, bytes))
+                            else x
+                        )
+                    )
+            duplicate_count = int(df.duplicated(keep="first").sum())
+        else:
+            raise  # Re-raise if it's a different TypeError
 
     if duplicate_count > 0:
         raise FlowValidationError(

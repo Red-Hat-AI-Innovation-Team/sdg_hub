@@ -2,9 +2,11 @@
 """Pydantic-based Flow class for managing data generation pipelines."""
 
 # Standard
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Union
 import time
+import uuid
 
 # Third Party
 from datasets import Dataset
@@ -356,6 +358,7 @@ class Flow(BaseModel):
         runtime_params: Optional[dict[str, dict[str, Any]]] = None,
         checkpoint_dir: Optional[str] = None,
         save_freq: Optional[int] = None,
+        log_dir: Optional[str] = None,
         max_concurrency: Optional[int] = None,
     ) -> Dataset:
         """Execute the flow blocks in sequence to generate data.
@@ -378,6 +381,10 @@ class Flow(BaseModel):
         save_freq : Optional[int], optional
             Number of completed samples after which to save a checkpoint.
             If None, only saves final results when checkpointing is enabled.
+        log_dir : Optional[str], optional
+            Directory to save execution logs. If provided, logs will be written to both
+            console and a log file in this directory. Maintains backward compatibility
+            when None.
         max_concurrency : Optional[int], optional
             Maximum number of concurrent requests across all blocks.
             Controls async request concurrency to prevent overwhelming servers.
@@ -400,6 +407,23 @@ class Flow(BaseModel):
                 f"save_freq must be greater than 0, got {save_freq}"
             )
 
+        # Set up file logging if log_dir is provided
+        flow_logger = logger  # Use global logger by default
+        if log_dir is not None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            flow_name = self.metadata.name.replace(" ", "_").lower()
+            log_filename = f"{flow_name}_{timestamp}.log"
+
+            # Create a flow-specific logger for this execution
+            unique_id = str(uuid.uuid4())[:8]  # Short unique ID
+            flow_logger_name = f"{__name__}.flow_{flow_name}_{timestamp}_{unique_id}"
+            flow_logger = setup_logger(
+                flow_logger_name, log_dir=log_dir, log_filename=log_filename
+            )
+            flow_logger.propagate = False
+            flow_logger.info(
+                f"Flow logging enabled - logs will be saved to: {log_dir}/{log_filename}"
+            )
         # Validate max_concurrency parameter
         if max_concurrency is not None:
             # Explicitly reject boolean values (bool is a subclass of int in Python)
@@ -459,13 +483,25 @@ class Flow(BaseModel):
             )
 
             if len(remaining_dataset) == 0:
-                logger.info("All samples already completed, returning existing results")
+                flow_logger.info(
+                    "All samples already completed, returning existing results"
+                )
+                if log_dir is not None and flow_logger is not logger:
+                    for h in list(getattr(flow_logger, "handlers", [])):
+                        try:
+                            h.flush()
+                            h.close()
+                        except Exception:
+                            pass
+                        finally:
+                            flow_logger.removeHandler(h)
+
                 return completed_dataset
 
             dataset = remaining_dataset
-            logger.info(f"Resuming with {len(dataset)} remaining samples")
+            flow_logger.info(f"Resuming with {len(dataset)} remaining samples")
 
-        logger.info(
+        flow_logger.info(
             f"Starting flow '{self.metadata.name}' v{self.metadata.version} "
             f"with {len(dataset)} samples across {len(self.blocks)} blocks"
             + (f" (max_concurrency={max_concurrency})" if max_concurrency else "")
@@ -486,13 +522,13 @@ class Flow(BaseModel):
                 chunk_end = min(i + save_freq, len(dataset))
                 chunk_dataset = dataset.select(range(i, chunk_end))
 
-                logger.info(
+                flow_logger.info(
                     f"Processing chunk {i // save_freq + 1}: samples {i} to {chunk_end - 1}"
                 )
 
                 # Execute all blocks on this chunk
                 processed_chunk = self._execute_blocks_on_dataset(
-                    chunk_dataset, runtime_params, max_concurrency
+                    chunk_dataset, runtime_params, flow_logger, max_concurrency
                 )
                 all_processed.append(processed_chunk)
 
@@ -517,7 +553,7 @@ class Flow(BaseModel):
         else:
             # Process entire dataset at once
             final_dataset = self._execute_blocks_on_dataset(
-                dataset, runtime_params, max_concurrency
+                dataset, runtime_params, flow_logger, max_concurrency
             )
 
             # Save final checkpoint if checkpointing enabled
@@ -532,7 +568,7 @@ class Flow(BaseModel):
                         "completed checkpoint data with newly processed data",
                     )
 
-        logger.info(
+        flow_logger.info(
             f"Flow '{self.metadata.name}' completed successfully: "
             f"{len(final_dataset)} final samples, "
             f"{len(final_dataset.column_names)} final columns"
@@ -544,6 +580,7 @@ class Flow(BaseModel):
         self,
         dataset: Dataset,
         runtime_params: dict[str, dict[str, Any]],
+        flow_logger=None,
         max_concurrency: Optional[int] = None,
     ) -> Dataset:
         """Execute all blocks in sequence on the given dataset.
@@ -554,6 +591,8 @@ class Flow(BaseModel):
             Dataset to process through all blocks.
         runtime_params : Dict[str, Dict[str, Any]]
             Runtime parameters for block execution.
+        flow_logger : logging.Logger, optional
+            Logger to use for this execution. Falls back to global logger if None.
         max_concurrency : Optional[int], optional
             Maximum concurrency for LLM requests across blocks.
 
@@ -562,11 +601,13 @@ class Flow(BaseModel):
         Dataset
             Dataset after processing through all blocks.
         """
+        # Use provided logger or fall back to global logger
+        exec_logger = flow_logger if flow_logger is not None else logger
         current_dataset = dataset
 
         # Execute blocks in sequence
         for i, block in enumerate(self.blocks):
-            logger.info(
+            exec_logger.info(
                 f"Executing block {i + 1}/{len(self.blocks)}: "
                 f"{block.block_name} ({block.__class__.__name__})"
             )
@@ -587,7 +628,7 @@ class Flow(BaseModel):
                 )
 
                 if is_deprecated_block:
-                    logger.debug(
+                    exec_logger.debug(
                         f"Skipping validations for deprecated block: {block.block_name}"
                     )
                     # Call generate() directly to skip validations, but keep the runtime params
@@ -602,14 +643,14 @@ class Flow(BaseModel):
                         f"Block '{block.block_name}' produced empty dataset"
                     )
 
-                logger.info(
+                exec_logger.info(
                     f"Block '{block.block_name}' completed successfully: "
                     f"{len(current_dataset)} samples, "
                     f"{len(current_dataset.column_names)} columns"
                 )
 
             except Exception as exc:
-                logger.error(
+                exec_logger.error(
                     f"Block '{block.block_name}' failed during execution: {exc}"
                 )
                 raise FlowValidationError(

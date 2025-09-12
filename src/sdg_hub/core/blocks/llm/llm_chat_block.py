@@ -42,9 +42,10 @@ class LLMChatBlock(BaseBlock):
         Name of the block.
     input_cols : Union[str, List[str]]
         Input column name(s). Should contain the messages list.
-    output_cols : Union[str, List[str]]
+    output_cols : Union[dict, List[dict]]
         Output column name(s) for the response. When n > 1, the column will contain
-        a list of responses instead of a single string.
+        a list of responses instead of a single response. Responses contain 'content',
+        may contain 'reasoning_content' and other fields if any.
     model : str
         Model identifier in LiteLLM format. Examples:
         - "openai/gpt-4"
@@ -131,7 +132,7 @@ class LLMChatBlock(BaseBlock):
     >>> block = LLMChatBlock(
     ...     block_name="gpt4_multiple",
     ...     input_cols="messages",
-    ...     output_cols="responses",  # Will contain lists of strings
+    ...     output_cols="responses",  # Will contain lists of responses
     ...     model="openai/gpt-4",
     ...     n=3,  # Generate 3 responses per input
     ...     temperature=0.8
@@ -406,7 +407,7 @@ class LLMChatBlock(BaseBlock):
         self,
         messages_list: list[list[dict[str, Any]]],
         **override_kwargs: dict[str, Any],
-    ) -> list[Union[str, list[str]]]:
+    ) -> list[Union[dict, list[dict]]]:
         """Generate responses synchronously.
 
         Parameters
@@ -418,8 +419,9 @@ class LLMChatBlock(BaseBlock):
 
         Returns
         -------
-        List[Union[str, List[str]]]
-            List of response strings or lists of response strings (when n > 1).
+        List[Union[dict, List[dict]]]
+            List of responses. Each element is a dict when n=1 or n is None,
+            or a list of dicts when n>1. Response dicts contain 'content', may contain 'reasoning_content' and other fields if any.
         """
         responses = []
 
@@ -461,7 +463,7 @@ class LLMChatBlock(BaseBlock):
         messages_list: list[list[dict[str, Any]]],
         flow_max_concurrency: Optional[int] = None,
         **override_kwargs: dict[str, Any],
-    ) -> list[Union[str, list[str]]]:
+    ) -> list[Union[dict, list[dict]]]:
         """Generate responses asynchronously.
 
         Parameters
@@ -475,8 +477,9 @@ class LLMChatBlock(BaseBlock):
 
         Returns
         -------
-        List[Union[str, List[str]]]
-            List of response strings or lists of response strings (when n > 1).
+        List[Union[dict, List[dict]]]
+            List of responses. Each element is a dict when n=1 or n is None,
+            or a list of dicts when n>1. Response dicts contain 'content', may contain 'reasoning_content' and other fields if any.
         """
         try:
             # Use unified client manager method with optional concurrency control

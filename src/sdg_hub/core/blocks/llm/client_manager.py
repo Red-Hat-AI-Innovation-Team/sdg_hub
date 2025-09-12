@@ -107,9 +107,18 @@ class LLMClientManager:
                 f"Could not validate setup for model '{self.config.model}': {e}"
             )
 
+    def _message_to_dict(self, message: Any) -> dict[str, Any]:
+        """Convert a message to a dict."""
+        if hasattr(message, "to_dict"):
+            return message.to_dict()
+        elif hasattr(message, "__dict__"):
+            return message.__dict__
+        else:
+            return dict(message)
+
     def create_completion(
         self, messages: list[dict[str, Any]], **overrides: Any
-    ) -> Union[str, list[str]]:
+    ) -> Union[dict, list[dict]]:
         """Create a completion using LiteLLM.
 
         Parameters
@@ -121,9 +130,9 @@ class LLMClientManager:
 
         Returns
         -------
-        Union[str, List[str]]
-            The completion text(s). Returns a single string when n=1 or n is None,
-            returns a list of strings when n>1.
+        Union[dict, List[dict]]
+            The completion response(s). Returns a single response when n=1 or n is None,
+            returns a list of responses when n>1. Response dicts contain 'content' and may contain 'reasoning_content'.
 
         Raises
         ------
@@ -151,28 +160,30 @@ class LLMClientManager:
         # Make the completion call
         response = completion_func(kwargs)
 
-        # Extract content from response
+        # Extract message objects from response
         # Check if n > 1 to determine return type
         n_value = final_config.n or 1
         if n_value > 1:
-            return [choice.message.content for choice in response.choices]
+            return [
+                self._message_to_dict(choice.message) for choice in response.choices
+            ]
         else:
-            return response.choices[0].message.content
+            return self._message_to_dict(response.choices[0].message)
 
     async def acreate_completion(
         self,
         messages: Union[list[dict[str, Any]], list[list[dict[str, Any]]]],
         max_concurrency: Optional[int] = None,
         **overrides: Any,
-    ) -> Union[str, list[str], list[Union[str, list[str]]]]:
+    ) -> Union[dict, list[dict]] | list[Union[dict, list[dict]]]:
         """Create async completion(s) using LiteLLM with optional concurrency control.
 
         Parameters
         ----------
         messages : Union[List[Dict[str, Any]], List[List[Dict[str, Any]]]]
             Single message list or list of message lists.
-            - For single: List[Dict[str, Any]] - returns Union[str, List[str]]
-            - For multiple: List[List[Dict[str, Any]]] - returns List[Union[str, List[str]]]
+            - For single: List[Dict[str, Any]] - returns Union[Any, List[Any]]
+            - For multiple: List[List[Dict[str, Any]]] - returns List[Union[Any, List[Any]]]
         max_concurrency : Optional[int], optional
             Maximum number of concurrent requests when processing multiple messages.
             If None, all requests run concurrently.
@@ -181,9 +192,9 @@ class LLMClientManager:
 
         Returns
         -------
-        Union[str, List[str], List[Union[str, List[str]]]]
-            For single message: completion text (string when n=1, list when n>1)
-            For multiple messages: list of completion texts (each element can be str or List[str])
+        Union[dict, List[dict], List[Union[dict, List[dict]]]]
+            For single message: completion response (dict when n=1, List[dict] when n>1)
+            For multiple messages: list of completion responses (each element can be dict or List[dict])
 
         Raises
         ------
@@ -221,7 +232,7 @@ class LLMClientManager:
 
     async def _acreate_single(
         self, messages: list[dict[str, Any]], **overrides: Any
-    ) -> Union[str, list[str]]:
+    ) -> Union[dict, list[dict]]:
         """Create a single async completion using LiteLLM.
 
         Parameters
@@ -233,10 +244,9 @@ class LLMClientManager:
 
         Returns
         -------
-        Union[str, List[str]]
-            The completion text(s). Returns a single string when n=1 or n is None,
-            returns a list of strings when n>1.
-
+        Union[dict, List[dict]]
+            List of completion message objects. Each element is a dict when n=1 or n is None,
+            or a list of dicts when n>1. Message dicts contain 'content' and may contain 'reasoning_content'.
         Raises
         ------
         Exception
@@ -263,17 +273,19 @@ class LLMClientManager:
         # Make the async completion call
         response = await completion_func(kwargs)
 
-        # Extract content from response
+        # Extract message objects from response
         # Check if n > 1 to determine return type
         n_value = final_config.n or 1
         if n_value > 1:
-            return [choice.message.content for choice in response.choices]
+            return [
+                self._message_to_dict(choice.message) for choice in response.choices
+            ]
         else:
-            return response.choices[0].message.content
+            return self._message_to_dict(response.choices[0].message)
 
     def create_completions_batch(
         self, messages_list: list[list[dict[str, Any]]], **overrides: Any
-    ) -> list[Union[str, list[str]]]:
+    ) -> list[Union[dict, list[dict]]]:
         """Create multiple completions in batch.
 
         Parameters
@@ -285,9 +297,9 @@ class LLMClientManager:
 
         Returns
         -------
-        List[Union[str, List[str]]]
-            List of completion texts. Each element is a single string when n=1 or n is None,
-            or a list of strings when n>1.
+        List[dict] | List[List[dict]]
+            List of completion responses. Each element is a dict when n=1 or n is None,
+            or a list of dicts when n>1. Response dicts contain 'content' and may contain 'reasoning_content'.
         """
         results = []
         for messages in messages_list:

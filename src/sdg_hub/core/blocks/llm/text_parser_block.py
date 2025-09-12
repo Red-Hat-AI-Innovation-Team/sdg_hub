@@ -51,6 +51,10 @@ class TextParserBlock(BaseBlock):
     expand_lists : bool
         Whether to expand list inputs into individual rows (True) or preserve lists (False).
         Default is True for backward compatibility.
+    save_reasoning_content : bool
+        Whether to save the reasoning content to the output.
+    reasoning_content_field : Optional[str]
+        The field name of the reasoning content to save to the output.
     """
 
     start_tags: list[str] = Field(
@@ -68,6 +72,14 @@ class TextParserBlock(BaseBlock):
     expand_lists: bool = Field(
         default=True,
         description="Whether to expand list inputs into individual rows (True) or preserve lists (False). ",
+    )
+    save_reasoning_content: bool = Field(
+        default=False,
+        description="Whether to save the reasoning content to the output.",
+    )
+    reasoning_content_field: Optional[str] = Field(
+        default="reasoning_content",
+        description="The field name of the reasoning content to save to the output.",
     )
 
     @field_validator("start_tags", "end_tags", mode="before")
@@ -234,6 +246,27 @@ class TextParserBlock(BaseBlock):
                 value = value.replace(clean_tag, "")
         return value
 
+    def _handle_message(self, sample: dict) -> dict[str, list[str]]:
+        if "content" not in sample:
+            logger.warning(f"Content not found in sample: {sample}")
+            return {}
+        parsed_output = self._parse(sample["content"])
+        if self.save_reasoning_content:
+            parsed_output[self.reasoning_content_field] = [
+                self._get_reasoning_content(sample)
+            ]
+        return parsed_output
+
+    def _get_reasoning_content(self, sample: dict) -> str:
+        if self.save_reasoning_content:
+            if self.reasoning_content_field in sample:
+                return sample[self.reasoning_content_field]
+            else:
+                logger.warning(
+                    f"Reasoning content field '{self.reasoning_content_field}' not found in response"
+                )
+                return ""
+
     def _generate(self, sample: dict) -> list[dict]:
         input_column = self.input_cols[0]
         raw_output = sample[input_column]
@@ -250,21 +283,24 @@ class TextParserBlock(BaseBlock):
                 all_parsed_outputs = {col: [] for col in self.output_cols}
                 valid_responses = 0
 
-                for i, response in enumerate(raw_output):
-                    if not response or not isinstance(response, str):
+                for i, message in enumerate(raw_output):
+                    if not message:
                         logger.warning(
-                            f"List item {i} in column '{input_column}' contains invalid data "
-                            f"(empty or non-string): {type(response)}"
+                            f"List item {i} in column '{input_column}' is empty"
                         )
                         continue
 
-                    parsed_outputs = self._parse(response)
+                    parsed_outputs = self._handle_message(message)
+                    if self.save_reasoning_content:
+                        reasoning_content = parsed_outputs.pop(
+                            self.reasoning_content_field
+                        )
 
                     if not parsed_outputs or not any(
                         len(value) > 0 for value in parsed_outputs.values()
                     ):
                         logger.warning(
-                            f"Failed to parse content from list item {i}. Raw output length: {len(response)}, "
+                            f"Failed to parse content from list item {i}. Raw output length: {len(message)}, "
                             f"parsing method: {'regex' if self.parsing_pattern else 'tags'}"
                         )
                         continue
@@ -273,6 +309,17 @@ class TextParserBlock(BaseBlock):
                     # Collect all parsed values for each column as lists
                     for col in self.output_cols:
                         all_parsed_outputs[col].extend(parsed_outputs.get(col, []))
+                    if self.save_reasoning_content:
+                        if (
+                            self.block_name + "_" + self.reasoning_content_field
+                            not in all_parsed_outputs
+                        ):
+                            all_parsed_outputs[
+                                self.block_name + "_" + self.reasoning_content_field
+                            ] = []
+                        all_parsed_outputs[
+                            self.block_name + "_" + self.reasoning_content_field
+                        ].extend(reasoning_content)
 
                 if valid_responses == 0:
                     return []
@@ -283,21 +330,24 @@ class TextParserBlock(BaseBlock):
             else:
                 # When expand_lists=True, use existing expanding behavior
                 all_results = []
-                for i, response in enumerate(raw_output):
-                    if not response or not isinstance(response, str):
+                for i, message in enumerate(raw_output):
+                    if not message:
                         logger.warning(
-                            f"List item {i} in column '{input_column}' contains invalid data "
-                            f"(empty or non-string): {type(response)}"
+                            f"List item {i} in column '{input_column}' is empty"
                         )
                         continue
 
-                    parsed_outputs = self._parse(response)
+                    parsed_outputs = self._handle_message(message)
+                    if self.save_reasoning_content:
+                        reasoning_content = parsed_outputs.pop(
+                            self.reasoning_content_field
+                        )
 
                     if not parsed_outputs or not any(
                         len(value) > 0 for value in parsed_outputs.values()
                     ):
                         logger.warning(
-                            f"Failed to parse content from list item {i}. Raw output length: {len(response)}, "
+                            f"Failed to parse content from list item {i}. Raw output length: {len(message)}, "
                             f"parsing method: {'regex' if self.parsing_pattern else 'tags'}"
                         )
                         continue
@@ -307,19 +357,27 @@ class TextParserBlock(BaseBlock):
                     for values in zip(
                         *(lst[:max_length] for lst in parsed_outputs.values())
                     ):
-                        all_results.append(
-                            {**sample, **dict(zip(parsed_outputs.keys(), values))}
-                        )
+                        result_row = {
+                            **sample,
+                            **dict(zip(parsed_outputs.keys(), values)),
+                        }
+                        if self.save_reasoning_content:
+                            result_row[
+                                self.block_name + "_" + self.reasoning_content_field
+                            ] = reasoning_content[0]
+                        all_results.append(result_row)
 
                 return all_results
 
-        # Handle string inputs (existing logic)
-        elif isinstance(raw_output, str):
+        # Handle dict inputs (existing logic)
+        elif isinstance(raw_output, dict):
             if not raw_output:
-                logger.warning(f"Input column '{input_column}' contains empty string")
+                logger.warning(f"Input column '{input_column}' contains empty dict")
                 return []
 
-            parsed_outputs = self._parse(raw_output)
+            parsed_outputs = self._handle_message(raw_output)
+            if self.save_reasoning_content:
+                reasoning_content = parsed_outputs.pop(self.reasoning_content_field)
 
             if not parsed_outputs or not any(
                 len(value) > 0 for value in parsed_outputs.values()
@@ -333,13 +391,19 @@ class TextParserBlock(BaseBlock):
             result = []
             max_length = max(len(value) for value in parsed_outputs.values())
             for values in zip(*(lst[:max_length] for lst in parsed_outputs.values())):
-                result.append({**sample, **dict(zip(parsed_outputs.keys(), values))})
+                result_row = {**sample, **dict(zip(parsed_outputs.keys(), values))}
+                if self.save_reasoning_content:
+                    result_row[self.block_name + "_" + self.reasoning_content_field] = (
+                        reasoning_content[0]
+                    )
+                result.append(result_row)
+
             return result
 
         else:
             logger.warning(
                 f"Input column '{input_column}' contains invalid data type: {type(raw_output)}. "
-                f"Expected str or List[str]"
+                f"Expected dict or List[dict]"
             )
             return []
 
