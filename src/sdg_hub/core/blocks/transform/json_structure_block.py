@@ -6,7 +6,7 @@ containing a structured JSON object with specified field names.
 """
 
 # Standard
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 import json
 
 # Third Party
@@ -30,31 +30,22 @@ class JSONStructureBlock(BaseBlock):
     """Block for combining multiple columns into a structured JSON object.
 
     This block takes values from multiple input columns and combines them into a single
-    output column containing a JSON object with user-specified field names.
+    output column containing a JSON object. The JSON field names match the input column names.
 
     Attributes
     ----------
     block_name : str
         Name of the block.
-    input_cols : Union[List[str], Dict[str, str]]
-        Input column specification:
-        - List[str]: Column names to include (uses column names as JSON keys)
-        - Dict[str, str]: Mapping from column names to JSON field names
+    input_cols : List[str]
+        List of input column names to include in the JSON object.
+        Column names become the JSON field names.
     output_cols : List[str]
         List containing the single output column name.
-    json_structure : Optional[Dict[str, str]]
-        Optional mapping of JSON field names to input column names.
-        If provided, overrides input_cols mapping behavior.
     ensure_json_serializable : bool
         Whether to ensure all values are JSON serializable (default True).
     pretty_print : bool
         Whether to format JSON with indentation (default False).
     """
-
-    json_structure: Optional[Dict[str, str]] = Field(
-        default=None,
-        description="Optional mapping of JSON field names to input column names",
-    )
     ensure_json_serializable: bool = Field(
         default=True, description="Whether to ensure all values are JSON serializable"
     )
@@ -92,20 +83,11 @@ class JSONStructureBlock(BaseBlock):
 
     def _get_field_mapping(self) -> Dict[str, str]:
         """Get the mapping of JSON field names to input column names."""
-        if self.json_structure:
-            return self.json_structure
-
-        # If input_cols is a dict, use it as the mapping
-        if isinstance(self.input_cols, dict):
-            return {
-                json_field: col_name for col_name, json_field in self.input_cols.items()
-            }
-
-        # If input_cols is a list, use column names as JSON field names
+        # Use column names as JSON field names (standard SDG Hub pattern)
         if isinstance(self.input_cols, list):
             return {col: col for col in self.input_cols}
-
-        raise ValueError("Unable to determine field mapping from input_cols")
+        
+        raise ValueError("input_cols must be a list of column names")
 
     def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
         """Generate a dataset with JSON structured output.

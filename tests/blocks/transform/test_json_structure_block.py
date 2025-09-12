@@ -73,46 +73,6 @@ def test_basic_json_structure_with_list_input_cols(sample_dataset):
         assert "sentiment" in parsed
 
 
-def test_json_structure_with_dict_input_cols(sample_dataset):
-    """Test JSON structure creation using dict mapping for input columns."""
-    block = JSONStructureBlock(
-        block_name="test_json",
-        input_cols={"summary": "text_summary", "sentiment": "emotion"},
-        output_cols=["structured_output"],
-    )
-
-    result = block.generate(sample_dataset)
-
-    # Parse the JSON output for first sample
-    json_data = json.loads(result[0]["structured_output"])
-    assert json_data["text_summary"] == "This is a short summary"
-    assert json_data["emotion"] == "positive"
-
-    # Ensure original column names are not used as keys
-    assert "summary" not in json_data
-    assert "sentiment" not in json_data
-
-
-def test_json_structure_override_with_json_structure_param(sample_dataset):
-    """Test JSON structure creation using json_structure parameter."""
-    block = JSONStructureBlock(
-        block_name="test_json",
-        input_cols=["summary", "sentiment"],  # This will be overridden
-        output_cols=["structured_output"],
-        json_structure={
-            "content": "summary",
-            "mood": "sentiment",
-            "analysis": "keywords",
-        },
-    )
-
-    result = block.generate(sample_dataset)
-
-    # Parse the JSON output for first sample
-    json_data = json.loads(result[0]["structured_output"])
-    assert json_data["content"] == "This is a short summary"
-    assert json_data["mood"] == "positive"
-    assert json_data["analysis"] == ["key1", "key2", "key3"]
 
 
 def test_all_column_types(sample_dataset):
@@ -284,7 +244,7 @@ def test_field_mapping_validation_error():
     original_input_cols = block.input_cols
     block.input_cols = "invalid_type"
 
-    with pytest.raises(ValueError, match="Unable to determine field mapping"):
+    with pytest.raises(ValueError, match="input_cols must be a list of column names"):
         block._get_field_mapping()
 
     # Restore for cleanup
