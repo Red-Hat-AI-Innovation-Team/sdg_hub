@@ -10,10 +10,16 @@
     Instructions:
     - Look for stock ticker symbols (e.g., AAPL, MSFT, GOOGL, TSLA)
     - Include tickers mentioned explicitly or implied by company names
-    - Return ONLY the ticker symbols as a comma-separated list
+    - Return ONLY the ticker symbols as a comma-separated list, no explanations
     - If no tickers are found, return "None"
+    - Always return your response within the tags as shown below
 
+    If tickers are found: 
     [STOCK_TICKERS]
     stock_ticker1, stock_ticker2, stock_ticker3
     [/STOCK_TICKERS]
-    
+
+    If tickers are not found:
+    [STOCK_TICKERS]
+    None
+    [/STOCK_TICKERS]
