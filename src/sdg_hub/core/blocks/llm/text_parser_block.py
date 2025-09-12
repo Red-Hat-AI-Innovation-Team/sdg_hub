@@ -131,7 +131,25 @@ class TextParserBlock(BaseBlock):
             # This validation will be moved to _validate_custom
 
         return self
-
+    
+    @model_validator(mode="after")
+    def _validate_reasoning_field(self):
+        if self.save_reasoning_content:
+            if not self.reasoning_content_field or not self.reasoning_content_field.strip():
+                raise ValueError("reasoning_content_field must be a non-empty string when save_reasoning_content=True")
+            # Simple sanity check to avoid overlap with declared output columns
+            rc_col = f"{self.block_name}_{self.reasoning_content_field}"
+            if self.reasoning_content_field in getattr(self, "output_cols", []):
+                raise ValueError(
+                    f"reasoning_content_field '{self.reasoning_content_field}' collides with an output column"
+                )
+            if rc_col in getattr(self, "output_cols", []):
+                raise ValueError(
+                    f"Auto-generated reasoning column '{rc_col}' collides with an output column"
+                )
+        return self
+        
+        
     def _validate_custom(self, dataset: Dataset) -> None:
         """Validate TextParserBlock specific requirements.
 
@@ -431,6 +449,7 @@ class TextParserBlock(BaseBlock):
         for param_name, param_value in override_kwargs.items():
             if not hasattr(self, param_name):
                 # Skip parameters that don't exist on the model
+                logger.warning(f"Parameter '{param_name}' does not exist on the model, skipping")
                 continue
 
             # Apply field-specific validation
@@ -472,6 +491,23 @@ class TextParserBlock(BaseBlock):
                     f"start_tags and end_tags must have the same length. "
                     f"Got {len(temp_values['start_tags'])} start_tags and {len(temp_values['end_tags'])} end_tags"
                 )
+
+        # If we're overriding reasoning configuration, validate it
+        if any(key in validated_kwargs for key in ["save_reasoning_content", "reasoning_content_field"]):
+            # Create temporary values with overrides applied
+            save_reasoning = validated_kwargs.get("save_reasoning_content", self.save_reasoning_content)
+            reasoning_field = validated_kwargs.get("reasoning_content_field", self.reasoning_content_field)
+            
+            if save_reasoning:
+                if not reasoning_field or not reasoning_field.strip():
+                    raise ValueError("reasoning_content_field must be a non-empty string when save_reasoning_content=True")
+                
+                # Check for collisions with output columns
+                rc_col = f"{self.block_name}_{reasoning_field}"
+                if reasoning_field in getattr(self, "output_cols", []):
+                    raise ValueError(f"reasoning_content_field '{reasoning_field}' collides with an output column")
+                if rc_col in getattr(self, "output_cols", []):
+                    raise ValueError(f"Auto-generated reasoning column '{rc_col}' collides with an output column")
 
         return validated_kwargs
 
