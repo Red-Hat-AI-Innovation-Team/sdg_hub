@@ -2013,3 +2013,229 @@ def test_override_kwargs_save_reasoning_content():
     assert result2[0]["output"] == "Final answer"
     # Should NOT have reasoning content field
     assert "test_block_reasoning_content" not in result2[0]
+
+
+# Tests for override kwargs validation functionality
+def test_override_validation_comprehensive():
+    """Test comprehensive override validation including normalization and error cases."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<start>"],
+        end_tags=["<end>"],
+    )
+
+    # Test valid normalizations
+    validated = block._validate_override_kwargs(
+        {
+            "start_tags": "<new_start>",  # string to list
+            "end_tags": "<new_end>",
+            "parser_cleanup_tags": "<cleanup>",  # string to list
+        }
+    )
+    assert validated["start_tags"] == ["<new_start>"]
+    assert validated["end_tags"] == ["<new_end>"]
+    assert validated["parser_cleanup_tags"] == ["<cleanup>"]
+
+    # Test list inputs work too
+    validated = block._validate_override_kwargs(
+        {"parser_cleanup_tags": ["<br>", "</br>"]}
+    )
+    assert validated["parser_cleanup_tags"] == ["<br>", "</br>"]
+
+    # Test invalid tag types
+    with pytest.raises(ValueError, match="Tags must be a string, list, or None"):
+        block._validate_override_kwargs({"start_tags": 123})
+
+    with pytest.raises(
+        ValueError, match="Cleanup tags must be a string, list, or None"
+    ):
+        block._validate_override_kwargs({"parser_cleanup_tags": 123})
+
+    # Test mismatched tag lengths
+    with pytest.raises(
+        ValueError, match="start_tags and end_tags must have the same length"
+    ):
+        block._validate_override_kwargs(
+            {"start_tags": ["<q>", "<a>"], "end_tags": ["</q>"]}
+        )
+
+    # Test removing all parsing methods
+    with pytest.raises(
+        ValueError, match="TextParserBlock requires at least one parsing method"
+    ):
+        block._validate_override_kwargs(
+            {"start_tags": [], "end_tags": [], "parsing_pattern": None}
+        )
+
+
+def test_override_validation_reasoning_fields():
+    """Test reasoning field validation in overrides."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<start>"],
+        end_tags=["<end>"],
+    )
+
+    # Test empty reasoning field
+    with pytest.raises(
+        ValueError, match="reasoning_content_field must be a non-empty string"
+    ):
+        block._validate_override_kwargs(
+            {"save_reasoning_content": True, "reasoning_content_field": ""}
+        )
+
+    # Test whitespace-only reasoning field
+    with pytest.raises(
+        ValueError, match="reasoning_content_field must be a non-empty string"
+    ):
+        block._validate_override_kwargs(
+            {"save_reasoning_content": True, "reasoning_content_field": "   "}
+        )
+
+    # Test collision with output column
+    block_with_collision = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output", "reasoning"],
+        start_tags=["<start>"],
+        end_tags=["<end>"],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="reasoning_content_field 'reasoning' collides with an output column",
+    ):
+        block_with_collision._validate_override_kwargs(
+            {"save_reasoning_content": True, "reasoning_content_field": "reasoning"}
+        )
+
+
+def test_override_validation_runtime_integration(caplog):
+    """Test validation during generate() calls and non-existent parameter handling."""
+    dataset = Dataset.from_list([{"raw_output": {"content": "<new>Hello World</new>"}}])
+
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<start>"],
+        end_tags=["<end>"],
+    )
+
+    # Test valid runtime override
+    result = block.generate(dataset, start_tags="<new>", end_tags="</new>")
+    assert len(result) == 1
+    assert result[0]["output"] == "Hello World"
+
+    # Test invalid runtime override
+    with pytest.raises(
+        ValueError, match="start_tags and end_tags must have the same length"
+    ):
+        block.generate(dataset, start_tags=["<q>", "<a>"], end_tags=["</q>"])
+
+    # Test non-existent parameter warning
+    validated = block._validate_override_kwargs(
+        {"nonexistent_param": "value", "start_tags": "<new>"}
+    )
+    assert "nonexistent_param" not in validated
+    assert validated["start_tags"] == ["<new>"]
+    assert (
+        "Parameter 'nonexistent_param' does not exist on the model, skipping"
+        in caplog.text
+    )
+
+
+def test_reasoning_field_model_validation():
+    """Test the model validator for reasoning field configuration."""
+    # Test valid reasoning configuration
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<start>"],
+        end_tags=["<end>"],
+        save_reasoning_content=True,
+        reasoning_content_field="my_reasoning",
+    )
+    assert block.save_reasoning_content is True
+    assert block.reasoning_content_field == "my_reasoning"
+
+    # Test empty reasoning field with save_reasoning_content=True
+    with pytest.raises(
+        ValueError, match="reasoning_content_field must be a non-empty string"
+    ):
+        TextParserBlock(
+            block_name="test_block",
+            input_cols="raw_output",
+            output_cols=["output"],
+            start_tags=["<start>"],
+            end_tags=["<end>"],
+            save_reasoning_content=True,
+            reasoning_content_field="",
+        )
+
+    # Test reasoning field collision with output column
+    with pytest.raises(
+        ValueError,
+        match="reasoning_content_field 'output' collides with an output column",
+    ):
+        TextParserBlock(
+            block_name="test_block",
+            input_cols="raw_output",
+            output_cols=["output"],
+            start_tags=["<start>"],
+            end_tags=["<end>"],
+            save_reasoning_content=True,
+            reasoning_content_field="output",
+        )
+
+    # Test auto-generated column collision
+    with pytest.raises(
+        ValueError,
+        match="Auto-generated reasoning column 'test_block_reasoning' collides",
+    ):
+        TextParserBlock(
+            block_name="test_block",
+            input_cols="raw_output",
+            output_cols=["output", "test_block_reasoning"],
+            start_tags=["<start>"],
+            end_tags=["<end>"],
+            save_reasoning_content=True,
+            reasoning_content_field="reasoning",
+        )
+
+
+def test_override_validation_mixed_scenarios():
+    """Test validation with complex override scenarios."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        parsing_pattern=r"Answer: (.*?)(?:\n|$)",
+    )
+
+    # Test switching from regex to tags
+    validated = block._validate_override_kwargs(
+        {"parsing_pattern": None, "start_tags": "<answer>", "end_tags": "</answer>"}
+    )
+    assert validated["parsing_pattern"] is None
+    assert validated["start_tags"] == ["<answer>"]
+    assert validated["end_tags"] == ["</answer>"]
+
+    # Test combining reasoning and parsing overrides
+    validated = block._validate_override_kwargs(
+        {
+            "start_tags": "<q>",
+            "end_tags": "</q>",
+            "save_reasoning_content": True,
+            "reasoning_content_field": "my_reasoning",
+        }
+    )
+    assert validated["start_tags"] == ["<q>"]
+    assert validated["end_tags"] == ["</q>"]
+    assert validated["save_reasoning_content"] is True
+    assert validated["reasoning_content_field"] == "my_reasoning"
