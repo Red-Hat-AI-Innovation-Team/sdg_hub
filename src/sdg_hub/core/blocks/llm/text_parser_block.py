@@ -408,19 +408,19 @@ class TextParserBlock(BaseBlock):
 
     def generate(self, samples: Dataset, **override_kwargs: Any) -> Dataset:
         # Apply runtime parameter overrides
-        original_values = {}
+        original_values: dict[str, Any] = {}
         for param_name, param_value in override_kwargs.items():
             if hasattr(self, param_name):
                 original_values[param_name] = getattr(self, param_name)
                 setattr(self, param_name, param_value)
-                logger.info(f"Runtime override: {param_name} = {param_value}")
-
-        logger.debug(f"Parsing outputs for {len(samples)} samples")
-        if len(samples) == 0:
-            logger.warning("No samples to parse, returning empty dataset")
-            return Dataset.from_list([])
+                logger.debug(f"Runtime override: {param_name} = {param_value}")
 
         try:
+            logger.debug(f"Parsing outputs for {len(samples)} samples")
+            if len(samples) == 0:
+                logger.warning("No samples to parse, returning empty dataset")
+                return Dataset.from_list([])
+
             new_data = []
             for sample in samples:
                 new_data.extend(self._generate(sample))
