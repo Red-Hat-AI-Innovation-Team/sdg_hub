@@ -46,6 +46,7 @@ class JSONStructureBlock(BaseBlock):
     pretty_print : bool
         Whether to format JSON with indentation (default False).
     """
+
     ensure_json_serializable: bool = Field(
         default=True, description="Whether to ensure all values are JSON serializable"
     )
@@ -86,7 +87,7 @@ class JSONStructureBlock(BaseBlock):
         # Use column names as JSON field names (standard SDG Hub pattern)
         if isinstance(self.input_cols, list):
             return {col: col for col in self.input_cols}
-        
+
         raise ValueError("input_cols must be a list of column names")
 
     def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:

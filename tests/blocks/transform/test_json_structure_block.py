@@ -73,8 +73,6 @@ def test_basic_json_structure_with_list_input_cols(sample_dataset):
         assert "sentiment" in parsed
 
 
-
-
 def test_all_column_types(sample_dataset):
     """Test JSON structure with various data types."""
     block = JSONStructureBlock(
