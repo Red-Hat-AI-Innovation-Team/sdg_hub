@@ -270,7 +270,6 @@ class TextParserBlock(BaseBlock):
     def _generate(self, sample: dict) -> list[dict]:
         input_column = self.input_cols[0]
         raw_output = sample[input_column]
-        logger.info("Save reasoning content:", self.save_reasoning_content)
         # Handle list inputs (e.g., from LLMChatBlock with n > 1)
         if isinstance(raw_output, list):
             if not raw_output:
@@ -408,9 +407,6 @@ class TextParserBlock(BaseBlock):
             return []
 
     def generate(self, samples: Dataset, **override_kwargs: Any) -> Dataset:
-        
-        logger.info(f"Override kwargs: {override_kwargs}")
-        
         # Apply runtime parameter overrides
         original_values = {}
         for param_name, param_value in override_kwargs.items():
@@ -418,7 +414,7 @@ class TextParserBlock(BaseBlock):
                 original_values[param_name] = getattr(self, param_name)
                 setattr(self, param_name, param_value)
                 logger.info(f"Runtime override: {param_name} = {param_value}")
-        
+
         logger.debug(f"Parsing outputs for {len(samples)} samples")
         if len(samples) == 0:
             logger.warning("No samples to parse, returning empty dataset")

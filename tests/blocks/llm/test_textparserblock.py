@@ -1803,3 +1803,213 @@ def test_save_reasoning_content_multiple_responses_collected_as_list():
         "Reasoning for response 2",
         "Reasoning for response 3",
     ]
+
+
+# Tests for override kwargs functionality
+def test_override_kwargs_parsing_pattern():
+    """Test overriding parsing_pattern at runtime."""
+    # Create block with tag-based parsing initially
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+    )
+
+    data = [{"raw_output": {"content": "Question: What is 2+2?\nAnswer: Four"}}]
+    dataset = Dataset.from_list(data)
+
+    # Override to use regex parsing instead
+    result = block.generate(dataset, parsing_pattern=r"Answer: (.*?)(?:\n|$)")
+
+    assert len(result) == 1
+    assert result[0]["output"] == "Four"
+
+    # Verify original configuration is restored
+    assert block.parsing_pattern is None
+    assert block.start_tags == ["<answer>"]
+    assert block.end_tags == ["</answer>"]
+
+
+def test_override_kwargs_tags():
+    """Test overriding start_tags and end_tags at runtime."""
+    # Create block with regex parsing initially
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        parsing_pattern=r"Answer: (.*)",
+    )
+
+    data = [{"raw_output": {"content": "<result>Success</result>"}}]
+    dataset = Dataset.from_list(data)
+
+    # Override to use tag-based parsing instead
+    result = block.generate(
+        dataset,
+        start_tags=["<result>"],
+        end_tags=["</result>"],
+        parsing_pattern=None,  # Disable regex parsing
+    )
+
+    assert len(result) == 1
+    assert result[0]["output"] == "Success"
+
+    # Verify original configuration is restored
+    assert block.parsing_pattern == r"Answer: (.*)"
+    assert block.start_tags == []
+    assert block.end_tags == []
+
+
+def test_override_kwargs_expand_lists():
+    """Test overriding expand_lists parameter at runtime."""
+    # Create block with expand_lists=True (default)
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+        expand_lists=True,
+    )
+
+    data = [
+        {
+            "raw_output": [
+                {"content": "<answer>First</answer>"},
+                {"content": "<answer>Second</answer>"},
+            ]
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    # Override to expand_lists=False
+    result = block.generate(dataset, expand_lists=False)
+
+    # Should return single row with list values
+    assert len(result) == 1
+    assert result[0]["output"] == ["First", "Second"]
+
+    # Verify original configuration is restored
+    assert block.expand_lists is True
+
+
+def test_override_kwargs_state_restoration():
+    """Test that original values are properly restored after generate() call."""
+    # Create block with regex parsing initially
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        parsing_pattern=r"Answer: (.*)",
+        parser_cleanup_tags=["<br>"],
+    )
+
+    # Store original values
+    original_pattern = block.parsing_pattern
+    original_cleanup_tags = block.parser_cleanup_tags.copy()
+
+    data = [
+        {
+            "raw_output": {
+                "content": "Question: What is the result?\nAnswer: Success<clean></clean>"
+            }
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    # Override multiple parameters
+    result = block.generate(
+        dataset,
+        parsing_pattern=r"Answer: (.*)",
+        parser_cleanup_tags=["<clean>", "</clean>"],
+    )
+
+    assert len(result) == 1
+    assert result[0]["output"] == "Success"
+
+    # Verify ALL original values are restored
+    assert block.parsing_pattern == original_pattern
+    assert block.parser_cleanup_tags == original_cleanup_tags
+
+    # Test that original configuration still works
+    original_data = [
+        {"raw_output": {"content": "Question: Test?\nAnswer: Original<br>content"}}
+    ]
+    original_dataset = Dataset.from_list(original_data)
+
+    original_result = block.generate(original_dataset)
+    assert len(original_result) == 1
+    assert original_result[0]["output"] == "Originalcontent"  # <br> should be cleaned
+
+
+def test_override_kwargs_invalid_parameters():
+    """Test that invalid/non-existent parameter overrides are ignored."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+    )
+
+    data = [{"raw_output": {"content": "<answer>Test</answer>"}}]
+    dataset = Dataset.from_list(data)
+
+    # Try to override non-existent parameters - should be ignored
+    result = block.generate(
+        dataset,
+        non_existent_param="should_be_ignored",
+        another_invalid_param=123,
+        model="gpt-4",  # This doesn't exist on TextParserBlock
+    )
+
+    assert len(result) == 1
+    assert result[0]["output"] == "Test"
+
+    # Block should not have these attributes
+    assert not hasattr(block, "non_existent_param")
+    assert not hasattr(block, "another_invalid_param")
+    assert not hasattr(block, "model")
+
+
+def test_override_kwargs_save_reasoning_content():
+    """Test overriding save_reasoning_content parameter at runtime."""
+    # Create block with save_reasoning_content=False (default)
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+        save_reasoning_content=False,
+    )
+
+    data = [
+        {
+            "raw_output": {
+                "content": "<answer>Final answer</answer>",
+                "reasoning_content": "This is my reasoning process",
+            }
+        }
+    ]
+    dataset = Dataset.from_list(data)
+
+    # Override to enable save_reasoning_content at runtime
+    result = block.generate(dataset, save_reasoning_content=True)
+
+    assert len(result) == 1
+    assert result[0]["output"] == "Final answer"
+    # Should have reasoning content because we overrode the parameter
+    assert result[0]["test_block_reasoning_content"] == "This is my reasoning process"
+
+    # Verify original configuration is restored
+    assert block.save_reasoning_content is False
+
+    # Test again without override - should not save reasoning content
+    result2 = block.generate(dataset)
+    assert len(result2) == 1
+    assert result2[0]["output"] == "Final answer"
+    # Should NOT have reasoning content field
+    assert "test_block_reasoning_content" not in result2[0]
