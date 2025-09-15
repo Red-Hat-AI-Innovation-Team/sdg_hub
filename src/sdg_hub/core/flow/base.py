@@ -11,7 +11,14 @@ import uuid
 
 # Third Party
 from datasets import Dataset
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    field_validator,
+    model_validator,
+)
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -70,8 +77,8 @@ class Flow(BaseModel):
     _migrated_runtime_params: dict[str, dict[str, Any]] = {}
     _llm_client: Any = None  # Only used for backward compatibility with old YAMLs
     _model_config_set: bool = False  # Track if model configuration has been set
-    _block_metrics: list[dict[str, Any]] = Field(
-        default_factory=list, exclude=True
+    _block_metrics: list[dict[str, Any]] = PrivateAttr(
+        default_factory=list
     )  # Track block execution metrics
 
     @field_validator("blocks")
