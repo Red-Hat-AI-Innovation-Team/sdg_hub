@@ -70,7 +70,9 @@ class Flow(BaseModel):
     _migrated_runtime_params: dict[str, dict[str, Any]] = {}
     _llm_client: Any = None  # Only used for backward compatibility with old YAMLs
     _model_config_set: bool = False  # Track if model configuration has been set
-    _block_metrics: list[dict[str, Any]] = []  # Track block execution metrics
+    _block_metrics: list[dict[str, Any]] = Field(
+        default_factory=list, exclude=True
+    )  # Track block execution metrics
 
     @field_validator("blocks")
     @classmethod
