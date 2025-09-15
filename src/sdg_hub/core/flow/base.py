@@ -573,32 +573,42 @@ class Flow(BaseModel):
                         "completed checkpoint data with newly processed data",
                     )
 
-        # Display rich metrics summary instead of simple log message
+        # Display rich metrics summary
         self._display_metrics_summary(final_dataset)
 
-        # Save metrics to JSON if log_dir is provided (same pattern as file logging)
+        # Save metrics to JSON if log_dir is provided
         if log_dir is not None:
-            metrics_data = {
-                "flow_name": self.metadata.name,
-                "flow_version": self.metadata.version,
-                "execution_timestamp": timestamp,  # reuse existing timestamp
-                "total_execution_time": sum(
-                    m["execution_time"] for m in self._block_metrics
-                ),
-                "total_blocks": len(self._block_metrics),
-                "successful_blocks": len(
-                    [m for m in self._block_metrics if m["status"] == "success"]
-                ),
-                "block_metrics": self._block_metrics,
-            }
+            try:
+                # Ensure necessary variables for metrics dict exist
+                if "timestamp" not in locals() or "flow_name" not in locals():
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    flow_name = self.metadata.name.replace(" ", "_").lower()
 
-            metrics_filename = f"{flow_name}_{timestamp}_metrics.json"
-            metrics_path = Path(log_dir) / metrics_filename
+                metrics_data = {
+                    "flow_name": self.metadata.name,
+                    "flow_version": self.metadata.version,
+                    "execution_timestamp": timestamp,
+                    "total_execution_time": sum(
+                        m["execution_time"] for m in self._block_metrics
+                    ),
+                    "total_blocks": len(self._block_metrics),
+                    "successful_blocks": len(
+                        [m for m in self._block_metrics if m["status"] == "success"]
+                    ),
+                    "block_metrics": self._block_metrics,
+                }
 
-            with open(metrics_path, "w") as f:
-                json.dump(metrics_data, f, indent=2)
+                metrics_filename = f"{flow_name}_{timestamp}_metrics.json"
+                metrics_path = Path(log_dir) / metrics_filename
 
-            flow_logger.info(f"Metrics saved to: {metrics_path}")
+                with open(metrics_path, "w") as f:
+                    json.dump(metrics_data, f, indent=2)
+
+                flow_logger.info(f"Metrics saved to: {metrics_path}")
+
+            except Exception as e:
+                # Metrics saving failed, warn but do not break flow
+                flow_logger.warning(f"Failed to save metrics: {e}")
 
         # Keep a basic log entry for file logs
         flow_logger.info(
