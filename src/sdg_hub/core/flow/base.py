@@ -69,6 +69,7 @@ class Flow(BaseModel):
     _migrated_runtime_params: dict[str, dict[str, Any]] = {}
     _llm_client: Any = None  # Only used for backward compatibility with old YAMLs
     _model_config_set: bool = False  # Track if model configuration has been set
+    _block_metrics: list[dict[str, Any]] = []  # Track block execution metrics
 
     @field_validator("blocks")
     @classmethod
@@ -507,6 +508,9 @@ class Flow(BaseModel):
             + (f" (max_concurrency={max_concurrency})" if max_concurrency else "")
         )
 
+        # Reset metrics for this execution
+        self._block_metrics = []
+
         # Merge migrated runtime params with provided ones (provided ones take precedence)
         merged_runtime_params = self._migrated_runtime_params.copy()
         if runtime_params:
@@ -568,6 +572,10 @@ class Flow(BaseModel):
                         "completed checkpoint data with newly processed data",
                     )
 
+        # Display rich metrics summary instead of simple log message
+        self._display_metrics_summary(final_dataset)
+        
+        # Keep a basic log entry for file logs
         flow_logger.info(
             f"Flow '{self.metadata.name}' completed successfully: "
             f"{len(final_dataset)} final samples, "
@@ -575,6 +583,87 @@ class Flow(BaseModel):
         )
 
         return final_dataset
+
+    def _display_metrics_summary(self, final_dataset: Dataset) -> None:
+        """Display a rich table summarizing block execution metrics."""
+        if not self._block_metrics:
+            return
+
+        console = Console()
+        
+        # Create the metrics table
+        table = Table(show_header=True, header_style="bold bright_white", title="Flow Execution Summary")
+        table.add_column("Block Name", style="bright_cyan", width=20)
+        table.add_column("Type", style="bright_green", width=15) 
+        table.add_column("Duration", justify="right", style="bright_yellow", width=10)
+        table.add_column("Rows", justify="center", style="bright_blue", width=12)
+        table.add_column("Columns", justify="center", style="bright_magenta", width=15)
+        table.add_column("Status", justify="center", width=10)
+
+        total_time = 0.0
+        successful_blocks = 0
+        
+        for metrics in self._block_metrics:
+            # Format duration
+            duration = f"{metrics['execution_time']:.2f}s"
+            total_time += metrics['execution_time']
+            
+            # Format row changes
+            if metrics['status'] == 'success':
+                row_change = f"{metrics['input_rows']:,} → {metrics['output_rows']:,}"
+                successful_blocks += 1
+            else:
+                row_change = f"{metrics['input_rows']:,} → ❌"
+            
+            # Format column changes  
+            added = len(metrics['added_cols'])
+            removed = len(metrics['removed_cols'])
+            if added > 0 and removed > 0:
+                col_change = f"+{added}/-{removed}"
+            elif added > 0:
+                col_change = f"+{added}"
+            elif removed > 0:
+                col_change = f"-{removed}"
+            else:
+                col_change = "—"
+            
+            # Format status with color
+            if metrics['status'] == 'success':
+                status = "[green]✓[/green]"
+            else:
+                status = "[red]✗[/red]"
+                
+            table.add_row(
+                metrics['block_name'],
+                metrics['block_type'], 
+                duration,
+                row_change,
+                col_change,
+                status
+            )
+
+        # Add summary row
+        table.add_section()
+        final_row_count = len(final_dataset) if final_dataset else 0
+        final_col_count = len(final_dataset.column_names) if final_dataset else 0
+        
+        table.add_row(
+            "[bold]TOTAL[/bold]",
+            f"[bold]{len(self._block_metrics)} blocks[/bold]",
+            f"[bold]{total_time:.2f}s[/bold]", 
+            f"[bold]{final_row_count:,} final[/bold]",
+            f"[bold]{final_col_count} final[/bold]",
+            f"[bold][green]{successful_blocks}/{len(self._block_metrics)}[/green][/bold]"
+        )
+
+        # Display the table with panel
+        console.print()
+        console.print(Panel(
+            table, 
+            title=f"[bold bright_white]{self.metadata.name}[/bold bright_white] - Complete",
+            border_style="bright_green" if successful_blocks == len(self._block_metrics) else "bright_yellow"
+        ))
+        console.print()
 
     def _execute_blocks_on_dataset(
         self,
@@ -619,6 +708,11 @@ class Flow(BaseModel):
             if max_concurrency is not None:
                 block_kwargs["_flow_max_concurrency"] = max_concurrency
 
+            # Capture metrics before execution
+            start_time = time.time()
+            input_rows = len(current_dataset)
+            input_cols = set(current_dataset.column_names)
+
             try:
                 # Check if this is a deprecated block and skip validations
                 is_deprecated_block = (
@@ -643,6 +737,25 @@ class Flow(BaseModel):
                         f"Block '{block.block_name}' produced empty dataset"
                     )
 
+                # Capture metrics after successful execution
+                execution_time = time.time() - start_time
+                output_rows = len(current_dataset)
+                output_cols = set(current_dataset.column_names)
+                added_cols = output_cols - input_cols
+                removed_cols = input_cols - output_cols
+
+                # Store block metrics
+                self._block_metrics.append({
+                    "block_name": block.block_name,
+                    "block_type": block.__class__.__name__,
+                    "execution_time": execution_time,
+                    "input_rows": input_rows,
+                    "output_rows": output_rows,
+                    "added_cols": list(added_cols),
+                    "removed_cols": list(removed_cols),
+                    "status": "success"
+                })
+
                 exec_logger.info(
                     f"Block '{block.block_name}' completed successfully: "
                     f"{len(current_dataset)} samples, "
@@ -650,6 +763,20 @@ class Flow(BaseModel):
                 )
 
             except Exception as exc:
+                # Capture metrics for failed execution
+                execution_time = time.time() - start_time
+                self._block_metrics.append({
+                    "block_name": block.block_name,
+                    "block_type": block.__class__.__name__,
+                    "execution_time": execution_time,
+                    "input_rows": input_rows,
+                    "output_rows": 0,
+                    "added_cols": [],
+                    "removed_cols": [],
+                    "status": "failed",
+                    "error": str(exc)
+                })
+
                 exec_logger.error(
                     f"Block '{block.block_name}' failed during execution: {exc}"
                 )
