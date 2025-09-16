@@ -761,7 +761,7 @@ class Flow(BaseModel):
                 block_kwargs["_flow_max_concurrency"] = max_concurrency
 
             # Capture metrics before execution
-            start_time = time.time()
+            start_time = time.perf_counter()
             input_rows = len(current_dataset)
             input_cols = set(current_dataset.column_names)
 
@@ -790,7 +790,7 @@ class Flow(BaseModel):
                     )
 
                 # Capture metrics after successful execution
-                execution_time = time.time() - start_time
+                execution_time = time.perf_counter() - start_time
                 output_rows = len(current_dataset)
                 output_cols = set(current_dataset.column_names)
                 added_cols = output_cols - input_cols
@@ -818,7 +818,7 @@ class Flow(BaseModel):
 
             except Exception as exc:
                 # Capture metrics for failed execution
-                execution_time = time.time() - start_time
+                execution_time = time.perf_counter() - start_time
                 self._block_metrics.append(
                     {
                         "block_name": block.block_name,
@@ -1184,7 +1184,7 @@ class Flow(BaseModel):
             "execution_time_seconds": 0,
         }
 
-        start_time = time.time()
+        start_time = time.perf_counter()
 
         try:
             # Execute the flow with sample data
@@ -1192,7 +1192,7 @@ class Flow(BaseModel):
             runtime_params = runtime_params or {}
 
             for i, block in enumerate(self.blocks):
-                block_start_time = time.time()
+                block_start_time = time.perf_counter()
                 input_rows = len(current_dataset)
 
                 logger.info(
@@ -1251,7 +1251,7 @@ class Flow(BaseModel):
                 else {},
             }
 
-            execution_time = time.time() - start_time
+            execution_time = time.perf_counter() - start_time
             dry_run_results["execution_time_seconds"] = execution_time
 
             logger.info(
@@ -1262,7 +1262,7 @@ class Flow(BaseModel):
             return dry_run_results
 
         except Exception as exc:
-            execution_time = time.time() - start_time
+            execution_time = time.perf_counter() - start_time
             dry_run_results["execution_successful"] = False
             dry_run_results["execution_time_seconds"] = execution_time
             dry_run_results["error"] = str(exc)
