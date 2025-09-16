@@ -271,37 +271,48 @@ class BaseBlock(BaseModel, ABC):
         """
         # Handle runtime kwargs overrides
         if kwargs:
-            # Validate kwargs against model fields
+            # Validate that all kwargs are either valid block fields or flow parameters
             for key in kwargs:
-                if key not in self.__class__.model_fields:
+                if (
+                    not key.startswith("_flow_")
+                    and key not in self.__class__.model_fields
+                ):
                     raise ValueError(
                         f"Unknown field '{key}' for {self.__class__.__name__}"
                     )
 
-            # Validate the merged configuration
-            merged_config = {**self.model_dump(), **kwargs}
-            try:
-                self.__class__.model_validate(merged_config)
-            except Exception as e:
-                raise ValueError(
-                    f"Invalid runtime override for {self.__class__.__name__}: {e}"
-                ) from e
+            # Only override actual block fields (not flow parameters)
+            block_overrides = {
+                k: v for k, v in kwargs.items() if k in self.__class__.model_fields
+            }
 
-            # Apply temporary overrides
+            # Validate and apply block field overrides if any
             original_values = {}
-            for key, value in kwargs.items():
-                original_values[key] = getattr(self, key)
-                setattr(self, key, value)
+            if block_overrides:
+                # Validate the merged configuration for block fields only
+                merged_config = {**self.model_dump(), **block_overrides}
+                try:
+                    self.__class__.model_validate(merged_config)
+                except Exception as e:
+                    raise ValueError(
+                        f"Invalid runtime override for {self.__class__.__name__}: {e}"
+                    ) from e
+
+                # Apply temporary overrides for block fields
+                for key, value in block_overrides.items():
+                    original_values[key] = getattr(self, key)
+                    setattr(self, key, value)
 
             try:
                 self._log_input_data(samples)
                 self._validate_dataset(samples)
                 self._validate_custom(samples)
-                output_dataset = self.generate(samples)
+                # Pass ALL kwargs to generate (including flow params)
+                output_dataset = self.generate(samples, **kwargs)
                 self._log_output_data(samples, output_dataset)
                 return output_dataset
             finally:
-                # Always restore original values
+                # Always restore original values for block fields
                 for key, value in original_values.items():
                     setattr(self, key, value)
         else:
