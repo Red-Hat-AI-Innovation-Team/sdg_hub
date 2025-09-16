@@ -623,6 +623,17 @@ class Flow(BaseModel):
                 f"{len(final_dataset.column_names)} final columns"
             )
 
+        # Close file handlers if we opened a flow-specific logger
+        if log_dir is not None and flow_logger is not logger:
+            for h in list(getattr(flow_logger, "handlers", [])):
+                try:
+                    h.flush()
+                    h.close()
+                except Exception:
+                    pass
+                finally:
+                    flow_logger.removeHandler(h)
+
         return final_dataset
 
     def _execute_blocks_on_dataset(
