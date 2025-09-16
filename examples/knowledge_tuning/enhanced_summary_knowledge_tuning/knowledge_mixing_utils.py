@@ -128,6 +128,21 @@ def _create_messages_with_reasoning(record: dict) -> List[dict]:
         }
     ]
 
+def _create_messages_with_reasoning_no_document(record: dict) -> List[dict]:
+    """Create message structure with reasoning."""
+    return [
+        {
+            "role": "user", 
+            "content": f"In {record['document_outline']}, {record['question']}",
+            "thinking": None
+        },
+        {
+            "role": "assistant", 
+            "content": record['response'], 
+            "thinking": record['reasoning']
+        }
+    ]
+
 
 def _create_messages_without_reasoning(record: dict) -> List[dict]:
     """Create message structure without reasoning."""
@@ -193,10 +208,16 @@ def generate_knowledge_qa_dataset(
     # Handle reasoning column
     has_reasoning = 'reasoning' in generated_dataset.columns
     
-    if has_reasoning:
+    # TODO: Fix the name of reasoning column, test with reasoning model
+    if has_reasoning and not keep_document_in_context:
         message_columns = ['question', 'response', 'document', 'document_outline', 'reasoning']
         messages_expr = pl.struct(message_columns).map_elements(
             _create_messages_with_reasoning
+        ).alias("messages")
+    elif has_reasoning and keep_document_in_context:
+        message_columns = ['question', 'response', 'document', 'document_outline', 'reasoning']
+        messages_expr = pl.struct(message_columns).map_elements(
+            _create_messages_with_reasoning_no_document
         ).alias("messages")
     elif keep_document_in_context:
         message_columns = ['question', 'response', 'document', 'document_outline']

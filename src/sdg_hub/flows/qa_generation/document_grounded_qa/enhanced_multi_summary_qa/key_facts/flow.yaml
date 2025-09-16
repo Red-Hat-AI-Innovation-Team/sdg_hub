@@ -59,7 +59,7 @@ blocks:
   block_config:
     block_name: parse_atomic_facts
     input_cols: raw_summary
-    output_cols: key_facts
+    output_cols: document
     start_tags:
     - '### Key Facts With Context'
     end_tags:
@@ -67,7 +67,7 @@ blocks:
 - block_type: TextParserBlock
   block_config:
     block_name: parse_atomic_facts_to_individual_facts
-    input_cols: key_facts
+    input_cols: document
     output_cols: key_fact
     parsing_pattern: '(?:^|\n)\s*\d+\.\s+(.*?)(?=\n\s*\d+\.\s+|\Z)'
 - block_type: PromptBuilderBlock
