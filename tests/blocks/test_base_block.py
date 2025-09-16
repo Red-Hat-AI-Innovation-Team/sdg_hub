@@ -560,7 +560,7 @@ class TestCallMethod:
         # Verify all original values were restored
         assert block.field1 == "original1"
         assert block.field2 == 42
-        assert block.field3 == True
+        assert block.field3 is True
 
     @patch("sdg_hub.core.blocks.base.console")
     def test_call_kwargs_no_overrides(self, mock_console):
