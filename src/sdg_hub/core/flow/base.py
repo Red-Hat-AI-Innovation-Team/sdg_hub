@@ -5,7 +5,6 @@
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Union
-import json
 import time
 import uuid
 
@@ -31,6 +30,7 @@ from ..blocks.base import BaseBlock
 from ..blocks.registry import BlockRegistry
 from ..utils.datautils import safe_concatenate_with_validation, validate_no_duplicates
 from ..utils.error_handling import EmptyDatasetError, FlowValidationError
+from ..utils.flow_metrics import display_metrics_summary, save_metrics_to_json
 from ..utils.logger_config import setup_logger
 from ..utils.path_resolution import resolve_path
 from ..utils.yaml_utils import save_flow_yaml
@@ -592,49 +592,26 @@ class Flow(BaseModel):
 
         finally:
             # Always display metrics and save JSON, even if execution failed
-            self._display_metrics_summary(final_dataset)
+            display_metrics_summary(self._block_metrics, self.metadata.name, final_dataset)
 
             # Save metrics to JSON if log_dir is provided
             if log_dir is not None:
-                try:
-                    # Ensure necessary variables for metrics dict exist
-                    if "timestamp" not in locals() or "flow_name" not in locals():
-                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        flow_name = self.metadata.name.replace(" ", "_").lower()
+                # Ensure necessary variables exist
+                if "timestamp" not in locals() or "flow_name" not in locals():
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    flow_name = self.metadata.name.replace(" ", "_").lower()
 
-                    # Aggregate metrics per block (coalesce chunked runs)
-                    aggregated = self._aggregate_block_metrics(self._block_metrics)
-                    metrics_data = {
-                        "flow_name": self.metadata.name,
-                        "flow_version": self.metadata.version,
-                        "execution_timestamp": timestamp,
-                        "execution_successful": execution_successful,
-                        "total_execution_time": sum(
-                            m["execution_time"] for m in aggregated
-                        ),
-                        "total_wall_time": time.perf_counter()
-                        - run_start,  # end-to-end
-                        "total_blocks": len(aggregated),
-                        "successful_blocks": sum(
-                            1 for m in aggregated if m["status"] == "success"
-                        ),
-                        "failed_blocks": sum(
-                            1 for m in aggregated if m["status"] == "failed"
-                        ),
-                        "block_metrics": aggregated,
-                    }
-
-                    metrics_filename = f"{flow_name}_{timestamp}_metrics.json"
-                    metrics_path = Path(log_dir) / metrics_filename
-                    metrics_path.parent.mkdir(parents=True, exist_ok=True)
-                    with open(metrics_path, "w", encoding="utf-8") as f:
-                        json.dump(metrics_data, f, indent=2, sort_keys=True)
-
-                    flow_logger.info(f"Metrics saved to: {metrics_path}")
-
-                except Exception as e:
-                    # Metrics saving failed, warn but do not break flow
-                    flow_logger.warning(f"Failed to save metrics: {e}")
+                save_metrics_to_json(
+                    self._block_metrics,
+                    self.metadata.name,
+                    self.metadata.version,
+                    execution_successful,
+                    run_start,
+                    log_dir,
+                    timestamp,
+                    flow_name,
+                    flow_logger
+                )
 
         # Keep a basic log entry for file logs (only if execution was successful)
         if execution_successful and final_dataset is not None:
@@ -646,151 +623,6 @@ class Flow(BaseModel):
 
         return final_dataset
 
-    def _aggregate_block_metrics(
-        self, entries: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
-        """Aggregate per-block metrics, coalescing chunked runs."""
-        agg: dict[tuple[str, str], dict[str, Any]] = {}
-        for m in entries:
-            key = (m.get("block_name"), m.get("block_type"))
-            a = agg.setdefault(
-                key,
-                {
-                    "block_name": key[0],
-                    "block_type": key[1],
-                    "execution_time": 0.0,
-                    "input_rows": 0,
-                    "output_rows": 0,
-                    "added_cols": set(),
-                    "removed_cols": set(),
-                    "status": "success",
-                    "error_type": None,
-                    "error": None,
-                },
-            )
-            a["execution_time"] += float(m.get("execution_time", 0.0))
-            a["input_rows"] += int(m.get("input_rows", 0))
-            a["output_rows"] += int(m.get("output_rows", 0))
-            a["added_cols"].update(m.get("added_cols", []))
-            a["removed_cols"].update(m.get("removed_cols", []))
-            if m.get("status") == "failed":
-                a["status"] = "failed"
-                a["error_type"] = m.get("error_type") or a["error_type"]
-                a["error"] = m.get("error") or a["error"]
-        # normalize
-        result = []
-        for a in agg.values():
-            a["added_cols"] = sorted(a["added_cols"])
-            a["removed_cols"] = sorted(a["removed_cols"])
-            # drop empty error fields
-            if a["status"] == "success":
-                a.pop("error_type", None)
-                a.pop("error", None)
-            result.append(a)
-        return result
-
-    def _display_metrics_summary(self, final_dataset: Dataset) -> None:
-        """Display a rich table summarizing block execution metrics."""
-        if not self._block_metrics:
-            return
-
-        console = Console()
-
-        # Create the metrics table
-        table = Table(
-            show_header=True,
-            header_style="bold bright_white",
-            title="Flow Execution Summary",
-        )
-        table.add_column("Block Name", style="bright_cyan", width=20)
-        table.add_column("Type", style="bright_green", width=15)
-        table.add_column("Duration", justify="right", style="bright_yellow", width=10)
-        table.add_column("Rows", justify="center", style="bright_blue", width=12)
-        table.add_column("Columns", justify="center", style="bright_magenta", width=15)
-        table.add_column("Status", justify="center", width=10)
-
-        total_time = 0.0
-        successful_blocks = 0
-
-        for metrics in self._block_metrics:
-            # Format duration
-            duration = f"{metrics['execution_time']:.2f}s"
-            total_time += metrics["execution_time"]
-
-            # Format row changes
-            if metrics["status"] == "success":
-                row_change = f"{metrics['input_rows']:,} → {metrics['output_rows']:,}"
-                successful_blocks += 1
-            else:
-                row_change = f"{metrics['input_rows']:,} → ❌"
-
-            # Format column changes
-            added = len(metrics["added_cols"])
-            removed = len(metrics["removed_cols"])
-            if added > 0 and removed > 0:
-                col_change = f"+{added}/-{removed}"
-            elif added > 0:
-                col_change = f"+{added}"
-            elif removed > 0:
-                col_change = f"-{removed}"
-            else:
-                col_change = "—"
-
-            # Format status with color
-            if metrics["status"] == "success":
-                status = "[green]✓[/green]"
-            else:
-                status = "[red]✗[/red]"
-
-            table.add_row(
-                metrics["block_name"],
-                metrics["block_type"],
-                duration,
-                row_change,
-                col_change,
-                status,
-            )
-
-        # Add summary row
-        table.add_section()
-        final_row_count = len(final_dataset) if final_dataset else 0
-        final_col_count = len(final_dataset.column_names) if final_dataset else 0
-
-        table.add_row(
-            "[bold]TOTAL[/bold]",
-            f"[bold]{len(self._block_metrics)} blocks[/bold]",
-            f"[bold]{total_time:.2f}s[/bold]",
-            f"[bold]{final_row_count:,} final[/bold]",
-            f"[bold]{final_col_count} final[/bold]",
-            f"[bold][green]{successful_blocks}/{len(self._block_metrics)}[/green][/bold]",
-        )
-
-        # Display the table with panel
-        console.print()
-
-        # Determine panel title and border color based on execution status
-        failed_blocks = len(self._block_metrics) - successful_blocks
-        if final_dataset is None:
-            # Flow failed completely
-            title = f"[bold bright_white]{self.metadata.name}[/bold bright_white] - [red]Failed[/red]"
-            border_style = "bright_red"
-        elif failed_blocks == 0:
-            # All blocks succeeded
-            title = f"[bold bright_white]{self.metadata.name}[/bold bright_white] - [green]Complete[/green]"
-            border_style = "bright_green"
-        else:
-            # Some blocks failed but flow completed
-            title = f"[bold bright_white]{self.metadata.name}[/bold bright_white] - [yellow]Partial[/yellow]"
-            border_style = "bright_yellow"
-
-        console.print(
-            Panel(
-                table,
-                title=title,
-                border_style=border_style,
-            )
-        )
-        console.print()
 
     def _execute_blocks_on_dataset(
         self,
