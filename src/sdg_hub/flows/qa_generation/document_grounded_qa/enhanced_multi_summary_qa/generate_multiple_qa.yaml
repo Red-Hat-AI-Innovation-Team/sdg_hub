@@ -5,7 +5,7 @@
   content: |
     Given below key fact taken from document generate 5 Question and Answer pair based on the key facts.
     Introduce variation in the question and key fact.
-    Makesure to ground the question and answer in the provided key fact.
+    Make sure to ground the question and answer in the provided key fact.
 
     Strictly follow this format for each question and answer pair your generate while responding:
     [QUESTION]
