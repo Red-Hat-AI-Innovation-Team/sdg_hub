@@ -528,107 +528,121 @@ class Flow(BaseModel):
             merged_runtime_params.update(runtime_params)
         runtime_params = merged_runtime_params
 
-        # Process dataset in chunks if checkpointing with save_freq
-        if checkpointer and save_freq:
-            all_processed = []
+        # Execute flow with metrics capture, ensuring metrics are always displayed/saved
+        final_dataset = None
+        execution_successful = False
 
-            # Process in chunks of save_freq
-            for i in range(0, len(dataset), save_freq):
-                chunk_end = min(i + save_freq, len(dataset))
-                chunk_dataset = dataset.select(range(i, chunk_end))
+        try:
+            # Process dataset in chunks if checkpointing with save_freq
+            if checkpointer and save_freq:
+                all_processed = []
 
-                flow_logger.info(
-                    f"Processing chunk {i // save_freq + 1}: samples {i} to {chunk_end - 1}"
-                )
+                # Process in chunks of save_freq
+                for i in range(0, len(dataset), save_freq):
+                    chunk_end = min(i + save_freq, len(dataset))
+                    chunk_dataset = dataset.select(range(i, chunk_end))
 
-                # Execute all blocks on this chunk
-                processed_chunk = self._execute_blocks_on_dataset(
-                    chunk_dataset, runtime_params, flow_logger, max_concurrency
-                )
-                all_processed.append(processed_chunk)
+                    flow_logger.info(
+                        f"Processing chunk {i // save_freq + 1}: samples {i} to {chunk_end - 1}"
+                    )
 
-                # Save checkpoint after chunk completion
-                checkpointer.add_completed_samples(processed_chunk)
+                    # Execute all blocks on this chunk
+                    processed_chunk = self._execute_blocks_on_dataset(
+                        chunk_dataset, runtime_params, flow_logger, max_concurrency
+                    )
+                    all_processed.append(processed_chunk)
 
-            # Save final checkpoint for any remaining samples
-            checkpointer.save_final_checkpoint()
+                    # Save checkpoint after chunk completion
+                    checkpointer.add_completed_samples(processed_chunk)
 
-            # Combine all processed chunks
-            final_dataset = safe_concatenate_with_validation(
-                all_processed, "processed chunks from flow execution"
-            )
-
-            # Combine with previously completed samples if any
-            if checkpointer and completed_dataset:
-                final_dataset = safe_concatenate_with_validation(
-                    [completed_dataset, final_dataset],
-                    "completed checkpoint data with newly processed data",
-                )
-
-        else:
-            # Process entire dataset at once
-            final_dataset = self._execute_blocks_on_dataset(
-                dataset, runtime_params, flow_logger, max_concurrency
-            )
-
-            # Save final checkpoint if checkpointing enabled
-            if checkpointer:
-                checkpointer.add_completed_samples(final_dataset)
+                # Save final checkpoint for any remaining samples
                 checkpointer.save_final_checkpoint()
 
+                # Combine all processed chunks
+                final_dataset = safe_concatenate_with_validation(
+                    all_processed, "processed chunks from flow execution"
+                )
+
                 # Combine with previously completed samples if any
-                if completed_dataset:
+                if checkpointer and completed_dataset:
                     final_dataset = safe_concatenate_with_validation(
                         [completed_dataset, final_dataset],
                         "completed checkpoint data with newly processed data",
                     )
 
-        # Display rich metrics summary
-        self._display_metrics_summary(final_dataset)
+            else:
+                # Process entire dataset at once
+                final_dataset = self._execute_blocks_on_dataset(
+                    dataset, runtime_params, flow_logger, max_concurrency
+                )
 
-        # Save metrics to JSON if log_dir is provided
-        if log_dir is not None:
-            try:
-                # Ensure necessary variables for metrics dict exist
-                if "timestamp" not in locals() or "flow_name" not in locals():
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    flow_name = self.metadata.name.replace(" ", "_").lower()
+                # Save final checkpoint if checkpointing enabled
+                if checkpointer:
+                    checkpointer.add_completed_samples(final_dataset)
+                    checkpointer.save_final_checkpoint()
 
-                # Aggregate metrics per block (coalesce chunked runs)
-                aggregated = self._aggregate_block_metrics(self._block_metrics)
-                metrics_data = {
-                    "flow_name": self.metadata.name,
-                    "flow_version": self.metadata.version,
-                    "execution_timestamp": timestamp,
-                    "total_execution_time": sum(
-                        m["execution_time"] for m in aggregated
-                    ),
-                    "total_wall_time": time.perf_counter() - run_start,  # end-to-end
-                    "total_blocks": len(aggregated),
-                    "successful_blocks": sum(
-                        1 for m in aggregated if m["status"] == "success"
-                    ),
-                    "block_metrics": aggregated,
-                }
+                    # Combine with previously completed samples if any
+                    if completed_dataset:
+                        final_dataset = safe_concatenate_with_validation(
+                            [completed_dataset, final_dataset],
+                            "completed checkpoint data with newly processed data",
+                        )
 
-                metrics_filename = f"{flow_name}_{timestamp}_metrics.json"
-                metrics_path = Path(log_dir) / metrics_filename
-                metrics_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(metrics_path, "w", encoding="utf-8") as f:
-                    json.dump(metrics_data, f, indent=2, sort_keys=True)
+            execution_successful = True
 
-                flow_logger.info(f"Metrics saved to: {metrics_path}")
+        finally:
+            # Always display metrics and save JSON, even if execution failed
+            self._display_metrics_summary(final_dataset)
 
-            except Exception as e:
-                # Metrics saving failed, warn but do not break flow
-                flow_logger.warning(f"Failed to save metrics: {e}")
+            # Save metrics to JSON if log_dir is provided
+            if log_dir is not None:
+                try:
+                    # Ensure necessary variables for metrics dict exist
+                    if "timestamp" not in locals() or "flow_name" not in locals():
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        flow_name = self.metadata.name.replace(" ", "_").lower()
 
-        # Keep a basic log entry for file logs
-        flow_logger.info(
-            f"Flow '{self.metadata.name}' completed successfully: "
-            f"{len(final_dataset)} final samples, "
-            f"{len(final_dataset.column_names)} final columns"
-        )
+                    # Aggregate metrics per block (coalesce chunked runs)
+                    aggregated = self._aggregate_block_metrics(self._block_metrics)
+                    metrics_data = {
+                        "flow_name": self.metadata.name,
+                        "flow_version": self.metadata.version,
+                        "execution_timestamp": timestamp,
+                        "execution_successful": execution_successful,
+                        "total_execution_time": sum(
+                            m["execution_time"] for m in aggregated
+                        ),
+                        "total_wall_time": time.perf_counter()
+                        - run_start,  # end-to-end
+                        "total_blocks": len(aggregated),
+                        "successful_blocks": sum(
+                            1 for m in aggregated if m["status"] == "success"
+                        ),
+                        "failed_blocks": sum(
+                            1 for m in aggregated if m["status"] == "failed"
+                        ),
+                        "block_metrics": aggregated,
+                    }
+
+                    metrics_filename = f"{flow_name}_{timestamp}_metrics.json"
+                    metrics_path = Path(log_dir) / metrics_filename
+                    metrics_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(metrics_path, "w", encoding="utf-8") as f:
+                        json.dump(metrics_data, f, indent=2, sort_keys=True)
+
+                    flow_logger.info(f"Metrics saved to: {metrics_path}")
+
+                except Exception as e:
+                    # Metrics saving failed, warn but do not break flow
+                    flow_logger.warning(f"Failed to save metrics: {e}")
+
+        # Keep a basic log entry for file logs (only if execution was successful)
+        if execution_successful and final_dataset is not None:
+            flow_logger.info(
+                f"Flow '{self.metadata.name}' completed successfully: "
+                f"{len(final_dataset)} final samples, "
+                f"{len(final_dataset.column_names)} final columns"
+            )
 
         return final_dataset
 
@@ -753,13 +767,27 @@ class Flow(BaseModel):
 
         # Display the table with panel
         console.print()
+
+        # Determine panel title and border color based on execution status
+        failed_blocks = len(self._block_metrics) - successful_blocks
+        if final_dataset is None:
+            # Flow failed completely
+            title = f"[bold bright_white]{self.metadata.name}[/bold bright_white] - [red]Failed[/red]"
+            border_style = "bright_red"
+        elif failed_blocks == 0:
+            # All blocks succeeded
+            title = f"[bold bright_white]{self.metadata.name}[/bold bright_white] - [green]Complete[/green]"
+            border_style = "bright_green"
+        else:
+            # Some blocks failed but flow completed
+            title = f"[bold bright_white]{self.metadata.name}[/bold bright_white] - [yellow]Partial[/yellow]"
+            border_style = "bright_yellow"
+
         console.print(
             Panel(
                 table,
-                title=f"[bold bright_white]{self.metadata.name}[/bold bright_white] - Complete",
-                border_style="bright_green"
-                if successful_blocks == len(self._block_metrics)
-                else "bright_yellow",
+                title=title,
+                border_style=border_style,
             )
         )
         console.print()
