@@ -71,7 +71,7 @@ def aggregate_block_metrics(entries: list[dict[str, Any]]) -> list[dict[str, Any
 def display_metrics_summary(
     block_metrics: list[dict[str, Any]],
     flow_name: str,
-    final_dataset: Optional[Dataset] = None
+    final_dataset: Optional[Dataset] = None,
 ) -> None:
     """Display a rich table summarizing block execution metrics.
 
@@ -108,18 +108,18 @@ def display_metrics_summary(
     for metrics in block_metrics:
         # Format duration
         duration = f"{metrics['execution_time']:.2f}s"
-        total_time += metrics['execution_time']
+        total_time += metrics["execution_time"]
 
         # Format row changes
-        if metrics['status'] == 'success':
+        if metrics["status"] == "success":
             row_change = f"{metrics['input_rows']:,} → {metrics['output_rows']:,}"
             successful_blocks += 1
         else:
             row_change = f"{metrics['input_rows']:,} → ❌"
 
         # Format column changes
-        added = len(metrics['added_cols'])
-        removed = len(metrics['removed_cols'])
+        added = len(metrics["added_cols"])
+        removed = len(metrics["removed_cols"])
         if added > 0 and removed > 0:
             col_change = f"+{added}/-{removed}"
         elif added > 0:
@@ -130,18 +130,18 @@ def display_metrics_summary(
             col_change = "—"
 
         # Format status with color
-        if metrics['status'] == 'success':
+        if metrics["status"] == "success":
             status = "[green]✓[/green]"
         else:
             status = "[red]✗[/red]"
 
         table.add_row(
-            metrics['block_name'],
-            metrics['block_type'],
+            metrics["block_name"],
+            metrics["block_type"],
             duration,
             row_change,
             col_change,
-            status
+            status,
         )
 
     # Add summary row
@@ -165,7 +165,9 @@ def display_metrics_summary(
     failed_blocks = len(block_metrics) - successful_blocks
     if final_dataset is None:
         # Flow failed completely
-        title = f"[bold bright_white]{flow_name}[/bold bright_white] - [red]Failed[/red]"
+        title = (
+            f"[bold bright_white]{flow_name}[/bold bright_white] - [red]Failed[/red]"
+        )
         border_style = "bright_red"
     elif failed_blocks == 0:
         # All blocks succeeded
@@ -195,7 +197,7 @@ def save_metrics_to_json(
     log_dir: str,
     timestamp: Optional[str] = None,
     flow_name_normalized: Optional[str] = None,
-    logger = None
+    logger=None,
 ) -> None:
     """Save flow execution metrics to JSON file.
 

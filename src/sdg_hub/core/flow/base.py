@@ -592,7 +592,9 @@ class Flow(BaseModel):
 
         finally:
             # Always display metrics and save JSON, even if execution failed
-            display_metrics_summary(self._block_metrics, self.metadata.name, final_dataset)
+            display_metrics_summary(
+                self._block_metrics, self.metadata.name, final_dataset
+            )
 
             # Save metrics to JSON if log_dir is provided
             if log_dir is not None:
@@ -610,7 +612,7 @@ class Flow(BaseModel):
                     log_dir,
                     timestamp,
                     flow_name,
-                    flow_logger
+                    flow_logger,
                 )
 
         # Keep a basic log entry for file logs (only if execution was successful)
@@ -622,7 +624,6 @@ class Flow(BaseModel):
             )
 
         return final_dataset
-
 
     def _execute_blocks_on_dataset(
         self,
