@@ -1854,7 +1854,9 @@ class TestReasoningContentValidation:
 
     def test_save_reasoning_content_with_empty_field_raises_error(self):
         """Test that empty reasoning_content_field raises validation error."""
-        with pytest.raises(ValueError, match="reasoning_content_field must be a non-empty string"):
+        with pytest.raises(
+            ValueError, match="reasoning_content_field must be a non-empty string"
+        ):
             TextParserBlock(
                 block_name="test_block",
                 input_cols="raw_output",
@@ -1867,7 +1869,9 @@ class TestReasoningContentValidation:
 
     def test_save_reasoning_content_with_none_field_raises_error(self):
         """Test that None reasoning_content_field raises validation error."""
-        with pytest.raises(ValueError, match="reasoning_content_field must be a non-empty string"):
+        with pytest.raises(
+            ValueError, match="reasoning_content_field must be a non-empty string"
+        ):
             TextParserBlock(
                 block_name="test_block",
                 input_cols="raw_output",
@@ -1880,7 +1884,9 @@ class TestReasoningContentValidation:
 
     def test_save_reasoning_content_with_whitespace_only_field_raises_error(self):
         """Test that whitespace-only reasoning_content_field raises validation error."""
-        with pytest.raises(ValueError, match="reasoning_content_field must be a non-empty string"):
+        with pytest.raises(
+            ValueError, match="reasoning_content_field must be a non-empty string"
+        ):
             TextParserBlock(
                 block_name="test_block",
                 input_cols="raw_output",
@@ -1893,7 +1899,10 @@ class TestReasoningContentValidation:
 
     def test_reasoning_field_collision_with_output_column_raises_error(self):
         """Test that reasoning_content_field collision with output column raises error."""
-        with pytest.raises(ValueError, match="reasoning_content_field 'reasoning' collides with an output column"):
+        with pytest.raises(
+            ValueError,
+            match="reasoning_content_field 'reasoning' collides with an output column",
+        ):
             TextParserBlock(
                 block_name="test_block",
                 input_cols="raw_output",
@@ -1906,11 +1915,17 @@ class TestReasoningContentValidation:
 
     def test_auto_generated_reasoning_column_collision_raises_error(self):
         """Test that auto-generated reasoning column collision raises error."""
-        with pytest.raises(ValueError, match="Auto-generated reasoning column 'test_block_reasoning' collides with an output column"):
+        with pytest.raises(
+            ValueError,
+            match="Auto-generated reasoning column 'test_block_reasoning' collides with an output column",
+        ):
             TextParserBlock(
                 block_name="test_block",
                 input_cols="raw_output",
-                output_cols=["output", "test_block_reasoning"],  # Collision with auto-generated name!
+                output_cols=[
+                    "output",
+                    "test_block_reasoning",
+                ],  # Collision with auto-generated name!
                 start_tags=["<output>"],
                 end_tags=["</output>"],
                 save_reasoning_content=True,
@@ -1929,7 +1944,7 @@ class TestReasoningContentValidation:
             save_reasoning_content=True,
             reasoning_content_field="reasoning",
         )
-        
+
         assert block.save_reasoning_content is True
         assert block.reasoning_content_field == "reasoning"
 
@@ -1945,5 +1960,5 @@ class TestReasoningContentValidation:
             save_reasoning_content=False,
             reasoning_content_field="",  # Even empty is OK when not saving
         )
-        
+
         assert block.save_reasoning_content is False
