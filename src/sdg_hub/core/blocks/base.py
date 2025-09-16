@@ -274,21 +274,25 @@ class BaseBlock(BaseModel, ABC):
             # Validate kwargs against model fields
             for key in kwargs:
                 if key not in self.__class__.model_fields:
-                    raise ValueError(f"Unknown field '{key}' for {self.__class__.__name__}")
-            
+                    raise ValueError(
+                        f"Unknown field '{key}' for {self.__class__.__name__}"
+                    )
+
             # Validate the merged configuration
             merged_config = {**self.model_dump(), **kwargs}
             try:
                 self.__class__.model_validate(merged_config)
             except Exception as e:
-                raise ValueError(f"Invalid runtime override for {self.__class__.__name__}: {e}") from e
-            
+                raise ValueError(
+                    f"Invalid runtime override for {self.__class__.__name__}: {e}"
+                ) from e
+
             # Apply temporary overrides
             original_values = {}
             for key, value in kwargs.items():
                 original_values[key] = getattr(self, key)
                 setattr(self, key, value)
-            
+
             try:
                 self._log_input_data(samples)
                 self._validate_dataset(samples)
