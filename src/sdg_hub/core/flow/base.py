@@ -520,6 +520,7 @@ class Flow(BaseModel):
 
         # Reset metrics for this execution
         self._block_metrics = []
+        run_start = time.perf_counter()
 
         # Merge migrated runtime params with provided ones (provided ones take precedence)
         merged_runtime_params = self._migrated_runtime_params.copy()
@@ -593,25 +594,28 @@ class Flow(BaseModel):
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     flow_name = self.metadata.name.replace(" ", "_").lower()
 
+                # Aggregate metrics per block (coalesce chunked runs)
+                aggregated = self._aggregate_block_metrics(self._block_metrics)
                 metrics_data = {
                     "flow_name": self.metadata.name,
                     "flow_version": self.metadata.version,
                     "execution_timestamp": timestamp,
                     "total_execution_time": sum(
-                        m["execution_time"] for m in self._block_metrics
+                        m["execution_time"] for m in aggregated
                     ),
-                    "total_blocks": len(self._block_metrics),
-                    "successful_blocks": len(
-                        [m for m in self._block_metrics if m["status"] == "success"]
+                    "total_wall_time": time.perf_counter() - run_start,  # end-to-end
+                    "total_blocks": len(aggregated),
+                    "successful_blocks": sum(
+                        1 for m in aggregated if m["status"] == "success"
                     ),
-                    "block_metrics": self._block_metrics,
+                    "block_metrics": aggregated,
                 }
 
                 metrics_filename = f"{flow_name}_{timestamp}_metrics.json"
                 metrics_path = Path(log_dir) / metrics_filename
-
-                with open(metrics_path, "w") as f:
-                    json.dump(metrics_data, f, indent=2)
+                metrics_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(metrics_path, "w", encoding="utf-8") as f:
+                    json.dump(metrics_data, f, indent=2, sort_keys=True)
 
                 flow_logger.info(f"Metrics saved to: {metrics_path}")
 
@@ -627,6 +631,49 @@ class Flow(BaseModel):
         )
 
         return final_dataset
+
+    def _aggregate_block_metrics(
+        self, entries: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Aggregate per-block metrics, coalescing chunked runs."""
+        agg: dict[tuple[str, str], dict[str, Any]] = {}
+        for m in entries:
+            key = (m.get("block_name"), m.get("block_type"))
+            a = agg.setdefault(
+                key,
+                {
+                    "block_name": key[0],
+                    "block_type": key[1],
+                    "execution_time": 0.0,
+                    "input_rows": 0,
+                    "output_rows": 0,
+                    "added_cols": set(),
+                    "removed_cols": set(),
+                    "status": "success",
+                    "error_type": None,
+                    "error": None,
+                },
+            )
+            a["execution_time"] += float(m.get("execution_time", 0.0))
+            a["input_rows"] += int(m.get("input_rows", 0))
+            a["output_rows"] += int(m.get("output_rows", 0))
+            a["added_cols"].update(m.get("added_cols", []))
+            a["removed_cols"].update(m.get("removed_cols", []))
+            if m.get("status") == "failed":
+                a["status"] = "failed"
+                a["error_type"] = m.get("error_type") or a["error_type"]
+                a["error"] = m.get("error") or a["error"]
+        # normalize
+        result = []
+        for a in agg.values():
+            a["added_cols"] = sorted(a["added_cols"])
+            a["removed_cols"] = sorted(a["removed_cols"])
+            # drop empty error fields
+            if a["status"] == "success":
+                a.pop("error_type", None)
+                a.pop("error", None)
+            result.append(a)
+        return result
 
     def _display_metrics_summary(self, final_dataset: Dataset) -> None:
         """Display a rich table summarizing block execution metrics."""
