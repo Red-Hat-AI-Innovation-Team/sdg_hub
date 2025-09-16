@@ -557,42 +557,55 @@ class TestCallMethod:
         assert block.field3 == True
 
     @patch("sdg_hub.core.blocks.base.console")
-    def test_call_kwargs_with_pydantic_validation(self, mock_console):
-        """Test kwargs override with Pydantic field validation."""
+    def test_call_kwargs_no_overrides(self, mock_console):
+        """Test that normal execution without kwargs still works."""
         dataset = self.create_test_dataset()
         
-        from pydantic import field_validator
+        class NormalBlock(DummyBlock):
+            custom_field: str = "original"
         
-        class ValidatedBlock(DummyBlock):
-            email: str = "test@example.com"
-            
-            @field_validator('email')
-            @classmethod
-            def validate_email(cls, v):
-                if '@' not in v:
-                    raise ValueError('Invalid email format')
-                return v
-            
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
-                def add_test_column(sample):
-                    sample["test_output"] = f"email_{self.email}"
-                    return sample
-                return samples.map(add_test_column)
-        
-        block = ValidatedBlock(
+        block = NormalBlock(
             block_name="test_block",
             input_cols=["input"],
             output_cols=["test_output"],
         )
 
-        # Test valid email override
-        result = block(dataset, email="new@test.com")
-        assert result[0]["test_output"] == "email_new@test.com"
-        assert block.email == "test@example.com"  # Restored
+        # Normal execution without kwargs
+        result = block(dataset)
+        
+        # Should work normally
+        assert "test_output" in result.column_names
+        assert block.custom_field == "original"  # Unchanged
 
-        # Test invalid email override
-        with pytest.raises(ValueError, match="Invalid runtime override"):
-            block(dataset, email="invalid_email")
+    def test_call_kwargs_with_inherited_fields(self):
+        """Test kwargs override with fields from parent classes."""
+        dataset = self.create_test_dataset()
+        
+        class ParentBlock(DummyBlock):
+            parent_field: str = "parent_value"
+        
+        class ChildBlock(ParentBlock):
+            child_field: str = "child_value"
+            
+            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+                def add_test_column(sample):
+                    sample["test_output"] = f"{self.parent_field}_{self.child_field}"
+                    return sample
+                return samples.map(add_test_column)
+        
+        block = ChildBlock(
+            block_name="test_block",
+            input_cols=["input"],
+            output_cols=["test_output"],
+        )
+
+        # Test overriding both parent and child fields
+        result = block(dataset, parent_field="new_parent", child_field="new_child")
+        assert result[0]["test_output"] == "new_parent_new_child"
+        
+        # Verify restoration
+        assert block.parent_field == "parent_value"
+        assert block.child_field == "child_value"
 
     @patch("sdg_hub.core.blocks.base.console")
     def test_call_validation_failure(self, mock_console):

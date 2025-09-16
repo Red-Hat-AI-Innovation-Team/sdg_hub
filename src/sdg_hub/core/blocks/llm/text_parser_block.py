@@ -132,6 +132,33 @@ class TextParserBlock(BaseBlock):
 
         return self
 
+    @model_validator(mode="after")
+    def _validate_reasoning_field(self):
+        if self.save_reasoning_content:
+            if (
+                not self.reasoning_content_field
+                or not self.reasoning_content_field.strip()
+            ):
+                raise ValueError(
+                    "reasoning_content_field must be a non-empty string when save_reasoning_content=True"
+                )
+            # Simple sanity check to avoid overlap with declared output columns
+            rc_col = f"{self.block_name}_{self.reasoning_content_field}"
+            if self.reasoning_content_field in getattr(self, "output_cols", []):
+                raise ValueError(
+                    f"reasoning_content_field '{self.reasoning_content_field}' collides with an output column"
+                )
+            if rc_col in getattr(self, "output_cols", []):
+                raise ValueError(
+                    f"Auto-generated reasoning column '{rc_col}' collides with an output column"
+                )
+
+            if hasattr(self, "column_names") and rc_col in set(self.column_names):
+                raise ValueError(
+                    f"Reasoning column '{rc_col}' collides with an existing dataset column"
+                )
+        return self
+
     def _validate_custom(self, dataset: Dataset) -> None:
         """Validate TextParserBlock specific requirements.
 
