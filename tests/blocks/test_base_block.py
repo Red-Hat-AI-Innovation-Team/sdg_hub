@@ -417,11 +417,10 @@ class TestCallMethod:
             output_cols=["test_output"],
         )
 
-        result = block(dataset, test_param="value")
+        result = block(dataset)
 
         # Verify generate was called
         assert block.generate_called
-        assert block.generate_kwargs["test_param"] == "value"
 
         # Verify result has new column
         assert "test_output" in result.column_names
@@ -429,6 +428,171 @@ class TestCallMethod:
 
         # Verify logging was called (input and output panels)
         assert mock_console.print.call_count == 2
+
+    @patch("sdg_hub.core.blocks.base.console")
+    def test_call_with_kwargs_override_success(self, mock_console):
+        """Test successful __call__ execution with kwargs override."""
+        dataset = self.create_test_dataset()
+        
+        # Create a dummy block with custom field for override testing
+        class OverrideTestBlock(DummyBlock):
+            custom_field: str = "original_value"
+            
+            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+                # Access the field to verify override worked
+                def add_test_column(sample):
+                    sample["test_output"] = f"processed_{sample.get('input', 'unknown')}_{self.custom_field}"
+                    return sample
+                return samples.map(add_test_column)
+        
+        block = OverrideTestBlock(
+            block_name="test_block",
+            input_cols=["input", "category"],
+            output_cols=["test_output"],
+        )
+
+        # Test override
+        result = block(dataset, custom_field="overridden_value")
+
+        # Verify the field was overridden during execution
+        assert result[0]["test_output"] == "processed_test1_overridden_value"
+        
+        # Verify original value was restored after execution
+        assert block.custom_field == "original_value"
+
+        # Verify logging was called (input and output panels)
+        assert mock_console.print.call_count == 2
+
+    @patch("sdg_hub.core.blocks.base.console")
+    def test_call_with_invalid_kwargs_field(self, mock_console):
+        """Test __call__ with invalid kwargs field name."""
+        dataset = self.create_test_dataset()
+        block = DummyBlock(
+            block_name="test_block",
+            input_cols=["input", "category"],
+            output_cols=["test_output"],
+        )
+
+        with pytest.raises(ValueError, match="Unknown field 'invalid_field' for DummyBlock"):
+            block(dataset, invalid_field="value")
+
+        # Verify no logging was called since validation failed early
+        assert mock_console.print.call_count == 0
+
+    @patch("sdg_hub.core.blocks.base.console")
+    def test_call_with_invalid_kwargs_value(self, mock_console):
+        """Test __call__ with invalid kwargs field value."""
+        dataset = self.create_test_dataset()
+        
+        # Create a dummy block with validated field
+        class ValidatedTestBlock(DummyBlock):
+            numeric_field: int = 42
+        
+        block = ValidatedTestBlock(
+            block_name="test_block",
+            input_cols=["input", "category"],
+            output_cols=["test_output"],
+        )
+
+        with pytest.raises(ValueError, match="Invalid runtime override"):
+            block(dataset, numeric_field="not_a_number")
+
+        # Verify no logging was called since validation failed early
+        assert mock_console.print.call_count == 0
+
+    @patch("sdg_hub.core.blocks.base.console")
+    def test_call_kwargs_restoration_on_exception(self, mock_console):
+        """Test that kwargs are restored even if generation fails."""
+        dataset = self.create_test_dataset()
+        
+        class FailingBlock(DummyBlock):
+            custom_field: str = "original"
+            
+            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+                raise RuntimeError("Generation failed")
+        
+        block = FailingBlock(
+            block_name="test_block",
+            input_cols=["input", "category"],
+            output_cols=["test_output"],
+        )
+
+        with pytest.raises(RuntimeError, match="Generation failed"):
+            block(dataset, custom_field="overridden")
+        
+        # Verify original value was restored despite exception
+        assert block.custom_field == "original"
+
+    @patch("sdg_hub.core.blocks.base.console")
+    def test_call_multiple_kwargs_override(self, mock_console):
+        """Test __call__ with multiple kwargs overrides."""
+        dataset = self.create_test_dataset()
+        
+        class MultiFieldBlock(DummyBlock):
+            field1: str = "original1"
+            field2: int = 42
+            field3: bool = True
+            
+            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+                def add_test_column(sample):
+                    sample["test_output"] = f"{self.field1}_{self.field2}_{self.field3}"
+                    return sample
+                return samples.map(add_test_column)
+        
+        block = MultiFieldBlock(
+            block_name="test_block",
+            input_cols=["input"],
+            output_cols=["test_output"],
+        )
+
+        # Test multiple overrides
+        result = block(dataset, field1="new1", field2=99, field3=False)
+
+        # Verify all fields were overridden
+        assert result[0]["test_output"] == "new1_99_False"
+        
+        # Verify all original values were restored
+        assert block.field1 == "original1"
+        assert block.field2 == 42
+        assert block.field3 == True
+
+    @patch("sdg_hub.core.blocks.base.console")
+    def test_call_kwargs_with_pydantic_validation(self, mock_console):
+        """Test kwargs override with Pydantic field validation."""
+        dataset = self.create_test_dataset()
+        
+        from pydantic import field_validator
+        
+        class ValidatedBlock(DummyBlock):
+            email: str = "test@example.com"
+            
+            @field_validator('email')
+            @classmethod
+            def validate_email(cls, v):
+                if '@' not in v:
+                    raise ValueError('Invalid email format')
+                return v
+            
+            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+                def add_test_column(sample):
+                    sample["test_output"] = f"email_{self.email}"
+                    return sample
+                return samples.map(add_test_column)
+        
+        block = ValidatedBlock(
+            block_name="test_block",
+            input_cols=["input"],
+            output_cols=["test_output"],
+        )
+
+        # Test valid email override
+        result = block(dataset, email="new@test.com")
+        assert result[0]["test_output"] == "email_new@test.com"
+        assert block.email == "test@example.com"  # Restored
+
+        # Test invalid email override
+        with pytest.raises(ValueError, match="Invalid runtime override"):
+            block(dataset, email="invalid_email")
 
     @patch("sdg_hub.core.blocks.base.console")
     def test_call_validation_failure(self, mock_console):

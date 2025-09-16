@@ -261,18 +261,53 @@ class BaseBlock(BaseModel, ABC):
         ----------
         samples : Dataset
             Input dataset.
+        **kwargs : Any
+            Runtime parameters to override block configuration
 
         Returns
         -------
         Dataset
             Output dataset after block processing.
         """
-        self._log_input_data(samples)
-        self._validate_dataset(samples)
-        self._validate_custom(samples)
-        output_dataset = self.generate(samples, **kwargs)
-        self._log_output_data(samples, output_dataset)
-        return output_dataset
+        # Handle runtime kwargs overrides
+        if kwargs:
+            # Validate kwargs against model fields
+            for key in kwargs:
+                if key not in self.__class__.model_fields:
+                    raise ValueError(f"Unknown field '{key}' for {self.__class__.__name__}")
+            
+            # Validate the merged configuration
+            merged_config = {**self.model_dump(), **kwargs}
+            try:
+                self.__class__.model_validate(merged_config)
+            except Exception as e:
+                raise ValueError(f"Invalid runtime override for {self.__class__.__name__}: {e}") from e
+            
+            # Apply temporary overrides
+            original_values = {}
+            for key, value in kwargs.items():
+                original_values[key] = getattr(self, key)
+                setattr(self, key, value)
+            
+            try:
+                self._log_input_data(samples)
+                self._validate_dataset(samples)
+                self._validate_custom(samples)
+                output_dataset = self.generate(samples)
+                self._log_output_data(samples, output_dataset)
+                return output_dataset
+            finally:
+                # Always restore original values
+                for key, value in original_values.items():
+                    setattr(self, key, value)
+        else:
+            # Normal execution without overrides
+            self._log_input_data(samples)
+            self._validate_dataset(samples)
+            self._validate_custom(samples)
+            output_dataset = self.generate(samples)
+            self._log_output_data(samples, output_dataset)
+            return output_dataset
 
     def __repr__(self) -> str:
         """Compact string representation."""
