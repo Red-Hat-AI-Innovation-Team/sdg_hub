@@ -35,7 +35,7 @@ blocks:
   block_config:
     block_name: duplicate_document_col
     input_cols:
-      document: base_document
+      document: raw_document
 - block_type: PromptBuilderBlock
   block_config:
     block_name: atomic_facts_prompt

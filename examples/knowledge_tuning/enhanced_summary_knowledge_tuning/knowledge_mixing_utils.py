@@ -201,12 +201,12 @@ def generate_knowledge_qa_dataset(
     elif keep_document_in_context:
         message_columns = ['question', 'response', 'document', 'document_outline']
         messages_expr = pl.struct(message_columns).map_elements(
-            _create_messages_without_reasoning_no_document
+            _create_messages_without_reasoning
         ).alias("messages")
     else:
         message_columns = ['question', 'response', 'document', 'document_outline']
         messages_expr = pl.struct(message_columns).map_elements(
-            _create_messages_without_reasoning
+            _create_messages_without_reasoning_no_document
         ).alias("messages")
     
     base_columns.append(messages_expr)
