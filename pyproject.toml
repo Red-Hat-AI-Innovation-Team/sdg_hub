@@ -72,6 +72,7 @@ examples = [
     "instructor",
     "fastapi",
     "nest-asyncio",
+    "ipykernel",
 ]
 dev = [
     "pre-commit>=3.0.4,<4.0",
