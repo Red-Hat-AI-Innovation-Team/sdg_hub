@@ -99,7 +99,7 @@ blocks:
       block_name: "generate_entities"
       input_cols: "entities_prompt"
       output_cols: "raw_entities"
-      max_tokens: 512
+      max_tokens: 1024
       temperature: 0.3
       async_mode: true
   - block_type: "TextParserBlock"

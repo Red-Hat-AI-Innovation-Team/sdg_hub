@@ -12,8 +12,6 @@
     - **people**: Names of individuals, titles, roles
     - **organizations**: Companies, institutions, agencies, groups
     - **locations**: Cities, countries, regions, landmarks, addresses
-    - **products**: Specific product names, technologies, services
-    - **events**: Named events, conferences, incidents
 
     Rules:
     - Only include entities explicitly mentioned in the text
@@ -26,9 +24,6 @@
       "people": ["Person 1", "Person 2"],
       "organizations": ["Org 1", "Org 2"],
       "locations": ["Location 1"],
-      "products": ["Product 1"],
-      "events": ["Event 1"],
-      "other": ["Other 1"]
     }
     [/ENTITIES]
 
@@ -39,8 +34,5 @@
       "people": [],
       "organizations": [],
       "locations": [],
-      "products": [],
-      "events": [],
-      "other": []
     }
     [/ENTITIES]
