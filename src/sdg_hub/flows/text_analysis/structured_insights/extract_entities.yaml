@@ -23,7 +23,7 @@
     {
       "people": ["Person 1", "Person 2"],
       "organizations": ["Org 1", "Org 2"],
-      "locations": ["Location 1"],
+      "locations": ["Location 1"]
     }
     [/ENTITIES]
 
@@ -33,6 +33,6 @@
     {
       "people": [],
       "organizations": [],
-      "locations": [],
+      "locations": []
     }
     [/ENTITIES]
