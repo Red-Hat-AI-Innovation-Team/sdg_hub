@@ -137,18 +137,3 @@ blocks:
       format_as_messages: true
       start_tags: ["[Start of Explanation]", "[Start of Answer]"]
       end_tags: ["[End of Explanation]", "[End of Answer]"]
-
-  - block_type: EvaluateRelevancyBlock
-    block_config:
-      block_name: eval_relevancy
-      input_cols: [question, response]
-      output_cols: [relevancy_explanation, relevancy_score]
-      prompt_config_path: ../../multi_summary_qa/instructlab/evaluate_relevancy.yaml
-      filter_value: 2.0
-      operation: eq
-      convert_dtype: float
-      max_tokens: 2048
-      async_mode: true
-      format_as_messages: true
-      start_tags: ["[Start of Feedback]", "[Start of Score]"]
-      end_tags: ["[End of Feedback]", "[End of Score]"]
