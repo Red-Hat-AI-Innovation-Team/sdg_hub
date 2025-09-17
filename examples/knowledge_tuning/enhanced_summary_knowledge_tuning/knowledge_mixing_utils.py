@@ -238,11 +238,14 @@ def generate_knowledge_qa_dataset(
     # Select final columns
     final_columns = keep_columns + ["messages", "metadata"]
     knowledge_ds = knowledge_ds.select(final_columns)
-    
     # Add unmask column for pre-training if needed
     if pre_training:
         knowledge_ds = knowledge_ds.with_columns(
             pl.lit(True).alias("unmask")
+        )
+    else:
+        knowledge_ds = knowledge_ds.with_columns(
+            pl.lit(False).alias("unmask")
         )
     
     return knowledge_ds
