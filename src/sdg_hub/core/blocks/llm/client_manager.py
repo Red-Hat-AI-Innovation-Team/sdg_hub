@@ -216,7 +216,7 @@ class LLMClientManager:
             if max_concurrency is not None:
                 # Adjust concurrency based on n parameter to avoid overwhelming API
                 # when n > 1 (multiple completions per request)
-                n_value = overrides.get('n') or self.config.n or 1
+                n_value = overrides.get("n") or self.config.n or 1
                 if n_value > 1:
                     # Warn if max_concurrency is less than n
                     if max_concurrency < n_value:
