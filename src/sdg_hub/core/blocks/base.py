@@ -277,8 +277,10 @@ class BaseBlock(BaseModel, ABC):
                     not key.startswith("_flow_")
                     and key not in self.__class__.model_fields
                 ):
-                    raise ValueError(
-                        f"Unknown field '{key}' for {self.__class__.__name__}"
+                    logger.warning(
+                        f"Unknown field '{key}' passed to {self.__class__.__name__}. "
+                        f"This may be a provider-specific parameter or typo. "
+                        f"Valid fields: {list(self.__class__.model_fields.keys())}"
                     )
 
             # Only override actual block fields (not flow parameters)

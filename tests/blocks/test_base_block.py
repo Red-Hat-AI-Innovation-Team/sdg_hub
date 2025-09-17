@@ -467,7 +467,8 @@ class TestCallMethod:
         assert mock_console.print.call_count == 2
 
     @patch("sdg_hub.core.blocks.base.console")
-    def test_call_with_invalid_kwargs_field(self, mock_console):
+    @patch("sdg_hub.core.blocks.base.logger")
+    def test_call_with_invalid_kwargs_field(self, mock_logger, mock_console):
         """Test __call__ with invalid kwargs field name."""
         dataset = self.create_test_dataset()
         block = DummyBlock(
@@ -476,13 +477,23 @@ class TestCallMethod:
             output_cols=["test_output"],
         )
 
-        with pytest.raises(
-            ValueError, match="Unknown field 'invalid_field' for DummyBlock"
-        ):
-            block(dataset, invalid_field="value")
+        result = block(dataset, invalid_field="value")
 
-        # Verify no logging was called since validation failed early
-        assert mock_console.print.call_count == 0
+        # Verify warning was logged for unknown field
+        mock_logger.warning.assert_called_once()
+        warning_call = mock_logger.warning.call_args[0][0]
+        assert "Unknown field 'invalid_field' passed to DummyBlock" in warning_call
+        assert "This may be a provider-specific parameter or typo" in warning_call
+
+        # Verify generate was called despite the warning
+        assert block.generate_called
+
+        # Verify result has new column
+        assert "test_output" in result.column_names
+        assert result[0]["test_output"] == "processed_test1"
+
+        # Verify logging was called (input and output panels)
+        assert mock_console.print.call_count == 2
 
     @patch("sdg_hub.core.blocks.base.console")
     def test_call_with_invalid_kwargs_value(self, mock_console):
