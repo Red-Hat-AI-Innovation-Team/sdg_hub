@@ -370,11 +370,14 @@ class TextParserBlock(BaseBlock):
                 return all_results
 
         # Handle dict inputs (existing logic)
-        elif isinstance(raw_output, dict):
+        elif isinstance(raw_output, dict) or isinstance(raw_output, str):
             if not raw_output:
                 logger.warning(f"Input column '{input_column}' contains empty dict")
                 return []
 
+            if isinstance(raw_output, str):
+                raw_output = {"content": raw_output}
+                
             parsed_outputs = self._handle_message(raw_output)
             if self.save_reasoning_content:
                 reasoning_content = parsed_outputs.pop(self.reasoning_content_field)
