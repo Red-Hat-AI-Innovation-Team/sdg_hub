@@ -214,8 +214,29 @@ class LLMClientManager:
             messages_list = messages
 
             if max_concurrency is not None:
+                # Adjust concurrency based on n parameter to avoid overwhelming API
+                # when n > 1 (multiple completions per request)
+                n_value = overrides.get('n') or self.config.n or 1
+                if n_value > 1:
+                    # Warn if max_concurrency is less than n
+                    if max_concurrency < n_value:
+                        logger.warning(
+                            f"max_concurrency ({max_concurrency}) is less than n ({n_value}). "
+                            f"This may result in very low concurrency. Consider increasing max_concurrency "
+                            f"or reducing n for better performance."
+                        )
+
+                    # Reduce concurrency when generating multiple completions per request
+                    adjusted_concurrency = max(1, max_concurrency // n_value)
+                    logger.debug(
+                        f"Adjusted max_concurrency from {max_concurrency} to {adjusted_concurrency} "
+                        f"for n={n_value} completions per request"
+                    )
+                else:
+                    adjusted_concurrency = max_concurrency
+
                 # Use semaphore for concurrency control
-                semaphore = asyncio.Semaphore(max_concurrency)
+                semaphore = asyncio.Semaphore(adjusted_concurrency)
 
                 async def _create_with_semaphore(msgs):
                     async with semaphore:
