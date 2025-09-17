@@ -1,33 +1,46 @@
 - role: system
-  content: You are an AI assistant expert at identifying and extracting named entities from text content.
+  content: You are an AI assistant expert at identifying and extracting named entities from text content. You must return valid JSON format.
 
 - role: user
   content: |
-    Extract all important named entities from the following text. Focus on:
-    
-    1. **People**: Names of individuals, titles, roles
-    2. **Organizations**: Companies, institutions, agencies, groups
-    3. **Locations**: Cities, countries, regions, landmarks, addresses
-    4. **Products/Services**: Specific product names, technologies, services
-    5. **Events**: Named events, conferences, incidents
-    6. **Other**: Any other significant proper nouns or specific entities
-    
-    Rules:
-    - Only include entities that are specifically mentioned in the text
-    - Use the exact names as they appear in the text
-    - If no entities of a certain type exist, don't include empty categories
-    - Focus on the most important and relevant entities
-    
+    Extract all important named entities from the following text and organize them by category:
+
     Text to analyze:
     {{text}}
-    
-    Provide your response in the following format:
+
+    Identify and categorize entities into:
+    - **people**: Names of individuals, titles, roles
+    - **organizations**: Companies, institutions, agencies, groups
+    - **locations**: Cities, countries, regions, landmarks, addresses
+    - **products**: Specific product names, technologies, services
+    - **events**: Named events, conferences, incidents
+
+    Rules:
+    - Only include entities explicitly mentioned in the text
+    - Use exact names as they appear
+    - Focus on the most important entities (3-8 per category max)
+
+    Provide your response in exactly this format:
     [ENTITIES]
-    Entity 1, Entity 2, Entity 3, Entity 4
+    {
+      "people": ["Person 1", "Person 2"],
+      "organizations": ["Org 1", "Org 2"],
+      "locations": ["Location 1"],
+      "products": ["Product 1"],
+      "events": ["Event 1"],
+      "other": ["Other 1"]
+    }
     [/ENTITIES]
-    
-    If no significant entities are found, respond with:
+
+    If no entities are found for a category, use an empty list: []
+    If no entities are found at all, respond with:
     [ENTITIES]
-    None
+    {
+      "people": [],
+      "organizations": [],
+      "locations": [],
+      "products": [],
+      "events": [],
+      "other": []
+    }
     [/ENTITIES]
-    
