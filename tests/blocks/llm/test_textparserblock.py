@@ -1803,3 +1803,47 @@ def test_save_reasoning_content_multiple_responses_collected_as_list():
         "Reasoning for response 2",
         "Reasoning for response 3",
     ]
+
+
+def test_generate_with_string_input():
+    """Test generate functionality with string input (converted to dict with content field)."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+    )
+
+    # String input should be converted to {"content": string}
+    data = [{"raw_output": "<answer>String response</answer>"}]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    assert len(result) == 1
+    assert result[0]["output"] == "String response"
+
+
+def test_generate_with_empty_string_input():
+    """Test generate functionality with empty string input."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+    )
+
+    # Empty string should trigger warning and return empty result
+    data = [{"raw_output": ""}]
+    dataset = Dataset.from_list(data)
+
+    with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
+        result = block.generate(dataset)
+
+        # Should log warning about empty dict (since string is converted to dict)
+        mock_logger.warning.assert_called_with(
+            "Input column 'raw_output' contains empty dict"
+        )
+        assert len(result) == 0
