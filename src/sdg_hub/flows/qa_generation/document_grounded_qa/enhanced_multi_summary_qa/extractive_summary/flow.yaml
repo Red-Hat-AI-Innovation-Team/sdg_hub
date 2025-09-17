@@ -36,12 +36,8 @@ metadata:
   - question
   - response
   - raw_document
-  - relevancy_explanation
-  - relevancy_score
   - faithfulness_explanation
   - faithfulness_judgment
-  - verification_explanation
-  - verification_rating
   id: epic-jade-656
 blocks:
 - block_type: DuplicateColumnsBlock
