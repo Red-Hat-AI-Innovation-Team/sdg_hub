@@ -7,13 +7,13 @@ metadata:
   version: "1.0.0"
   author: "SDG Hub Contributors"
   recommended_models:
-    default: "meta-llama/Llama-3.3-70B-Instruct"
+    default: "openai/gpt-oss-120b"
     compatible:
+      - "meta-llama/Llama-3.3-70B-Instruct"
       - "microsoft/phi-4"
       - "mistralai/Mixtral-8x7B-Instruct-v0.1"
     experimental:
       - "gpt-4o"
-      - "gpt-oss-120b"
   tags:
     - "text-analysis"
     - "summarization"
