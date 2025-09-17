@@ -377,7 +377,7 @@ class TextParserBlock(BaseBlock):
 
             if isinstance(raw_output, str):
                 raw_output = {"content": raw_output}
-                
+
             parsed_outputs = self._handle_message(raw_output)
             if self.save_reasoning_content:
                 reasoning_content = parsed_outputs.pop(self.reasoning_content_field)
