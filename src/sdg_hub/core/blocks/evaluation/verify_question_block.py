@@ -24,6 +24,7 @@ from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
 from ..filtering.column_value_filter import ColumnValueFilterBlock
 from ..llm.llm_chat_block import LLMChatBlock
+from ..llm.llm_parser_block import LLMParserBlock
 from ..llm.prompt_builder_block import PromptBuilderBlock
 from ..llm.text_parser_block import TextParserBlock
 from ..registry import BlockRegistry
