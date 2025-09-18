@@ -136,6 +136,7 @@ blocks:
     - ''
     end_tags:
     - ''
+    save_reasoning_content: true
 - block_type: EvaluateFaithfulnessBlock
   block_config:
     block_name: eval_faithfulness
