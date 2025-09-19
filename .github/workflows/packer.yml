@@ -2,6 +2,7 @@ name: Build AMI with Packer
 
 on:
   workflow_dispatch:
+  push:
 
 jobs:
   build-ami:
@@ -21,7 +22,7 @@ jobs:
           aws-region: us-east-2
 
       - name: Setup Packer
-        uses: hashicorp/setup-packer@main
+        uses: hashicorp/setup-packer@v3.1.0
 
       - name: Build and create AMI
         run: |
