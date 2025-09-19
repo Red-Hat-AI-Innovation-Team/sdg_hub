@@ -71,7 +71,10 @@ def validate_no_duplicates(dataset: Dataset) -> None:
         return repr(x)
         
     # Apply to the whole dataframe to ensure every cell is hashable
-    df = df.map(make_hashable)
+    if hasattr(df, "map"):
+        df = df.map(make_hashable)
+    else:
+        df = df.applymap(make_hashable)
 
     duplicate_count = int(df.duplicated(keep="first").sum())
     if duplicate_count > 0:
