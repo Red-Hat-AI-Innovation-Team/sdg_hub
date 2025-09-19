@@ -48,9 +48,6 @@ def validate_no_duplicates(dataset: Dataset) -> None:
             return False
 
     def make_hashable(x):
-        if isinstance(x, dict):
-            return tuple(sorted((k, make_hashable(v)) for k, v in x.items()))
-
         if is_hashable(x):
             # int, float, str, bytes, None etc. are already hashable
             return x
