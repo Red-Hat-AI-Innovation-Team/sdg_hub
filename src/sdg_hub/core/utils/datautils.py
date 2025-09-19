@@ -57,10 +57,12 @@ def validate_no_duplicates(dataset: Dataset) -> None:
             return tuple(make_hashable(i) for i in x)
         if isinstance(x, dict):
             # sort robustly even with heterogeneous key types
-            return tuple(sorted(
-                ((k, make_hashable(v)) for k, v in x.items()), 
-                key=lambda kv: repr(kv[0])
-            ))
+            return tuple(
+                sorted(
+                    ((k, make_hashable(v)) for k, v in x.items()),
+                    key=lambda kv: repr(kv[0]),
+                )
+            )
         if isinstance(x, (set, frozenset)):
             # order‑insensitive
             return frozenset(make_hashable(i) for i in x)
@@ -69,7 +71,7 @@ def validate_no_duplicates(dataset: Dataset) -> None:
             return tuple(make_hashable(i) for i in x)
         # last‑resort fallback to a stable representation
         return repr(x)
-        
+
     # Apply to the whole dataframe to ensure every cell is hashable
     if hasattr(df, "map"):
         df = df.map(make_hashable)
