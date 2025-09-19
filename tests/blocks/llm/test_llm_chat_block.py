@@ -488,6 +488,29 @@ class TestLLMChatBlock:
 class TestErrorHandling:
     """Test error handling for LLMChatBlock."""
 
+    def test_max_concurrency_value_error(self, mock_litellm_acompletion, sample_dataset):
+        """Test ValueError is raised when max_concurrency < 1."""
+        block = LLMChatBlock(
+            block_name="test_max_concurrency_error",
+            input_cols="messages",
+            output_cols="response",
+            model="openai/gpt-4",
+            api_key="test-key",
+            async_mode=True,
+        )
+
+        # Test with max_concurrency = 0
+        with pytest.raises(ValueError, match="max_concurrency must be greater than 0, got"):
+            block.generate(sample_dataset, _flow_max_concurrency=0)
+
+        # Test with max_concurrency = -1
+        with pytest.raises(ValueError, match="max_concurrency must be greater than 0, got"):
+            block.generate(sample_dataset, _flow_max_concurrency=-1)
+
+        # Test with max_concurrency = -5
+        with pytest.raises(ValueError, match="max_concurrency must be greater than 0, got"):
+            block.generate(sample_dataset, _flow_max_concurrency=-5)
+
     def test_litellm_rate_limit_error(self, sample_dataset):
         """Test handling of LiteLLM rate limit errors."""
         with patch(

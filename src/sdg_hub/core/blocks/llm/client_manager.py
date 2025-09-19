@@ -214,6 +214,7 @@ class LLMClientManager:
             messages_list = messages
 
             if max_concurrency is not None:
+                if max_concurrency < 1: raise ValueError('max_concurrency must be greater than 0, got {max_concurrency}')
                 # Adjust concurrency based on n parameter to avoid overwhelming API
                 # when n > 1 (multiple completions per request)
                 n_value = overrides.get("n") or self.config.n or 1
