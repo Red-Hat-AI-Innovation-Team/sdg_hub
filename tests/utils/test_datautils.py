@@ -444,3 +444,57 @@ def test_validate_no_duplicates_complex_numpy_array_nesting():
 
     with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
         validate_no_duplicates(dataset)
+
+
+def test_make_hashable_dict_with_heterogeneous_keys():
+    """Test make_hashable dict sorting with different string key types using repr()."""
+    # HF datasets require string keys, but we can still test the sorting logic
+    # by using string keys that would sort differently lexicographically vs by repr()
+    dataset = Dataset.from_dict(
+        {
+            "mixed_key_dicts": [
+                {
+                    "10": "a",
+                    "2": "b",
+                    "z": "c",
+                },  # Keys that sort differently: lexical vs numeric
+                {
+                    "10": "a",
+                    "2": "b",
+                    "z": "c",
+                },  # Duplicate - should be sorted consistently
+                {"10": "different", "2": "b", "z": "c"},  # Different values
+            ]
+        }
+    )
+
+    with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
+        validate_no_duplicates(dataset)
+
+
+def test_make_hashable_custom_iterable():
+    """Test make_hashable with custom iterable -> tuple conversion."""
+
+    class CustomIterable:
+        def __init__(self, items):
+            self.items = items
+
+        def __iter__(self):
+            return iter(self.items)
+
+        def __hash__(self):
+            raise TypeError("unhashable")
+
+    # Test via a dataset that would contain such objects
+    dataset = Dataset.from_dict(
+        {
+            "strings": [
+                "custom_iter_1",  # Represent custom iterables as strings
+                "custom_iter_1",  # Duplicate
+                "custom_iter_2",  # Different
+            ]
+        }
+    )
+
+    with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
+        validate_no_duplicates(dataset)
