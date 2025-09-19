@@ -130,3 +130,112 @@ def test_validate_no_duplicates_with_dictionaries():
     # Should pass validation (no duplicates)
     result = validate_no_duplicates(dataset)
     assert result is None  # Should not raise any exception
+
+
+def test_validate_no_duplicates_with_duplicate_dictionaries():
+    """Test that identical dictionaries are detected as duplicates."""
+    dataset = Dataset.from_dict(
+        {
+            "config": [
+                {"model": "gpt-4", "temp": 0.7},
+                {"model": "gpt-4", "temp": 0.7},  # Identical dict - should be duplicate
+                {"model": "claude", "temp": 0.5},
+            ]
+        }
+    )
+
+    with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
+        validate_no_duplicates(dataset)
+
+
+def test_validate_no_duplicates_with_nested_dictionaries():
+    """Test duplicate detection with nested dictionaries."""
+    dataset = Dataset.from_dict(
+        {
+            "nested_config": [
+                {"llm": {"model": "gpt-4", "params": {"temp": 0.7}}},
+                {"llm": {"model": "gpt-4", "params": {"temp": 0.7}}},  # Duplicate
+                {"llm": {"model": "claude", "params": {"temp": 0.5}}},
+            ]
+        }
+    )
+
+    with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
+        validate_no_duplicates(dataset)
+
+
+def test_validate_no_duplicates_with_zero_dim_numpy_arrays():
+    """Test duplicate detection with zero-dimensional numpy arrays."""
+    dataset = Dataset.from_dict(
+        {
+            "scalar_arrays": [
+                np.array(42),  # 0-dimensional array
+                42,  # Regular int - should be duplicate after .item() conversion
+                np.array(24),
+            ]
+        }
+    )
+
+    with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
+        validate_no_duplicates(dataset)
+
+
+def test_validate_no_duplicates_with_dict_with_string_keys():
+    """Test dictionary handling with string keys only (HF Dataset compatible)."""
+    dataset = Dataset.from_dict(
+        {
+            "string_key_dicts": [
+                {"model": "gpt-4", "temp": "0.7", "max_tokens": "100"},
+                {"model": "gpt-4", "temp": "0.7", "max_tokens": "100"},  # Duplicate
+                {"model": "gpt-4", "temp": "0.9", "max_tokens": "100"},
+            ]
+        }
+    )
+
+    with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
+        validate_no_duplicates(dataset)
+
+
+def test_validate_no_duplicates_with_list_of_tuples():
+    """Test duplicate detection with tuples converted to lists (HF Dataset compatible)."""
+    # HF Datasets converts tuples to lists, so test with lists
+    dataset = Dataset.from_dict(
+        {
+            "tuple_like": [
+                [1, 2, 3],
+                [1, 2, 3],  # Duplicate
+                [4, 5, 6],
+            ]
+        }
+    )
+
+    with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
+        validate_no_duplicates(dataset)
+
+
+def test_validate_no_duplicates_edge_case_pandas_map_vs_applymap():
+    """Test that both pandas .map() and .applymap() code paths work correctly."""
+    # This test ensures the compatibility check for pandas versions works
+    dataset = Dataset.from_dict({
+        "col1": [{"a": 1}, {"a": 1}, {"a": 2}],  # Two duplicates
+        "col2": ["x", "x", "y"]  # Also duplicates
+    })
+
+    with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
+        validate_no_duplicates(dataset)
+
+
+def test_validate_no_duplicates_very_nested_structure():
+    """Test with deeply nested structures that push the make_hashable function."""
+    dataset = Dataset.from_dict(
+        {
+            "deeply_nested": [
+                {"level1": {"level2": {"level3": ["a", "b", "c"]}}},
+                {"level1": {"level2": {"level3": ["a", "b", "c"]}}},  # Duplicate
+                {"level1": {"level2": {"level3": ["x", "y", "z"]}}},
+            ]
+        }
+    )
+
+    with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
+        validate_no_duplicates(dataset)
