@@ -660,6 +660,119 @@ class TestMultipleResponses:
 
         assert mock_litellm_completion_multiple.call_count == 2  # One call per sample
 
+    def test_concurrency_adjustment_with_n_greater_than_1(
+        self, mock_litellm_acompletion, sample_dataset
+    ):
+        """Test concurrency is adjusted when n > 1 to avoid overwhelming API."""
+        with patch("sdg_hub.core.blocks.llm.client_manager.logger") as mock_logger:
+            block = LLMChatBlock(
+                block_name="test_concurrency_adjustment",
+                input_cols="messages",
+                output_cols="responses",
+                model="openai/gpt-4",
+                api_key="test-key",
+                n=4,  # Generate 4 responses per input
+                async_mode=True,
+            )
+
+            # Test with max_concurrency = 8, should be adjusted to 2 (8 // 4)
+            result = block.generate(sample_dataset, _flow_max_concurrency=8)
+
+            assert "responses" in result.column_names
+            assert len(result["responses"]) == 2
+
+            # Verify debug log was called for concurrency adjustment
+            mock_logger.debug.assert_called()
+            debug_calls = [call for call in mock_logger.debug.call_args_list
+                          if "Adjusted max_concurrency" in str(call)]
+            assert len(debug_calls) > 0
+            assert "Adjusted max_concurrency from 8 to 2" in str(debug_calls[0])
+            assert "for n=4 completions per request" in str(debug_calls[0])
+
+    def test_concurrency_warning_when_max_concurrency_less_than_n(
+        self, mock_litellm_acompletion, sample_dataset
+    ):
+        """Test warning is logged when max_concurrency < n."""
+        with patch("sdg_hub.core.blocks.llm.client_manager.logger") as mock_logger:
+            block = LLMChatBlock(
+                block_name="test_concurrency_warning",
+                input_cols="messages",
+                output_cols="responses",
+                model="openai/gpt-4",
+                api_key="test-key",
+                n=5,  # Generate 5 responses per input
+                async_mode=True,
+            )
+
+            # Test with max_concurrency = 3, which is less than n=5
+            result = block.generate(sample_dataset, _flow_max_concurrency=3)
+
+            assert "responses" in result.column_names
+            assert len(result["responses"]) == 2
+
+            # Verify warning log was called
+            mock_logger.warning.assert_called()
+            warning_calls = [call for call in mock_logger.warning.call_args_list
+                           if "max_concurrency" in str(call)]
+            assert len(warning_calls) > 0
+            assert "max_concurrency (3) is less than n (5)" in str(warning_calls[0])
+            assert "Consider increasing max_concurrency" in str(warning_calls[0])
+
+    def test_concurrency_not_adjusted_when_n_is_1(
+        self, mock_litellm_acompletion, sample_dataset
+    ):
+        """Test concurrency is not adjusted when n=1 or n=None."""
+        with patch("sdg_hub.core.blocks.llm.client_manager.logger") as mock_logger:
+            # Test with n=1
+            block_n1 = LLMChatBlock(
+                block_name="test_no_adjustment_n1",
+                input_cols="messages",
+                output_cols="response",
+                model="openai/gpt-4",
+                api_key="test-key",
+                n=1,
+                async_mode=True,
+            )
+
+            result = block_n1.generate(sample_dataset, _flow_max_concurrency=8)
+
+            assert "response" in result.column_names
+            assert len(result["response"]) == 2
+
+            # No adjustment should happen, so no debug log about adjustment
+            debug_calls = [call for call in mock_logger.debug.call_args_list
+                          if "Adjusted max_concurrency" in str(call)]
+            assert len(debug_calls) == 0
+
+    def test_concurrency_override_in_generate_call(
+        self, mock_litellm_acompletion, sample_dataset
+    ):
+        """Test concurrency adjustment works when n is overridden in generate call."""
+        with patch("sdg_hub.core.blocks.llm.client_manager.logger") as mock_logger:
+            block = LLMChatBlock(
+                block_name="test_override_adjustment",
+                input_cols="messages",
+                output_cols="responses",
+                model="openai/gpt-4",
+                api_key="test-key",
+                n=1,  # Initially set to 1
+                async_mode=True,
+            )
+
+            # Override n to 3 at runtime with max_concurrency=9
+            result = block.generate(sample_dataset, n=3, _flow_max_concurrency=9)
+
+            assert "responses" in result.column_names
+            assert len(result["responses"]) == 2
+
+            # Verify debug log shows adjustment based on runtime n=3
+            mock_logger.debug.assert_called()
+            debug_calls = [call for call in mock_logger.debug.call_args_list
+                          if "Adjusted max_concurrency" in str(call)]
+            assert len(debug_calls) > 0
+            assert "Adjusted max_concurrency from 9 to 3" in str(debug_calls[0])
+            assert "for n=3 completions per request" in str(debug_calls[0])
+
     def test_single_response_still_works(self, mock_litellm_completion, sample_dataset):
         """Test that n=1 or n=None still returns single strings."""
         # Test n=1
