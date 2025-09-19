@@ -48,20 +48,35 @@ def validate_no_duplicates(dataset: Dataset) -> None:
             return False
 
     def make_hashable(x):
+        if isinstance(x, dict):
+            return tuple(sorted((k, make_hashable(v)) for k, v in x.items()))
+
         if is_hashable(x):
             # int, float, str, bytes, None etc. are already hashable
             return x
-        elif isinstance(x, dict):
-            return tuple(sorted((k, make_hashable(v)) for k, v in x.items()))
-        elif hasattr(x, "__iter__"):
-            # list, tuple, set, ndarray, or other customized iterables
+        if isinstance(x, np.ndarray):
+            if x.ndim == 0:
+                return make_hashable(x.item())
             return tuple(make_hashable(i) for i in x)
-
+        if isinstance(x, dict):
+            # sort robustly even with heterogeneous key types
+            return tuple(sorted(
+                ((k, make_hashable(v)) for k, v in x.items()), 
+                key=lambda kv: repr(kv[0])
+            ))
+        if isinstance(x, (set, frozenset)):
+            # order‑insensitive
+            return frozenset(make_hashable(i) for i in x)
+        if hasattr(x, "__iter__"):
+            # lists, tuples, custom iterables
+            return tuple(make_hashable(i) for i in x)
+        # last‑resort fallback to a stable representation
+        return repr(x)
+        
     # Apply to the whole dataframe to ensure every cell is hashable
     df = df.map(make_hashable)
 
     duplicate_count = int(df.duplicated(keep="first").sum())
-
     if duplicate_count > 0:
         raise FlowValidationError(
             f"Input dataset contains {duplicate_count} duplicate rows. "
