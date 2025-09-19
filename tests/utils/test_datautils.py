@@ -329,7 +329,9 @@ def test_validate_no_duplicates_with_sets_and_frozensets_via_mock():
         result2 = make_hashable(test_frozenset)
 
         # They should be equal (both converted to frozenset)
-        assert result1 == result2, "Sets and frozensets should be converted to equivalent frozensets"
+        assert (
+            result1 == result2
+        ), "Sets and frozensets should be converted to equivalent frozensets"
 
         # Apply to original dataframe normally
         if hasattr(df, "map"):
@@ -338,7 +340,13 @@ def test_validate_no_duplicates_with_sets_and_frozensets_via_mock():
             return df.applymap(lambda x: x)
 
     # Patch the dataframe processing to run our set test
-    with patch.object(dataset.to_pandas(), "map", side_effect=lambda func: capture_make_hashable_and_inject_sets(dataset.to_pandas())):
+    with patch.object(
+        dataset.to_pandas(),
+        "map",
+        side_effect=lambda func: capture_make_hashable_and_inject_sets(
+            dataset.to_pandas()
+        ),
+    ):
         # This will run our set test and then continue with normal validation
         with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
             validate_no_duplicates(dataset)
@@ -346,10 +354,11 @@ def test_validate_no_duplicates_with_sets_and_frozensets_via_mock():
 
 def test_validate_no_duplicates_repr_fallback():
     """Test the repr() fallback for non-hashable, non-iterable objects."""
+
     # Create a simple class that is not hashable, not a numpy array, not a dict,
     # not a set, and doesn't have __iter__ to trigger the repr() fallback
     class SimpleNonHashable:
-        __slots__ = ['value']  # Restrict attributes and prevent default methods
+        __slots__ = ["value"]  # Restrict attributes and prevent default methods
 
         def __init__(self, value):
             self.value = value
@@ -411,7 +420,9 @@ def test_validate_no_duplicates_repr_fallback():
     test_make_hashable_logic()
 
     # Also run normal validation on a simple dataset
-    dataset = Dataset.from_dict({"col": ["a", "a", "b"]})  # Simple dataset with duplicates
+    dataset = Dataset.from_dict(
+        {"col": ["a", "a", "b"]}
+    )  # Simple dataset with duplicates
     with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
         validate_no_duplicates(dataset)
 
