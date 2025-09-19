@@ -573,7 +573,7 @@ def test_safe_concatenate_with_validation_schema_mismatch():
     # This might still work, so let's create a more definitive mismatch
     # by using an approach that will definitely cause concatenation to fail
 
-    def mock_concatenate_that_fails(*args, **kwargs):
+    def mock_concatenate_that_fails(*_args, **_kwargs):
         raise ValueError("Mock schema mismatch error")
 
     # Patch concatenate_datasets to force an error
@@ -612,74 +612,52 @@ def test_validate_no_duplicates_zero_dim_numpy_scalar_conversion():
         validate_no_duplicates(dataset)
 
 
-# Test to cover lines 66-73: set/frozenset and repr fallback
-def test_validate_no_duplicates_actual_sets_via_mock():
-    """Test set and frozenset handling by mocking the make_hashable function."""
-    # Create a basic dataset for the test
-    dataset = Dataset.from_dict({"col": [1, 1, 2]})  # Has duplicates
+# Test to cover lines 66-73: set/frozenset and repr fallback by directly hitting the code
+def test_validate_no_duplicates_with_sets_and_repr_fallback():
+    """Test that actually hits lines 66-73 in make_hashable during validation."""
+    # Create a simple dataset first
+    dataset = Dataset.from_dict({"col": [1, 1, 2]})
 
-    # Test the actual make_hashable logic on sets and frozensets
-    def test_set_logic():
-        # Define the make_hashable function as it appears in the code
-        def is_hashable(x):
-            try:
-                hash(x)
-                return True
-            except TypeError:
-                return False
+    # Create objects that will trigger the specific code paths
+    test_set = {1, 2, 3}
+    test_frozenset = frozenset([4, 5, 6])
 
-        def make_hashable(x):
-            if is_hashable(x):
-                return x
-            if isinstance(x, np.ndarray):
-                if x.ndim == 0:
-                    return make_hashable(x.item())
-                return tuple(make_hashable(i) for i in x)
-            if isinstance(x, dict):
-                return tuple(
-                    sorted(
-                        ((k, make_hashable(v)) for k, v in x.items()),
-                        key=lambda kv: repr(kv[0]),
-                    )
-                )
-            if isinstance(x, (set, frozenset)):  # This is line 66-68 we want to test
-                return frozenset(make_hashable(i) for i in x)
-            if hasattr(x, "__iter__"):
-                return tuple(make_hashable(i) for i in x)
-            return repr(x)  # This is line 73 we want to test
+    class NonHashableNonIterable:
+        def __init__(self, value):
+            self.value = value
 
-        # Test set handling (line 66-68)
-        test_set = {1, 2, 3}
-        result_set = make_hashable(test_set)
-        assert isinstance(result_set, frozenset)
-        assert result_set == frozenset([1, 2, 3])
+        def __hash__(self):
+            raise TypeError("unhashable")
 
-        # Test frozenset handling (line 66-68)
-        test_frozenset = frozenset([1, 2, 3])
-        result_frozenset = make_hashable(test_frozenset)
-        assert isinstance(result_frozenset, frozenset)
-        assert result_frozenset == frozenset([1, 2, 3])
+        def __repr__(self):
+            return f"Custom({self.value})"
 
-        # Test repr fallback (line 73) with custom non-hashable, non-iterable object
-        class NonHashableNonIterable:
-            def __init__(self, value):
-                self.value = value
+        # No __iter__ method to force repr fallback
 
-            def __hash__(self):
-                raise TypeError("unhashable")
+    test_custom_obj = NonHashableNonIterable(42)
 
-            def __repr__(self):
-                return f"Custom({self.value})"
+    # Patch the pandas DataFrame to_pandas method to inject our test data
+    def patched_to_pandas():
+        import pandas as pd
 
-            # Explicitly no __iter__ method
+        # Create dataframe with the problematic data types
+        df = pd.DataFrame(
+            {
+                "col1": [
+                    test_set,
+                    test_set,
+                    test_frozenset,
+                ],  # Sets and frozensets (lines 66-68)
+                "col2": [
+                    test_custom_obj,
+                    test_custom_obj,
+                    NonHashableNonIterable(99),
+                ],  # repr fallback (line 73)
+            }
+        )
+        return df
 
-        test_obj = NonHashableNonIterable(42)
-        result_repr = make_hashable(test_obj)
-        assert result_repr == "Custom(42)"
-
-    # Run the set logic test
-    test_set_logic()
-
-    # Continue with normal validation test
-    with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
-        validate_no_duplicates(dataset)
+    # Apply the patch and run validation
+    with patch.object(dataset, "to_pandas", patched_to_pandas):
+        with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
+            validate_no_duplicates(dataset)
