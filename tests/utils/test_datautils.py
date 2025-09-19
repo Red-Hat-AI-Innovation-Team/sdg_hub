@@ -276,16 +276,28 @@ def test_validate_no_duplicates_pandas_applymap_fallback():
         }
     )
 
-    # Mock pandas DataFrame to not have map method, forcing applymap usage
-    with patch("sdg_hub.core.utils.datautils.hasattr") as mock_hasattr:
-        # Make hasattr return False for df.map check, True for df.__iter__ etc
-        def hasattr_side_effect(obj, attr):
-            if attr == "map" and hasattr(obj, "applymap"):  # It's a pandas DataFrame
-                return False  # Force use of applymap
-            return hasattr(obj, attr)  # Default behavior for other checks
+    # Create a mock DataFrame that doesn't have map method
+    class MockDataFrame:
+        def __init__(self, df):
+            self._df = df
+            self.applymap_called = False
 
-        mock_hasattr.side_effect = hasattr_side_effect
+        def applymap(self, func):
+            self.applymap_called = True
+            return self._df.applymap(func)
 
+        def duplicated(self, keep="first"):
+            return self._df.duplicated(keep=keep)
+
+        # Don't define map method to force applymap usage
+
+    original_to_pandas = dataset.to_pandas
+
+    def mock_to_pandas():
+        df = original_to_pandas()
+        return MockDataFrame(df)
+
+    with patch.object(dataset, "to_pandas", side_effect=mock_to_pandas):
         with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
             validate_no_duplicates(dataset)
 
