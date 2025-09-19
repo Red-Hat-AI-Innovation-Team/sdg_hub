@@ -225,7 +225,7 @@ class VerifyQuestionBlock(BaseBlock):
         # Create text parser
         self.text_parser = TextParserBlock(
             block_name=f"{self.block_name}_text_parser",
-            input_cols=[self.block_name + "_llm_parser_content"],
+            input_cols=[ self.llm_parser.field_prefix if self.llm_parser.field_prefix!="" else self.llm_parser.block_name + "_content"],
             output_cols=["verification_explanation", "verification_rating"],
             **parser_params,
         )
@@ -288,6 +288,7 @@ class VerifyQuestionBlock(BaseBlock):
             # Execute 4-block pipeline with validation delegation
             result = self.prompt_builder(samples, **prompt_params)
             result = self.llm_chat(result, **llm_params)
+            result = self.llm_parser(result, **llm_parser_params)
             result = self.text_parser(result, **parser_params)
             result = self.filter_block(result, **filter_params)
 
@@ -316,6 +317,7 @@ class VerifyQuestionBlock(BaseBlock):
         # Check other internal blocks for their specific model_fields
         for block_attr, block_class in [
             ("prompt_builder", PromptBuilderBlock),
+            ("llm_chat", LLMChatBlock),
             ("llm_parser", LLMParserBlock),
             ("text_parser", TextParserBlock),
             ("filter_block", ColumnValueFilterBlock),
@@ -353,6 +355,7 @@ class VerifyQuestionBlock(BaseBlock):
         # Forward to other internal blocks for their specific model_fields
         for block_attr, block_class in [
             ("prompt_builder", PromptBuilderBlock),
+            ("llm_chat", LLMChatBlock),
             ("llm_parser", LLMParserBlock),
             ("text_parser", TextParserBlock),
             ("filter_block", ColumnValueFilterBlock),
