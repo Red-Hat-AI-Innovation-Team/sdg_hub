@@ -1,5 +1,6 @@
 # Third Party
 from datasets import Dataset, concatenate_datasets
+import numpy as np
 
 # Local
 from .error_handling import FlowValidationError
@@ -39,27 +40,20 @@ def validate_no_duplicates(dataset: Dataset) -> None:
 
     df = dataset.to_pandas()
 
-    # Try pandas duplicated() first - only convert types if we hit unhashable error
-    try:
-        duplicate_count = int(df.duplicated(keep="first").sum())
-    except TypeError as e:
-        if "unhashable type" in str(e):
-            # Convert unhashable types to tuples so pandas can hash them
-            for col in df.columns:
-                if df[col].dtype == "object":  # Only check object columns
-                    df[col] = df[col].apply(
-                        lambda x: (
-                            tuple(sorted(x.items()))
-                            if isinstance(x, dict)
-                            else tuple(x)
-                            if hasattr(x, "__iter__")
-                            and not isinstance(x, (str, bytes))
-                            else x
-                        )
-                    )
-            duplicate_count = int(df.duplicated(keep="first").sum())
+    def make_hashable(x):
+        if isinstance(x, dict):
+            return tuple(sorted((k, make_hashable(v)) for k, v in x.items()))
+        elif isinstance(x, (list, tuple, set)):
+            return tuple(make_hashable(i) for i in x)
+        elif isinstance(x, np.ndarray):
+            return tuple(make_hashable(i) for i in x.tolist())
         else:
-            raise  # Re-raise if it's a different TypeError
+            return x  # str, int, float, None etc. are already hashable
+
+    # Apply to the whole dataframe to ensure every cell is hashable
+    df = df.map(make_hashable)
+
+    duplicate_count = int(df.duplicated(keep="first").sum())
 
     if duplicate_count > 0:
         raise FlowValidationError(
