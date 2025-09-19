@@ -40,15 +40,22 @@ def validate_no_duplicates(dataset: Dataset) -> None:
 
     df = dataset.to_pandas()
 
+    def is_hashable(x):
+        try:
+            hash(x)
+            return True
+        except TypeError:
+            return False
+
     def make_hashable(x):
-        if isinstance(x, dict):
+        if is_hashable(x):
+            # int, float, str, bytes, None etc. are already hashable
+            return x
+        elif isinstance(x, dict):
             return tuple(sorted((k, make_hashable(v)) for k, v in x.items()))
-        elif isinstance(x, (list, tuple, set)):
+        elif hasattr(x, "__iter__"):
+            # list, tuple, set, ndarray, or other customized iterables
             return tuple(make_hashable(i) for i in x)
-        elif isinstance(x, np.ndarray):
-            return tuple(make_hashable(i) for i in x.tolist())
-        else:
-            return x  # str, int, float, None etc. are already hashable
 
     # Apply to the whole dataframe to ensure every cell is hashable
     df = df.map(make_hashable)
