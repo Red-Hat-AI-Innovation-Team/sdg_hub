@@ -683,8 +683,11 @@ class TestMultipleResponses:
 
             # Verify debug log was called for concurrency adjustment
             mock_logger.debug.assert_called()
-            debug_calls = [call for call in mock_logger.debug.call_args_list
-                          if "Adjusted max_concurrency" in str(call)]
+            debug_calls = [
+                call
+                for call in mock_logger.debug.call_args_list
+                if "Adjusted max_concurrency" in str(call)
+            ]
             assert len(debug_calls) > 0
             assert "Adjusted max_concurrency from 8 to 2" in str(debug_calls[0])
             assert "for n=4 completions per request" in str(debug_calls[0])
@@ -712,8 +715,11 @@ class TestMultipleResponses:
 
             # Verify warning log was called
             mock_logger.warning.assert_called()
-            warning_calls = [call for call in mock_logger.warning.call_args_list
-                           if "max_concurrency" in str(call)]
+            warning_calls = [
+                call
+                for call in mock_logger.warning.call_args_list
+                if "max_concurrency" in str(call)
+            ]
             assert len(warning_calls) > 0
             assert "max_concurrency (3) is less than n (5)" in str(warning_calls[0])
             assert "Consider increasing max_concurrency" in str(warning_calls[0])
@@ -740,8 +746,11 @@ class TestMultipleResponses:
             assert len(result["response"]) == 2
 
             # No adjustment should happen, so no debug log about adjustment
-            debug_calls = [call for call in mock_logger.debug.call_args_list
-                          if "Adjusted max_concurrency" in str(call)]
+            debug_calls = [
+                call
+                for call in mock_logger.debug.call_args_list
+                if "Adjusted max_concurrency" in str(call)
+            ]
             assert len(debug_calls) == 0
 
     def test_concurrency_override_in_generate_call(
@@ -767,8 +776,11 @@ class TestMultipleResponses:
 
             # Verify debug log shows adjustment based on runtime n=3
             mock_logger.debug.assert_called()
-            debug_calls = [call for call in mock_logger.debug.call_args_list
-                          if "Adjusted max_concurrency" in str(call)]
+            debug_calls = [
+                call
+                for call in mock_logger.debug.call_args_list
+                if "Adjusted max_concurrency" in str(call)
+            ]
             assert len(debug_calls) > 0
             assert "Adjusted max_concurrency from 9 to 3" in str(debug_calls[0])
             assert "for n=3 completions per request" in str(debug_calls[0])
