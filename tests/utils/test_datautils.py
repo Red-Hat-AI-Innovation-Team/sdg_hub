@@ -216,10 +216,12 @@ def test_validate_no_duplicates_with_list_of_tuples():
 def test_validate_no_duplicates_edge_case_pandas_map_vs_applymap():
     """Test that both pandas .map() and .applymap() code paths work correctly."""
     # This test ensures the compatibility check for pandas versions works
-    dataset = Dataset.from_dict({
-        "col1": [{"a": 1}, {"a": 1}, {"a": 2}],  # Two duplicates
-        "col2": ["x", "x", "y"]  # Also duplicates
-    })
+    dataset = Dataset.from_dict(
+        {
+            "col1": [{"a": 1}, {"a": 1}, {"a": 2}],  # Two duplicates
+            "col2": ["x", "x", "y"],  # Also duplicates
+        }
+    )
 
     with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
         validate_no_duplicates(dataset)
