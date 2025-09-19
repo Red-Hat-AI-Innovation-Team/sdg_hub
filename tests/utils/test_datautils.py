@@ -1,12 +1,14 @@
+# Standard Library
+from unittest.mock import patch
+
 # Third Party
+import numpy as np
+import pytest
 from datasets import Dataset
 
 # First Party
 from sdg_hub.core.utils.datautils import validate_no_duplicates
 from sdg_hub.core.utils.error_handling import FlowValidationError
-import numpy as np
-import pytest
-from unittest.mock import patch, MagicMock
 
 
 def test_validate_no_duplicates_with_unique_data():
