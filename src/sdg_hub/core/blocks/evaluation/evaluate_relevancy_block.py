@@ -18,8 +18,6 @@ from typing import Any, Optional, Union
 from datasets import Dataset
 from pydantic import ConfigDict, Field, field_validator
 
-from sdg_hub.core.blocks import llm
-
 # Local
 from ...utils.error_handling import BlockValidationError
 from ...utils.logger_config import setup_logger
