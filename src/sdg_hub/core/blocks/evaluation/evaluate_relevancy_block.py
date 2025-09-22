@@ -107,7 +107,7 @@ class EvaluateRelevancyBlock(BaseBlock):
     # --- Internal blocks (composition) ---
     prompt_builder: PromptBuilderBlock = Field(None, exclude=True)  # type: ignore
     llm_chat: LLMChatBlock = Field(None, exclude=True)  # type: ignore
-    llm_parser: LLMParserBlock = Field(None, exclude=True)  # type: ignore  
+    llm_parser: LLMParserBlock = Field(None, exclude=True)  # type: ignore
     text_parser: TextParserBlock = Field(None, exclude=True)  # type: ignore
     filter_block: ColumnValueFilterBlock = Field(None, exclude=True)  # type: ignore
 
@@ -226,7 +226,11 @@ class EvaluateRelevancyBlock(BaseBlock):
         # Create text parser
         self.text_parser = TextParserBlock(
             block_name=f"{self.block_name}_text_parser",
-            input_cols=[ self.llm_parser.field_prefix if self.llm_parser.field_prefix!="" else self.llm_parser.block_name + "_content"],
+            input_cols=[
+                self.llm_parser.field_prefix
+                if self.llm_parser.field_prefix != ""
+                else self.llm_parser.block_name + "_content"
+            ],
             output_cols=["relevancy_explanation", "relevancy_score"],
             **parser_params,
         )

@@ -48,7 +48,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
     This block combines LLMChatBlock, LLMParserBlock, and TextParserBlock into a single cohesive block
     that automatically retries LLM generation when text parsing fails, accumulating successful
     results until the target count is reached or max retries exceeded.
-    
+
     The pipeline flow is: LLMChatBlock → LLMParserBlock → TextParserBlock
     Retry logic only applies to TextParserBlock failures - LLMChatBlock and LLMParserBlock
     are treated as a single unit that produces content for parsing.
@@ -87,7 +87,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         Regex pattern for custom parsing.
     parser_cleanup_tags : Optional[List[str]], optional
         List of tags to clean from parsed output.
-        
+
     ### LLMParserBlock Parameters ###
     extract_content : bool, optional
         Whether to extract 'content' field from responses.
@@ -149,8 +149,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
     parser_cleanup_tags: Optional[list[str]] = Field(
         None, description="List of tags to clean from parsed output"
     )
-    
-    
+
     ### LLMParserBlock Configuration ###
     extract_content: bool = Field(
         default=True,
@@ -289,7 +288,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
             output_cols=[f"{self.block_name}_raw_response"],
             **llm_params,
         )
-        
+
         # 2. LLMParserBlock
         self.llm_parser = LLMParserBlock(
             block_name=f"{self.block_name}_llm_parser",
@@ -300,7 +299,9 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         # 3. TextParserBlock
         self.text_parser = TextParserBlock(
             block_name=f"{self.block_name}_text_parser",
-            input_cols=[f"{self.llm_parser.field_prefix if self.llm_parser.field_prefix!='' else self.llm_parser.block_name + '_content'}"],
+            input_cols=[
+                f"{self.llm_parser.field_prefix if self.llm_parser.field_prefix!='' else self.llm_parser.block_name + '_content'}"
+            ],
             output_cols=self.output_cols,
             **parser_params,
         )
@@ -372,7 +373,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         4. Counts successful parses and retries LLM generation if below target
         5. Accumulates results across retry attempts
         6. Returns final dataset with all successful parses
-        
+
         Note: Retry only occurs when TextParserBlock fails to parse the content.
         LLMChatBlock and LLMParserBlock are treated as a single content generation unit.
 
@@ -444,10 +445,14 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                         llm_result = self.llm_chat.generate(temp_dataset, **kwargs)
 
                         # Extract content from LLM response objects (this should not fail in retry logic)
-                        llm_parsed_result = self.llm_parser.generate(llm_result, **kwargs)
+                        llm_parsed_result = self.llm_parser.generate(
+                            llm_result, **kwargs
+                        )
 
                         # Parse the extracted content (this is where retry logic applies)
-                        parsed_result = self.text_parser.generate(llm_parsed_result, **kwargs)
+                        parsed_result = self.text_parser.generate(
+                            llm_parsed_result, **kwargs
+                        )
 
                         # Count successful parses and accumulate results
                         new_parsed_count = len(parsed_result)
@@ -508,10 +513,16 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                         llm_result = self.llm_chat.generate(temp_dataset, **kwargs)
 
                         # Extract content from LLM response objects (this should not fail in retry logic)
-                        llm_parsed_result = self.llm_parser.generate(llm_result, **kwargs)
+                        llm_parsed_result = self.llm_parser.generate(
+                            llm_result, **kwargs
+                        )
 
                         # Get the content column from LLM parser (should be a list when n > 1)
-                        content_field = self.llm_parser.field_prefix if self.llm_parser.field_prefix != "" else self.llm_parser.block_name + "_content"
+                        content_field = (
+                            self.llm_parser.field_prefix
+                            if self.llm_parser.field_prefix != ""
+                            else self.llm_parser.block_name + "_content"
+                        )
                         content_values = llm_parsed_result[0][content_field]
                         if not isinstance(content_values, list):
                             content_values = [content_values]
@@ -525,7 +536,6 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                             # Create temporary dataset with single content for parsing
                             temp_parse_data = [{**sample, content_field: content}]
                             temp_parse_dataset = Dataset.from_list(temp_parse_data)
-
 
                             # Try to parse this individual content
                             try:
@@ -691,7 +701,9 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
             temp_data = []
             for sample in dataset:
                 temp_sample = dict(sample)
-                temp_sample[f"{self.block_name}_raw_response"] = {"content": "test output"}
+                temp_sample[f"{self.block_name}_raw_response"] = {
+                    "content": "test output"
+                }
                 temp_data.append(temp_sample)
             temp_dataset = Dataset.from_list(temp_data)
 
@@ -702,7 +714,11 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
             temp_data_2 = []
             for sample in dataset:
                 temp_sample = dict(sample)
-                content_field = self.llm_parser.field_prefix if self.llm_parser.field_prefix != "" else self.llm_parser.block_name + "_content"
+                content_field = (
+                    self.llm_parser.field_prefix
+                    if self.llm_parser.field_prefix != ""
+                    else self.llm_parser.block_name + "_content"
+                )
                 temp_sample[content_field] = "test output"
                 temp_data_2.append(temp_sample)
             temp_dataset_2 = Dataset.from_list(temp_data_2)

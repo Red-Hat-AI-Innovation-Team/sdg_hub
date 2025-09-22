@@ -67,7 +67,6 @@ class TextParserBlock(BaseBlock):
         default=None, description="List of tags to clean from parsed output"
     )
 
-
     @field_validator("start_tags", "end_tags", mode="before")
     @classmethod
     def normalize_tags(cls, v):
@@ -281,11 +280,9 @@ class TextParserBlock(BaseBlock):
                         f"Expected List[str], skipping this item."
                     )
                     continue
-                    
+
                 if not message:
-                    logger.warning(
-                        f"List item {i} in column '{input_column}' is empty"
-                    )
+                    logger.warning(f"List item {i} in column '{input_column}' is empty")
                     continue
 
                 parsed_outputs = self._parse(message)

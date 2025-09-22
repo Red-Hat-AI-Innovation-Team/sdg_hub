@@ -225,7 +225,11 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         # Create text parser
         self.text_parser = TextParserBlock(
             block_name=f"{self.block_name}_text_parser",
-            input_cols=[ self.llm_parser.field_prefix if self.llm_parser.field_prefix!="" else self.llm_parser.block_name + "_content"],
+            input_cols=[
+                self.llm_parser.field_prefix
+                if self.llm_parser.field_prefix != ""
+                else self.llm_parser.block_name + "_content"
+            ],
             output_cols=["faithfulness_explanation", "faithfulness_judgment"],
             **parser_params,
         )

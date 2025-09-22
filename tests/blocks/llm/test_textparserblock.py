@@ -254,9 +254,7 @@ def test_generate_all_empty_parsed_outputs_custom_parser(
 ):
     """Test generate functionality with custom parser when all parsed outputs are empty."""
     data = [
-        {
-            "raw_output": "Question: What is the answer?\nNo answer provided"
-        },
+        {"raw_output": "Question: What is the answer?\nNo answer provided"},
         {"raw_output": "Another question without answer"},
     ]
     dataset = Dataset.from_list(data)
@@ -841,7 +839,11 @@ def test_generate_with_list_input_basic():
 
     # Should return single row with all parsed results collected as lists
     assert len(result) == 1
-    assert result[0]["output"] == ["First response", "Second response", "Third response"]
+    assert result[0]["output"] == [
+        "First response",
+        "Second response",
+        "Third response",
+    ]
 
 
 def test_generate_with_list_input_parsing_failures():

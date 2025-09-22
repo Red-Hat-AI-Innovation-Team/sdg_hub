@@ -77,12 +77,18 @@ class LLMParserBlock(BaseBlock):
     @model_validator(mode="after")
     def validate_extraction_configuration(self):
         """Validate that at least one extraction field is enabled and pre-compute field names."""
-        if not any([self.extract_content, self.extract_reasoning_content, self.extract_tool_calls]):
+        if not any(
+            [
+                self.extract_content,
+                self.extract_reasoning_content,
+                self.extract_tool_calls,
+            ]
+        ):
             raise ValueError(
                 "LLMParserBlock requires at least one extraction field to be enabled: "
                 "extract_content, extract_reasoning_content, or extract_tool_calls"
             )
-        
+
         # Pre-compute prefixed field names for efficiency
         prefix = self.field_prefix
         if prefix == "":
@@ -90,10 +96,8 @@ class LLMParserBlock(BaseBlock):
         self._content_field = f"{prefix}content"
         self._reasoning_content_field = f"{prefix}reasoning_content"
         self._tool_calls_field = f"{prefix}tool_calls"
-        
+
         return self
-    
-            
 
     def _validate_custom(self, dataset: Dataset) -> None:
         """Validate LLMParserBlock specific requirements.
@@ -119,17 +123,17 @@ class LLMParserBlock(BaseBlock):
 
     def _extract_fields_from_response(self, response: dict) -> dict[str, Any]:
         """Extract specified fields from a single response object.
-        
+
         Parameters
         ----------
         response : dict
             Response object from chat completion API
-            
+
         Returns
         -------
         dict[str, Any]
             Dictionary with extracted fields using prefixed field names
-            
+
         Raises
         ------
         ValueError
@@ -137,49 +141,56 @@ class LLMParserBlock(BaseBlock):
         """
         extracted = {}
         missing_fields = []
-        
-        
+
         if self.extract_content:
             if "content" not in response:
                 missing_fields.append("content")
             else:
                 if response["content"] is None:
-                    
                     ## skip this field
                     logger.warning(f"Content field is None, using empty string instead")
                     extracted[self._content_field] = ""
                 else:
                     extracted[self._content_field] = response["content"]
-            
+
         if self.extract_reasoning_content:
             if "reasoning_content" not in response:
                 missing_fields.append("reasoning_content")
             else:
                 if response["reasoning_content"] is None:
                     ## skip this field
-                    logger.warning(f"Reasoning content field is None, using empty string instead")
+                    logger.warning(
+                        f"Reasoning content field is None, using empty string instead"
+                    )
                     extracted[self._reasoning_content_field] = ""
                 else:
-                    extracted[self._reasoning_content_field] = response["reasoning_content"]
-            
+                    extracted[self._reasoning_content_field] = response[
+                        "reasoning_content"
+                    ]
+
         if self.extract_tool_calls:
             if "tool_calls" not in response:
                 missing_fields.append("tool_calls")
             else:
                 if response["tool_calls"] is None:
                     ## skip this field
-                    logger.warning(f"Tool calls field is None, using empty list instead")
+                    logger.warning(
+                        f"Tool calls field is None, using empty list instead"
+                    )
                     extracted[self._tool_calls_field] = []
                 else:
                     extracted[self._tool_calls_field] = response["tool_calls"]
-        
+
         if missing_fields:
-            logger.warning(f"Requested fields {missing_fields} not found in response. Available keys: {list(response.keys())}")
-        
+            logger.warning(
+                f"Requested fields {missing_fields} not found in response. Available keys: {list(response.keys())}"
+            )
+
         if not extracted:
-            raise ValueError(f"No requested fields found in response. Available keys: {list(response.keys())}")
+            raise ValueError(
+                f"No requested fields found in response. Available keys: {list(response.keys())}"
+            )
         return extracted
-            
 
     def _get_output_columns(self) -> list[str]:
         """Get the list of output columns based on extraction settings."""
@@ -199,11 +210,11 @@ class LLMParserBlock(BaseBlock):
         # Handle list inputs (e.g., from LLMChatBlock with n > 1)
         if isinstance(raw_output, list):
             return self._process_list_input(sample, raw_output, input_column)
-        
+
         # Handle single dict input
         elif isinstance(raw_output, dict):
             return self._process_single_input(sample, raw_output)
-        
+
         else:
             logger.warning(
                 f"Input column '{input_column}' contains invalid data type: {type(raw_output)}. "
@@ -211,7 +222,9 @@ class LLMParserBlock(BaseBlock):
             )
             return []
 
-    def _process_list_input(self, sample: dict, raw_output: list, input_column: str) -> list[dict]:
+    def _process_list_input(
+        self, sample: dict, raw_output: list, input_column: str
+    ) -> list[dict]:
         """Process list of response objects."""
         if not raw_output:
             logger.warning(f"Input column '{input_column}' contains empty list")
@@ -219,12 +232,16 @@ class LLMParserBlock(BaseBlock):
 
         if not self.expand_lists:
             # Preserve list structure - collect all extracted fields as lists
-            return self._process_list_preserve_structure(sample, raw_output, input_column)
+            return self._process_list_preserve_structure(
+                sample, raw_output, input_column
+            )
         else:
             # Expand lists - create individual rows for each response
             return self._process_list_expand_rows(sample, raw_output, input_column)
 
-    def _process_list_preserve_structure(self, sample: dict, raw_output: list, input_column: str) -> list[dict]:
+    def _process_list_preserve_structure(
+        self, sample: dict, raw_output: list, input_column: str
+    ) -> list[dict]:
         """Process list input while preserving list structure."""
         output_columns = self._get_output_columns()
         all_extracted = {col: [] for col in output_columns}
@@ -232,7 +249,9 @@ class LLMParserBlock(BaseBlock):
 
         for i, response in enumerate(raw_output):
             if not isinstance(response, dict):
-                logger.warning(f"List item {i} in column '{input_column}' is not a dict")
+                logger.warning(
+                    f"List item {i} in column '{input_column}' is not a dict"
+                )
                 continue
 
             try:
@@ -246,18 +265,24 @@ class LLMParserBlock(BaseBlock):
                 continue
 
         if valid_responses == 0:
-            raise ValueError(f"No valid responses found in list input for column '{input_column}'")
+            raise ValueError(
+                f"No valid responses found in list input for column '{input_column}'"
+            )
 
         # Return single row with lists as values
         return [{**sample, **all_extracted}]
 
-    def _process_list_expand_rows(self, sample: dict, raw_output: list, input_column: str) -> list[dict]:
+    def _process_list_expand_rows(
+        self, sample: dict, raw_output: list, input_column: str
+    ) -> list[dict]:
         """Process list input by expanding into individual rows."""
         all_results = []
-        
+
         for i, response in enumerate(raw_output):
             if not isinstance(response, dict):
-                logger.warning(f"List item {i} in column '{input_column}' is not a dict")
+                logger.warning(
+                    f"List item {i} in column '{input_column}' is not a dict"
+                )
                 continue
 
             try:
@@ -270,7 +295,9 @@ class LLMParserBlock(BaseBlock):
                 continue
 
         if not all_results:
-            raise ValueError(f"No valid responses found in list input for column '{input_column}'")
+            raise ValueError(
+                f"No valid responses found in list input for column '{input_column}'"
+            )
 
         return all_results
 
