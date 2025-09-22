@@ -318,7 +318,7 @@ class EvaluateRelevancyBlock(BaseBlock):
         for block_attr, block_class in [
             ("prompt_builder", PromptBuilderBlock),
             ("llm_chat", LLMChatBlock),
-            ("llm_parser", LLMParserBlock)
+            ("llm_parser", LLMParserBlock),
             ("text_parser", TextParserBlock),
             ("filter_block", ColumnValueFilterBlock),
         ]:

@@ -975,17 +975,14 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
             )
 
             # Verify initial state
-            assert block.text_parser.expand_lists is False
+            assert block.llm_parser.expand_lists is False
 
             # Mock the text parser to throw an exception during generate
             original_generate = block.text_parser.generate
 
             def mock_generate_with_exception(*args, **kwargs):
-                if (
-                    block.text_parser.expand_lists is True
-                ):  # Only throw when temporarily True
-                    raise ValueError("Simulated parsing exception")
-                return original_generate(*args, **kwargs)
+                # Always throw exception to test exception handling
+                raise ValueError("Simulated parsing exception")
 
             with patch.object(
                 block.text_parser, "generate", side_effect=mock_generate_with_exception
@@ -998,8 +995,8 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
                 with pytest.raises(MaxRetriesExceededError):
                     block.generate(single_dataset)
 
-            # Critical assertion: expand_lists should be back to original False value
-            assert block.text_parser.expand_lists is False
+            # Critical assertion: expand_lists should remain unchanged
+            assert block.llm_parser.expand_lists is False
 
     def test_partial_parses_rejected_expand_lists_false(self, sample_dataset):
         """Test that partial parses (missing some output columns) are rejected when expand_lists=False."""
