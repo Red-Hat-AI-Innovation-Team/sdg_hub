@@ -518,9 +518,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                         )
 
                         # Get the content column from LLM parser (should be a list when n > 1)
-                        content_field = (
-                            f"{self.llm_parser.field_prefix if self.llm_parser.field_prefix!='' else self.llm_parser.block_name}_content"
-                        )
+                        content_field = f"{self.llm_parser.field_prefix if self.llm_parser.field_prefix!='' else self.llm_parser.block_name}_content"
                         content_values = llm_parsed_result[0][content_field]
                         if not isinstance(content_values, list):
                             content_values = [content_values]
@@ -712,9 +710,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
             temp_data_2 = []
             for sample in dataset:
                 temp_sample = dict(sample)
-                content_field = (
-                    f"{self.llm_parser.field_prefix if self.llm_parser.field_prefix!='' else self.llm_parser.block_name}_content"
-                )
+                content_field = f"{self.llm_parser.field_prefix if self.llm_parser.field_prefix!='' else self.llm_parser.block_name}_content"
                 temp_sample[content_field] = "test output"
                 temp_data_2.append(temp_sample)
             temp_dataset_2 = Dataset.from_list(temp_data_2)

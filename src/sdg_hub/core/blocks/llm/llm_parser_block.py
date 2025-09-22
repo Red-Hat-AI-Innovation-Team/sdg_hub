@@ -97,6 +97,9 @@ class LLMParserBlock(BaseBlock):
         self._reasoning_content_field = f"{prefix}reasoning_content"
         self._tool_calls_field = f"{prefix}tool_calls"
 
+        # Advertise output columns for standard collision checks
+        self.output_cols = self._get_output_columns()
+
         return self
 
     def _validate_custom(self, dataset: Dataset) -> None:

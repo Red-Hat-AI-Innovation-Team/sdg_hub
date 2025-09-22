@@ -221,9 +221,11 @@ class EvaluateFaithfulnessBlock(BaseBlock):
             input_cols=["raw_eval_faithfulness"],
             **llm_parser_params,
         )
-        
-        print(f"{self.llm_parser.field_prefix if self.llm_parser.field_prefix!='' else self.llm_parser.block_name}_content")
-        
+
+        print(
+            f"{self.llm_parser.field_prefix if self.llm_parser.field_prefix!='' else self.llm_parser.block_name}_content"
+        )
+
         # Create text parser
         self.text_parser = TextParserBlock(
             block_name=f"{self.block_name}_text_parser",
