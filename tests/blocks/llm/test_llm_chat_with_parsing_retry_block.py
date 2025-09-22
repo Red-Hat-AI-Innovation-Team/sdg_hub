@@ -978,7 +978,6 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
             assert block.llm_parser.expand_lists is False
 
             # Mock the text parser to throw an exception during generate
-            original_generate = block.text_parser.generate
 
             def mock_generate_with_exception(*args, **kwargs):
                 # Always throw exception to test exception handling

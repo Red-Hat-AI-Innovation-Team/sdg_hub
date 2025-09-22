@@ -16,10 +16,10 @@ from pydantic import ConfigDict, Field, field_validator
 from ...utils.error_handling import BlockValidationError
 from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
+from ..llm.llm_parser_block import LLMParserBlock
 from ..registry import BlockRegistry
 from .llm_chat_block import LLMChatBlock
 from .text_parser_block import TextParserBlock
-from ..llm.llm_parser_block import LLMParserBlock
 
 logger = setup_logger(__name__)
 

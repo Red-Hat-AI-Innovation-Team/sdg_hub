@@ -3,11 +3,10 @@
 
 # Third Party
 from datasets import Dataset
-import pytest
 
 # First Party
 from sdg_hub.core.blocks.llm import LLMParserBlock
-from sdg_hub.core.utils.error_handling import BlockValidationError
+import pytest
 
 
 class TestLLMParserBlockInitialization:

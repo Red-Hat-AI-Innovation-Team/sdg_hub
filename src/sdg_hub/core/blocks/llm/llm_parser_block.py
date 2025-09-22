@@ -148,7 +148,7 @@ class LLMParserBlock(BaseBlock):
             else:
                 if response["content"] is None:
                     ## skip this field
-                    logger.warning(f"Content field is None, using empty string instead")
+                    logger.warning("Content field is None, using empty string instead")
                     extracted[self._content_field] = ""
                 else:
                     extracted[self._content_field] = response["content"]
@@ -160,7 +160,7 @@ class LLMParserBlock(BaseBlock):
                 if response["reasoning_content"] is None:
                     ## skip this field
                     logger.warning(
-                        f"Reasoning content field is None, using empty string instead"
+                        "Reasoning content field is None, using empty string instead"
                     )
                     extracted[self._reasoning_content_field] = ""
                 else:
@@ -175,7 +175,7 @@ class LLMParserBlock(BaseBlock):
                 if response["tool_calls"] is None:
                     ## skip this field
                     logger.warning(
-                        f"Tool calls field is None, using empty list instead"
+                        "Tool calls field is None, using empty list instead"
                     )
                     extracted[self._tool_calls_field] = []
                 else:
