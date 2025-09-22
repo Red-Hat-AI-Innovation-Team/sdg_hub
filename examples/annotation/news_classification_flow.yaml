@@ -6,8 +6,8 @@ metadata:
   author: sdg_hub
   recommended_models: null
   tags: []
-  created_at: '2025-08-19T21:19:34.860381'
-  updated_at: '2025-08-19T21:19:34.860389'
+  created_at: '2025-09-22T10:10:03.097667'
+  updated_at: '2025-09-22T10:10:03.097670'
   license: Apache-2.0
   min_sdg_hub_version: ''
   dataset_requirements: null
@@ -57,11 +57,22 @@ blocks:
       - Business
       - Sci/Tech
     provider_specific: null
+- block_type: LLMParserBlock
+  block_config:
+    block_name: annotation_llm_parser_block
+    input_cols:
+    - raw_output
+    output_cols: null
+    extract_content: true
+    extract_reasoning_content: false
+    extract_tool_calls: false
+    expand_lists: true
+    field_prefix: ''
 - block_type: TextParserBlock
   block_config:
     block_name: annotation_text_parser_block
     input_cols:
-    - raw_output
+    - annotation_llm_parser_block_content
     output_cols:
     - output
     start_tags:
@@ -70,7 +81,6 @@ blocks:
     - ''
     parsing_pattern: null
     parser_cleanup_tags: null
-    expand_lists: true
 - block_type: PromptBuilderBlock
   block_config:
     block_name: verifier_prompt_builder
@@ -110,11 +120,22 @@ blocks:
     extra_headers: null
     extra_body: null
     provider_specific: null
+- block_type: LLMParserBlock
+  block_config:
+    block_name: verifier_llm_parser_block
+    input_cols:
+    - raw_assessment_output
+    output_cols: null
+    extract_content: true
+    extract_reasoning_content: false
+    extract_tool_calls: false
+    expand_lists: true
+    field_prefix: ''
 - block_type: TextParserBlock
   block_config:
     block_name: verifier_text_parser_block
     input_cols:
-    - raw_assessment_output
+    - verifier_llm_parser_block_content
     output_cols:
     - assessment_output
     start_tags:
@@ -123,7 +144,6 @@ blocks:
     - ''
     parsing_pattern: null
     parser_cleanup_tags: null
-    expand_lists: true
 - block_type: PromptBuilderBlock
   block_config:
     block_name: revised_prompt_builder
@@ -169,11 +189,22 @@ blocks:
       - Business
       - Sci/Tech
     provider_specific: null
+- block_type: LLMParserBlock
+  block_config:
+    block_name: revised_llm_parser_block
+    input_cols:
+    - raw_revised_output
+    output_cols: null
+    extract_content: true
+    extract_reasoning_content: false
+    extract_tool_calls: false
+    expand_lists: true
+    field_prefix: ''
 - block_type: TextParserBlock
   block_config:
     block_name: revised_text_parser_block
     input_cols:
-    - raw_revised_output
+    - revised_llm_parser_block_content
     output_cols:
     - revised_output
     start_tags:
@@ -182,4 +213,3 @@ blocks:
     - ''
     parsing_pattern: null
     parser_cleanup_tags: null
-    expand_lists: true

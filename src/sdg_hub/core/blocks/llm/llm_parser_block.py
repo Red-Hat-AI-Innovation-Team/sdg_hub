@@ -129,29 +129,57 @@ class LLMParserBlock(BaseBlock):
         -------
         dict[str, Any]
             Dictionary with extracted fields using prefixed field names
+            
+        Raises
+        ------
+        ValueError
+            If none of the requested fields are found in the response
         """
         extracted = {}
+        missing_fields = []
+        
         
         if self.extract_content:
-            if "content" in response:
-                extracted[self._content_field] = response["content"]
+            if "content" not in response:
+                missing_fields.append("content")
             else:
-                logger.warning(f"'content' not found in response: {response}")
+                if response["content"] is None:
+                    
+                    ## skip this field
+                    logger.warning(f"Content field is None, using empty string instead")
+                    extracted[self._content_field] = ""
+                else:
+                    extracted[self._content_field] = response["content"]
             
         if self.extract_reasoning_content:
-            if "reasoning_content" in response:
-                extracted[self._reasoning_content_field] = response["reasoning_content"]
+            if "reasoning_content" not in response:
+                missing_fields.append("reasoning_content")
             else:
-                logger.warning(f"'reasoning_content' not found in response: {response}")
+                if response["reasoning_content"] is None:
+                    ## skip this field
+                    logger.warning(f"Reasoning content field is None, using empty string instead")
+                    extracted[self._reasoning_content_field] = ""
+                else:
+                    extracted[self._reasoning_content_field] = response["reasoning_content"]
             
         if self.extract_tool_calls:
-            if "tool_calls" in response:
-                extracted[self._tool_calls_field] = response["tool_calls"]
+            if "tool_calls" not in response:
+                missing_fields.append("tool_calls")
             else:
-                logger.warning(f"'tool_calls' not found in response: {response}")
-                
-            
+                if response["tool_calls"] is None:
+                    ## skip this field
+                    logger.warning(f"Tool calls field is None, using empty list instead")
+                    extracted[self._tool_calls_field] = []
+                else:
+                    extracted[self._tool_calls_field] = response["tool_calls"]
+        
+        if missing_fields:
+            logger.warning(f"Requested fields {missing_fields} not found in response. Available keys: {list(response.keys())}")
+        
+        if not extracted:
+            raise ValueError(f"No requested fields found in response. Available keys: {list(response.keys())}")
         return extracted
+            
 
     def _get_output_columns(self) -> list[str]:
         """Get the list of output columns based on extraction settings."""
@@ -207,18 +235,18 @@ class LLMParserBlock(BaseBlock):
                 logger.warning(f"List item {i} in column '{input_column}' is not a dict")
                 continue
 
-            extracted = self._extract_fields_from_response(response)
-            if not extracted:
-                logger.warning(f"No fields extracted from list item {i}")
+            try:
+                extracted = self._extract_fields_from_response(response)
+                valid_responses += 1
+                for col in output_columns:
+                    if col in extracted:
+                        all_extracted[col].append(extracted[col])
+            except ValueError as e:
+                logger.warning(f"Failed to extract fields from list item {i}: {e}")
                 continue
 
-            valid_responses += 1
-            for col in output_columns:
-                if col in extracted:
-                    all_extracted[col].append(extracted[col])
-
         if valid_responses == 0:
-            return []
+            raise ValueError(f"No valid responses found in list input for column '{input_column}'")
 
         # Return single row with lists as values
         return [{**sample, **all_extracted}]
@@ -232,24 +260,24 @@ class LLMParserBlock(BaseBlock):
                 logger.warning(f"List item {i} in column '{input_column}' is not a dict")
                 continue
 
-            extracted = self._extract_fields_from_response(response)
-            if not extracted:
-                logger.warning(f"No fields extracted from list item {i}")
+            try:
+                extracted = self._extract_fields_from_response(response)
+                # Create a row for this response
+                result_row = {**sample, **extracted}
+                all_results.append(result_row)
+            except ValueError as e:
+                logger.warning(f"Failed to extract fields from list item {i}: {e}")
                 continue
 
-            # Create a row for this response
-            result_row = {**sample, **extracted}
-            all_results.append(result_row)
+        if not all_results:
+            raise ValueError(f"No valid responses found in list input for column '{input_column}'")
 
         return all_results
 
     def _process_single_input(self, sample: dict, raw_output: dict) -> list[dict]:
         """Process single response object."""
+        # _extract_fields_from_response now raises ValueError if no fields found
         extracted = self._extract_fields_from_response(raw_output)
-        if not extracted:
-            logger.warning("No fields extracted from single response")
-            return []
-
         return [{**sample, **extracted}]
 
     def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:

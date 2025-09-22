@@ -50,10 +50,16 @@ blocks:
       max_tokens: 1024
       temperature: 0.3
       async_mode: true
+  - block_type: "LLMParserBlock"
+    block_config:
+      block_name: "extract_summary"
+      input_cols: "raw_summary"
+      extract_content: true
+      expand_lists: true
   - block_type: "TextParserBlock"
     block_config:
       block_name: "parse_summary"
-      input_cols: "raw_summary"
+      input_cols: "extract_summary_content"
       output_cols: "summary"
       start_tags:
         - "[SUMMARY]"
@@ -76,10 +82,16 @@ blocks:
       max_tokens: 512
       temperature: 0.3
       async_mode: true
+  - block_type: "LLMParserBlock"
+    block_config:
+      block_name: "extract_keywords"
+      input_cols: "raw_keywords"
+      extract_content: true
+      expand_lists: true
   - block_type: "TextParserBlock"
     block_config:
       block_name: "parse_keywords"
-      input_cols: "raw_keywords"
+      input_cols: "extract_keywords_content"
       output_cols: "keywords"
       start_tags:
         - "[KEYWORDS]"
@@ -102,10 +114,16 @@ blocks:
       max_tokens: 1024
       temperature: 0.3
       async_mode: true
+  - block_type: "LLMParserBlock"
+    block_config:
+      block_name: "extract_entities"
+      input_cols: "raw_entities"
+      extract_content: true
+      expand_lists: true
   - block_type: "TextParserBlock"
     block_config:
       block_name: "parse_entities"
-      input_cols: "raw_entities"
+      input_cols: "extract_entities_content"
       output_cols: "entities"
       start_tags:
         - "[ENTITIES]"
@@ -128,10 +146,16 @@ blocks:
       max_tokens: 256
       temperature: 0.1
       async_mode: true
+  - block_type: "LLMParserBlock"
+    block_config:
+      block_name: "extract_sentiment"
+      input_cols: "raw_sentiment"
+      extract_content: true
+      expand_lists: true
   - block_type: "TextParserBlock"
     block_config:
       block_name: "parse_sentiment"
-      input_cols: "raw_sentiment"
+      input_cols: "extract_sentiment_content"
       output_cols: "sentiment"
       start_tags:
         - "[SENTIMENT]"

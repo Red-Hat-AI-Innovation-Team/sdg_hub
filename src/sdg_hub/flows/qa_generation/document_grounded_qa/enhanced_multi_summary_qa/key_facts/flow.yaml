@@ -50,10 +50,16 @@ blocks:
     temperature: 0.7
     n: 1
     async_mode: true
+- block_type: LLMParserBlock
+  block_config:
+    block_name: extract_atomic_facts
+    input_cols: raw_summary
+    extract_content: true
+    expand_lists: true
 - block_type: TextParserBlock
   block_config:
     block_name: parse_atomic_facts
-    input_cols: raw_summary
+    input_cols: extract_atomic_facts_content
     output_cols: atomic_facts
     start_tags:
     - '### Key Facts With Context'
@@ -89,10 +95,16 @@ blocks:
     temperature: 0.7
     n: 1
     async_mode: true
+- block_type: LLMParserBlock
+  block_config:
+    block_name: extract_key_fact_qa
+    input_cols: raw_key_fact_qa
+    extract_content: true
+    expand_lists: true
 - block_type: TextParserBlock
   block_config:
     block_name: parse_key_fact_qa
-    input_cols: raw_key_fact_qa
+    input_cols: extract_key_fact_qa_content
     output_cols:
     - question
     - response
