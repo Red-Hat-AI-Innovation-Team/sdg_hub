@@ -174,9 +174,7 @@ class LLMParserBlock(BaseBlock):
             else:
                 if response["tool_calls"] is None:
                     ## skip this field
-                    logger.warning(
-                        "Tool calls field is None, using empty list instead"
-                    )
+                    logger.warning("Tool calls field is None, using empty list instead")
                     extracted[self._tool_calls_field] = []
                 else:
                     extracted[self._tool_calls_field] = response["tool_calls"]
