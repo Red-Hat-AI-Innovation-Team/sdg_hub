@@ -1,0 +1,15 @@
+name: Build AMI with Packer
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ami:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # This is required for OIDC
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
