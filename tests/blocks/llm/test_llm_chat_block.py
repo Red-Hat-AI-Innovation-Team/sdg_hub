@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 from datasets import Dataset
 
 # First Party
-from sdg_hub.core.blocks.llm import LLMChatBlock, LLMConfig
+from sdg_hub.core.blocks.llm import LLMChatBlock
 from sdg_hub.core.utils.error_handling import BlockValidationError
 import pytest
 
@@ -40,7 +40,7 @@ class MockMessage:
 @pytest.fixture
 def mock_litellm_completion():
     """Mock LiteLLM completion function."""
-    with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
+    with patch("sdg_hub.core.blocks.llm.llm_chat_block.completion") as mock_completion:
         mock_response = MagicMock()
         choice = MagicMock()
         choice.message = MockMessage("Test response")
@@ -52,7 +52,7 @@ def mock_litellm_completion():
 @pytest.fixture
 def mock_litellm_completion_multiple():
     """Mock LiteLLM completion function for multiple responses (n > 1)."""
-    with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
+    with patch("sdg_hub.core.blocks.llm.llm_chat_block.completion") as mock_completion:
         mock_response = MagicMock()
         choices = []
         for i in range(3):
@@ -67,9 +67,7 @@ def mock_litellm_completion_multiple():
 @pytest.fixture
 def mock_litellm_acompletion():
     """Mock LiteLLM async completion function."""
-    with patch(
-        "sdg_hub.core.blocks.llm.client_manager.acompletion"
-    ) as mock_acompletion:
+    with patch("sdg_hub.core.blocks.llm.llm_chat_block.acompletion") as mock_acompletion:
         mock_response = MagicMock()
         choice = MagicMock()
         choice.message = MockMessage("Test async response")
@@ -100,102 +98,6 @@ def sample_dataset(sample_messages):
     return Dataset.from_dict({"messages": sample_messages})
 
 
-class TestLLMConfig:
-    """Tests for LLMConfig."""
-
-    def test_basic_config(self):
-        """Test basic configuration creation."""
-        config = LLMConfig(model="openai/gpt-4")
-
-        assert config.model == "openai/gpt-4"
-        assert config.get_provider() == "openai"
-        assert config.get_model_name() == "gpt-4"
-        assert not config.is_local_model()
-        assert config.timeout == 120.0
-        assert config.max_retries == 6
-
-    def test_config_with_parameters(self):
-        """Test configuration with generation parameters."""
-        config = LLMConfig(
-            model="anthropic/claude-3-sonnet-20240229",
-            temperature=0.7,
-            max_tokens=100,
-            top_p=0.9,
-        )
-
-        assert config.temperature == 0.7
-        assert config.max_tokens == 100
-        assert config.top_p == 0.9
-        assert config.get_provider() == "anthropic"
-
-    def test_local_model_detection(self):
-        """Test local model detection."""
-        local_config = LLMConfig(
-            model="hosted_vllm/meta-llama/Llama-2-7b-chat-hf",
-            api_base="http://localhost:8000/v1",
-        )
-
-        assert local_config.is_local_model()
-        assert local_config.get_provider() == "hosted_vllm"
-
-    def test_invalid_model_format(self):
-        """Test error on invalid model format."""
-        with pytest.raises(
-            ValueError, match="should be in format 'provider/model-name'"
-        ):
-            LLMConfig(model="invalid-model-format")
-
-    def test_parameter_validation(self):
-        """Test parameter validation."""
-        # Valid parameters
-        config = LLMConfig(
-            model="openai/gpt-4", temperature=1.0, max_tokens=100, top_p=0.5
-        )
-        assert config.temperature == 1.0
-
-        # Invalid temperature
-        with pytest.raises(ValueError, match="Temperature must be between 0.0 and 2.0"):
-            LLMConfig(model="openai/gpt-4", temperature=3.0)
-
-        # Invalid max_tokens
-        with pytest.raises(ValueError, match="max_tokens must be positive"):
-            LLMConfig(model="openai/gpt-4", max_tokens=-1)
-
-    def test_api_key_resolution(self):
-        """Test API key resolution from environment variables."""
-        with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
-            config = LLMConfig(model="openai/gpt-4")
-            assert config.api_key == "test-key"
-
-    def test_generation_kwargs(self):
-        """Test generation kwargs extraction."""
-        config = LLMConfig(
-            model="openai/gpt-4",
-            temperature=0.7,
-            max_tokens=100,
-            seed=42,
-            extra_headers={"x-custom": "value"},
-            timeout=120,
-        )
-
-        kwargs = config.get_generation_kwargs()
-        assert kwargs["temperature"] == 0.7
-        assert kwargs["max_tokens"] == 100
-        assert kwargs["seed"] == 42
-        assert kwargs["extra_headers"] == {"x-custom": "value"}
-        assert kwargs["timeout"] == 120
-
-    def test_merge_overrides(self):
-        """Test configuration merging with overrides."""
-        base_config = LLMConfig(model="openai/gpt-4", temperature=0.5, max_tokens=100)
-
-        new_config = base_config.merge_overrides(temperature=0.9, seed=42)
-
-        assert new_config.temperature == 0.9  # Overridden
-        assert new_config.max_tokens == 100  # Preserved
-        assert new_config.seed == 42  # Added
-        assert base_config.temperature == 0.5  # Original unchanged
-
 
 class TestLLMChatBlock:
     """Tests for LLMChatBlock."""
@@ -214,8 +116,8 @@ class TestLLMChatBlock:
         assert block.block_name == "test_openai"
         assert block.input_cols[0] == "messages"
         assert block.output_cols[0] == "response"
-        assert block.client_manager.config.model == "openai/gpt-4"
-        assert block.client_manager.config.temperature == 0.7
+        assert block.model == "openai/gpt-4"
+        assert block.temperature == 0.7
         assert not block.async_mode
 
     def test_init_anthropic_model(self, mock_litellm_completion):
@@ -228,8 +130,10 @@ class TestLLMChatBlock:
             temperature=0.5,
         )
 
-        assert block.client_manager.config.model == "anthropic/claude-3-sonnet-20240229"
-        assert block.client_manager.config.get_provider() == "anthropic"
+        assert block.model == "anthropic/claude-3-sonnet-20240229"
+        # Test provider extraction from our get_model_info method
+        model_info = block.get_model_info()
+        assert model_info["provider"] == "anthropic"
 
     def test_init_local_model(self, mock_litellm_completion):
         """Test initialization with local vLLM model."""
@@ -241,8 +145,10 @@ class TestLLMChatBlock:
             api_base="http://localhost:8000/v1",
         )
 
-        assert block.client_manager.config.is_local_model()
-        assert block.client_manager.config.api_base == "http://localhost:8000/v1"
+        # Test local model detection from our get_model_info method
+        model_info = block.get_model_info()
+        assert model_info["is_local"] == True
+        assert block.api_base == "http://localhost:8000/v1"
 
     def test_init_async_mode(self, mock_litellm_acompletion):
         """Test initialization with async mode."""
@@ -521,9 +427,7 @@ class TestErrorHandling:
 
     def test_litellm_rate_limit_error(self, sample_dataset):
         """Test handling of LiteLLM rate limit errors."""
-        with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
-        ) as mock_completion:
+        with patch("sdg_hub.core.blocks.llm.llm_chat_block.completion") as mock_completion:
             # First Party
             from sdg_hub.core.blocks.llm.error_handler import RateLimitError
 
@@ -558,9 +462,7 @@ class TestErrorHandling:
 
     def test_litellm_authentication_error(self, sample_dataset):
         """Test handling of authentication errors (non-retryable)."""
-        with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
-        ) as mock_completion:
+        with patch("sdg_hub.core.blocks.llm.llm_chat_block.completion") as mock_completion:
             # First Party
             from sdg_hub.core.blocks.llm.error_handler import AuthenticationError
 
@@ -585,9 +487,7 @@ class TestErrorHandling:
 
     def test_litellm_context_window_error(self, sample_dataset):
         """Test handling of context window exceeded errors."""
-        with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
-        ) as mock_completion:
+        with patch("sdg_hub.core.blocks.llm.llm_chat_block.completion") as mock_completion:
             # First Party
             from sdg_hub.core.blocks.llm.error_handler import ContextWindowExceededError
 
@@ -695,7 +595,7 @@ class TestMultipleResponses:
         self, mock_litellm_acompletion, sample_dataset
     ):
         """Test concurrency is adjusted when n > 1 to avoid overwhelming API."""
-        with patch("sdg_hub.core.blocks.llm.client_manager.logger") as mock_logger:
+        with patch("sdg_hub.core.blocks.llm.llm_chat_block.logger") as mock_logger:
             block = LLMChatBlock(
                 block_name="test_concurrency_adjustment",
                 input_cols="messages",
@@ -727,7 +627,7 @@ class TestMultipleResponses:
         self, mock_litellm_acompletion, sample_dataset
     ):
         """Test warning is logged when max_concurrency < n."""
-        with patch("sdg_hub.core.blocks.llm.client_manager.logger") as mock_logger:
+        with patch("sdg_hub.core.blocks.llm.llm_chat_block.logger") as mock_logger:
             block = LLMChatBlock(
                 block_name="test_concurrency_warning",
                 input_cols="messages",
@@ -759,7 +659,7 @@ class TestMultipleResponses:
         self, mock_litellm_acompletion, sample_dataset
     ):
         """Test concurrency is not adjusted when n=1 or n=None."""
-        with patch("sdg_hub.core.blocks.llm.client_manager.logger") as mock_logger:
+        with patch("sdg_hub.core.blocks.llm.llm_chat_block.logger") as mock_logger:
             # Test with n=1
             block_n1 = LLMChatBlock(
                 block_name="test_no_adjustment_n1",
@@ -788,7 +688,7 @@ class TestMultipleResponses:
         self, mock_litellm_acompletion, sample_dataset
     ):
         """Test concurrency adjustment works when n is overridden in generate call."""
-        with patch("sdg_hub.core.blocks.llm.client_manager.logger") as mock_logger:
+        with patch("sdg_hub.core.blocks.llm.llm_chat_block.logger") as mock_logger:
             block = LLMChatBlock(
                 block_name="test_override_adjustment",
                 input_cols="messages",
@@ -882,19 +782,6 @@ class TestMultipleResponses:
                 "Response 3",
             ]
 
-    def test_config_validation_with_n_parameter(self):
-        """Test that n parameter is properly validated in config."""
-        # Valid n parameter
-        config = LLMConfig(model="openai/gpt-4", n=5)
-        assert config.n == 5
-
-        # Invalid n parameter (negative)
-        with pytest.raises(ValueError, match="n must be positive"):
-            LLMConfig(model="openai/gpt-4", n=-1)
-
-        # Invalid n parameter (zero)
-        with pytest.raises(ValueError, match="n must be positive"):
-            LLMConfig(model="openai/gpt-4", n=0)
 
     def test_validation_fails_with_non_list_messages(self):
         """Test validation fails when messages is not a list."""
