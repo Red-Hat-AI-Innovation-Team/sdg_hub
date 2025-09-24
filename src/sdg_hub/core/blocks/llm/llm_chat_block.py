@@ -156,14 +156,6 @@ class LLMChatBlock(BaseBlock):
                 },
             )
 
-    def _reinitialize_client_manager(self) -> None:
-        """Reinitialize client manager (no-op for simplified implementation).
-
-        This method is called by Flow.set_model_config() to reinitialize
-        LLM blocks after model configuration changes. Since our simplified
-        implementation doesn't use a client manager, this is a no-op.
-        """
-        pass
 
     def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
         """Generate responses from the LLM.
@@ -325,7 +317,7 @@ class LLMChatBlock(BaseBlock):
                     f"Retrying in {wait_time} seconds..."
                 )
                 time.sleep(wait_time)
-            except Exception as e:
+            except Exception:
                 # Non-retryable error, raise immediately
                 raise
 
@@ -349,7 +341,7 @@ class LLMChatBlock(BaseBlock):
                     f"Retrying in {wait_time} seconds..."
                 )
                 await asyncio.sleep(wait_time)
-            except Exception as e:
+            except Exception:
                 # Non-retryable error, raise immediately
                 raise
 
