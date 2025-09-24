@@ -59,7 +59,7 @@ def create_mock_response(contents):
 @pytest.fixture
 def mock_litellm_completion():
     """Mock LiteLLM completion function for successful responses."""
-    with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
+    with patch("sdg_hub.core.blocks.llm.llm_chat_block.completion") as mock_completion:
         mock_response = MagicMock()
         choice = MagicMock()
         choice.message = MockMessage("<answer>Test response</answer>")
@@ -71,7 +71,7 @@ def mock_litellm_completion():
 @pytest.fixture
 def mock_litellm_completion_multiple():
     """Mock LiteLLM completion function for multiple responses (n > 1)."""
-    with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
+    with patch("sdg_hub.core.blocks.llm.llm_chat_block.completion") as mock_completion:
         mock_response = MagicMock()
         choices = []
         for i in range(3):
@@ -86,7 +86,7 @@ def mock_litellm_completion_multiple():
 @pytest.fixture
 def mock_litellm_completion_partial():
     """Mock LiteLLM completion that returns some parseable and some unparseable responses."""
-    with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
+    with patch("sdg_hub.core.blocks.llm.llm_chat_block.completion") as mock_completion:
         mock_response = MagicMock()
         choice1 = MagicMock()
         choice1.message = MockMessage("<answer>Good response</answer>")
@@ -100,7 +100,7 @@ def mock_litellm_completion_partial():
 @pytest.fixture
 def mock_litellm_completion_unparseable():
     """Mock LiteLLM completion that always returns unparseable responses."""
-    with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
+    with patch("sdg_hub.core.blocks.llm.llm_chat_block.completion") as mock_completion:
         mock_response = MagicMock()
         choice = MagicMock()
         choice.message = MockMessage("No tags in this response")
@@ -354,7 +354,7 @@ class TestLLMChatWithParsingRetryBlockSuccessfulGeneration:
     def test_successful_generation_after_retry(self, sample_dataset):
         """Test successful generation after initial parsing failures."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # First call returns unparseable, second returns parseable
             mock_response_bad = create_mock_response("No tags here")
@@ -390,7 +390,7 @@ class TestLLMChatWithParsingRetryBlockSuccessfulGeneration:
     def test_partial_success_accumulation(self, sample_dataset):
         """Test accumulation of partial successes across retries."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # First call returns 1 parseable out of 2, second call returns 1 more
             mock_response_1 = create_mock_response(
@@ -424,7 +424,7 @@ class TestLLMChatWithParsingRetryBlockSuccessfulGeneration:
     def test_excess_results_trimming(self, sample_dataset):
         """Test trimming results when exceeding target count."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # Return 3 parseable responses when only 2 are needed
             mock_completion.return_value = create_mock_response(
@@ -489,7 +489,7 @@ class TestLLMChatWithParsingRetryBlockMaxRetriesExceeded:
     def test_max_retries_exceeded_partial_success(self, sample_dataset):
         """Test MaxRetriesExceededError when some but not all responses are parsed."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # Always return 1 parseable out of 3 needed
             mock_completion.return_value = create_mock_response(
@@ -553,7 +553,7 @@ class TestLLMChatWithParsingRetryBlockMaxRetriesExceeded:
     def test_different_target_counts_per_sample(self, sample_dataset):
         """Test retry logic with runtime n parameter override."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # Return 1 parseable response per call
             mock_completion.return_value = create_mock_response(
@@ -603,7 +603,7 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
     def test_llm_generation_error_handling(self, sample_dataset):
         """Test handling of LLM generation errors."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # First call raises exception, continue to next attempt
             mock_completion.side_effect = [
@@ -633,7 +633,7 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
     def test_mixed_success_failure_across_attempts(self, sample_dataset):
         """Test mixed success/failure scenarios across retry attempts."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # Simulate pattern: error, success, error, success
             mock_response_good = create_mock_response("<answer>Success</answer>")
@@ -722,10 +722,10 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
         assert "openai/gpt-4" in repr_str
         assert "parsing_max_retries=5" in repr_str
 
-    def test_client_manager_reinitialization(self, mock_litellm_completion):
-        """Test reinitializing client manager after model config changes."""
+    def test_parameter_forwarding_to_internal_blocks(self, mock_litellm_completion):
+        """Test parameter forwarding to internal blocks via __setattr__."""
         block = LLMChatWithParsingRetryBlock(
-            block_name="test_reinit",
+            block_name="test_forwarding",
             input_cols="messages",
             output_cols="answer",
             model="openai/gpt-4",
@@ -736,13 +736,12 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
         # Change model configuration (simulates Flow.set_model_config)
         block.model = "anthropic/claude-3-sonnet-20240229"
         block.api_key = "new-api-key"
+        block.temperature = 0.7
 
-        # Reinitialize client manager
-        block._reinitialize_client_manager()
-
-        # Verify internal LLM chat block was updated
+        # Verify internal LLM chat block was updated via __setattr__
         assert block.llm_chat.model == "anthropic/claude-3-sonnet-20240229"
         assert block.llm_chat.api_key == "new-api-key"
+        assert block.llm_chat.temperature == 0.7
 
     def test_regex_parsing_configuration(self, mock_litellm_completion, sample_dataset):
         """Test regex-based parsing configuration and execution."""
@@ -830,7 +829,7 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
     def test_expand_lists_false_partial_success_with_retry(self, sample_dataset):
         """Test expand_lists=False with partial success requiring retries."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # First call: 2 responses, only 1 parseable
             mock_response_1 = create_mock_response(
@@ -871,7 +870,7 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
     def test_expand_lists_false_max_retries_exceeded(self, sample_dataset):
         """Test expand_lists=False with MaxRetriesExceededError."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # Always return 1 parseable out of 3 needed
             mock_completion.return_value = create_mock_response(
@@ -905,7 +904,7 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
     def test_expand_lists_false_vs_true_comparison(self, sample_dataset):
         """Test that expand_lists=False vs True produce different output structures."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             mock_completion.return_value = create_mock_response(
                 ["<answer>Response 1</answer>", "<answer>Response 2</answer>"]
@@ -956,7 +955,7 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
     def test_expand_lists_flag_restored_on_exception(self, sample_dataset):
         """Test that expand_lists flag is properly restored even when parsing throws an exception."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # Mock successful LLM response
             mock_completion.return_value = create_mock_response(
@@ -1005,7 +1004,7 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
     def test_partial_parses_rejected_expand_lists_false(self, sample_dataset):
         """Test that partial parses (missing some output columns) are rejected when expand_lists=False."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # Mock responses where some have complete parses, others have partial parses
             mock_completion.return_value = create_mock_response(
@@ -1055,7 +1054,7 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
     def test_non_list_columns_preserved_both_modes(self):
         """Test that non-output columns are preserved with correct types in both expand_lists modes."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             mock_completion.return_value = create_mock_response(
                 ["<answer>Response 1</answer>", "<answer>Response 2</answer>"]
@@ -1215,7 +1214,7 @@ class TestLLMChatWithParsingRetryBlockIntegration:
     def test_error_propagation_from_internal_blocks(self, sample_dataset):
         """Test that errors from internal blocks are properly propagated."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # Make LLM block raise a specific error
             from sdg_hub.core.blocks.llm.error_handler import AuthenticationError
