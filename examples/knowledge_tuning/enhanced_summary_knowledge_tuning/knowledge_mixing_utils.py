@@ -65,6 +65,7 @@ def sample_doc_qa(
         pl.col('document_outline').first()
     ]
     
+
     if 'parse_response_dict_reasoning_content' in df.columns:
         df = df.with_columns([
             pl.col('parse_response_dict_reasoning_content').alias('reasoning')
@@ -149,6 +150,7 @@ def _create_messages_without_reasoning(record: dict) -> List[dict]:
     return [
         {
             "role": "user", 
+
             "content": f"{record['document_outline']}\n{record['document']}\n\n{record['question']}",
             "thinking": None
         },
@@ -165,6 +167,7 @@ def _create_messages_without_reasoning_no_document(record: dict) -> List[dict]:
     return [
         {
             "role": "user", 
+
             "content": f"In {record['document_outline']}, {record['question']}",
             "thinking": None
         },
@@ -216,11 +219,13 @@ def generate_knowledge_qa_dataset(
     if has_reasoning and not keep_document_in_context:
         message_columns = ['question', 'response', 'document', 'document_outline', 'reasoning']
         messages_expr = pl.struct(message_columns).map_elements(
+
             _create_messages_with_reasoning_no_document
         ).alias("messages")
     elif has_reasoning and keep_document_in_context:
         message_columns = ['question', 'response', 'document', 'document_outline', 'reasoning']
         messages_expr = pl.struct(message_columns).map_elements(
+
             _create_messages_with_reasoning
         ).alias("messages")
     elif keep_document_in_context:
