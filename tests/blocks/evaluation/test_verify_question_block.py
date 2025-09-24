@@ -2,7 +2,6 @@
 """Tests for VerifyQuestionBlock."""
 
 # Standard
-from unittest.mock import patch
 import os
 import tempfile
 
@@ -264,5 +263,3 @@ class TestVerifyQuestionBlock:
         assert block.filter_block.filter_value == 0.5
         assert block.llm_chat.temperature == 0.3
         assert block.llm_chat.extra_body == {"runtime_param": "new_value"}
-
-

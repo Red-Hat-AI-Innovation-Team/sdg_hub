@@ -152,11 +152,7 @@ class EvaluateRelevancyBlock(BaseBlock):
 
         # For LLMChatBlock (with extra="allow"), forward all parameters except wrapper params
         if block_class == LLMChatBlock:
-            params = {
-                k: v
-                for k, v in kwargs.items()
-                if k not in wrapper_params
-            }
+            params = {k: v for k, v in kwargs.items() if k not in wrapper_params}
 
             # Also include declared fields from this composite block
             for field_name in self.__class__.model_fields:
@@ -298,7 +294,15 @@ class EvaluateRelevancyBlock(BaseBlock):
         super().__setattr__(name, value)
 
         # Skip forwarding for internal block attributes and wrapper-specific params
-        if name in {"prompt_builder", "llm_chat", "text_parser", "filter_block", "block_name", "input_cols", "output_cols"}:
+        if name in {
+            "prompt_builder",
+            "llm_chat",
+            "text_parser",
+            "filter_block",
+            "block_name",
+            "input_cols",
+            "output_cols",
+        }:
             return
 
         # Forward to LLMChatBlock first since it accepts any parameters via extra="allow"
@@ -315,7 +319,6 @@ class EvaluateRelevancyBlock(BaseBlock):
                 internal_block = getattr(self, block_attr)
                 if internal_block is not None:
                     setattr(internal_block, name, value)
-
 
     def get_internal_blocks_info(self) -> dict[str, Any]:
         """Get information about internal blocks."""
