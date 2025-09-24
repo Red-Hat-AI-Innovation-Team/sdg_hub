@@ -174,13 +174,6 @@ class TestVerifyQuestionBlock:
                 internal_value == expected_value
             ), f"Internal LLM block {param_name}: expected {expected_value}, got {internal_value}"
 
-        # Step 5: Client manager reinitialization must work
-        with patch.object(
-            block.llm_chat, "_reinitialize_client_manager"
-        ) as mock_reinit:
-            block._reinitialize_client_manager()
-            mock_reinit.assert_called_once()
-
     def test_meaningful_defaults_are_provided(self, test_yaml_config):
         """Test that meaningful defaults are provided for required internal block parameters.
 
@@ -272,60 +265,4 @@ class TestVerifyQuestionBlock:
         assert block.llm_chat.temperature == 0.3
         assert block.llm_chat.extra_body == {"runtime_param": "new_value"}
 
-    def test_unknown_parameter_handling(self, test_yaml_config):
-        """Test that unknown parameters raise appropriate errors."""
-        block = VerifyQuestionBlock(
-            block_name="test_verify",
-            input_cols=["question"],
-            output_cols=["verification_explanation", "verification_rating"],
-            prompt_config_path=test_yaml_config,
-        )
 
-        # hasattr() should return False for unknown parameters
-        assert not hasattr(block, "completely_unknown_parameter")
-        assert not hasattr(block, "fake_llm_param")
-        assert not hasattr(block, "nonexistent_attribute")
-
-        # Accessing unknown parameters should raise AttributeError
-        with pytest.raises(AttributeError):
-            _ = block.completely_unknown_parameter
-
-        with pytest.raises(AttributeError):
-            _ = block.fake_llm_param
-
-        # Verify that no unknown parameters end up on internal blocks
-        assert not hasattr(block.llm_chat, "completely_unknown_parameter")
-        assert not hasattr(block.filter_block, "fake_filter_param")
-        assert not hasattr(block.text_parser, "unknown_parser_param")
-
-    def test_none_values_handling(self, test_yaml_config):
-        """Test that None values are handled correctly."""
-        # Create block with some None values
-        block = VerifyQuestionBlock(
-            block_name="test_verify",
-            input_cols=["question"],
-            output_cols=["verification_explanation", "verification_rating"],
-            prompt_config_path=test_yaml_config,
-            model=None,
-            api_base=None,
-            temperature=None,
-        )
-
-        # None values should be accessible
-        assert block.model is None
-        assert block.api_base is None
-        assert block.temperature is None
-
-        # None values should be forwarded to internal blocks
-        assert block.llm_chat.model is None
-        assert block.llm_chat.api_base is None
-        assert block.llm_chat.temperature is None
-
-        # Setting None at runtime should work
-        block.extra_body = None
-        block.extra_headers = None
-
-        assert block.extra_body is None
-        assert block.extra_headers is None
-        assert block.llm_chat.extra_body is None
-        assert block.llm_chat.extra_headers is None

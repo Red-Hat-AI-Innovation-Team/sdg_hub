@@ -150,22 +150,37 @@ class EvaluateRelevancyBlock(BaseBlock):
             "output_cols",
         }
 
-        # Extract parameters that the target block accepts
-        params = {
-            k: v
-            for k, v in kwargs.items()
-            if k in block_class.model_fields and k not in wrapper_params
-        }
+        # For LLMChatBlock (with extra="allow"), forward all parameters except wrapper params
+        if block_class == LLMChatBlock:
+            params = {
+                k: v
+                for k, v in kwargs.items()
+                if k not in wrapper_params
+            }
 
-        # Also include declared fields from this composite block that the target block accepts
-        for field_name in self.__class__.model_fields:
-            if (
-                field_name in block_class.model_fields
-                and field_name not in wrapper_params
-            ):
-                field_value = getattr(self, field_name)
-                if field_value is not None:  # Only forward non-None values
-                    params[field_name] = field_value
+            # Also include declared fields from this composite block
+            for field_name in self.__class__.model_fields:
+                if field_name not in wrapper_params:
+                    field_value = getattr(self, field_name)
+                    if field_value is not None:  # Only forward non-None values
+                        params[field_name] = field_value
+        else:
+            # For other blocks, only forward parameters they accept
+            params = {
+                k: v
+                for k, v in kwargs.items()
+                if k in block_class.model_fields and k not in wrapper_params
+            }
+
+            # Also include declared fields from this composite block that the target block accepts
+            for field_name in self.__class__.model_fields:
+                if (
+                    field_name in block_class.model_fields
+                    and field_name not in wrapper_params
+                ):
+                    field_value = getattr(self, field_name)
+                    if field_value is not None:  # Only forward non-None values
+                        params[field_name] = field_value
 
         return params
 
@@ -184,23 +199,13 @@ class EvaluateRelevancyBlock(BaseBlock):
             **prompt_params,
         )
 
-        # Create LLM chat block with dynamic LLM parameter forwarding
-        llm_config = {
-            "block_name": f"{self.block_name}_llm_chat",
-            "input_cols": ["eval_relevancy_prompt"],
-            "output_cols": ["raw_eval_relevancy"],
+        # Create LLM chat block with parameter forwarding
+        self.llm_chat = LLMChatBlock(
+            block_name=f"{self.block_name}_llm_chat",
+            input_cols=["eval_relevancy_prompt"],
+            output_cols=["raw_eval_relevancy"],
             **llm_params,
-        }
-
-        # Only add LLM parameters if they are provided
-        if self.model is not None:
-            llm_config["model"] = self.model
-        if self.api_base is not None:
-            llm_config["api_base"] = self.api_base
-        if self.api_key is not None:
-            llm_config["api_key"] = self.api_key
-
-        self.llm_chat = LLMChatBlock(**llm_config)
+        )
 
         # Create text parser
         self.text_parser = TextParserBlock(
@@ -267,10 +272,15 @@ class EvaluateRelevancyBlock(BaseBlock):
 
     def __getattr__(self, name: str) -> Any:
         """Forward attribute access to appropriate internal block."""
-        # Check each internal block to see which one has this parameter
+        # Try LLMChatBlock first since it accepts any parameters via extra="allow"
+        if hasattr(self, "llm_chat") and self.llm_chat is not None:
+            # Always try LLMChatBlock first - it will return None for unset attributes
+            # due to extra="allow", which makes hasattr() work correctly
+            return getattr(self.llm_chat, name, None)
+
+        # Check other internal blocks for their specific model_fields
         for block_attr, block_class in [
             ("prompt_builder", PromptBuilderBlock),
-            ("llm_chat", LLMChatBlock),
             ("text_parser", TextParserBlock),
             ("filter_block", ColumnValueFilterBlock),
         ]:
@@ -278,6 +288,7 @@ class EvaluateRelevancyBlock(BaseBlock):
                 internal_block = getattr(self, block_attr)
                 if internal_block is not None:
                     return getattr(internal_block, name)
+
         raise AttributeError(
             f"'{self.__class__.__name__}' object has no attribute '{name}'"
         )
@@ -286,20 +297,25 @@ class EvaluateRelevancyBlock(BaseBlock):
         """Handle dynamic parameter updates from flow.set_model_config()."""
         super().__setattr__(name, value)
 
-        # Forward to appropriate internal blocks
+        # Skip forwarding for internal block attributes and wrapper-specific params
+        if name in {"prompt_builder", "llm_chat", "text_parser", "filter_block", "block_name", "input_cols", "output_cols"}:
+            return
+
+        # Forward to LLMChatBlock first since it accepts any parameters via extra="allow"
+        if hasattr(self, "llm_chat") and self.llm_chat is not None:
+            setattr(self.llm_chat, name, value)
+
+        # Forward to other internal blocks for their specific model_fields
         for block_attr, block_class in [
             ("prompt_builder", PromptBuilderBlock),
-            ("llm_chat", LLMChatBlock),
             ("text_parser", TextParserBlock),
             ("filter_block", ColumnValueFilterBlock),
         ]:
             if hasattr(self, block_attr) and name in block_class.model_fields:
-                setattr(getattr(self, block_attr), name, value)
+                internal_block = getattr(self, block_attr)
+                if internal_block is not None:
+                    setattr(internal_block, name, value)
 
-    def _reinitialize_client_manager(self) -> None:
-        """Reinitialize internal LLM block's client manager."""
-        if hasattr(self.llm_chat, "_reinitialize_client_manager"):
-            self.llm_chat._reinitialize_client_manager()
 
     def get_internal_blocks_info(self) -> dict[str, Any]:
         """Get information about internal blocks."""
