@@ -271,8 +271,9 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
 
         # Everything else goes to llm_chat (which accepts any parameters via extra="allow")
         if hasattr(self, "llm_chat") and self.llm_chat:
-            if hasattr(self.llm_chat, name):
-                return getattr(self.llm_chat, name)
+            # Always try LLMChatBlock - it will return None for unset attributes
+            # due to extra="allow", which makes hasattr() work correctly
+            return getattr(self.llm_chat, name, None)
 
         raise AttributeError(
             f"'{self.__class__.__name__}' object has no attribute '{name}'"

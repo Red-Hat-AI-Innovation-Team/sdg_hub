@@ -469,7 +469,11 @@ class TestCallMethod:
     @patch("sdg_hub.core.blocks.base.console")
     @patch("sdg_hub.core.blocks.base.logger")
     def test_call_with_invalid_kwargs_field(self, mock_logger, mock_console):
-        """Test __call__ with invalid kwargs field name."""
+        """Test __call__ with extra kwargs field name.
+
+        BaseBlock now accepts extra parameters (extra='allow') to support
+        dynamic parameter forwarding to LLM blocks, so no warning is expected.
+        """
         dataset = self.create_test_dataset()
         block = DummyBlock(
             block_name="test_block",
@@ -479,13 +483,10 @@ class TestCallMethod:
 
         result = block(dataset, invalid_field="value")
 
-        # Verify warning was logged for unknown field
-        mock_logger.warning.assert_called_once()
-        warning_call = mock_logger.warning.call_args[0][0]
-        assert "Unknown field 'invalid_field' passed to DummyBlock" in warning_call
-        assert "This may be a provider-specific parameter or typo" in warning_call
+        # Verify no warning was logged since BaseBlock accepts extra parameters
+        mock_logger.warning.assert_not_called()
 
-        # Verify generate was called despite the warning
+        # Verify generate was called successfully
         assert block.generate_called
 
         # Verify result has new column

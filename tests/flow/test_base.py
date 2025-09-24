@@ -1272,16 +1272,22 @@ class TestFlow:
     def test_generate_with_max_concurrency_limit(self):
         """Test that max_concurrency limits concurrent requests."""
         # Standard
+        from unittest.mock import patch
         import asyncio
 
         active, max_concurrent = [0], [0]
 
-        async def mock_acreate(*args, **kwargs):
+        async def mock_acompletion(*args, **kwargs):
             active[0] += 1
             max_concurrent[0] = max(max_concurrent[0], active[0])
             await asyncio.sleep(0.01)
             active[0] -= 1
-            return "response"
+            # Return mock response in LiteLLM format
+            from types import SimpleNamespace
+
+            return SimpleNamespace(
+                choices=[SimpleNamespace(message=SimpleNamespace(content="response"))]
+            )
 
         # Use real LLMChatBlock
         # First Party
@@ -1297,12 +1303,17 @@ class TestFlow:
             model="test/model",
             async_mode=True,
         )
-        llm_block.client_manager._acreate_single = mock_acreate
 
         flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
         flow._model_config_set = True
 
-        flow.generate(dataset, max_concurrency=3)
+        # Mock LiteLLM's acompletion function
+        with patch(
+            "sdg_hub.core.blocks.llm.llm_chat_block.acompletion",
+            side_effect=mock_acompletion,
+        ):
+            flow.generate(dataset, max_concurrency=3)
+
         assert max_concurrent[0] <= 3
 
     def test_generate_without_concurrency_limit(self):
@@ -1334,13 +1345,31 @@ class TestFlow:
             model="test/model",
             async_mode=True,
         )
-        llm_block.client_manager._acreate_single = mock_acreate
 
         flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
         flow._model_config_set = True
 
-        flow.generate(dataset)
-        assert max_concurrent[0] == 5
+        # Mock LiteLLM's acompletion function
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        async def mock_acompletion(*args, **kwargs):
+            active[0] += 1
+            max_concurrent[0] = max(max_concurrent[0], active[0])
+            await asyncio.sleep(0.01)
+            active[0] -= 1
+            # Return mock response in LiteLLM format
+            return SimpleNamespace(
+                choices=[SimpleNamespace(message=SimpleNamespace(content="response"))]
+            )
+
+        with patch(
+            "sdg_hub.core.blocks.llm.llm_chat_block.acompletion",
+            side_effect=mock_acompletion,
+        ):
+            flow.generate(dataset)  # No max_concurrency limit
+
+        assert max_concurrent[0] == 5  # All 5 should run concurrently
 
     def test_generate_max_concurrency_validation(self):
         """Test that max_concurrency parameter validation works correctly."""
