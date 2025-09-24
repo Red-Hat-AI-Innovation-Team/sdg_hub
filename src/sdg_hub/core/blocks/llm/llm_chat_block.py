@@ -7,9 +7,8 @@ import asyncio
 
 # Third Party
 from datasets import Dataset
-from litellm import acompletion, completion, RateLimitError, APIConnectionError, InternalServerError, ServiceUnavailableError
+from litellm import acompletion, completion
 from pydantic import ConfigDict, Field, field_validator
-import time
 
 from ...utils.error_handling import BlockValidationError
 from ...utils.logger_config import setup_logger
@@ -58,8 +57,9 @@ class LLMChatBlock(BaseBlock):
         Whether to use async processing, by default False.
     timeout : float, optional
         Request timeout in seconds, by default 120.0.
-    max_retries : int, optional
-        Maximum number of retry attempts, by default 6.
+    num_retries : int, optional
+        Number of retry attempts (uses LiteLLM's built-in retry mechanism), by default 6.
+        Note: For rate limit handling, use LiteLLM's fallbacks parameter instead.
     **kwargs : Any
         Any LiteLLM completion parameters (temperature, max_tokens, top_p, etc.).
         See https://docs.litellm.ai/docs/completion/input for full list.
@@ -104,8 +104,8 @@ class LLMChatBlock(BaseBlock):
     timeout: float = Field(
         120.0, exclude=True, description="Request timeout in seconds"
     )
-    max_retries: int = Field(
-        6, exclude=True, description="Maximum number of retry attempts"
+    num_retries: int = Field(
+        6, exclude=True, description="Number of retry attempts (uses LiteLLM's built-in retry mechanism)"
     )
 
     # All LiteLLM completion parameters can be passed via extra="allow"
@@ -275,7 +275,6 @@ class LLMChatBlock(BaseBlock):
             "input_cols",
             "output_cols",
             "async_mode",
-            "max_retries",
         }
 
         completion_kwargs = {
@@ -291,59 +290,14 @@ class LLMChatBlock(BaseBlock):
             completion_kwargs["api_base"] = self.api_base
         if self.timeout is not None:
             completion_kwargs["timeout"] = self.timeout
+        if self.num_retries is not None:
+            completion_kwargs["num_retries"] = self.num_retries
 
         # Apply runtime overrides (from BaseBlock + Flow)
         completion_kwargs.update(overrides)
 
         return completion_kwargs
 
-    def _completion_with_retry(self, messages, completion_kwargs):
-        """Call LiteLLM completion with basic retry logic for rate limits and transient errors."""
-        retryable_exceptions = (RateLimitError, APIConnectionError, InternalServerError, ServiceUnavailableError)
-        max_retries = self.max_retries
-
-        for attempt in range(max_retries + 1):
-            try:
-                return completion(messages=messages, **completion_kwargs)
-            except retryable_exceptions as e:
-                if attempt == max_retries:
-                    # Last attempt failed, re-raise the exception
-                    raise
-
-                # Wait with exponential backoff
-                wait_time = min(2 ** attempt, 60)  # Cap at 60 seconds
-                logger.warning(
-                    f"Retryable error on attempt {attempt + 1}/{max_retries + 1}: {str(e)}. "
-                    f"Retrying in {wait_time} seconds..."
-                )
-                time.sleep(wait_time)
-            except Exception:
-                # Non-retryable error, raise immediately
-                raise
-
-    async def _acompletion_with_retry(self, messages, completion_kwargs):
-        """Call LiteLLM acompletion with basic retry logic for rate limits and transient errors."""
-        retryable_exceptions = (RateLimitError, APIConnectionError, InternalServerError, ServiceUnavailableError)
-        max_retries = self.max_retries
-
-        for attempt in range(max_retries + 1):
-            try:
-                return await acompletion(messages=messages, **completion_kwargs)
-            except retryable_exceptions as e:
-                if attempt == max_retries:
-                    # Last attempt failed, re-raise the exception
-                    raise
-
-                # Wait with exponential backoff
-                wait_time = min(2 ** attempt, 60)  # Cap at 60 seconds
-                logger.warning(
-                    f"Retryable error on attempt {attempt + 1}/{max_retries + 1}: {str(e)}. "
-                    f"Retrying in {wait_time} seconds..."
-                )
-                await asyncio.sleep(wait_time)
-            except Exception:
-                # Non-retryable error, raise immediately
-                raise
 
     def _extract_response(self, response) -> Union[dict, list[dict]]:
         """Extract response content from LiteLLM response.
@@ -394,7 +348,7 @@ class LLMChatBlock(BaseBlock):
 
         for i, messages in enumerate(messages_list):
             try:
-                response = self._completion_with_retry(messages, completion_kwargs)
+                response = completion(messages=messages, **completion_kwargs)
                 responses.append(self._extract_response(response))
 
                 # Log progress for large batches
@@ -445,7 +399,7 @@ class LLMChatBlock(BaseBlock):
 
         async def _create_single(messages):
             """Create a single async completion."""
-            response = await self._acompletion_with_retry(messages, completion_kwargs)
+            response = await acompletion(messages=messages, **completion_kwargs)
             return self._extract_response(response)
 
         try:

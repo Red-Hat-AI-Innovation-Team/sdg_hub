@@ -426,39 +426,30 @@ class TestErrorHandling:
             block.generate(sample_dataset, _flow_max_concurrency=-5)
 
     def test_litellm_rate_limit_error(self, sample_dataset):
-        """Test handling of LiteLLM rate limit errors."""
+        """Test that LiteLLM rate limit errors propagate to caller (use fallbacks for rate limit handling)."""
         with patch("sdg_hub.core.blocks.llm.llm_chat_block.completion") as mock_completion:
             # First Party
             from sdg_hub.core.blocks.llm.error_handler import RateLimitError
 
-            # Mock successful response for retry
-            mock_response = MagicMock()
-            choice = MagicMock()
-            choice.message = MockMessage("Success after retry")
-            mock_response.choices = [choice]
-
-            # First call raises rate limit error, second succeeds
-            mock_completion.side_effect = [
-                RateLimitError("Rate limited", llm_provider="openai", model="gpt-4"),
-                mock_response,
-            ]
+            # Rate limit error should propagate (not retried by num_retries)
+            mock_completion.side_effect = RateLimitError(
+                "Rate limited", llm_provider="openai", model="gpt-4"
+            )
 
             block = LLMChatBlock(
-                block_name="test_retry",
+                block_name="test_rate_limit",
                 input_cols="messages",
                 output_cols="response",
                 model="openai/gpt-4",
                 api_key="test-key",
             )
 
-            # Create single message dataset to test retry behavior
-            single_dataset = Dataset.from_dict(
-                {"messages": [sample_dataset["messages"][0]]}
-            )
-            result = block.generate(single_dataset)
-
-            assert result["response"][0]["content"] == "Success after retry"
-            assert mock_completion.call_count == 2
+            # Rate limit errors should propagate to caller
+            with pytest.raises(RateLimitError):
+                single_dataset = Dataset.from_dict(
+                    {"messages": [sample_dataset["messages"][0]]}
+                )
+                block.generate(single_dataset)
 
     def test_litellm_authentication_error(self, sample_dataset):
         """Test handling of authentication errors (non-retryable)."""
