@@ -272,16 +272,19 @@ class BaseBlock(BaseModel, ABC):
         # Handle runtime kwargs overrides
         if kwargs:
             # Validate that all kwargs are either valid block fields or flow parameters
-            for key in kwargs:
-                if (
-                    not key.startswith("_flow_")
-                    and key not in self.__class__.model_fields
-                ):
-                    logger.warning(
-                        f"Unknown field '{key}' passed to {self.__class__.__name__}. "
-                        f"This may be a provider-specific parameter or typo. "
-                        f"Valid fields: {list(self.__class__.model_fields.keys())}"
-                    )
+            # Skip validation for blocks that accept arbitrary parameters (extra="allow")
+            allows_extra = self.model_config.get("extra") == "allow"
+            if not allows_extra:
+                for key in kwargs:
+                    if (
+                        not key.startswith("_flow_")
+                        and key not in self.__class__.model_fields
+                    ):
+                        logger.warning(
+                            f"Unknown field '{key}' passed to {self.__class__.__name__}. "
+                            f"This may be a provider-specific parameter or typo. "
+                            f"Valid fields: {list(self.__class__.model_fields.keys())}"
+                        )
 
             # Only override actual block fields (not flow parameters)
             block_overrides = {
