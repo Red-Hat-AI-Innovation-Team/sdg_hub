@@ -2,7 +2,7 @@
 """Unified LLM chat block supporting all providers via LiteLLM."""
 
 # Standard
-from typing import Any, Optional, Union
+from typing import Any, Optional
 import asyncio
 
 # Third Party
@@ -105,7 +105,9 @@ class LLMChatBlock(BaseBlock):
         120.0, exclude=True, description="Request timeout in seconds"
     )
     num_retries: int = Field(
-        6, exclude=True, description="Number of retry attempts (uses LiteLLM's built-in retry mechanism)"
+        6,
+        exclude=True,
+        description="Number of retry attempts (uses LiteLLM's built-in retry mechanism)",
     )
 
     # All LiteLLM completion parameters can be passed via extra="allow"
@@ -148,14 +150,15 @@ class LLMChatBlock(BaseBlock):
         # Log initialization only when model is configured
         if self.model:
             logger.info(
-                f"Initialized LLMChatBlock '{self.block_name}' with model '{self.model}'",
+                "Initialized LLMChatBlock '%s' with model '%s'",
+                self.block_name,
+                self.model,
                 extra={
                     "block_name": self.block_name,
                     "model": self.model,
                     "async_mode": self.async_mode,
                 },
             )
-
 
     def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
         """Generate responses from the LLM.
@@ -196,12 +199,12 @@ class LLMChatBlock(BaseBlock):
 
         # Log generation start
         logger.info(
-            f"Starting {'async' if self.async_mode else 'sync'} generation for {len(messages_list)} samples"
-            + (
-                f" (max_concurrency={flow_max_concurrency})"
-                if flow_max_concurrency
-                else ""
-            ),
+            "Starting %s generation for %d samples%s",
+            "async" if self.async_mode else "sync",
+            len(messages_list),
+            f" (max_concurrency={flow_max_concurrency})"
+            if flow_max_concurrency
+            else "",
             extra={
                 "block_name": self.block_name,
                 "model": self.model,
@@ -247,7 +250,8 @@ class LLMChatBlock(BaseBlock):
 
         # Log completion
         logger.info(
-            f"Generation completed successfully for {len(responses)} samples",
+            "Generation completed successfully for %d samples",
+            len(responses),
             extra={
                 "block_name": self.block_name,
                 "model": self.model,
@@ -298,38 +302,15 @@ class LLMChatBlock(BaseBlock):
 
         return completion_kwargs
 
-
-    def _extract_response(self, response) -> Union[dict, list[dict]]:
-        """Extract response content from LiteLLM response.
-
-        Parameters
-        ----------
-        response : Any
-            LiteLLM completion response.
-
-        Returns
-        -------
-        Union[dict, list[dict]]
-            Response dict(s) containing 'content' and other fields.
-        """
-        # Check if n > 1 to determine return type
-        if len(response.choices) > 1:
-            return [
-                {
-                    "content": choice.message.content,
-                    **getattr(choice.message, "__dict__", {}),
-                }
-                for choice in response.choices
-            ]
-        else:
-            message = response.choices[0].message
-            return {"content": message.content, **getattr(message, "__dict__", {})}
+    def _message_to_dict(self, message) -> dict[str, Any]:
+        """Convert LiteLLM message to dict."""
+        return {"content": message.content, **getattr(message, "__dict__", {})}
 
     def _generate_sync(
         self,
         messages_list: list[list[dict[str, Any]]],
         completion_kwargs: dict[str, Any],
-    ) -> list[Union[dict, list[dict]]]:
+    ) -> list[list[dict[str, Any]]]:
         """Generate responses synchronously.
 
         Parameters
@@ -341,20 +322,31 @@ class LLMChatBlock(BaseBlock):
 
         Returns
         -------
-        list[Union[dict, list[dict]]]
-            List of responses.
+        list[list[dict[str, Any]]]
+            List of response lists, each containing LiteLLM completion response dictionaries.
         """
         responses = []
 
         for i, messages in enumerate(messages_list):
             try:
                 response = completion(messages=messages, **completion_kwargs)
-                responses.append(self._extract_response(response))
+                # Extract response based on n parameter
+                n_value = completion_kwargs.get("n", 1)
+                if n_value > 1:
+                    response_data = [
+                        self._message_to_dict(choice.message)
+                        for choice in response.choices
+                    ]
+                else:
+                    response_data = [self._message_to_dict(response.choices[0].message)]
+                responses.append(response_data)
 
                 # Log progress for large batches
                 if (i + 1) % 10 == 0:
                     logger.debug(
-                        f"Generated {i + 1}/{len(messages_list)} responses",
+                        "Generated %d/%d responses",
+                        i + 1,
+                        len(messages_list),
                         extra={
                             "block_name": self.block_name,
                             "progress": f"{i + 1}/{len(messages_list)}",
@@ -363,7 +355,9 @@ class LLMChatBlock(BaseBlock):
 
             except Exception as e:
                 logger.error(
-                    f"Failed to generate response for sample {i}: {str(e)}",
+                    "Failed to generate response for sample %d: %s",
+                    i,
+                    str(e),
                     extra={
                         "block_name": self.block_name,
                         "sample_index": i,
@@ -374,12 +368,48 @@ class LLMChatBlock(BaseBlock):
 
         return responses
 
+    async def _make_acompletion(
+        self,
+        messages: list[dict[str, Any]],
+        completion_kwargs: dict[str, Any],
+        semaphore: Optional[asyncio.Semaphore] = None,
+    ) -> list[dict[str, Any]]:
+        """Make a single async completion with optional concurrency control.
+
+        Parameters
+        ----------
+        messages : list[dict[str, Any]]
+            Messages for this completion.
+        completion_kwargs : dict[str, Any]
+            Kwargs for LiteLLM acompletion.
+        semaphore : Optional[asyncio.Semaphore], optional
+            Semaphore for concurrency control.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            List of response dictionaries.
+        """
+        if semaphore:
+            async with semaphore:
+                response = await acompletion(messages=messages, **completion_kwargs)
+        else:
+            response = await acompletion(messages=messages, **completion_kwargs)
+
+        # Extract response based on n parameter
+        n_value = completion_kwargs.get("n", 1)
+        if n_value > 1:
+            return [
+                self._message_to_dict(choice.message) for choice in response.choices
+            ]
+        return [self._message_to_dict(response.choices[0].message)]
+
     async def _generate_async(
         self,
         messages_list: list[list[dict[str, Any]]],
         completion_kwargs: dict[str, Any],
         flow_max_concurrency: Optional[int] = None,
-    ) -> list[Union[dict, list[dict]]]:
+    ) -> list[list[dict[str, Any]]]:
         """Generate responses asynchronously.
 
         Parameters
@@ -393,14 +423,9 @@ class LLMChatBlock(BaseBlock):
 
         Returns
         -------
-        list[Union[dict, list[dict]]]
-            List of responses.
+        list[list[dict[str, Any]]]
+            List of response lists, each containing LiteLLM completion response dictionaries.
         """
-
-        async def _create_single(messages):
-            """Create a single async completion."""
-            response = await acompletion(messages=messages, **completion_kwargs)
-            return self._extract_response(response)
 
         try:
             if flow_max_concurrency is not None:
@@ -419,8 +444,10 @@ class LLMChatBlock(BaseBlock):
                         # Adjust concurrency to account for n completions per request
                         effective_concurrency = flow_max_concurrency // n_value
                         logger.debug(
-                            f"Adjusted max_concurrency from {flow_max_concurrency} to {effective_concurrency} "
-                            f"for n={n_value} completions per request",
+                            "Adjusted max_concurrency from %d to %d for n=%d completions per request",
+                            flow_max_concurrency,
+                            effective_concurrency,
+                            n_value,
                             extra={
                                 "block_name": self.block_name,
                                 "original_max_concurrency": flow_max_concurrency,
@@ -431,8 +458,9 @@ class LLMChatBlock(BaseBlock):
                     else:
                         # Warn when max_concurrency is less than n
                         logger.warning(
-                            f"max_concurrency ({flow_max_concurrency}) is less than n ({n_value}). "
-                            f"Consider increasing max_concurrency for optimal performance.",
+                            "max_concurrency (%d) is less than n (%d). Consider increasing max_concurrency for optimal performance.",
+                            flow_max_concurrency,
+                            n_value,
                             extra={
                                 "block_name": self.block_name,
                                 "max_concurrency": flow_max_concurrency,
@@ -443,22 +471,24 @@ class LLMChatBlock(BaseBlock):
 
                 # Use semaphore for concurrency control
                 semaphore = asyncio.Semaphore(effective_concurrency)
-
-                async def _create_with_semaphore(messages):
-                    async with semaphore:
-                        return await _create_single(messages)
-
-                tasks = [_create_with_semaphore(messages) for messages in messages_list]
+                tasks = [
+                    self._make_acompletion(messages, completion_kwargs, semaphore)
+                    for messages in messages_list
+                ]
             else:
                 # No concurrency limit
-                tasks = [_create_single(messages) for messages in messages_list]
+                tasks = [
+                    self._make_acompletion(messages, completion_kwargs)
+                    for messages in messages_list
+                ]
 
             responses = await asyncio.gather(*tasks)
             return responses
 
         except Exception as e:
             logger.error(
-                f"Failed to generate async responses: {str(e)}",
+                "Failed to generate async responses: %s",
+                str(e),
                 extra={
                     "block_name": self.block_name,
                     "batch_size": len(messages_list),
@@ -466,41 +496,6 @@ class LLMChatBlock(BaseBlock):
                 },
             )
             raise
-
-    def get_model_info(self) -> dict[str, Any]:
-        """Get information about the configured model.
-
-        Returns
-        -------
-        dict[str, Any]
-            Model information.
-        """
-        provider = None
-        model_name = None
-        is_local = False
-
-        if self.model:
-            if "/" in self.model:
-                provider = self.model.split("/")[0]
-                model_name = self.model.split("/", 1)[1]
-            else:
-                model_name = self.model
-
-            # Check if local model
-            local_providers = {"hosted_vllm", "ollama", "local", "vllm"}
-            is_local = provider and provider.lower() in local_providers
-
-        return {
-            "model": self.model,
-            "provider": provider,
-            "model_name": model_name,
-            "is_local": is_local,
-            "api_base": self.api_base,
-            "block_name": self.block_name,
-            "input_column": self.input_cols[0],
-            "output_column": self.output_cols[0],
-            "async_mode": self.async_mode,
-        }
 
     def _validate_custom(self, dataset: Dataset) -> None:
         """Custom validation for LLMChatBlock message format.
