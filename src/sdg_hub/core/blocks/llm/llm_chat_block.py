@@ -297,8 +297,12 @@ class LLMChatBlock(BaseBlock):
         if self.num_retries is not None:
             completion_kwargs["num_retries"] = self.num_retries
 
-        # Apply runtime overrides (from BaseBlock + Flow)
-        completion_kwargs.update(overrides)
+        # Apply only non-block-field overrides (flow params + unknown LiteLLM params)
+        # BaseBlock already handles block field overrides by modifying instance attributes
+        non_block_overrides = {
+            k: v for k, v in overrides.items() if k not in self.__class__.model_fields
+        }
+        completion_kwargs.update(non_block_overrides)
 
         return completion_kwargs
 

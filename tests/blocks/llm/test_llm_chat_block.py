@@ -622,7 +622,10 @@ class TestMultipleResponses:
             assert len(debug_calls) > 0
             # Check that the debug call was made with the correct arguments
             call_args = debug_calls[0]
-            assert call_args.args[0] == "Adjusted max_concurrency from %d to %d for n=%d completions per request"
+            assert (
+                call_args.args[0]
+                == "Adjusted max_concurrency from %d to %d for n=%d completions per request"
+            )
             assert call_args.args[1] == 8  # original max_concurrency
             assert call_args.args[2] == 2  # adjusted max_concurrency
             assert call_args.args[3] == 4  # n value
@@ -658,7 +661,10 @@ class TestMultipleResponses:
             assert len(warning_calls) > 0
             # Check that the warning call was made with the correct arguments
             call_args = warning_calls[0]
-            assert call_args.args[0] == "max_concurrency (%d) is less than n (%d). Consider increasing max_concurrency for optimal performance."
+            assert (
+                call_args.args[0]
+                == "max_concurrency (%d) is less than n (%d). Consider increasing max_concurrency for optimal performance."
+            )
             assert call_args.args[1] == 3  # max_concurrency
             assert call_args.args[2] == 5  # n value
 
@@ -722,7 +728,10 @@ class TestMultipleResponses:
             assert len(debug_calls) > 0
             # Check that the debug call was made with the correct arguments
             call_args = debug_calls[0]
-            assert call_args.args[0] == "Adjusted max_concurrency from %d to %d for n=%d completions per request"
+            assert (
+                call_args.args[0]
+                == "Adjusted max_concurrency from %d to %d for n=%d completions per request"
+            )
             assert call_args.args[1] == 9  # original max_concurrency
             assert call_args.args[2] == 3  # adjusted max_concurrency (9 // 3)
             assert call_args.args[3] == 3  # n value
