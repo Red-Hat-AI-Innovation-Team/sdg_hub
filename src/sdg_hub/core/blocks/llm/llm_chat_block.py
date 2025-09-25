@@ -7,8 +7,10 @@ import asyncio
 
 # Third Party
 from datasets import Dataset
+import litellm
 from litellm import acompletion, completion
 from pydantic import ConfigDict, Field, field_validator
+
 
 from ...utils.error_handling import BlockValidationError
 from ...utils.logger_config import setup_logger
@@ -17,6 +19,7 @@ from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
 from ..registry import BlockRegistry
 
+litellm.drop_params = True
 logger = setup_logger(__name__)
 
 
@@ -60,6 +63,8 @@ class LLMChatBlock(BaseBlock):
     num_retries : int, optional
         Number of retry attempts (uses LiteLLM's built-in retry mechanism), by default 6.
         Note: For rate limit handling, use LiteLLM's fallbacks parameter instead.
+    drop_params : bool, optional
+        Whether to drop unsupported parameters to prevent API errors, by default True.
     **kwargs : Any
         Any LiteLLM completion parameters (temperature, max_tokens, top_p, etc.).
         See https://docs.litellm.ai/docs/completion/input for full list.
@@ -108,6 +113,9 @@ class LLMChatBlock(BaseBlock):
         6,
         exclude=True,
         description="Number of retry attempts (uses LiteLLM's built-in retry mechanism)",
+    )
+    drop_params: bool = Field(
+        True, description="Whether to drop unsupported parameters to prevent API errors"
     )
 
     # All LiteLLM completion parameters can be passed via extra="allow"
@@ -202,9 +210,11 @@ class LLMChatBlock(BaseBlock):
             "Starting %s generation for %d samples%s",
             "async" if self.async_mode else "sync",
             len(messages_list),
-            f" (max_concurrency={flow_max_concurrency})"
-            if flow_max_concurrency
-            else "",
+            (
+                f" (max_concurrency={flow_max_concurrency})"
+                if flow_max_concurrency
+                else ""
+            ),
             extra={
                 "block_name": self.block_name,
                 "model": self.model,
@@ -303,6 +313,9 @@ class LLMChatBlock(BaseBlock):
             k: v for k, v in overrides.items() if k not in self.__class__.model_fields
         }
         completion_kwargs.update(non_block_overrides)
+
+        # Ensure drop_params is set to handle unknown parameters gracefully
+        completion_kwargs["drop_params"] = self.drop_params
 
         return completion_kwargs
 

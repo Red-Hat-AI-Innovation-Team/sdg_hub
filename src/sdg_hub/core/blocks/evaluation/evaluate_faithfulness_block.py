@@ -141,25 +141,33 @@ class EvaluateFaithfulnessBlock(BaseBlock):
                 f"Initialized EvaluateFaithfulnessBlock '{self.block_name}' with model '{self.model}'"
             )
 
-    def _extract_params(self, kwargs: dict, block_class) -> dict:
+    def _get_wrapper_params(self) -> set[str]:
+        """Get parameters that are handled by this wrapper's structure."""
+        return {"block_name", "input_cols", "output_cols"}
+
+    def _add_composite_fields(self, params: dict, block_class, wrapper_params: set[str]) -> dict:
+        """Add declared fields from this composite block to parameters."""
+        for field_name in self.__class__.model_fields:
+            if field_name in wrapper_params:
+                continue
+
+            # For LLMChatBlock, add all non-wrapper fields
+            # For other blocks, only add fields they accept
+            if block_class == LLMChatBlock or field_name in block_class.model_fields:
+                field_value = getattr(self, field_name)
+                if field_value is not None:  # Only forward non-None values
+                    params[field_name] = field_value
+        return params
+
+    def _extract_params(self, kwargs: dict, block_class, remove_params: list[str] = []) -> dict:
         """Extract parameters for specific block class based on its model_fields."""
-        # Exclude parameters that are handled by this wrapper's structure
-        wrapper_params = {
-            "block_name",
-            "input_cols",
-            "output_cols",
-        }
+        wrapper_params = self._get_wrapper_params()
 
         # For LLMChatBlock (with extra="allow"), forward all parameters except wrapper params
         if block_class == LLMChatBlock:
             params = {k: v for k, v in kwargs.items() if k not in wrapper_params}
-
-            # Also include declared fields from this composite block
-            for field_name in self.__class__.model_fields:
-                if field_name not in wrapper_params:
-                    field_value = getattr(self, field_name)
-                    if field_value is not None:  # Only forward non-None values
-                        params[field_name] = field_value
+            params = self._add_composite_fields(params, block_class, wrapper_params)
+            params = {k: v for k, v in params.items() if k not in remove_params}
         else:
             # For other blocks, only forward parameters they accept
             params = {
@@ -167,16 +175,7 @@ class EvaluateFaithfulnessBlock(BaseBlock):
                 for k, v in kwargs.items()
                 if k in block_class.model_fields and k not in wrapper_params
             }
-
-            # Also include declared fields from this composite block that the target block accepts
-            for field_name in self.__class__.model_fields:
-                if (
-                    field_name in block_class.model_fields
-                    and field_name not in wrapper_params
-                ):
-                    field_value = getattr(self, field_name)
-                    if field_value is not None:  # Only forward non-None values
-                        params[field_name] = field_value
+            params = self._add_composite_fields(params, block_class, wrapper_params)
 
         return params
 
@@ -184,9 +183,10 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         """Create internal blocks with parameter routing."""
         # Route parameters to appropriate blocks
         prompt_params = self._extract_params(kwargs, PromptBuilderBlock)
-        llm_params = self._extract_params(kwargs, LLMChatBlock)
         parser_params = self._extract_params(kwargs, TextParserBlock)
         filter_params = self._extract_params(kwargs, ColumnValueFilterBlock)
+        remove_params = set(prompt_params.keys()) | set(parser_params.keys()) | set(filter_params.keys())
+        llm_params = self._extract_params(kwargs, LLMChatBlock, remove_params)
 
         self.prompt_builder = PromptBuilderBlock(
             block_name=f"{self.block_name}_prompt_builder",
@@ -246,11 +246,18 @@ class EvaluateFaithfulnessBlock(BaseBlock):
         )
 
         try:
+            # Filter override kwargs - only pass runtime kwargs, not composite fields
+            prompt_params = {k: v for k, v in kwargs.items() if k in self.prompt_builder.model_fields}
+            parser_params = {k: v for k, v in kwargs.items() if k in self.text_parser.model_fields}
+            filter_params = {k: v for k, v in kwargs.items() if k in self.filter_block.model_fields}
+            non_llm_params = set(prompt_params.keys()) | set(parser_params.keys()) | set(filter_params.keys())
+            llm_params = {k: v for k, v in kwargs.items() if k not in non_llm_params}
+
             # Execute 4-block pipeline with validation delegation
-            result = self.prompt_builder(samples, **kwargs)
-            result = self.llm_chat(result, **kwargs)
-            result = self.text_parser(result, **kwargs)
-            result = self.filter_block(result, **kwargs)
+            result = self.prompt_builder(samples, **prompt_params)
+            result = self.llm_chat(result, **llm_params)
+            result = self.text_parser(result, **parser_params)
+            result = self.filter_block(result, **filter_params)
 
             logger.info(
                 f"Faithfulness evaluation completed: {len(samples)} → {len(result)} samples",
