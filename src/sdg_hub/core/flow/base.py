@@ -877,6 +877,13 @@ class Flow(BaseModel):
                             f"Block '{block.block_name}': {param_name} "
                             f"'{old_value}' -> '{param_value}'"
                         )
+                    ## check if allow extra
+                    elif block.model_config["extra"] == "allow":
+                        setattr(block, param_name, param_value)
+                        logger.debug(
+                            f"Block '{block.block_name}': {param_name} "
+                            f"'{old_value}' -> '{param_value}'"
+                        )
                     else:
                         logger.warning(
                             f"Block '{block.block_name}' ({block.__class__.__name__}) "
