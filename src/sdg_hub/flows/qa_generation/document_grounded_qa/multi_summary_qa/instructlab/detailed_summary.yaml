@@ -1,0 +1,13 @@
+- role: system
+  content: You are an AI assistant that is expert at summarizing text.
+
+- role: user
+  content: |
+    Give me detailed summary for below document, making sure all key points are covered.
+
+    Do not add any new information.
+    Do not miss any key points from the provided document
+
+    Document:
+    {{document_outline}}
+    {{document}}

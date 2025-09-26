@@ -1,0 +1,11 @@
+- role: system
+  content: You are an expert at summarizing text.
+
+- role: user
+  content: |
+    Summarize the given document in a Abstract Conceptual Layer representation such that it captures overarching themes, main arguments, and core principles.
+    Make sure to include all the details from the document in the summary.
+
+    Document:
+    {{document_outline}}
+    {{document}}

@@ -1,0 +1,21 @@
+- role: system
+  content: You are an AI assistant expert at creating concise, informative summaries that capture the most important information from text.
+
+- role: user
+  content: |
+    Create a brief, concise summary of the following text. Your summary should:
+    
+    1. Be 2-3 sentences maximum
+    2. Capture the most important information and key points
+    3. Be clear and easy to understand
+    4. Avoid adding any information not present in the original text
+    5. Focus on the main topic, key facts, and significant details
+    
+    Text to summarize:
+    {{text}}
+    
+    Provide your response in the following format:
+    [SUMMARY]
+    Your summary here
+    [/SUMMARY]
+    

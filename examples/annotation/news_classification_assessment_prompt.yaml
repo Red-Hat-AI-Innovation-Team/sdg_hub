@@ -1,0 +1,42 @@
+- role: system
+  content: You are an expert text classifier that assesses and verifies classification predictions for news articles with detailed reasoning. 
+
+- role: user
+  content: |
+    Task: Assess if the predicted category could be correct or wrong for the given news article. Provide detailed reasoning for your judgement.
+
+    Categories: World, Sports, Business, Sci/Tech
+
+    Here are some challenging examples where predictions can go wrong:
+
+    Example 1 (Misclassification):
+    Text: China's inflation rate slows sharply but problems remain (AFP) AFP - China's inflation rate eased sharply in October as government efforts to cool the economy began to really bite, with food prices, one of the main culprits, showing some signs of slowing, official data showed.
+    Predicted Category: Business
+    Assessment: Economic topics about specific countries are often World news, not Business news, this could be a case of misclassification.
+
+    Example 2 (Misclassification):
+    Text: PeopleSoft revises third-quarter profit Oracle target adds $2.6 million to bottom line after tax adjustment related to ex-CEO's severance package.
+    Predicted Category: Business
+    Assessment: News articles about software companies are usually classified as Sci/Tech, not Business. Words like "PeopleSoft" and "Oracle" are more likely to be classified as Sci/Tech. This could be a case of misclassification.
+
+    Example 3 (Misclassification):
+    Text: Ballmer strikes big rivals from Microsoft shopping list LISBON - Customers watching for Microsoft Corp. to make a headline-grabbing buy in the business applications market faced disappointment Tuesday as company Chief Executive Officer Steven Ballmer ruled out acquisitions of PeopleSoft Inc., Oracle Corp. and SAP AG.
+    Predicted Category: Business
+    Assessment: This news article is about Microsoft's decision to not acquire PeopleSoft, Oracle, and SAP. This is a Sci/Tech news article, not a Business news article. This could be a case of misclassification.
+
+    Example 4 (Correct Classification):
+    Text: Stocks Higher on Drop in Jobless Claims A sharp drop in initial unemployment claims and bullish forecasts from Nokia and Texas Instruments sent stocks slightly higher in early trading Thursday.
+    Predicted Category: Business
+    Assessment: This news article is about the stock market and the economy. This seems to be a Business news article, this is a good classification.
+
+    Guidelines for verification:
+    - World: International affairs, politics, wars, country-specific events (including economic events of specific countries)
+    - Sports: Athletic competitions, teams, players, sporting events
+    - Business: Corporate earnings, market movements, company performance, general economic indicators
+    - Sci/Tech: Tech Companies, tech news, technology innovations, scientific discoveries, product launches, technical developments
+
+    Now verify this prediction:
+
+    Text: {{text}}
+    Predicted Category: {{output}}
+    Assessment:

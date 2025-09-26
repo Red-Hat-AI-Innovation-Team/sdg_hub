@@ -1,4 +1,0 @@
-question: "{{question}}"
-response: "{{response}}"
-system: "Dummy System Text"
-generation: "Dummy Generation Text"

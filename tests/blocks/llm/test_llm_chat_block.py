@@ -6,20 +6,45 @@ from unittest.mock import MagicMock, patch
 
 # Third Party
 from datasets import Dataset
-import pytest
 
 # First Party
-from sdg_hub.blocks.llm import LLMChatBlock, LLMConfig
-from sdg_hub.utils.error_handling import BlockValidationError
+from sdg_hub.core.blocks.llm import LLMChatBlock, LLMConfig
+from sdg_hub.core.utils.error_handling import BlockValidationError
+import pytest
+
+
+class MockMessage:
+    """Mock message class that behaves like LiteLLM message for dict() conversion."""
+
+    def __init__(self, content):
+        self.content = content
+
+    def __iter__(self):
+        return iter(["content"])
+
+    def __getitem__(self, key):
+        if key == "content":
+            return self.content
+        raise KeyError(key)
+
+    def keys(self):
+        return ["content"]
+
+    def values(self):
+        return [self.content]
+
+    def items(self):
+        return [("content", self.content)]
 
 
 @pytest.fixture
 def mock_litellm_completion():
     """Mock LiteLLM completion function."""
-    with patch("sdg_hub.blocks.llm.client_manager.completion") as mock_completion:
+    with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "Test response"
+        choice = MagicMock()
+        choice.message = MockMessage("Test response")
+        mock_response.choices = [choice]
         mock_completion.return_value = mock_response
         yield mock_completion
 
@@ -27,13 +52,14 @@ def mock_litellm_completion():
 @pytest.fixture
 def mock_litellm_completion_multiple():
     """Mock LiteLLM completion function for multiple responses (n > 1)."""
-    with patch("sdg_hub.blocks.llm.client_manager.completion") as mock_completion:
+    with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
         mock_response = MagicMock()
-        # Mock 3 choices for n=3
-        mock_response.choices = [MagicMock(), MagicMock(), MagicMock()]
-        mock_response.choices[0].message.content = "Response 1"
-        mock_response.choices[1].message.content = "Response 2"
-        mock_response.choices[2].message.content = "Response 3"
+        choices = []
+        for i in range(3):
+            choice = MagicMock()
+            choice.message = MockMessage(f"Response {i + 1}")
+            choices.append(choice)
+        mock_response.choices = choices
         mock_completion.return_value = mock_response
         yield mock_completion
 
@@ -41,10 +67,13 @@ def mock_litellm_completion_multiple():
 @pytest.fixture
 def mock_litellm_acompletion():
     """Mock LiteLLM async completion function."""
-    with patch("sdg_hub.blocks.llm.client_manager.acompletion") as mock_acompletion:
+    with patch(
+        "sdg_hub.core.blocks.llm.client_manager.acompletion"
+    ) as mock_acompletion:
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "Test async response"
+        choice = MagicMock()
+        choice.message = MockMessage("Test async response")
+        mock_response.choices = [choice]
 
         async def mock_async_completion(*_args, **_kwargs):
             return mock_response
@@ -146,6 +175,7 @@ class TestLLMConfig:
             max_tokens=100,
             seed=42,
             extra_headers={"x-custom": "value"},
+            timeout=120,
         )
 
         kwargs = config.get_generation_kwargs()
@@ -153,6 +183,7 @@ class TestLLMConfig:
         assert kwargs["max_tokens"] == 100
         assert kwargs["seed"] == 42
         assert kwargs["extra_headers"] == {"x-custom": "value"}
+        assert kwargs["timeout"] == 120
 
     def test_merge_overrides(self):
         """Test configuration merging with overrides."""
@@ -259,7 +290,9 @@ class TestLLMChatBlock:
 
         assert "response" in result.column_names
         assert len(result["response"]) == 2
-        assert all(response == "Test response" for response in result["response"])
+        assert all(
+            response["content"] == "Test response" for response in result["response"]
+        )
         assert mock_litellm_completion.call_count == 2
 
     def test_async_generation(self, mock_litellm_acompletion, sample_dataset):
@@ -277,7 +310,10 @@ class TestLLMChatBlock:
 
         assert "response" in result.column_names
         assert len(result["response"]) == 2
-        assert all(response == "Test async response" for response in result["response"])
+        assert all(
+            response["content"] == "Test async response"
+            for response in result["response"]
+        )
         assert (
             mock_litellm_acompletion.call_count == 2
         )  # Concurrent calls, one per message
@@ -327,7 +363,7 @@ class TestLLMChatBlock:
 
             assert "response" in result.column_names
             assert len(result["response"]) == 1
-            assert result["response"][0] == "Test response"
+            assert result["response"][0]["content"] == "Test response"
 
     def test_generation_with_all_parameters(
         self, mock_litellm_completion, sample_dataset
@@ -452,16 +488,50 @@ class TestLLMChatBlock:
 class TestErrorHandling:
     """Test error handling for LLMChatBlock."""
 
+    def test_max_concurrency_value_error(
+        self, mock_litellm_acompletion, sample_dataset
+    ):
+        """Test ValueError is raised when max_concurrency < 1."""
+        block = LLMChatBlock(
+            block_name="test_max_concurrency_error",
+            input_cols="messages",
+            output_cols="response",
+            model="openai/gpt-4",
+            api_key="test-key",
+            async_mode=True,
+        )
+
+        # Test with max_concurrency = 0
+        with pytest.raises(
+            ValueError, match="max_concurrency must be greater than 0, got"
+        ):
+            block.generate(sample_dataset, _flow_max_concurrency=0)
+
+        # Test with max_concurrency = -1
+        with pytest.raises(
+            ValueError, match="max_concurrency must be greater than 0, got"
+        ):
+            block.generate(sample_dataset, _flow_max_concurrency=-1)
+
+        # Test with max_concurrency = -5
+        with pytest.raises(
+            ValueError, match="max_concurrency must be greater than 0, got"
+        ):
+            block.generate(sample_dataset, _flow_max_concurrency=-5)
+
     def test_litellm_rate_limit_error(self, sample_dataset):
         """Test handling of LiteLLM rate limit errors."""
-        with patch("sdg_hub.blocks.llm.client_manager.completion") as mock_completion:
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
             # First Party
-            from sdg_hub.blocks.llm.error_handler import RateLimitError
+            from sdg_hub.core.blocks.llm.error_handler import RateLimitError
 
             # Mock successful response for retry
             mock_response = MagicMock()
-            mock_response.choices = [MagicMock()]
-            mock_response.choices[0].message.content = "Success after retry"
+            choice = MagicMock()
+            choice.message = MockMessage("Success after retry")
+            mock_response.choices = [choice]
 
             # First call raises rate limit error, second succeeds
             mock_completion.side_effect = [
@@ -483,14 +553,16 @@ class TestErrorHandling:
             )
             result = block.generate(single_dataset)
 
-            assert result["response"][0] == "Success after retry"
+            assert result["response"][0]["content"] == "Success after retry"
             assert mock_completion.call_count == 2
 
     def test_litellm_authentication_error(self, sample_dataset):
         """Test handling of authentication errors (non-retryable)."""
-        with patch("sdg_hub.blocks.llm.client_manager.completion") as mock_completion:
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
             # First Party
-            from sdg_hub.blocks.llm.error_handler import AuthenticationError
+            from sdg_hub.core.blocks.llm.error_handler import AuthenticationError
 
             mock_completion.side_effect = AuthenticationError(
                 "Invalid API key", llm_provider="openai", model="gpt-4"
@@ -513,9 +585,11 @@ class TestErrorHandling:
 
     def test_litellm_context_window_error(self, sample_dataset):
         """Test handling of context window exceeded errors."""
-        with patch("sdg_hub.blocks.llm.client_manager.completion") as mock_completion:
+        with patch(
+            "sdg_hub.core.blocks.llm.client_manager.completion"
+        ) as mock_completion:
             # First Party
-            from sdg_hub.blocks.llm.error_handler import ContextWindowExceededError
+            from sdg_hub.core.blocks.llm.error_handler import ContextWindowExceededError
 
             mock_completion.side_effect = ContextWindowExceededError(
                 "Context window exceeded", llm_provider="openai", model="gpt-4"
@@ -543,7 +617,7 @@ class TestRegistration:
     def test_llm_chat_block_registered(self):
         """Test that LLMChatBlock is properly registered."""
         # First Party
-        from sdg_hub.blocks.registry import BlockRegistry
+        from sdg_hub import BlockRegistry
 
         assert "LLMChatBlock" in BlockRegistry._metadata
         assert BlockRegistry._metadata["LLMChatBlock"].block_class == LLMChatBlock
@@ -605,13 +679,142 @@ class TestMultipleResponses:
         assert "responses" in result.column_names
         assert len(result["responses"]) == 2  # Two input samples
 
-        # Each response should be a list of 3 strings
+        # Each response should be a list of 3 dicts
         for responses in result["responses"]:
             assert isinstance(responses, list)
             assert len(responses) == 3
-            assert responses == ["Response 1", "Response 2", "Response 3"]
+            assert [r["content"] for r in responses] == [
+                "Response 1",
+                "Response 2",
+                "Response 3",
+            ]
 
         assert mock_litellm_completion_multiple.call_count == 2  # One call per sample
+
+    def test_concurrency_adjustment_with_n_greater_than_1(
+        self, mock_litellm_acompletion, sample_dataset
+    ):
+        """Test concurrency is adjusted when n > 1 to avoid overwhelming API."""
+        with patch("sdg_hub.core.blocks.llm.client_manager.logger") as mock_logger:
+            block = LLMChatBlock(
+                block_name="test_concurrency_adjustment",
+                input_cols="messages",
+                output_cols="responses",
+                model="openai/gpt-4",
+                api_key="test-key",
+                n=4,  # Generate 4 responses per input
+                async_mode=True,
+            )
+
+            # Test with max_concurrency = 8, should be adjusted to 2 (8 // 4)
+            result = block.generate(sample_dataset, _flow_max_concurrency=8)
+
+            assert "responses" in result.column_names
+            assert len(result["responses"]) == 2
+
+            # Verify debug log was called for concurrency adjustment
+            mock_logger.debug.assert_called()
+            debug_calls = [
+                call
+                for call in mock_logger.debug.call_args_list
+                if "Adjusted max_concurrency" in str(call)
+            ]
+            assert len(debug_calls) > 0
+            assert "Adjusted max_concurrency from 8 to 2" in str(debug_calls[0])
+            assert "for n=4 completions per request" in str(debug_calls[0])
+
+    def test_concurrency_warning_when_max_concurrency_less_than_n(
+        self, mock_litellm_acompletion, sample_dataset
+    ):
+        """Test warning is logged when max_concurrency < n."""
+        with patch("sdg_hub.core.blocks.llm.client_manager.logger") as mock_logger:
+            block = LLMChatBlock(
+                block_name="test_concurrency_warning",
+                input_cols="messages",
+                output_cols="responses",
+                model="openai/gpt-4",
+                api_key="test-key",
+                n=5,  # Generate 5 responses per input
+                async_mode=True,
+            )
+
+            # Test with max_concurrency = 3, which is less than n=5
+            result = block.generate(sample_dataset, _flow_max_concurrency=3)
+
+            assert "responses" in result.column_names
+            assert len(result["responses"]) == 2
+
+            # Verify warning log was called
+            mock_logger.warning.assert_called()
+            warning_calls = [
+                call
+                for call in mock_logger.warning.call_args_list
+                if "max_concurrency" in str(call)
+            ]
+            assert len(warning_calls) > 0
+            assert "max_concurrency (3) is less than n (5)" in str(warning_calls[0])
+            assert "Consider increasing max_concurrency" in str(warning_calls[0])
+
+    def test_concurrency_not_adjusted_when_n_is_1(
+        self, mock_litellm_acompletion, sample_dataset
+    ):
+        """Test concurrency is not adjusted when n=1 or n=None."""
+        with patch("sdg_hub.core.blocks.llm.client_manager.logger") as mock_logger:
+            # Test with n=1
+            block_n1 = LLMChatBlock(
+                block_name="test_no_adjustment_n1",
+                input_cols="messages",
+                output_cols="response",
+                model="openai/gpt-4",
+                api_key="test-key",
+                n=1,
+                async_mode=True,
+            )
+
+            result = block_n1.generate(sample_dataset, _flow_max_concurrency=8)
+
+            assert "response" in result.column_names
+            assert len(result["response"]) == 2
+
+            # No adjustment should happen, so no debug log about adjustment
+            debug_calls = [
+                call
+                for call in mock_logger.debug.call_args_list
+                if "Adjusted max_concurrency" in str(call)
+            ]
+            assert len(debug_calls) == 0
+
+    def test_concurrency_override_in_generate_call(
+        self, mock_litellm_acompletion, sample_dataset
+    ):
+        """Test concurrency adjustment works when n is overridden in generate call."""
+        with patch("sdg_hub.core.blocks.llm.client_manager.logger") as mock_logger:
+            block = LLMChatBlock(
+                block_name="test_override_adjustment",
+                input_cols="messages",
+                output_cols="responses",
+                model="openai/gpt-4",
+                api_key="test-key",
+                n=1,  # Initially set to 1
+                async_mode=True,
+            )
+
+            # Override n to 3 at runtime with max_concurrency=9
+            result = block.generate(sample_dataset, n=3, _flow_max_concurrency=9)
+
+            assert "responses" in result.column_names
+            assert len(result["responses"]) == 2
+
+            # Verify debug log shows adjustment based on runtime n=3
+            mock_logger.debug.assert_called()
+            debug_calls = [
+                call
+                for call in mock_logger.debug.call_args_list
+                if "Adjusted max_concurrency" in str(call)
+            ]
+            assert len(debug_calls) > 0
+            assert "Adjusted max_concurrency from 9 to 3" in str(debug_calls[0])
+            assert "for n=3 completions per request" in str(debug_calls[0])
 
     def test_single_response_still_works(self, mock_litellm_completion, sample_dataset):
         """Test that n=1 or n=None still returns single strings."""
@@ -628,10 +831,10 @@ class TestMultipleResponses:
         result_n1 = block_n1.generate(sample_dataset)
         assert "response" in result_n1.column_names
         assert len(result_n1["response"]) == 2
-        # Each response should be a single string, not a list
+        # Each response should be a single dict, not a list
         for response in result_n1["response"]:
-            assert isinstance(response, str)
-            assert response == "Test response"
+            assert isinstance(response, dict)
+            assert response["content"] == "Test response"
 
         # Test n=None (default)
         block_none = LLMChatBlock(
@@ -645,10 +848,10 @@ class TestMultipleResponses:
         result_none = block_none.generate(sample_dataset)
         assert "response" in result_none.column_names
         assert len(result_none["response"]) == 2
-        # Each response should be a single string, not a list
+        # Each response should be a single dict, not a list
         for response in result_none["response"]:
-            assert isinstance(response, str)
-            assert response == "Test response"
+            assert isinstance(response, dict)
+            assert response["content"] == "Test response"
 
     def test_multiple_responses_with_override(
         self, mock_litellm_completion_multiple, sample_dataset
@@ -669,11 +872,15 @@ class TestMultipleResponses:
         assert "responses" in result.column_names
         assert len(result["responses"]) == 2
 
-        # Each response should be a list of 3 strings due to override
+        # Each response should be a list of 3 dicts due to override
         for responses in result["responses"]:
             assert isinstance(responses, list)
             assert len(responses) == 3
-            assert responses == ["Response 1", "Response 2", "Response 3"]
+            assert [r["content"] for r in responses] == [
+                "Response 1",
+                "Response 2",
+                "Response 3",
+            ]
 
     def test_config_validation_with_n_parameter(self):
         """Test that n parameter is properly validated in config."""
@@ -729,7 +936,7 @@ class TestMultipleResponses:
     def test_validation_fails_with_non_dict_message(self):
         """Test validation fails when message is not a dict."""
         # Create dataset with valid structure first, then modify it to test the error
-        dataset = Dataset.from_dict(
+        Dataset.from_dict(
             {
                 "messages": [
                     [{"role": "user", "content": "Valid message"}],
@@ -975,109 +1182,3 @@ class TestMultipleResponses:
 
         # Should not raise any exception
         block._validate_custom(dataset)
-
-
-class TestMultipleResponses:
-    """Test multiple response generation (n > 1)."""
-
-    def test_multiple_responses_sync(
-        self, mock_litellm_completion_multiple, sample_dataset
-    ):
-        """Test synchronous generation with n > 1."""
-        block = LLMChatBlock(
-            block_name="test_multiple_sync",
-            input_cols="messages",
-            output_cols="responses",
-            model="openai/gpt-4",
-            api_key="test-key",
-            n=3,  # Generate 3 responses per input
-        )
-
-        result = block.generate(sample_dataset)
-
-        assert "responses" in result.column_names
-        assert len(result["responses"]) == 2  # Two input samples
-
-        # Each response should be a list of 3 strings
-        for responses in result["responses"]:
-            assert isinstance(responses, list)
-            assert len(responses) == 3
-            assert responses == ["Response 1", "Response 2", "Response 3"]
-
-        assert mock_litellm_completion_multiple.call_count == 2  # One call per sample
-
-    def test_single_response_still_works(self, mock_litellm_completion, sample_dataset):
-        """Test that n=1 or n=None still returns single strings."""
-        # Test n=1
-        block_n1 = LLMChatBlock(
-            block_name="test_single_n1",
-            input_cols="messages",
-            output_cols="response",
-            model="openai/gpt-4",
-            api_key="test-key",
-            n=1,
-        )
-
-        result_n1 = block_n1.generate(sample_dataset)
-        assert "response" in result_n1.column_names
-        assert len(result_n1["response"]) == 2
-        # Each response should be a single string, not a list
-        for response in result_n1["response"]:
-            assert isinstance(response, str)
-            assert response == "Test response"
-
-        # Test n=None (default)
-        block_none = LLMChatBlock(
-            block_name="test_single_none",
-            input_cols="messages",
-            output_cols="response",
-            model="openai/gpt-4",
-            api_key="test-key",
-        )
-
-        result_none = block_none.generate(sample_dataset)
-        assert "response" in result_none.column_names
-        assert len(result_none["response"]) == 2
-        # Each response should be a single string, not a list
-        for response in result_none["response"]:
-            assert isinstance(response, str)
-            assert response == "Test response"
-
-    def test_multiple_responses_with_override(
-        self, mock_litellm_completion_multiple, sample_dataset
-    ):
-        """Test multiple responses with runtime n override."""
-        block = LLMChatBlock(
-            block_name="test_override_n",
-            input_cols="messages",
-            output_cols="responses",
-            model="openai/gpt-4",
-            api_key="test-key",
-            n=1,  # Initially set to 1
-        )
-
-        # Override n to 3 at runtime
-        result = block.generate(sample_dataset, n=3)
-
-        assert "responses" in result.column_names
-        assert len(result["responses"]) == 2
-
-        # Each response should be a list of 3 strings due to override
-        for responses in result["responses"]:
-            assert isinstance(responses, list)
-            assert len(responses) == 3
-            assert responses == ["Response 1", "Response 2", "Response 3"]
-
-    def test_config_validation_with_n_parameter(self):
-        """Test that n parameter is properly validated in config."""
-        # Valid n parameter
-        config = LLMConfig(model="openai/gpt-4", n=5)
-        assert config.n == 5
-
-        # Invalid n parameter (negative)
-        with pytest.raises(ValueError, match="n must be positive"):
-            LLMConfig(model="openai/gpt-4", n=-1)
-
-        # Invalid n parameter (zero)
-        with pytest.raises(ValueError, match="n must be positive"):
-            LLMConfig(model="openai/gpt-4", n=0)

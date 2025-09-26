@@ -1,0 +1,38 @@
+- role: system
+  content: You are an AI assistant expert at identifying and extracting named entities from text content. You must return valid JSON format.
+
+- role: user
+  content: |
+    Extract all important named entities from the following text and organize them by category:
+
+    Text to analyze:
+    {{text}}
+
+    Identify and categorize entities into:
+    - **people**: Names of individuals, titles, roles
+    - **organizations**: Companies, institutions, agencies, groups
+    - **locations**: Cities, countries, regions, landmarks, addresses
+
+    Rules:
+    - Only include entities explicitly mentioned in the text
+    - Use exact names as they appear
+    - Focus on the most important entities (3-8 per category max)
+
+    Provide your response in exactly this format:
+    [ENTITIES]
+    {
+      "people": ["Person 1", "Person 2"],
+      "organizations": ["Org 1", "Org 2"],
+      "locations": ["Location 1"]
+    }
+    [/ENTITIES]
+
+    If no entities are found for a category, use an empty list: []
+    If no entities are found at all, respond with:
+    [ENTITIES]
+    {
+      "people": [],
+      "organizations": [],
+      "locations": []
+    }
+    [/ENTITIES]

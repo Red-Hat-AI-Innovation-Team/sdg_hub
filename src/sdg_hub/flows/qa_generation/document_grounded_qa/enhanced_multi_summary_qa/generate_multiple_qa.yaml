@@ -1,0 +1,21 @@
+- role: system
+  content: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+- role: user
+  content: |
+    Given below key fact taken from document generate 5 Question and Answer pair based on the key facts.
+    Introduce variation in the question and key fact.
+    Make sure to ground the question and answer in the provided key fact.
+
+    Strictly follow this format for each question and answer pair your generate while responding:
+    [QUESTION]
+    <Insert question here>
+    [END]
+    [ANSWER]
+    <Insert answer here>
+    [END]
+
+    Now, here is the key fact:
+    [Key Fact]
+    {{document_outline}}
+    {{key_fact}}

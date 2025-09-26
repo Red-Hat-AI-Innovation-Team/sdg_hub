@@ -1,100 +1,121 @@
 # Installation
 
-## System Requirements
+SDG Hub requires Python 3.9+ and can be installed via pip or from source for development.
 
-- Python 3.8 or higher
-- pip package manager
+## 📦 Production Installation
 
-## Installation Methods
-
-### Stable Release (Recommended)
-
-Install the latest stable version from PyPI:
+### Basic Installation
 
 ```bash
 pip install sdg-hub
 ```
 
-### Development Version
-
-Install the latest development version directly from GitHub:
+### With UV (Recommended)
 
 ```bash
-pip install git+https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
+# Install SDG Hub
+uv pip install sdg-hub
+
+# Or create a new project with SDG Hub
+uv init my-sdg-project
+cd my-sdg-project
+uv add sdg-hub
 ```
 
-### Development Installation
+## 🔧 Optional Dependencies
 
-For contributors and developers who want to modify the code:
+SDG Hub supports optional feature sets that can be installed as needed:
+
+### vLLM Support
+For high-performance local LLM inference:
+
+```bash
+# With pip
+pip install sdg-hub[vllm]
+
+# With uv
+uv pip install sdg-hub[vllm]
+```
+
+### Examples Dependencies
+For running example notebooks and workflows:
+
+```bash
+# With pip
+pip install sdg-hub[examples]
+
+# With uv  
+uv pip install sdg-hub[examples]
+```
+
+### All Optional Dependencies
+To install everything at once:
+
+```bash
+# With pip
+pip install sdg-hub[vllm,examples]
+
+# With uv
+uv pip install sdg-hub[vllm,examples]
+```
+
+## 🛠️ Development Installation
+
+For contributing to SDG Hub or customizing the framework:
+
+### Clone and Install
 
 ```bash
 # Clone the repository
 git clone https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
 cd sdg_hub
 
-# Install in development mode
-pip install -e .[dev]
+# Install in development mode with all dependencies
+uv pip install .[dev]
+
+# Alternative: use uv sync for lock file management
+uv sync --extra dev
 ```
 
-## Optional Dependencies
+### Development Dependencies
 
-### Web Interface
+The `[dev]` extra includes:
+- Testing frameworks (pytest, tox)
+- Linting tools (pylint, ruff, mypy)
+- Documentation tools
+- Pre-commit hooks
 
-To use the web interface for flow visualization and management:
+### Verify Installation
 
 ```bash
-pip install -e .[web_interface]
+# Run tests to verify everything works
+uv run pytest tests/
+
+# Check code quality
+make verify
+
+# Run a quick lint check
+tox -e fastlint
 ```
 
-### Examples Dependencies
+## 🔍 Verification
 
-To run the provided examples:
-
-```bash
-pip install -e .[examples]
-```
-
-### All Dependencies
-
-To install all optional dependencies:
-
-```bash
-pip install -e .[dev,web_interface,examples]
-```
-
-## Verification
-
-Verify your installation by running:
+After installation, verify SDG Hub is working correctly:
 
 ```python
-import sdg_hub
-print(sdg_hub.__version__)
+# Test basic imports
+from sdg_hub.core.flow import FlowRegistry
+from sdg_hub.core.blocks import BlockRegistry
+
+# Discover available components
+FlowRegistry.discover_flows()
+BlockRegistry.discover_blocks()
+
+print("✅ SDG Hub installed successfully!")
+print(f"Available flows: {len(FlowRegistry.list_flows())}")
+print(f"Available blocks: {len(BlockRegistry.list_blocks())}")
 ```
 
-You should see the version number printed without any errors.
+## 🚀 Next Steps
 
-## Troubleshooting
-
-### Common Issues
-
-1. **Permission denied errors**: Use `pip install --user` to install packages in your user directory
-2. **Version conflicts**: Create a virtual environment to isolate dependencies
-3. **Missing dependencies**: Ensure you have the latest pip version: `pip install --upgrade pip`
-
-### Virtual Environment Setup
-
-We recommend using a virtual environment:
-
-```bash
-# Create virtual environment
-python -m venv sdg_hub_env
-
-# Activate virtual environment
-# On macOS/Linux:
-source sdg_hub_env/bin/activate
-# On Windows:
-sdg_hub_env\Scripts\activate
-
-# Install SDG Hub
-pip install sdg-hub
-```
+Now that SDG Hub is installed, check out the [Quick Start Guide](quick-start.md) to build your first synthetic data pipeline!

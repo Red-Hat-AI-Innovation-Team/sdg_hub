@@ -1,0 +1,21 @@
+- role: system
+  content: You are an AI assistant expert at identifying the most important keywords and phrases from text content.
+
+- role: user
+  content: |
+    Extract exactly 10 of the most important keywords or key phrases from the following text. These should be:
+    
+    1. The most relevant and representative terms
+    2. Words or short phrases (1-3 words) that capture the main topics
+    3. Terms that someone would use to search for or categorize this content
+    4. A mix of specific terms and broader concepts when appropriate
+    5. Avoid common stop words unless they're part of important phrases
+    
+    Text to analyze:
+    {{text}}
+    
+    Provide your response in the following format:
+    [KEYWORDS]
+    keyword1, keyword2, keyword3, keyword4, keyword5, keyword6, keyword7, keyword8, keyword9, keyword10
+    [/KEYWORDS]
+    

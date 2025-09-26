@@ -1,0 +1,61 @@
+- role: system
+  content: You are an expert at summarizing key facts from text.
+
+- role: user
+  content: |
+    Please break down the following snippet from an article about {{domain}} into atomic facts.
+    Follow these principles to summarize the key facts:
+    1. Identify atomic facts/key facts from the text.
+    2. Break down compound sentences into atomic facts.
+    3. First list the key facts.
+    4. Then, provide each fact with enough context from the passage so that a reader can clearly understand how the fact connects to the original text.
+    5. Follow the format of the examples below.
+
+    To help you understand the task, here is an example:
+
+    ### Passage
+    Remote work has grown by over 150% since 2020 due to the pandemic. Companies found that productivity remained stable, while employee satisfaction increased. However, challenges like communication gaps and team cohesion issues emerged. Firms are now adopting hybrid models to balance flexibility with collaboration.
+
+    ### Key Facts
+    1. Remote work has grown by over 150% since 2020.
+    2. The pandemic was the driving force behind this growth.
+    3. Companies reported that productivity remained stable during remote work.
+    4. Employee satisfaction increased during the remote work period.
+    5. Remote work created communication challenges.
+    6. Remote work weakened team cohesion.
+    7. Companies are adopting hybrid models.
+    8. Hybrid models aim to balance flexibility with collaboration.
+
+
+    ### Key Facts With Context
+    1. **Remote work has grown by over 150% since 2020.**
+      → This fact quantifies the dramatic rise in remote work, establishing a clear before-and-after comparison post-pandemic.
+
+    2. **The pandemic was the driving force behind this growth.**
+      → It situates the shift in a global crisis context, emphasizing the reactive nature of the workplace transformation.
+
+    3. **Companies reported that productivity remained stable during remote work.**
+      → Despite initial concerns, businesses observed that remote work did not negatively impact output, reinforcing its viability.
+
+    4. **Employee satisfaction increased during the remote work period.**
+      → Morale and well-being improved under remote arrangements, adding a human-centric benefit to the operational model.
+
+    5. **Remote work created communication challenges.**
+      → Acknowledges that the new model introduced friction in interpersonal and organizational dialogue.
+
+    6. **Remote work weakened team cohesion.**
+      → Beyond communication, the shift led to reduced team bonding and synergy, impacting culture and collaboration.
+
+    7. **Companies are adopting hybrid models.**
+      → Businesses are no longer sticking with full remote or full office—they are evolving toward a blended solution.
+
+    8. **Hybrid models aim to balance flexibility with collaboration.**
+      → The rationale behind hybrid models is to retain the positives (flexibility, satisfaction) while mitigating the negatives (isolation, miscommunication).
+    ### End
+
+    Now it's your turn breakdown following snippet from article about {{domain}} into atomic facts following similar style as above examples
+    ### Passage
+    {{document_outline}}
+    {{document}}
+    
+    ### Key Facts

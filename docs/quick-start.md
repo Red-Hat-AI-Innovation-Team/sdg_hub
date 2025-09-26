@@ -1,128 +1,174 @@
 # Quick Start Guide
 
-This guide will help you get started with SDG Hub in just a few minutes.
+Get up and running with SDG Hub in minutes! This guide walks through discovering flows, running your first pipeline, and understanding the basic workflow.
 
-## Prerequisites
+## 🔍 Step 1: Discover Available Components
 
-- Python 3.8+
-- SDG Hub installed (see [Installation](installation.md))
-
-## Basic Usage
-
-### Generate with an Existing Flow
-
-You can invoke any built-in flow using `run_flow`:
+SDG Hub automatically discovers all available blocks and flows - no manual setup required!
 
 ```python
-from sdg_hub.flow_runner import run_flow
+from sdg_hub.core.flow import FlowRegistry
+from sdg_hub.core.blocks import BlockRegistry
 
-run_flow(
-    ds_path="path/to/dataset.json",
-    save_path="path/to/output.json",
-    endpoint="https://api.openai.com/v1",
-    flow_path="path/to/flow.yaml",
-    checkpoint_dir="path/to/checkpoints",
-    batch_size=8,
-    num_workers=32,
-    save_freq=2,
-)
+# Auto-discover all components
+FlowRegistry.discover_flows()
+BlockRegistry.discover_blocks()
+
+# See what's available
+print("📋 Available Flows:")
+for flow_name in FlowRegistry.list_flows():
+    print(f"  • {flow_name}")
+
+print("\n🧱 Available Blocks:")
+for block_name in BlockRegistry.list_blocks():
+    print(f"  • {block_name}")
 ```
 
-### Available Built-in Flows
+## 🚀 Step 2: Run Your First Flow
 
-SDG Hub comes with several pre-built flows you can use immediately:
-
-#### 🔎 Knowledge Flows
-
-| Flow Name | Description |
-|-----------|-------------|
-| `flows/generation/knowledge/synth_knowledge.yaml` | Produces document-grounded questions and answers for factual memorization |
-| `flows/generation/knowledge/synth_knowledge1.5.yaml` | Improved version that builds intermediate representations for better recall |
-
-#### 🧠 Skills Flows
-
-| Flow Name | Description |
-|-----------|-------------|
-| `flows/generation/skills/synth_skills.yaml` | Freeform skills QA generation (eg: "Create a new github issue to add type hints") |
-| `flows/generation/skills/synth_grounded_skills.yaml` | Domain-specific skill generation (eg: "From the given conversation create a table for feature requests") |
-| `flows/generation/skills/improve_responses.yaml` | Uses planning and critique-based refinement to improve generated answers |
-
-## Your First Flow
-
-Let's create a simple flow that generates questions and answers from a document:
-
-### 1. Prepare Your Data
-
-Create a JSON file with your input data:
-
-```json
-[
-    {
-        "document": "The capital of France is Paris. It is known for the Eiffel Tower and the Louvre Museum."
-    }
-]
-```
-
-### 2. Use a Built-in Flow
+Let's use the built-in document-grounded QA generation flow:
 
 ```python
-from sdg_hub.flow_runner import run_flow
+from sdg_hub.core.flow import FlowRegistry, Flow
+from datasets import Dataset
 
-# Generate knowledge-based Q&A pairs
-run_flow(
-    ds_path="my_documents.json",
-    save_path="generated_qa.json",
-    endpoint="https://api.openai.com/v1",
-    flow_path="flows/generation/knowledge/synth_knowledge.yaml",
-    checkpoint_dir="./checkpoints",
-    batch_size=4,
-    num_workers=8,
-    save_freq=1,
+# Load a pre-built flow
+flow_name = "Advanced Document Grounded Question-Answer Generation Flow for Knowledge Tuning"
+flow_path = FlowRegistry.get_flow_path(flow_name)
+flow = Flow.from_yaml(flow_path)
+
+# Discover recommended models
+default_model = flow.get_default_model()
+recommendations = flow.get_model_recommendations()
+
+# Configure model settings at runtime
+flow.set_model_config(
+    model=f"hosted_vllm/{default_model}",
+    api_base="http://localhost:8000/v1",
+    api_key="your_key",
 )
+
+# Create a simple dataset
+dataset = Dataset.from_dict({
+    'document': ['Python is a high-level programming language known for its simplicity and readability. It supports multiple programming paradigms including procedural, object-oriented, and functional programming.'],
+    'document_outline': ['1. Python Introduction; 2. Programming Paradigms; 3. Language Features'],
+    'domain': ['Computer Science'],
+    'icl_document': ['Java is an object-oriented programming language that runs on the Java Virtual Machine.'],
+    'icl_query_1': ['What type of language is Java?'],
+    'icl_response_1': ['Java is an object-oriented programming language.'],
+    'icl_query_2': ['Where does Java run?'],
+    'icl_response_2': ['Java runs on the Java Virtual Machine.'],
+    'icl_query_3': ['What are the benefits of Java?'],
+    'icl_response_3': ['Java provides platform independence and strong object-oriented features.']
+})
+
+# Test with a small sample first (recommended!)
+print("🧪 Running dry run...")
+dry_result = flow.dry_run(dataset, sample_size=1)
+print(f"✅ Dry run completed in {dry_result['execution_time_seconds']:.2f}s")
+print(f"📊 Output columns: {list(dry_result['final_dataset']['columns'])}")
 ```
 
-### 3. View Results
+## 📊 Step 3: Generate Synthetic Data
 
-The generated Q&A pairs will be saved to `generated_qa.json`:
+Once the dry run succeeds, generate the full dataset:
 
-```json
-[
-    {
-        "document": "The capital of France is Paris...",
-        "question": "What is the capital of France?",
-        "answer": "The capital of France is Paris."
-    }
-]
+```python
+# Configure the model before generation
+print("🔧 Configuring model...")
+flow.set_model_config(
+    model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
+    api_base="http://localhost:8000/v1",
+    api_key="your_key",
+)
+
+# Generate high-quality QA pairs
+print("🏗️ Generating synthetic data...")
+result = flow.generate(dataset)
+
+# Explore the results
+print(f"\n📈 Generated {len(result)} QA pairs!")
+print(f"📝 Sample Question: {result['question'][0]}")
+print(f"💬 Sample Answer: {result['response'][0]}")
+print(f"🎯 Faithfulness Score: {result['faithfulness_judgment'][0]}")
+print(f"📏 Relevancy Score: {result['relevancy_score'][0]}")
 ```
 
-## Monitoring Your Flows
+## 🔧 Step 5: Search and Filter Components
 
-SDG Hub provides configurable logging to help you monitor execution:
+Find exactly what you need:
 
-```bash
-# Enable verbose logging to see dataset metrics
-SDG_HUB_LOG_LEVEL=verbose python your_script.py
+```python
+# Search for specific types of flows
+qa_flows = FlowRegistry.search_flows(tag="question-generation")
+print(f"🔎 QA Generation Flows: {qa_flows}")
+
+# Search for evaluation flows  
+eval_flows = FlowRegistry.search_flows(tag="evaluation")
+print(f"📊 Evaluation Flows: {eval_flows}")
+
+# List all blocks by categories
+all_blocks = BlockRegistry.list_blocks(grouped=True)
+for category, blocks in all_blocks.items():
+    print(f"Blocks for category {category}: {blocks}")
+
+# Find blocks by category
+llm_blocks = BlockRegistry.list_blocks(category="llm")
+print(f"🧠 LLM Blocks: {llm_blocks}")
+
+transform_blocks = BlockRegistry.list_blocks(category="transform") 
+print(f"🔄 Transform Blocks: {transform_blocks}")
 ```
 
-This will show rich tables with dataset information as blocks execute. See the [Configuration Guide](configuration.md#logging-configuration) for all logging options.
+## ⚙️ Step 6: Model Configuration
 
-## Next Steps
+SDG Hub provides a flexible model configuration system for runtime setup:
 
-- Configure [Logging and Environment Variables](configuration.md) for better monitoring
-- Explore the [Architecture](architecture.md) to understand how SDG Hub works
-- Learn about [Blocks](blocks.md) to create custom processing units
-- Check out [Examples](examples.md) for more complex use cases
-- Read about [Prompts](prompts.md) to customize LLM behavior
+### Discover Model Recommendations
+```python
+# Get the recommended default model for this flow
+default_model = flow.get_default_model()
+print(f"🎯 Default model: {default_model}")
 
-## Common Parameters
+# See all model recommendations
+recommendations = flow.get_model_recommendations()
+print(f"💡 Recommended models: {recommendations}")
+```
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `ds_path` | Path to input dataset | Required |
-| `save_path` | Path to save output | Required |
-| `endpoint` | LLM API endpoint | Required |
-| `flow_path` | Path to flow YAML file | Required |
-| `batch_size` | Number of items to process in batch | 8 |
-| `num_workers` | Number of parallel workers | 32 |
-| `checkpoint_dir` | Directory for checkpoints | None |
-| `save_freq` | Save frequency (every N batches) | 2 |
+### Configure Models
+```python
+# Configure model settings dynamically
+flow.set_model_config(
+    model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
+    api_base="http://localhost:8000/v1",
+    api_key="your_key",
+)
+
+# Alternative: Use cloud providers
+flow.set_model_config(
+    model="gpt-4o",
+    api_key="your-openai-key",
+)
+
+# Or use environment variables (still supported)
+# OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.
+```
+
+### Flow Runtime Parameters
+#TODO: Add runtime parameters
+
+
+### Error Handling
+#TODO: Add error handling
+
+
+## 🚀 Next Steps
+
+Now that you're familiar with the basics:
+
+1. **[Understand Core Concepts](concepts.md)** - Deep dive into blocks and flows
+2. **[Explore Block Types](blocks/overview.md)** - Learn about different block categories  
+3. **[Build Custom Flows](flows/custom-flows.md)** - Create your own pipelines
+4. **[API Reference](api-reference.md)** - Complete technical documentation
+
+Happy building! 🎉

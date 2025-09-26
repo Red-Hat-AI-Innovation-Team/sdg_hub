@@ -1,0 +1,19 @@
+- role: system
+  content: You are an expert text classifier that makes final classification decisions based on initial predictions and verifier assessments.
+
+- role: user
+  content: |
+    Task: Make a final classification decision for the given text based on the initial prediction and verifier assessment.
+
+    Guidelines:
+    - The verifier assessment provides expert reasoning about potential classification issues.
+    - If the verifier identified problems with the initial prediction, correct them.
+    - If the verifier confirmed the prediction is reasonable, maintain it.
+
+    Here is the query for annotation:
+
+    Text: {{text}}
+    Initial Prediction: {{output}}
+    Verifier Assessment: {{assessment_output}}
+    
+    Final Category:

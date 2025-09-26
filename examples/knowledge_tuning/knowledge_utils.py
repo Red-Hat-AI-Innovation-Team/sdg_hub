@@ -8,6 +8,8 @@ import os
 import random
 import re
 import uuid
+import logging
+from rich.logging import RichHandler
 
 # Third Party
 from datasets import Dataset, concatenate_datasets
@@ -17,41 +19,81 @@ from transformers import AutoTokenizer
 import yaml
 
 # First Party
-from sdg_hub.logger_config import setup_logger
-from sdg_hub.utils.datautils import safe_concatenate_datasets
+from sdg_hub.core.utils.datautils import safe_concatenate_datasets
 import sdg_hub
+
+def setup_logger(name):
+    # Set up the logger
+    log_level = os.getenv("LOG_LEVEL", "INFO")
+    logging.basicConfig(
+        level=log_level,
+        format="%(message)s",
+        datefmt="[%X]",
+        handlers=[RichHandler()],
+    )
+    logger = logging.getLogger(name)
+    return logger
 
 logger = setup_logger(__name__)
 _DEFAULT_CHUNK_OVERLAP = 100
 
 
-def create_auxiliary_dataset(generated_dataset: Dataset):
+def get_summarization_instructions():
+    return {'summary_detailed': ['Provide me with a comprehensive summary of the given document.',
+  'Prepare a detailed breakdown of the contents of the document for me.',
+  'Summarize the document thoroughly, covering all important points.',
+  'Create a detailed executive summary of the provided document.',
+  "Compose a comprehensive overview of the document's content.",
+  'Deliver a detailed synopsis of the material presented in the document.',
+  "Furnish me with a detailed analysis of the document's key points.",
+  'Generate a thorough summary of the main ideas in the document.',
+  'Offer a detailed digest of the information contained in the document.',
+  "Supply me with a comprehensive rundown of the document's contents."],
+ 'summary_extractive': ['Provide me with a summary of the document using extractive methods.',
+  'Create an extractive summary for the given document.',
+  'Generate an extractive summary from the document that was given to you.',
+  'Summarize the document using extractive techniques.',
+  'Create a summary of the provided document using extractive methods.',
+  'Generate an extractive summary for the document provided.',
+  'Using extractive techniques, summarize the given document.',
+  'Create a summary of the document using extractive summarization.',
+  'Generate an extractive summary of the document that was provided.',
+  'Summarize the provided document using extractive summarization techniques.'],
+ 'summary_atomic_facts': ['Identify and list all atomic facts from the document.',
+  'Extract all key facts from the given document.',
+  'List all the important facts from the provided document.',
+  'Highlight all the atomic facts present in the document.',
+  'Identify and enumerate all key facts from the given text.',
+  'List out all the critical information from the document.',
+  'Highlight all the essential facts from the provided text.',
+  'Identify and summarize all the important details from the document.',
+  'Extract all the atomic facts from the given document.',
+  'List all the key takeaways from the provided text.']}
+
+def create_summarization_task_dataset(generated_dataset: Dataset):
+    """
+    Create summarization dataset from non-base documents using predefined instructions.
+    
+    Args:
+        generated_dataset (Dataset): Input dataset containing documents and metadata
+        
+    Returns:
+        Dataset: Auxiliary dataset with chat messages, or None if requirements not met
+    """
     if "dataset_type" not in generated_dataset.column_names:
         return None
 
-    aux_inst_path = os.path.join(
-        os.path.dirname(sdg_hub.__file__),
-        "configs/knowledge/auxilary_instructions.yaml",
-    )
-    print(aux_inst_path)
-
-    if os.path.isfile(aux_inst_path):
-        with open(aux_inst_path, "r", encoding="utf-8") as fp:
-            auxiliary_inst = yaml.safe_load(fp)
-    else:
-        logger.error(f"auxiliary instructions file not found at {aux_inst_path}")
-        return None
-    auxiliary_ds = generated_dataset.filter(
+    summarization_ds = generated_dataset.filter(
         lambda x: x["dataset_type"] != "base_document"
     )
-    unique_document_auxiliary = auxiliary_ds.to_pandas().drop_duplicates(
+    unique_document_summarization = summarization_ds.to_pandas().drop_duplicates(
         subset=["document"]
     )
-    unique_document_auxiliary = Dataset.from_pandas(unique_document_auxiliary)
-    unique_document_auxiliary = unique_document_auxiliary.remove_columns(
+    unique_document_summarization = Dataset.from_pandas(unique_document_summarization)
+    unique_document_summarization = unique_document_summarization.remove_columns(
         [
             col
-            for col in unique_document_auxiliary.column_names
+            for col in unique_document_summarization.column_names
             if col
             not in [
                 "raw_document",
@@ -62,12 +104,12 @@ def create_auxiliary_dataset(generated_dataset: Dataset):
             ]
         ]
     )
-    unique_document_auxiliary = unique_document_auxiliary.rename_columns(
+    unique_document_summarization = unique_document_summarization.rename_columns(
         {"raw_document": "context", "document": "response"}
     )
 
     def __create_auxiliary_ds(rec):
-        instruction = random.choice(auxiliary_inst[rec["dataset_type"]])
+        instruction = random.choice((get_summarization_instructions())[rec["dataset_type"]])
         messages = [
             {"role": "user", "content": f"{rec['context']}\n\n{instruction}"},
             {"role": "assistant", "content": rec["response"]},
@@ -82,23 +124,26 @@ def create_auxiliary_dataset(generated_dataset: Dataset):
         )
         return {"messages": messages, "metadata": metadata, "id": str(uuid.uuid4())}
 
-    unique_document_auxiliary = unique_document_auxiliary.map(
-        __create_auxiliary_ds, remove_columns=unique_document_auxiliary.column_names
+    unique_document_summarization = unique_document_summarization.map(
+        __create_auxiliary_ds, remove_columns=unique_document_summarization.column_names
     )
-    return unique_document_auxiliary
+    return unique_document_summarization
 
 
 def _conv_pretrain(rec):
-    rec["messages"] = [
-        {
-            "role": "pretraining",
-            "content": f"<|user|>\n{rec['messages'][0]['content']}\n<|assistant|>\n{rec['messages'][1]['content']}",
-        }
-    ]
-    return rec
+    """
+    Convert messages to pretraining format using unmask flag. 
+    
+    Args:
+        rec (dict): Record containing messages
+        
+    Returns:
+        dict: Modified record
+    """
+    return {'unmask': True}
 
 
-def mask_qa_per_doc(ds: Dataset, keep_no_qa_per_doc: int = 3) -> Dataset:
+def mask_qa_per_doc(ds: Dataset, keep_no_qa_per_doc: int = None) -> Dataset:
     """
     Mark QA entries per document for pre-training vs fine-tuning.
 
@@ -114,6 +159,8 @@ def mask_qa_per_doc(ds: Dataset, keep_no_qa_per_doc: int = 3) -> Dataset:
     Dataset
         Dataset with added 'unmask' boolean column indicating pre-training entries
     """
+    if keep_no_qa_per_doc is None:
+        return ds
 
     unmask_entries = []
     mask_entries = []
@@ -143,10 +190,23 @@ def generate_knowledge_qa_dataset(
     generated_dataset: Dataset,
     keep_context_separate: bool = False,
     keep_document_outline: bool = False,
-    keep_columns: List[str] = None,
-    filter_non_pre_training: bool = True,
-    keep_no_qa_per_doc: int = 3,
+    keep_columns: List[str] = [],
+    filter_non_pre_training: bool = False,
+    keep_no_qa_per_doc: int = None,
 ):
+    """
+    Generate a knowledge QA dataset from the input dataset by transforming document/question/response pairs into a chat format.
+    
+    Args:
+        generated_dataset (Dataset): Input dataset containing documents, questions and responses
+        keep_context_separate (bool): If True, keeps context separate from the messages. If False, includes context in user message
+        keep_document_outline (bool): If True, includes document outline in user message when context is not separate
+        filter_non_pre_training (bool): Filters out rows where unmask is False. Used with keep_no_qa_per_doc option
+        keep_no_qa_per_doc (int): Number of QA entries per document to mark as unmask (pre-training)
+        
+    Returns:
+        Dataset: Transformed dataset with chat messages format
+    """
     generated_dataset = generated_dataset.map(
         lambda x: {
             "response": x["response"]
@@ -289,9 +349,9 @@ def create_knowledge_regular_ds(generated_dataset: Dataset):
     )
     knowledge_ds = build_raft_dataset(knowledge_ds, p=0.4)
 
-    auxiliary_dataset = create_auxiliary_dataset(generated_dataset)
-    if auxiliary_dataset is not None:
-        knowledge_ds = safe_concatenate_datasets([knowledge_ds, auxiliary_dataset])
+    summarization_task_dataset = create_summarization_task_dataset(generated_dataset)
+    if summarization_task_dataset is not None:
+        knowledge_ds = safe_concatenate_datasets([knowledge_ds, summarization_task_dataset])
     return knowledge_ds
 
 
@@ -316,10 +376,10 @@ def create_knowledge_pretraining_ds(generated_dataset: Dataset, add_auxiliary_da
         generated_dataset, keep_context_separate=False)
     knowledge_ds = knowledge_ds.map(_conv_pretrain)
 
-    auxiliary_dataset = create_auxiliary_dataset(generated_dataset)
-    if auxiliary_dataset is not None and add_auxiliary_dataset:
-        auxiliary_dataset = auxiliary_dataset.map(_conv_pretrain)
-        knowledge_ds = safe_concatenate_datasets([knowledge_ds, auxiliary_dataset])
+    summarization_task_dataset = create_summarization_task_dataset(generated_dataset)
+    if summarization_task_dataset is not None and add_auxiliary_dataset:
+        summarization_task_dataset = summarization_task_dataset.map(_conv_pretrain)
+        knowledge_ds = safe_concatenate_datasets([knowledge_ds, summarization_task_dataset])
     return knowledge_ds
 
 

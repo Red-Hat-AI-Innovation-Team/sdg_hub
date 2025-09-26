@@ -1,367 +1,496 @@
 # Development Guide
 
-This guide covers development setup, testing, and contribution guidelines for SDG Hub.
+Welcome to SDG Hub development! This guide covers everything you need to know about contributing blocks, flows, and other improvements to the SDG Hub ecosystem.
 
-## Development Setup
+## 🚀 Getting Started
 
-### Prerequisites
+### Development Setup
 
-- Python 3.8 or higher
-- Git
-- pip
-
-### Clone and Install
-
+1. **Clone the Repository**
 ```bash
-# Clone the repository
 git clone https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
 cd sdg_hub
-
-# Install in development mode
-pip install -e .[dev]
 ```
 
-### Optional Dependencies
-
+2. **Install Development Dependencies**
 ```bash
-# Web interface
-pip install -e .[web_interface]
+# Using uv (recommended)
+uv sync --extra dev
 
-# Examples dependencies  
-pip install -e .[examples]
-
-# All dependencies
-pip install -e .[dev,web_interface,examples]
+# Or using pip
+pip install .[dev]
 ```
 
-## Development Commands
-
-### Testing
-
-Run all tests:
+3. **Verify Installation**
 ```bash
-pytest tests/
-```
+# Run tests to ensure everything works
+tox -e py3-unit
 
-Run specific test:
-```bash
-pytest tests/test_filename.py
-```
+# Run linting
+make verify
 
-Run tests with coverage:
-```bash
-tox -e py3-unitcov
-```
-
-### Code Quality
-
-Format code:
-```bash
-tox -e ruff fix
-# or
-./scripts/ruff.sh fix
-```
-
-Check code formatting:
-```bash
-tox -e ruff check
-```
-
-Run linting:
-```bash
-# Full pylint (slower)
-tox -e lint
-
-# Fast linting
+# Quick lint check
 tox -e fastlint
 ```
 
-Type checking:
-```bash
-tox -e mypy
-```
+### Development Environment
 
-Run all checks:
-```bash
-make verify
-```
+The `[dev]` extra includes:
+- **Testing frameworks** - pytest, tox
+- **Linting tools** - pylint, ruff, mypy
+- **Documentation tools** - docsify dependencies
+- **Pre-commit hooks** - automated code quality checks
 
-This runs fastlint, mypy, and ruff via tox.
+## 🧱 Contributing Blocks
 
-## Git Workflow
+### Block Contribution Workflow
 
-### Important Guidelines
+1. **Plan Your Block**
+   - Identify the category (llm, transform, filtering, evaluation)
+   - Define clear input/output specifications
+   - Check if similar functionality already exists
 
-- **Always create a feature branch**
-- **Never push directly to main**
-- Follow conventional commit messages
+2. **Create the Block**
+   - Follow the [Custom Blocks Guide](blocks/custom-blocks.md) for implementation
+   - Place in appropriate category directory under `src/sdg_hub/core/blocks/`
 
-### Branch Creation
+3. **Add Tests**
+   - Create comprehensive tests in `tests/blocks/[category]/`
+   - Test both success and error cases
+   - Include configuration validation tests
 
-```bash
-# Create and switch to feature branch
-git checkout -b feature-branch-name
+4. **Documentation**
+   - Add docstrings following the existing patterns
+   - Update relevant documentation pages
+   - Include usage examples
 
-# Push to remote
-git push origin feature-branch-name
-```
-
-### Commit Guidelines
-
-Use conventional commit format:
-
-```bash
-# Examples
-git commit -m "feat: add new block type for data filtering"
-git commit -m "fix: resolve issue with checkpoint loading"  
-git commit -m "docs: update installation instructions"
-git commit -m "test: add unit tests for LLMBlock"
-```
-
-## Architecture Overview
-
-### Core Components
-
-1. **Blocks** (`src/sdg_hub/blocks/`)
-   - `Block`: Abstract base class
-   - `LLMBlock`: Language model blocks
-   - `utilblocks.py`: Utility blocks
-
-2. **Flows** (`src/sdg_hub/flow.py`)
-   - YAML-based pipeline orchestration
-   - Block execution management
-   - Data flow coordination
-
-3. **Registry System** (`src/sdg_hub/registry.py`)
-   - `BlockRegistry`: Block type management
-   - `PromptRegistry`: Prompt template management
-
-4. **Prompts** (`src/sdg_hub/configs/`)
-   - YAML-based prompt templates
-   - Jinja2 templating support
-
-### Data Flow
-
-- Uses Hugging Face Datasets (Arrow tables)
-- Supports checkpointing for reliability
-- Processes data through block chains
-
-## Block Development
-
-### Creating a New Block
-
-1. **Inherit from Block base class**:
+### Block Structure Requirements
 
 ```python
-from sdg_hub.blocks import Block
-from sdg_hub.registry import BlockRegistry
+# Required: Place in appropriate category directory
+# src/sdg_hub/core/blocks/[category]/my_new_block.py
+
+from sdg_hub.core.blocks.base import BaseBlock
+from sdg_hub.core.blocks.registry import BlockRegistry
+from typing import Any
 from datasets import Dataset
 
-@BlockRegistry.register("MyCustomBlock")
-class MyCustomBlock(Block):
-    def generate(self, dataset: Dataset) -> Dataset:
-        # Your block logic here
-        return processed_dataset
-```
-
-2. **Implement required methods**:
-
-```python
-def generate(self, dataset: Dataset) -> Dataset:
-    """Main processing method - required"""
-    pass
-
-def _validate(self, dataset: Dataset) -> None:
-    """Input validation - optional"""
-    pass
-
-def _load_config(self, config_path: str) -> dict:
-    """Configuration loading - optional"""
-    pass
-```
-
-3. **Register the block**:
-
-The `@BlockRegistry.register("BlockName")` decorator automatically registers your block.
-
-### Block Testing
-
-Create tests in `tests/blocks/`:
-
-```python
-import pytest
-from datasets import Dataset
-from your_module import MyCustomBlock
-
-def test_my_custom_block():
-    # Setup test data
-    test_data = Dataset.from_dict({
-        "input_column": ["test1", "test2"]
-    })
+@BlockRegistry.register(
+    "MyNewBlock",                    # Unique block name
+    "category",                      # Block category
+    "Description of functionality"   # Clear description
+)
+class MyNewBlock(BaseBlock):
+    """Comprehensive docstring with examples.
     
-    # Initialize block
-    block = MyCustomBlock(block_config={})
+    This block does X, Y, and Z. It's useful for...
     
-    # Test generation
-    result = block.generate(test_data)
+    Parameters
+    ----------
+    param1 : type
+        Description of parameter
+    param2 : type, optional
+        Description of optional parameter
+        
+    Examples
+    --------
+    >>> block = MyNewBlock(
+    ...     block_name="example",
+    ...     input_cols=["text"],
+    ...     output_cols=["result"]
+    ... )
+    >>> result = block.generate(dataset)
+    """
     
-    # Assertions
-    assert len(result) == len(test_data)
-    assert "output_column" in result.column_names
-```
-
-## Testing Conventions
-
-### Test Structure
-
-```
-tests/
-├── blocks/           # Block-specific tests
-│   ├── test_llmblock.py
-│   └── utilblocks/   # Utility block tests
-├── flows/            # Flow-related tests
-└── test_*.py         # General tests
-```
-
-### Test Data
-
-Store test data in `testdata/` subdirectories:
-
-```
-tests/blocks/testdata/
-├── test_config.yaml
-└── sample_data.json
-```
-
-### Testing Best Practices
-
-1. **Test both positive and negative cases**
-2. **Include edge cases and error conditions**  
-3. **Use pytest fixtures for common setup**
-4. **Mock external dependencies (APIs, files)**
-5. **Test configuration loading and validation**
-
-### Example Test
-
-```python
-import pytest
-from datasets import Dataset
-from sdg_hub.blocks import LLMBlock
-
-@pytest.fixture
-def sample_dataset():
-    return Dataset.from_dict({
-        "prompt": ["Hello", "World"],
-        "context": ["test1", "test2"]
-    })
-
-def test_llm_block_generation(sample_dataset):
-    block = LLMBlock(
-        block_config={
-            "model_id": "test-model",
-            "output_cols": ["response"]
-        }
+    # Pydantic field definitions
+    custom_param: str = Field(
+        default="default_value",
+        description="Parameter description"
     )
     
-    # Mock the LLM call
-    with patch('sdg_hub.blocks.llmblock.some_llm_function') as mock_llm:
-        mock_llm.return_value = ["response1", "response2"]
-        
-        result = block.generate(sample_dataset)
-        
-        assert "response" in result.column_names
-        assert len(result) == 2
+    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
+        """Implement the block's processing logic."""
+        # Your implementation here
+        pass
 ```
 
-## Contributing
+### Block Testing Requirements
 
-### Contribution Types
+Create comprehensive tests following this pattern:
 
-We welcome:
-- **Bug reports and fixes**
-- **Feature requests and implementations**  
-- **Documentation improvements**
-- **Test coverage improvements**
-- **Performance optimizations**
+```python
+# tests/blocks/[category]/test_my_new_block.py
 
-### Pull Request Process
+import pytest
+from datasets import Dataset
+from sdg_hub.core.utils.error_handling import MissingColumnError
+# Import your custom block directly
+from .my_new_block import MyNewBlock
 
-1. **Create feature branch**
-2. **Make changes with tests**
-3. **Run all quality checks**:
-   ```bash
-   make verify
-   pytest tests/
-   ```
-4. **Update documentation if needed**
-5. **Submit pull request**
+class TestMyNewBlock:
+    """Test suite for MyNewBlock."""
+    
+    def test_basic_functionality(self):
+        """Test basic block functionality."""
+        block = MyNewBlock(
+            block_name="test_block",
+            input_cols=["input"],
+            output_cols=["output"]
+        )
+        
+        dataset = Dataset.from_dict({
+            "input": ["test1", "test2", "test3"]
+        })
+        
+        result = block.generate(dataset)
+        
+        assert "output" in result.column_names
+        assert len(result) == 3
+    
+    def test_configuration_validation(self):
+        """Test parameter validation."""
+        with pytest.raises(ValueError):
+            MyNewBlock(
+                block_name="bad_config",
+                input_cols=["input"],
+                output_cols=["output"],
+                custom_param=""  # Invalid value
+            )
+    
+    def test_missing_columns(self):
+        """Test error handling for missing columns."""
+        block = MyNewBlock(
+            block_name="test_block",
+            input_cols=["missing_column"],
+            output_cols=["output"]
+        )
+        
+        dataset = Dataset.from_dict({
+            "other_column": ["data"]
+        })
+        
+        with pytest.raises(MissingColumnError):
+            block.generate(dataset)
+    
+    def test_edge_cases(self):
+        """Test edge cases and error conditions."""
+        # Test empty dataset
+        # Test null values
+        # Test malformed data
+        pass
+```
 
-### Code Review Guidelines
+### Block Categories and Guidelines
 
-- **Code should be well-documented**
-- **All tests must pass**
-- **Follow existing code style**
-- **Include appropriate error handling**
-- **Update relevant documentation**
+#### LLM Blocks (`src/sdg_hub/core/blocks/llm/`)
+- **Purpose**: Language model operations
+- **Examples**: Chat completion, prompt building, text parsing
+- **Requirements**: 
+  - Support async operations when possible
+  - Include proper error handling for API failures
+  - Support multiple providers through LiteLLM
+
+#### Transform Blocks (`src/sdg_hub/core/blocks/transform/`)
+- **Purpose**: Data manipulation and reshaping
+- **Examples**: Column operations, text processing, data reformatting
+- **Requirements**:
+  - Preserve data integrity
+  - Handle edge cases (empty data, null values)
+  - Efficient processing for large datasets
+
+#### Filtering Blocks (`src/sdg_hub/core/blocks/filtering/`)
+- **Purpose**: Quality control and data validation
+- **Examples**: Value-based filtering, quality gates
+- **Requirements**:
+  - Clear filtering criteria
+  - Comprehensive operator support
+  - Good performance on large datasets
+
+#### Evaluation Blocks (`src/sdg_hub/core/blocks/evaluation/`)
+- **Purpose**: Quality assessment and scoring
+- **Examples**: Faithfulness evaluation, relevancy scoring
+- **Requirements**:
+  - Consistent scoring methodology
+  - Support for different evaluation criteria
+  - Clear documentation of scoring rubrics
+
+## 🌊 Contributing Flows
+
+### Flow Contribution Workflow
+
+1. **Design the Flow**
+   - Define clear use case and objectives
+   - Plan the block sequence and data flow
+   - Specify required input columns and expected outputs
+
+2. **Create Flow Directory Structure**
+```
+src/sdg_hub/flows/[category]/[use_case]/[variant]/
+├── flow.yaml              # Main flow definition
+├── prompt_template_1.yaml # Supporting prompt templates
+├── prompt_template_2.yaml
+└── README.md             # Flow-specific documentation
+```
+
+3. **Implement the Flow**
+   - Create comprehensive `flow.yaml` with proper metadata
+   - Include supporting prompt templates
+   - Add parameter documentation
+
+4. **Test the Flow**
+   - Test with various input datasets
+   - Validate all execution paths
+   - Test parameter overrides
+
+5. **Document the Flow**
+   - Create clear README with usage examples
+   - Document required input format
+   - Include expected output structure
+
+### Flow YAML Requirements
+
+```yaml
+metadata:
+  name: "Descriptive Flow Name"
+  description: "Comprehensive description of what this flow does and when to use it"
+  version: "1.0.0"
+  author: "Your Name <your.email@example.com>"
+  license: "Apache-2.0"
+  min_sdg_hub_version: "0.2.0"
+  
+  # Model recommendations
+  recommended_models:
+    default: "meta-llama/Llama-3.3-70B-Instruct"
+    compatible: 
+      - "microsoft/phi-4"
+      - "mistralai/Mixtral-8x7B-Instruct-v0.1"
+    experimental: []
+  
+  # Categorization tags
+  tags:
+    - "primary-use-case"
+    - "domain"
+    - "data-type"
+  
+  # Dataset requirements
+  dataset_requirements:
+    required_columns:
+      - "column1"
+      - "column2"
+    description: "Clear description of expected input data format"
+    min_samples: 1
+    max_samples: 10000
+
+# Runtime parameters
+parameters:
+  parameter_name:
+    type: "string|integer|float|boolean|object"
+    default: default_value
+    description: "Clear description of what this parameter controls"
+    # Optional validation
+    min: minimum_value      # for numbers
+    max: maximum_value      # for numbers
+    allowed_values: [...]   # for strings
+
+# Block sequence
+blocks:
+  - block_type: "BlockTypeName"
+    block_config:
+      block_name: "unique_descriptive_name"
+      # Block-specific configuration
+```
+
+
+## 🔧 Development Tools and Standards
+
+### Code Quality Standards
+
+**Linting and Formatting**
+```bash
+# Run full verification suite
+make verify
+
+# Individual tools
+tox -e lint        # Full pylint check
+tox -e fastlint    # Quick pylint check
+tox -e ruff        # Ruff formatting and fixes
+tox -e mypy        # Type checking
+
+# Format code
+tox -e ruff fix
+```
+
+**Testing Standards**
+```bash
+# Run all tests
+tox -e py3-unit
+
+# Run with coverage
+tox -e py3-unitcov
+
+# Run specific tests
+pytest tests/test_specific_file.py
+pytest -k "test_pattern"
+```
 
 ### Documentation Standards
 
-- **Docstrings**: Use Google-style docstrings
-- **Type hints**: Include type annotations
-- **Examples**: Provide usage examples
-- **Comments**: Explain complex logic
+**Docstring Format**
+Follow NumPy-style docstrings:
 
 ```python
-def my_function(param1: str, param2: int) -> Dict[str, Any]:
-    """Brief description of the function.
+def my_function(param1: str, param2: int = 5) -> bool:
+    """One-line summary of the function.
     
-    Args:
-        param1: Description of param1
-        param2: Description of param2
+    More detailed description if needed. Explain the purpose,
+    behavior, and any important notes.
+    
+    Parameters
+    ----------
+    param1 : str
+        Description of param1
+    param2 : int, optional
+        Description of param2, by default 5
         
-    Returns:
+    Returns
+    -------
+    bool
         Description of return value
         
-    Raises:
-        ValueError: When param1 is invalid
+    Raises
+    ------
+    ValueError
+        When invalid parameters are provided
         
-    Example:
-        >>> result = my_function("test", 42)
-        >>> print(result)
-        {'status': 'success'}
+    Examples
+    --------
+    >>> result = my_function("test", 10)
+    >>> print(result)
+    True
     """
     pass
 ```
 
-## Release Process
+**Type Hints**
+Use comprehensive type hints:
 
-### Version Management
+```python
+from typing import Any, Dict, List, Optional, Union
+from datasets import Dataset
 
-Versions follow semantic versioning (SemVer):
-- **Major**: Breaking changes
-- **Minor**: New features (backward compatible)
-- **Patch**: Bug fixes
+def process_data(
+    dataset: Dataset,
+    config: Dict[str, Any],
+    filters: Optional[List[str]] = None
+) -> Dataset:
+    """Process dataset with configuration."""
+    pass
+```
 
-### Creating a Release
+### Git Workflow
 
-1. **Update version** in `pyproject.toml`
-2. **Update CHANGELOG.md**
-3. **Create release branch**
-4. **Submit PR to main**
-5. **Tag release after merge**
+**Branch Naming**
+- `feature/block-name-implementation` - New blocks
+- `feature/flow-name-implementation` - New flows
+- `fix/issue-description` - Bug fixes
+- `docs/section-updates` - Documentation updates
 
-## Troubleshooting
+**Commit Messages**
+Follow conventional commits:
+```
+type(scope): description
 
-### Common Development Issues
+feat(blocks): add TextSummarizerBlock for document summarization
+fix(flows): correct parameter validation in QA generation flow
+docs(blocks): update LLM block examples with new model config
+test(evaluation): add comprehensive tests for faithfulness evaluation
+```
 
-1. **Import errors**: Ensure development installation with `pip install -e .`
-2. **Test failures**: Check Python version compatibility
-3. **Linting errors**: Run `tox -e ruff fix` to auto-fix
-4. **Type errors**: Run `tox -e mypy` for detailed type checking
+**Pull Request Process**
+1. Create feature branch from `main`
+2. Implement changes with tests and documentation
+3. Run full verification: `make verify && tox -e py3-unit`
+4. Create PR with clear description
+5. Address review feedback
+6. Squash and merge when approved
+
+## 📋 Contribution Checklist
+
+### For New Blocks
+
+- [ ] Block placed in correct category directory
+- [ ] Inherits from `BaseBlock` and implements `generate()`
+- [ ] Registered with `@BlockRegistry.register()`
+- [ ] Includes comprehensive docstring with examples
+- [ ] Has proper Pydantic field validation
+- [ ] Includes error handling and validation
+- [ ] Has comprehensive test suite
+- [ ] Tests cover success cases, error cases, and edge cases
+- [ ] Documentation updated in relevant block category page
+- [ ] Code passes all linting checks
+- [ ] All tests pass
+
+### For New Flows
+
+- [ ] Flow directory structure follows conventions
+- [ ] `flow.yaml` includes complete metadata
+- [ ] Required input columns documented
+- [ ] Expected output structure documented
+- [ ] Supporting prompt templates included
+- [ ] Flow-specific README created
+- [ ] Integration tests written
+- [ ] Dry run tests pass
+- [ ] Parameter validation tests included
+- [ ] Documentation updated with flow description
+- [ ] Example usage provided
+
+### General Requirements
+
+- [ ] Code follows project style guidelines
+- [ ] All new code has appropriate type hints
+- [ ] Docstrings follow NumPy style
+- [ ] No breaking changes to existing APIs
+- [ ] Performance considerations addressed
+- [ ] Security implications considered
+- [ ] Backward compatibility maintained
+- [ ] Change log entry added (if applicable)
+
+## 🤝 Community Guidelines
 
 ### Getting Help
 
-- **Issues**: Create GitHub issues for bugs/features
-- **Discussions**: Use GitHub discussions for questions
-- **Documentation**: Check existing docs first
-- **Code Review**: Request reviews from maintainers
+- **GitHub Issues** - Report bugs, request features
+- **GitHub Discussions** - Ask questions, share ideas
+- **Documentation** - Check existing docs first
+- **Code Examples** - Look at existing implementations
+
+### Best Practices
+
+1. **Start Small** - Begin with simple contributions
+2. **Ask Questions** - Don't hesitate to ask for clarification
+3. **Follow Patterns** - Study existing code patterns
+4. **Test Thoroughly** - Comprehensive testing is essential
+5. **Document Well** - Clear documentation helps everyone
+6. **Be Patient** - Code review takes time
+7. **Stay Updated** - Keep up with project changes
+
+### Code of Conduct
+
+- Be respectful and inclusive
+- Provide constructive feedback
+- Help newcomers get started
+- Follow the project's coding standards
+- Report issues responsibly
+
+## 🚀 Advanced Contributions
+
+### Framework Extensions
+
+For larger architectural changes:
+- Discuss in GitHub Issues first
+- Create design document
+- Implement incrementally
+- Maintain backward compatibility
+- Provide migration guide if needed
+
+Ready to contribute? Start by exploring the codebase, running the tests, and trying out some simple improvements. The SDG Hub community welcomes your contributions! 🎉

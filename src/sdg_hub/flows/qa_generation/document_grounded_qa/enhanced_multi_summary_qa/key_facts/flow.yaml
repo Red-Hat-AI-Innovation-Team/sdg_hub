@@ -1,0 +1,104 @@
+metadata:
+  name: Key Facts Knowledge Tuning Dataset Generation Flow
+  description: Generating list of atomic facts from a document and converting each atomic fact into a QA pair. This flow will generate 5 QA pairs for each atomic fact.
+  version: 2.0.0
+  author: SDG Hub Contributors
+  recommended_models:
+    default: openai/gpt-oss-120b
+    compatible:
+    - meta-llama/Llama-3.3-70B-Instruct
+    - microsoft/phi-4
+    - mistralai/Mixtral-8x7B-Instruct-v0.1
+    experimental: []
+  tags:
+  - knowledge-tuning
+  - document-internalization
+  - question-generation
+  - qa-pairs
+  - key-facts
+  license: Apache-2.0
+  min_sdg_hub_version: 0.2.0
+  dataset_requirements:
+    required_columns:
+    - document
+    - document_outline
+    - domain
+    description: 'Input dataset should contain documents with text content and domain classification. Each document should be substantial enough for meaningful question generation (around maximum of 8000 tokens). The flow generates 5 QA pairs for each atomic fact.'
+  output_columns:
+  - key_fact
+  - question
+  - response
+  - raw_key_fact_qa
+  id: heavy-heart-77
+blocks:
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: atomic_facts_prompt
+    input_cols:
+    - document
+    - document_outline
+    - domain
+    output_cols: atomic_facts_prompt
+    prompt_config_path: key_facts_summary.yaml
+    format_as_messages: true
+- block_type: LLMChatBlock
+  block_config:
+    block_name: gen_atomic_facts
+    input_cols: atomic_facts_prompt
+    output_cols: raw_summary
+    max_tokens: 4096
+    temperature: 0.7
+    n: 1
+    async_mode: true
+- block_type: TextParserBlock
+  block_config:
+    block_name: parse_atomic_facts
+    input_cols: raw_summary
+    output_cols: atomic_facts
+    start_tags:
+    - '### Key Facts With Context'
+    end_tags:
+    - ''
+- block_type: TextParserBlock
+  block_config:
+    block_name: parse_atomic_facts_to_individual_facts
+    input_cols: atomic_facts
+    output_cols: key_fact
+    parsing_pattern: '(?:^|\n)\s*\d+\.\s+(.*?)(?=\n\s*\d+\.\s+|\Z)'
+- block_type: RenameColumnsBlock
+  block_config:
+    block_name: rename_to_document_column
+    input_cols:
+      document: raw_document
+      atomic_facts: document
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: key_fact_qa
+    input_cols:
+    - key_fact
+    - document_outline
+    output_cols: key_fact_qa
+    prompt_config_path: ../generate_multiple_qa.yaml
+    format_as_messages: true
+- block_type: LLMChatBlock
+  block_config:
+    block_name: generate_key_fact_qa
+    input_cols: key_fact_qa
+    output_cols: raw_key_fact_qa
+    max_tokens: 4096
+    temperature: 0.7
+    n: 1
+    async_mode: true
+- block_type: TextParserBlock
+  block_config:
+    block_name: parse_key_fact_qa
+    input_cols: raw_key_fact_qa
+    output_cols:
+    - question
+    - response
+    start_tags:
+    - '[QUESTION]'
+    - '[ANSWER]'
+    end_tags:
+    - '[END]'
+    - '[END]'
