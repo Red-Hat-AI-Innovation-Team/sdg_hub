@@ -7,10 +7,9 @@ import asyncio
 
 # Third Party
 from datasets import Dataset
-import litellm
 from litellm import acompletion, completion
 from pydantic import ConfigDict, Field, field_validator
-
+import litellm
 
 from ...utils.error_handling import BlockValidationError
 from ...utils.logger_config import setup_logger

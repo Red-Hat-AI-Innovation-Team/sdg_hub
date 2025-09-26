@@ -103,7 +103,6 @@ class VerifyQuestionBlock(BaseBlock):
         description="Regex pattern for custom parsing. If provided, takes precedence over tag-based parsing",
     )
 
-
     # --- Internal blocks (composition) ---
     prompt_builder: PromptBuilderBlock = Field(None, exclude=True)  # type: ignore
     llm_chat: LLMChatBlock = Field(None, exclude=True)  # type: ignore
@@ -146,7 +145,9 @@ class VerifyQuestionBlock(BaseBlock):
         """Get parameters that are handled by this wrapper's structure."""
         return {"block_name", "input_cols", "output_cols"}
 
-    def _add_composite_fields(self, params: dict, block_class, wrapper_params: set[str]) -> dict:
+    def _add_composite_fields(
+        self, params: dict, block_class, wrapper_params: set[str]
+    ) -> dict:
         """Add declared fields from this composite block to parameters."""
         for field_name in self.__class__.model_fields:
             if field_name in wrapper_params:
@@ -160,7 +161,9 @@ class VerifyQuestionBlock(BaseBlock):
                     params[field_name] = field_value
         return params
 
-    def _extract_params(self, kwargs: dict, block_class, remove_params: list[str] = []) -> dict:
+    def _extract_params(
+        self, kwargs: dict, block_class, remove_params: list[str] = []
+    ) -> dict:
         """Extract parameters for specific block class based on its model_fields."""
         wrapper_params = self._get_wrapper_params()
 
@@ -180,14 +183,17 @@ class VerifyQuestionBlock(BaseBlock):
 
         return params
 
-
     def _create_internal_blocks(self, **kwargs):
         """Create internal blocks with parameter routing."""
         # Route parameters to appropriate blocks
         prompt_params = self._extract_params(kwargs, PromptBuilderBlock)
         parser_params = self._extract_params(kwargs, TextParserBlock)
         filter_params = self._extract_params(kwargs, ColumnValueFilterBlock)
-        remove_params = set(prompt_params.keys()) | set(parser_params.keys()) | set(filter_params.keys())
+        remove_params = (
+            set(prompt_params.keys())
+            | set(parser_params.keys())
+            | set(filter_params.keys())
+        )
         llm_params = self._extract_params(kwargs, LLMChatBlock, remove_params)
 
         self.prompt_builder = PromptBuilderBlock(
@@ -248,12 +254,22 @@ class VerifyQuestionBlock(BaseBlock):
         )
 
         try:
-            prompt_params = {k: v for k, v in kwargs.items() if k in self.prompt_builder.model_fields}
-            parser_params = {k: v for k, v in kwargs.items() if k in self.text_parser.model_fields}
-            filter_params = {k: v for k, v in kwargs.items() if k in self.filter_block.model_fields}
-            non_llm_params = set(prompt_params.keys()) | set(parser_params.keys()) | set(filter_params.keys())
+            prompt_params = {
+                k: v for k, v in kwargs.items() if k in self.prompt_builder.model_fields
+            }
+            parser_params = {
+                k: v for k, v in kwargs.items() if k in self.text_parser.model_fields
+            }
+            filter_params = {
+                k: v for k, v in kwargs.items() if k in self.filter_block.model_fields
+            }
+            non_llm_params = (
+                set(prompt_params.keys())
+                | set(parser_params.keys())
+                | set(filter_params.keys())
+            )
             llm_params = {k: v for k, v in kwargs.items() if k not in non_llm_params}
-            
+
             # Execute 4-block pipeline with validation delegation
             result = self.prompt_builder(samples, **prompt_params)
             result = self.llm_chat(result, **llm_params)
