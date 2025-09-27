@@ -171,17 +171,50 @@ blocks:
       parsing_pattern: "\\[(?:Question|QUESTION)\\]\\s*(.*?)\\s*\\[(?:Answer|ANSWER)\\]\\s*(.*?)\\s*(?=\\[(?:Question|QUESTION)\\]|$)"
       parser_cleanup_tags: ["[END]"]
 
-  - block_type: EvaluateFaithfulnessBlock
+  - block_type: PromptBuilderBlock
     block_config:
-      block_name: eval_faithfulness
+      block_name: eval_faithful_prompt
       input_cols: [document, response]
-      output_cols: [faithfulness_explanation, faithfulness_judgment]
+      output_cols: eval_faithful_prompt
       prompt_config_path: evaluate_faithfulness.yaml
+      format_as_messages: true
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: eval_faithful_llm_chat
+      input_cols: eval_faithful_prompt
+      output_cols: eval_faithful_response_dict
+      max_tokens: 2048
+      n: 1
+      async_mode: true
+
+  - block_type: LLMParserBlock
+    block_config:
+      block_name: extract_eval_faithful
+      input_cols: eval_faithful_response_dict
+      extract_content: true
+      
+  - block_type: TextParserBlock
+    block_config:
+      block_name: parse_eval_faithful
+      input_cols: extract_eval_faithful_content
+      output_cols: 
+      - faithfulness_explanation
+      - faithfulness_judgment
+      start_tags:
+      - '[Start of Explanation]'
+      - '[Start of Answer]'
+      end_tags:
+      - '[End of Explanation]'
+      - '[End of Answer]'
+
+  - block_type: ColumnValueFilterBlock
+    block_config:
+      block_name: eval_faithful_filter
+      input_cols:
+        - faithfulness_judgment
       filter_value: "YES"
       operation: eq
-      async_mode: true
-      start_tags: ["[Start of Explanation]", "[Start of Answer]"]
-      end_tags: ["[End of Explanation]", "[End of Answer]"]
 
   - block_type: PromptBuilderBlock
     block_config:
