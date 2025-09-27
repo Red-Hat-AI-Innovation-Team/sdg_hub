@@ -54,7 +54,6 @@ blocks:
       output_cols: raw_summary_detailed
       max_tokens: 2048
       async_mode: true
-      enable_reasoning: true
       n: 2
 
   - block_type: LLMParserBlock
