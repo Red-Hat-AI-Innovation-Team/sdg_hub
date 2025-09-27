@@ -18,8 +18,8 @@ from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
 from ..registry import BlockRegistry
 from .llm_chat_block import LLMChatBlock
-from .text_parser_block import TextParserBlock
 from .llm_parser_block import LLMParserBlock
+from .text_parser_block import TextParserBlock
 
 logger = setup_logger(__name__)
 
