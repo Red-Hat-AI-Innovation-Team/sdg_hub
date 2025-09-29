@@ -3,6 +3,13 @@
 
 # Standard
 from typing import Dict, Optional
+import math
+
+# Default max concurrent requests used during dry runs
+DRY_RUN_MAX_CONCURRENT = 100
+
+# Conservative estimation factor (20% buffer for API variability, network latency, etc.)
+ESTIMATION_BUFFER_FACTOR = 1.2
 
 
 def is_llm_using_block(block_info: Dict) -> bool:
@@ -90,13 +97,26 @@ def calculate_block_throughput(
     amp_2 = requests_2 / samples_2 if samples_2 > 0 else 1
     avg_amplification = (amp_1 + amp_2) / 2
 
-    # Calculate throughput (requests per second)
-    throughput_1 = requests_1 / time_1 if time_1 > 0 else 0
-    throughput_2 = requests_2 / time_2 if time_2 > 0 else 0
+    # Use linear scaling to extract throughput and overhead from two data points
+    # Model: time = startup_overhead + (requests / throughput)
 
-    # For small samples, throughput is often lower due to startup overhead
-    # Use the higher throughput as it's closer to steady-state
-    measured_throughput = max(throughput_1, throughput_2)
+    if requests_2 > requests_1 and time_2 > time_1:
+        # Calculate marginal time per request (slope of the line)
+        marginal_time = (time_2 - time_1) / (requests_2 - requests_1)
+
+        # Throughput is the inverse of marginal time
+        measured_throughput = 1.0 / marginal_time if marginal_time > 0 else 0
+
+        # Y-intercept is the startup overhead
+        startup_overhead = max(0, time_1 - (requests_1 * marginal_time))
+    else:
+        # Fallback to simple calculation if we don't have good data for scaling
+        throughput_1 = requests_1 / time_1 if time_1 > 0 else 0
+        throughput_2 = requests_2 / time_2 if time_2 > 0 else 0
+        measured_throughput = max(throughput_1, throughput_2)
+
+        # Estimate overhead as a small fraction of time
+        startup_overhead = min(2.0, time_1 * 0.1)  # Assume 10% overhead, max 2 seconds
 
     # If we have no valid measurements, raise an error
     if measured_throughput == 0:
@@ -105,14 +125,6 @@ def calculate_block_throughput(
             f"No valid measurements from dry runs (time_1={time_1}, time_2={time_2}, "
             f"requests_1={requests_1}, requests_2={requests_2})"
         )
-
-    # Calculate startup overhead (time that doesn't scale)
-    # This is the difference between first request latency and steady-state
-    if requests_2 > requests_1 and time_2 > time_1:
-        marginal_time = (time_2 - time_1) / (requests_2 - requests_1)
-        startup_overhead = max(0, time_1 - (requests_1 * marginal_time))
-    else:
-        startup_overhead = min(2.0, time_1 * 0.1)  # Assume 10% overhead, max 2 seconds
 
     return {
         "throughput": measured_throughput,
@@ -125,7 +137,7 @@ def calculate_time_with_pipeline(
     num_requests: float,
     throughput: float,
     startup_overhead: float,
-    max_concurrent: int = 100,
+    max_concurrent: int = DRY_RUN_MAX_CONCURRENT,
 ) -> float:
     """Calculate time considering pipeline behavior and max concurrent limit.
 
@@ -157,21 +169,24 @@ def calculate_time_with_pipeline(
     if num_requests <= 0:
         return 0
 
-    # Scale throughput based on max_concurrent (assumes dry run used 100)
-    dry_run_max_concurrent = 100
-    concurrency_factor = (
-        min(max_concurrent, dry_run_max_concurrent) / dry_run_max_concurrent
-    )
+    # Validate and clamp max_concurrent to avoid division by zero
+    if max_concurrent is None or max_concurrent <= 0:
+        max_concurrent = 1
 
-    # Non-linear scaling (^0.7) for diminishing returns
-    effective_throughput = throughput * (concurrency_factor**0.7)
+    # The throughput is what we measured - it represents the server's processing capability
+    if max_concurrent == 1:
+        # Sequential execution - no pipelining benefit
+        effective_throughput = throughput
+    else:
+        # Concurrent execution - small pipelining benefit
+        # At most 10% improvement from perfect pipelining (conservative estimate)
+        # Logarithmic growth to model diminishing returns
+        pipelining_factor = 1.0 + (0.1 * math.log(max_concurrent) / math.log(100))
+        pipelining_factor = min(pipelining_factor, 1.1)  # Cap at 10% improvement
+        effective_throughput = throughput * pipelining_factor
 
+    # Calculate total time
     base_time = startup_overhead + (num_requests / effective_throughput)
-
-    # Extra overhead for batching with lower concurrency
-    if num_requests > max_concurrent:
-        pipeline_overhead = 2.0 * (dry_run_max_concurrent / max_concurrent) ** 0.5
-        base_time += pipeline_overhead
 
     return base_time
 
@@ -182,12 +197,15 @@ def estimate_execution_time(
     total_dataset_size: Optional[int] = None,
     max_concurrency: Optional[int] = None,
 ) -> Dict:
-    """Estimate execution time using req/s-based model.
+    """Estimate execution time based on dry run results.
 
     Estimates the total execution time for a full dataset based on one or two
     dry runs with smaller sample sizes. For async blocks (with two dry runs),
     calculates throughput and concurrency benefits. For sync blocks (single dry run),
     performs simple linear scaling.
+
+    The estimates include a conservative buffer (20%) to account for API variability,
+    network latency, and other real-world factors.
 
     Parameters
     ----------
@@ -204,28 +222,26 @@ def estimate_execution_time(
     -------
     Dict
         Estimation results containing:
-        - sequential_time_seconds: float, time without concurrency
-        - concurrent_time_seconds: float, time with concurrency
-        - speedup: float, ratio of sequential to concurrent time
+        - estimated_time_seconds: float, estimated time with current configuration (includes buffer)
         - total_estimated_requests: int, total LLM requests (0 for sync blocks)
         - block_estimates: list, per-block estimates (for async blocks)
-        - warning/note: str, additional information about the estimation
+        - note: str, additional information about the estimation
 
     Examples
     --------
     >>> dry_run = {"sample_size": 2, "execution_time_seconds": 10.0}
     >>> result = estimate_execution_time(dry_run, total_dataset_size=100)
-    >>> assert result["sequential_time_seconds"] > 0
+    >>> assert result["estimated_time_seconds"] > 0
     >>>
     >>> # With two dry runs for async estimation
     >>> dry_run_1 = {"sample_size": 1, "execution_time_seconds": 5.0, "blocks_executed": [...]}
     >>> dry_run_2 = {"sample_size": 5, "execution_time_seconds": 20.0, "blocks_executed": [...]}
     >>> result = estimate_execution_time(dry_run_1, dry_run_2, total_dataset_size=1000)
-    >>> assert result["speedup"] >= 1.0
+    >>> assert result["estimated_time_seconds"] > 0
     """
     # Set defaults
     if max_concurrency is None:
-        max_concurrency = 100
+        max_concurrency = DRY_RUN_MAX_CONCURRENT
 
     if total_dataset_size is None:
         total_dataset_size = dry_run_1.get(
@@ -246,16 +262,16 @@ def estimate_execution_time(
             # Fallback to simple scaling if no block details available
             total_time = dry_run_1["execution_time_seconds"]
             simple_estimate = (total_time / samples_1) * total_dataset_size
+            # Apply conservative buffer
+            simple_estimate = simple_estimate * ESTIMATION_BUFFER_FACTOR
             return {
-                "sequential_time_seconds": simple_estimate,
-                "concurrent_time_seconds": simple_estimate,
-                "speedup": 1.0,
+                "estimated_time_seconds": simple_estimate,
                 "total_estimated_requests": 0,
-                "note": "Synchronous execution - no block details available",
+                "note": "Synchronous execution - linear scaling from dry run",
             }
 
         # Calculate time for each block and sum them
-        total_sequential_time = 0
+        total_estimated_time = 0
         for block in blocks_executed:
             block_time = block.get("execution_time_seconds", 0)
             input_rows = block.get("input_rows", samples_1)
@@ -264,18 +280,17 @@ def estimate_execution_time(
             if input_rows > 0:
                 time_per_row = block_time / input_rows
                 block_total_time = time_per_row * total_dataset_size
-                total_sequential_time += block_total_time
+                total_estimated_time += block_total_time
 
-        # For synchronous execution, concurrent time equals sequential time
+        # Apply conservative buffer
+        total_estimated_time = total_estimated_time * ESTIMATION_BUFFER_FACTOR
         return {
-            "sequential_time_seconds": total_sequential_time,
-            "concurrent_time_seconds": total_sequential_time,
-            "speedup": 1.0,
+            "estimated_time_seconds": total_estimated_time,
             "total_estimated_requests": 0,
-            "note": "Synchronous execution - no concurrency benefits",
+            "note": "Synchronous execution - no concurrency",
         }
 
-    # Analyze each block
+    # Analyze each block with async execution
     block_estimates = []
     total_time = 0
     total_requests = 0
@@ -315,20 +330,15 @@ def estimate_execution_time(
                 "throughput": analysis["throughput"],
                 "estimated_time": block_time,
                 "amplification": analysis["amplification"],
+                "startup_overhead": analysis["startup_overhead"],
             }
         )
 
-    # Calculate sequential time (no concurrency)
-    sequential_time = sum(
-        block["estimated_requests"]
-        / min(block["throughput"], 0.1)  # Avoid division by zero
-        for block in block_estimates
-    )
+    # Apply conservative buffer to account for API variability, network issues, etc.
+    total_time = total_time * ESTIMATION_BUFFER_FACTOR
 
     return {
-        "sequential_time_seconds": sequential_time,
-        "concurrent_time_seconds": total_time,
-        "speedup": sequential_time / total_time if total_time > 0 else 1.0,
-        "block_estimates": block_estimates,
+        "estimated_time_seconds": total_time,
         "total_estimated_requests": int(total_requests),
+        "block_estimates": block_estimates,
     }

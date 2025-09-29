@@ -1166,7 +1166,7 @@ class Flow(BaseModel):
         runtime_params: Optional[dict[str, dict[str, Any]]] = None,
         max_concurrency: Optional[int] = None,
     ) -> dict[str, Any]:
-        """Estimate execution time for the full dataset.
+        """Estimate the total execution time for the full dataset.
 
         Uses cached dry_run results if available, otherwise runs dry_run(s) as needed.
         For flows with async blocks, performs two dry_runs with different sample sizes
@@ -1187,13 +1187,26 @@ class Flow(BaseModel):
         Returns
         -------
         Dict[str, Any]
-            Time estimation results including sequential_time_seconds and concurrent_time_seconds.
+            Time estimation results including estimated_time_seconds and total_estimated_requests.
 
         Raises
         ------
         FlowValidationError
             If dry run execution fails.
         """
+        # Validate max_concurrency parameter (mirror generate())
+        if max_concurrency is not None:
+            # Explicitly reject boolean values (bool is a subclass of int in Python)
+            if isinstance(max_concurrency, bool) or not isinstance(
+                max_concurrency, int
+            ):
+                raise FlowValidationError(
+                    f"max_concurrency must be an int, got {type(max_concurrency).__name__}"
+                )
+            if max_concurrency <= 0:
+                raise FlowValidationError(
+                    f"max_concurrency must be greater than 0, got {max_concurrency}"
+                )
 
         # Check if any blocks have async_mode enabled
         has_async_blocks = any(
@@ -1231,12 +1244,17 @@ class Flow(BaseModel):
                 dry_run_results = self.dry_run(dataset, sample_size, runtime_params)
 
             # Estimate time for sequential execution
-            time_estimation = estimate_execution_time(
-                dry_run_1=dry_run_results,
-                dry_run_2=None,
-                total_dataset_size=len(dataset),
-                max_concurrency=max_concurrency,
-            )
+            try:
+                time_estimation = estimate_execution_time(
+                    dry_run_1=dry_run_results,
+                    dry_run_2=None,
+                    total_dataset_size=len(dataset),
+                    max_concurrency=max_concurrency,
+                )
+            except Exception as exc:
+                raise FlowValidationError(
+                    f"Error estimating execution time: {exc}"
+                ) from exc
 
         else:
             # Async execution - need two dry_runs with different sample sizes
@@ -1280,44 +1298,33 @@ class Flow(BaseModel):
                 dry_run_2 = self.dry_run(dataset, dry_run_2_samples, runtime_params)
 
             # Estimate time with concurrency analysis
-            time_estimation = estimate_execution_time(
-                dry_run_1=dry_run_1,
-                dry_run_2=dry_run_2,
-                total_dataset_size=len(dataset),
-                max_concurrency=max_concurrency,
-            )
+            try:
+                time_estimation = estimate_execution_time(
+                    dry_run_1=dry_run_1,
+                    dry_run_2=dry_run_2,
+                    total_dataset_size=len(dataset),
+                    max_concurrency=max_concurrency,
+                )
+            except Exception as exc:
+                raise FlowValidationError(
+                    f"Error estimating execution time: {exc}"
+                ) from exc
 
         # Log results
-        sequential_secs = time_estimation["sequential_time_seconds"]
-        concurrent_secs = time_estimation["concurrent_time_seconds"]
-        sequential_hours = sequential_secs / 3600
-        concurrent_hours = concurrent_secs / 3600
+        estimated_secs = time_estimation["estimated_time_seconds"]
+        estimated_hours = estimated_secs / 3600
 
         logger.info(f"📊 Estimated execution time for {len(dataset)} samples:")
 
         # Format time based on duration
-        if sequential_secs < 60:
-            logger.info(f"  Sequential: {sequential_secs:.1f} seconds")
-        elif sequential_secs < 3600:
+        if estimated_secs < 60:
+            logger.info(f"  ⏱️  {estimated_secs:.1f} seconds")
+        elif estimated_secs < 3600:
             logger.info(
-                f"  Sequential: {sequential_secs/60:.1f} minutes ({sequential_hours:.2f} hours)"
+                f"  ⏱️  {estimated_secs / 60:.1f} minutes ({estimated_hours:.2f} hours)"
             )
         else:
-            logger.info(f"  Sequential: {sequential_hours:.2f} hours")
-
-        if concurrent_secs < 60:
-            logger.info(f"  Concurrent: {concurrent_secs:.1f} seconds")
-        elif concurrent_secs < 3600:
-            logger.info(
-                f"  Concurrent: {concurrent_secs/60:.1f} minutes ({concurrent_hours:.2f} hours)"
-            )
-        else:
-            logger.info(f"  Concurrent: {concurrent_hours:.2f} hours")
-
-        # Show speedup if there's a difference
-        if concurrent_secs > 0 and sequential_secs > concurrent_secs:
-            speedup = sequential_secs / concurrent_secs
-            logger.info(f"  🚀 Speedup: {speedup:.1f}x faster with concurrency")
+            logger.info(f"  ⏱️  {estimated_hours:.2f} hours")
 
         # Show estimated requests (always available from time_estimator)
         total_requests = time_estimation.get("total_estimated_requests", 0)

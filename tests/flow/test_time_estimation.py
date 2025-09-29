@@ -96,48 +96,44 @@ class TestTimeEstimation:
         ):
             result = flow.estimate_total_time(dataset, sample_size=2)
 
-        assert "sequential_time_seconds" in result
-        assert "concurrent_time_seconds" in result
-        assert result["sequential_time_seconds"] > 0
+        assert "estimated_time_seconds" in result
+        assert result["estimated_time_seconds"] > 0
+        assert "total_estimated_requests" in result
 
     def test_estimate_total_time_with_cached_results(self):
-        """Test estimate_total_time reuses cached dry_run results."""
+        """Test estimate_total_time when cached dry_run results exist."""
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test"] * 10})
 
-        # Pre-set cached results using object.__setattr__ for Pydantic private attributes
-        object.__setattr__(
-            flow,
-            "_cached_dry_run_results",
-            {
-                "flow_name": "Test Flow",
-                "sample_size": 2,
-                "original_dataset_size": 10,
-                "execution_time_seconds": 2.0,
-                "blocks_executed": [
-                    {
-                        "block_name": "test_block",
-                        "block_type": "MockBlock",
-                        "execution_time_seconds": 2.0,
-                        "input_rows": 2,
-                        "output_rows": 2,
-                        "parameters_used": {},
-                    }
-                ],
-                "execution_successful": True,
-            },
-        )
+        # Set up cached results
+        flow._cached_dry_run_results = {
+            "flow_name": "Test Flow",
+            "sample_size": 2,
+            "original_dataset_size": 10,
+            "execution_time_seconds": 2.0,
+            "blocks_executed": [
+                {
+                    "block_name": "test_block",
+                    "block_type": "MockBlock",
+                    "execution_time_seconds": 2.0,
+                    "input_rows": 2,
+                    "output_rows": 2,
+                    "parameters_used": {},
+                }
+            ],
+            "execution_successful": True,
+        }
 
-        # Mock dry_run to track if it's called
+        # Should use cached results, not call dry_run
         with patch("sdg_hub.core.flow.base.Flow.dry_run") as mock_dry_run:
-            result = flow.estimate_total_time(dataset)
+            result = flow.estimate_total_time(dataset, sample_size=2)
 
-            # Should not call dry_run since cached results exist
-            mock_dry_run.assert_not_called()
+        # dry_run should not be called when cached results match sample_size
+        mock_dry_run.assert_not_called()
 
-        assert "sequential_time_seconds" in result
-        assert result["sequential_time_seconds"] > 0
+        assert "estimated_time_seconds" in result
+        assert result["estimated_time_seconds"] > 0
 
     def test_estimate_total_time_with_async_blocks(self):
         """Test estimate_total_time with async blocks requiring two dry runs."""
@@ -203,30 +199,28 @@ class TestTimeEstimation:
         # Should call dry_run twice for async blocks
         assert call_count[0] == 2
 
-        assert "sequential_time_seconds" in result
-        assert "concurrent_time_seconds" in result
-        assert "speedup" in result
-
-        # Concurrent should be faster than sequential for async blocks
-        if result["concurrent_time_seconds"] > 0:
-            assert result["speedup"] >= 1.0
+        assert "estimated_time_seconds" in result
+        assert result["estimated_time_seconds"] > 0
+        assert "total_estimated_requests" in result
+        assert result["total_estimated_requests"] > 0
 
     def test_estimate_total_time_no_async_blocks(self):
         """Test estimate_total_time with only sequential blocks."""
-        block = self.create_mock_block("sequential_block")
+        block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test"] * 50})
+        dataset = Dataset.from_dict({"input": ["test"] * 100})
 
-        mock_dry_run_results = {
+        # Mock dry_run results for sequential block
+        mock_dry_run = {
             "flow_name": "Test Flow",
             "sample_size": 2,
-            "original_dataset_size": 50,
-            "execution_time_seconds": 1.0,
+            "original_dataset_size": 100,
+            "execution_time_seconds": 2.0,
             "blocks_executed": [
                 {
-                    "block_name": "sequential_block",
+                    "block_name": "test_block",
                     "block_type": "MockBlock",
-                    "execution_time_seconds": 1.0,
+                    "execution_time_seconds": 2.0,
                     "input_rows": 2,
                     "output_rows": 2,
                     "parameters_used": {},
@@ -237,19 +231,19 @@ class TestTimeEstimation:
 
         call_count = [0]
 
-        def mock_dry_run_side_effect(*_args, **_kwargs):
+        def mock_dry_run_side_effect(_dataset, sample_size, _runtime_params=None):
             call_count[0] += 1
-            return mock_dry_run_results
+            return mock_dry_run
 
         with patch(
             "sdg_hub.core.flow.base.Flow.dry_run", side_effect=mock_dry_run_side_effect
         ):
-            result = flow.estimate_total_time(dataset)
+            result = flow.estimate_total_time(dataset, sample_size=2)
 
         # Should only call dry_run once for sequential blocks
         assert call_count[0] == 1
-        assert "sequential_time_seconds" in result
-        assert "concurrent_time_seconds" in result
+        assert "estimated_time_seconds" in result
+        assert result["estimated_time_seconds"] > 0
 
     def test_estimate_total_time_with_max_concurrency(self):
         """Test estimate_total_time with max_concurrency parameter."""
@@ -259,8 +253,8 @@ class TestTimeEstimation:
 
         dataset = Dataset.from_dict({"input": ["test"] * 100})
 
-        # Mock dry_run results
-        mock_dry_run = {
+        # Mock dry_run results for 1 sample
+        mock_dry_run_1 = {
             "flow_name": "Test Flow",
             "sample_size": 1,
             "original_dataset_size": 100,
@@ -277,26 +271,51 @@ class TestTimeEstimation:
             ],
             "execution_successful": True,
         }
+        
+        # Mock dry_run results for 5 samples (should scale)
+        mock_dry_run_5 = {
+            "flow_name": "Test Flow",
+            "sample_size": 5,
+            "original_dataset_size": 100,
+            "execution_time_seconds": 2.0,
+            "blocks_executed": [
+                {
+                    "block_name": "async_llm_block",
+                    "block_type": "MockBlock",
+                    "execution_time_seconds": 2.0,
+                    "input_rows": 5,
+                    "output_rows": 5,
+                    "parameters_used": {"model": "test-model"},
+                }
+            ],
+            "execution_successful": True,
+        }
 
-        with patch("sdg_hub.core.flow.base.Flow.dry_run", return_value=mock_dry_run):
+        def mock_dry_run_side_effect(_dataset, sample_size, _runtime_params=None):
+            if sample_size == 1:
+                return mock_dry_run_1
+            else:
+                return mock_dry_run_5
+
+        with patch("sdg_hub.core.flow.base.Flow.dry_run", side_effect=mock_dry_run_side_effect):
             # Test with low concurrency
             result_low = flow.estimate_total_time(
-                dataset, sample_size=1, max_concurrency=10
+                dataset, sample_size=5, max_concurrency=10
             )
 
             # Test with high concurrency
             result_high = flow.estimate_total_time(
-                dataset, sample_size=1, max_concurrency=100
+                dataset, sample_size=5, max_concurrency=100
             )
 
         # Both should have valid results
-        assert result_low["sequential_time_seconds"] > 0
-        assert result_high["sequential_time_seconds"] > 0
+        assert result_low["estimated_time_seconds"] > 0
+        assert result_high["estimated_time_seconds"] > 0
 
         # Higher concurrency should generally be faster (or equal)
         assert (
-            result_high["concurrent_time_seconds"]
-            <= result_low["concurrent_time_seconds"]
+            result_high["estimated_time_seconds"]
+            <= result_low["estimated_time_seconds"]
         )
 
     def test_estimate_total_time_caching_behavior(self):
@@ -416,6 +435,83 @@ class TestTimeEstimation:
         with pytest.raises(EmptyDatasetError):
             flow.estimate_total_time(empty_dataset)
 
+    def test_estimate_total_time_max_concurrency_validation(self):
+        """Test estimate_total_time validates max_concurrency parameter."""
+        block = self.create_mock_block("test_block")
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+
+        # Test with zero value
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.estimate_total_time(dataset, max_concurrency=0)
+        assert "must be greater than 0" in str(exc_info.value)
+
+        # Test with negative value
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.estimate_total_time(dataset, max_concurrency=-1)
+        assert "must be greater than 0" in str(exc_info.value)
+
+        # Test with boolean value
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.estimate_total_time(dataset, max_concurrency=True)
+        assert "must be an int" in str(exc_info.value)
+
+        # Test with string value
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.estimate_total_time(dataset, max_concurrency="10")
+        assert "must be an int" in str(exc_info.value)
+
+        # Test with float value
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.estimate_total_time(dataset, max_concurrency=10.5)
+        assert "must be an int" in str(exc_info.value)
+
+        # Test with None (should not raise)
+        result = flow.estimate_total_time(dataset, max_concurrency=None)
+        assert result is not None
+
+        # Test with valid positive integer
+        result = flow.estimate_total_time(dataset, max_concurrency=10)
+        assert result is not None
+
+    def test_estimate_total_time_wraps_estimator_errors(self):
+        """Test that errors from estimate_execution_time are wrapped as FlowValidationError."""
+        block = self.create_mock_block("test_block")
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+
+        # Mock estimate_execution_time to raise an exception
+        with patch(
+            "sdg_hub.core.flow.base.estimate_execution_time"
+        ) as mock_estimate:
+            mock_estimate.side_effect = ValueError("Invalid time measurements")
+
+            # Should wrap the ValueError as FlowValidationError
+            with pytest.raises(FlowValidationError) as exc_info:
+                flow.estimate_total_time(dataset)
+
+            assert "Error estimating execution time" in str(exc_info.value)
+            assert "Invalid time measurements" in str(exc_info.value)
+            # Check exception chaining
+            assert isinstance(exc_info.value.__cause__, ValueError)
+
+        # Also test with async blocks to cover the second error handler
+        async_block = self.create_mock_block("async_block")
+        async_block.async_mode = True
+        flow_with_async = Flow(blocks=[async_block], metadata=self.test_metadata)
+
+        with patch(
+            "sdg_hub.core.flow.base.estimate_execution_time"
+        ) as mock_estimate:
+            mock_estimate.side_effect = RuntimeError("Throughput calculation failed")
+
+            with pytest.raises(FlowValidationError) as exc_info:
+                flow_with_async.estimate_total_time(dataset)
+
+            assert "Error estimating execution time" in str(exc_info.value)
+            assert "Throughput calculation failed" in str(exc_info.value)
+            assert isinstance(exc_info.value.__cause__, RuntimeError)
+
     def test_dry_run_caches_results(self):
         """Test that dry_run properly sets _cached_dry_run_results."""
         block = self.create_mock_block("test_block")
@@ -462,7 +558,6 @@ class TestTimeEstimatorIntegration:
 
     def test_time_estimator_module_functions(self):
         """Test that time_estimator module functions are called correctly."""
-        # All time_estimator imports are already at the top of the file
 
         # Test is_llm_using_block
         llm_block_info = {
@@ -508,9 +603,8 @@ class TestTimeEstimatorIntegration:
         single_result = estimate_execution_time(
             dry_run_1=dry_run_1, dry_run_2=None, total_dataset_size=100
         )
-        assert "sequential_time_seconds" in single_result
-        assert "concurrent_time_seconds" in single_result
-        assert single_result["sequential_time_seconds"] > 0
+        assert "estimated_time_seconds" in single_result
+        assert single_result["estimated_time_seconds"] > 0
 
         # Test estimate_execution_time with two dry runs
         dry_run_2 = {
@@ -549,15 +643,12 @@ class TestTimeEstimatorIntegration:
             total_dataset_size=1000,
             max_concurrency=100,
         )
-        assert "sequential_time_seconds" in dual_result
-        assert "concurrent_time_seconds" in dual_result
-        assert "speedup" in dual_result
+        assert "estimated_time_seconds" in dual_result
         assert "block_estimates" in dual_result
         assert "total_estimated_requests" in dual_result
 
     def test_time_estimator_edge_cases(self):
         """Test edge cases in time estimator functions."""
-        # All time_estimator imports are already at the top of the file
 
         # Test with zero execution time
         block_zero_time = {
@@ -591,3 +682,65 @@ class TestTimeEstimatorIntegration:
         )
         assert time_high_concurrent > 0
         assert time_high_concurrent < time_low_concurrent
+
+        # Test with invalid max_concurrent values (should be clamped to 1)
+        time_zero_concurrent = calculate_time_with_pipeline(
+            num_requests=100, throughput=10.0, startup_overhead=1.0, max_concurrent=0
+        )
+        assert time_zero_concurrent > 0  # Should not crash or return invalid result
+
+        time_negative_concurrent = calculate_time_with_pipeline(
+            num_requests=100, throughput=10.0, startup_overhead=1.0, max_concurrent=-5
+        )
+        assert time_negative_concurrent > 0  # Should not crash
+
+        # Both should produce the same result (clamped to 1)
+        time_one_concurrent = calculate_time_with_pipeline(
+            num_requests=100, throughput=10.0, startup_overhead=1.0, max_concurrent=1
+        )
+        assert time_zero_concurrent == time_one_concurrent
+        assert time_negative_concurrent == time_one_concurrent
+
+        # Test that high throughput values are preserved (not capped at 0.1)
+        # This test would catch the min/max bug
+        dry_run_high_throughput = {
+            "sample_size": 100,
+            "execution_time_seconds": 0.1,  # 100 rows in 0.1 seconds
+            "blocks_executed": [
+                {
+                    "block_name": "high_throughput_block",
+                    "execution_time_seconds": 0.1,
+                    "input_rows": 100,
+                    "block_type": "LLMChatBlock",
+                    "parameters_used": {"model": "gpt-4"},
+                }
+            ]
+        }
+        
+        # Calculate with very high throughput (1000 req/sec based on 100 rows in 0.1 second)
+        result = estimate_execution_time(
+            dry_run_1=dry_run_high_throughput,
+            dry_run_2={
+                "sample_size": 200,
+                "execution_time_seconds": 0.2,
+                "blocks_executed": [
+                    {
+                        "block_name": "high_throughput_block",
+                        "execution_time_seconds": 0.2,
+                        "input_rows": 200,
+                        "block_type": "LLMChatBlock",
+                        "parameters_used": {"model": "gpt-4"},
+                    }
+                ]
+            },
+            total_dataset_size=10000,
+            max_concurrency=100
+        )
+        
+        # With correct max() function: time = 10000/1000 = 10 seconds
+        # With incorrect min() function: time = 10000/0.1 = 100000 seconds
+        # So if estimated time is < 1000 seconds, we're using max() correctly
+        assert result["estimated_time_seconds"] < 1000, (
+            f"Estimated time {result['estimated_time_seconds']} is too high, "
+            "suggesting min() is being used instead of max() for throughput flooring"
+        )
