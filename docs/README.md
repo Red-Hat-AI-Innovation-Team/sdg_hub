@@ -49,7 +49,6 @@ Learn about the modular block architecture that powers SDG Hub:
 - **[LLM Blocks](blocks/llm-blocks.md)** - Chat, prompt building, and text parsing
 - **[Transform Blocks](blocks/transform-blocks.md)** - Data transformation and manipulation
 - **[Filtering Blocks](blocks/filtering-blocks.md)** - Quality filtering and data validation
-- **[Evaluation Blocks](blocks/evaluation-blocks.md)** - Faithfulness and relevancy assessment
 - **[Custom Blocks](blocks/custom-blocks.md)** - Building your own processing blocks
 
 ### Flow System

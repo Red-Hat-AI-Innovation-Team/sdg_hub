@@ -239,5 +239,4 @@ Extracts structured data from LLM responses using patterns, schemas, or custom p
 
 - **[Transform Blocks](transform-blocks.md)** - Data manipulation and reshaping
 - **[Filtering Blocks](filtering-blocks.md)** - Quality control and validation
-- **[Evaluation Blocks](evaluation-blocks.md)** - Quality assessment and scoring
 - **[Flow Integration](../flows/overview.md)** - Combine LLM blocks into complete pipelines

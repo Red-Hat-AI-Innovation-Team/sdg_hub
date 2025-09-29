@@ -16,7 +16,6 @@ from .deprecated_blocks import (
     SelectorBlock,
     SetToMajorityValue,
 )
-from .evaluation import EvaluateFaithfulnessBlock, EvaluateRelevancyBlock
 from .filtering import ColumnValueFilterBlock
 from .llm import LLMChatBlock, LLMParserBlock, PromptBuilderBlock, TextParserBlock
 from .registry import BlockRegistry
@@ -54,6 +53,4 @@ __all__ = [
     "LLMParserBlock",
     "TextParserBlock",
     "PromptBuilderBlock",
-    "EvaluateFaithfulnessBlock",
-    "EvaluateRelevancyBlock",
 ]

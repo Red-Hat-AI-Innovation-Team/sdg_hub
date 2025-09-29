@@ -169,13 +169,41 @@ blocks:
       max_tokens: 300
       async_mode: true
   
-  # Quality evaluation
-  - block_type: "EvaluateFaithfulnessBlock"
+  # Quality evaluation using basic blocks
+  - block_type: "PromptBuilderBlock"
     block_config:
-      block_name: "check_faithfulness"
+      block_name: "faithfulness_prompt"
       input_cols: ["document", "answer"]
-      output_cols: ["faithfulness_score"]
+      output_cols: ["eval_prompt"]
+      prompt_template: "Evaluate if this answer is faithful to the document..."
+
+  - block_type: "LLMChatBlock"
+    block_config:
+      block_name: "eval_faithfulness_llm"
+      input_cols: ["eval_prompt"]
+      output_cols: ["eval_response"]
       async_mode: true
+
+  - block_type: "LLMParserBlock"
+    block_config:
+      block_name: "extract_eval_content"
+      input_cols: ["eval_response"]
+      extract_content: true
+
+  - block_type: "TextParserBlock"
+    block_config:
+      block_name: "parse_evaluation"
+      input_cols: ["extract_eval_content_content"]
+      output_cols: ["explanation", "judgment"]
+      start_tags: ["[Start of Explanation]", "[Start of Answer]"]
+      end_tags: ["[End of Explanation]", "[End of Answer]"]
+
+  - block_type: "ColumnValueFilterBlock"
+    block_config:
+      block_name: "filter_faithful"
+      input_cols: ["judgment"]
+      filter_value: "YES"
+      operation: "eq"
   
   # Quality filtering
   - block_type: "ColumnValueFilterBlock"

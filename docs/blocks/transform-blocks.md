@@ -26,6 +26,5 @@ Sets uniform values across specified columns, useful for adding metadata or defa
 ## 🚀 Next Steps
 
 - **[Filtering Blocks](filtering-blocks.md)** - Quality control and data validation
-- **[Evaluation Blocks](evaluation-blocks.md)** - Quality assessment and scoring
 - **[LLM Blocks](llm-blocks.md)** - AI-powered text generation
 - **[Flow Integration](../flows/overview.md)** - Combine transform blocks into complete pipelines
