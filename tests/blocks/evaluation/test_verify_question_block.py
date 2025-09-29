@@ -205,7 +205,7 @@ class TestVerifyQuestionBlock:
         assert block.end_tags == ["[End of Explanation]", "[End of Rating]"]
 
         # Test that defaults are properly forwarded to internal blocks
-        assert block.filter_block.filter_value == 1.0
+        assert block.filter_block.filter_value == [1.0]
         assert block.filter_block.operation == "eq"
         assert block.text_parser.start_tags == [
             "[Start of Explanation]",
@@ -240,7 +240,7 @@ class TestVerifyQuestionBlock:
         assert block.extra_body == {"init_param": "value"}
 
         # Verify overrides forwarded to internal blocks
-        assert block.filter_block.filter_value == 0.8
+        assert block.filter_block.filter_value == [0.8]
         assert block.filter_block.operation == "ge"
         assert block.text_parser.start_tags == [
             "<custom_explanation>",

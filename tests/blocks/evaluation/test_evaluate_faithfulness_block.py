@@ -263,7 +263,7 @@ class TestEvaluateFaithfulnessBlock:
         assert block.end_tags == ["[End of Explanation]", "[End of Answer]"]
 
         # Test that defaults are properly forwarded to internal blocks
-        assert block.filter_block.filter_value == "YES"
+        assert block.filter_block.filter_value == ["YES"]
         assert block.filter_block.operation == "eq"
         assert block.text_parser.start_tags == [
             "[Start of Explanation]",

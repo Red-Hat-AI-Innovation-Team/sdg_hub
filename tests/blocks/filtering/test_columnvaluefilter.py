@@ -54,7 +54,7 @@ def test_filter_block_initialization():
         convert_dtype="int",
     )
     assert block.column_name == "age"
-    assert block.value == [30]  # Note: value is always stored as a list
+    assert block.filter_value == [30]  # Note: value is always stored as a list
     assert block.operation == "eq"
     assert block.convert_dtype == "int"
 
@@ -170,7 +170,7 @@ def test_filter_block_with_multiple_input_cols():
     assert block.input_cols == ["age", "metadata"]
     assert block.output_cols == []
     assert block.column_name == "age"  # First column is filter column
-    assert block.value == [30]
+    assert block.filter_value == [30]
 
 
 def test_filter_block_single_input_col():

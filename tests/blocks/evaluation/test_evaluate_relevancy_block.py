@@ -181,7 +181,7 @@ class TestEvaluateRelevancyBlock:
         assert block.end_tags == ["[End of Feedback]", "[End of Score]"]
 
         # Test that defaults are properly forwarded to internal blocks
-        assert block.filter_block.filter_value == 2.0
+        assert block.filter_block.filter_value == [2.0]
         assert block.filter_block.operation == "eq"
         assert block.text_parser.start_tags == [
             "[Start of Feedback]",
