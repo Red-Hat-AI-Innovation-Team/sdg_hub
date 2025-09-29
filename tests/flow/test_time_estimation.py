@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for time estimation functionality in Flow class."""
 
+# ruff: noqa: I001
 # Standard
 from unittest.mock import patch
 import tempfile
@@ -271,7 +272,7 @@ class TestTimeEstimation:
             ],
             "execution_successful": True,
         }
-        
+
         # Mock dry_run results for 5 samples (should scale)
         mock_dry_run_5 = {
             "flow_name": "Test Flow",
@@ -297,7 +298,9 @@ class TestTimeEstimation:
             else:
                 return mock_dry_run_5
 
-        with patch("sdg_hub.core.flow.base.Flow.dry_run", side_effect=mock_dry_run_side_effect):
+        with patch(
+            "sdg_hub.core.flow.base.Flow.dry_run", side_effect=mock_dry_run_side_effect
+        ):
             # Test with low concurrency
             result_low = flow.estimate_total_time(
                 dataset, sample_size=5, max_concurrency=10
@@ -481,9 +484,7 @@ class TestTimeEstimation:
         dataset = Dataset.from_dict({"input": ["test1", "test2"]})
 
         # Mock estimate_execution_time to raise an exception
-        with patch(
-            "sdg_hub.core.flow.base.estimate_execution_time"
-        ) as mock_estimate:
+        with patch("sdg_hub.core.flow.base.estimate_execution_time") as mock_estimate:
             mock_estimate.side_effect = ValueError("Invalid time measurements")
 
             # Should wrap the ValueError as FlowValidationError
@@ -500,9 +501,7 @@ class TestTimeEstimation:
         async_block.async_mode = True
         flow_with_async = Flow(blocks=[async_block], metadata=self.test_metadata)
 
-        with patch(
-            "sdg_hub.core.flow.base.estimate_execution_time"
-        ) as mock_estimate:
+        with patch("sdg_hub.core.flow.base.estimate_execution_time") as mock_estimate:
             mock_estimate.side_effect = RuntimeError("Throughput calculation failed")
 
             with pytest.raises(FlowValidationError) as exc_info:
@@ -714,9 +713,9 @@ class TestTimeEstimatorIntegration:
                     "block_type": "LLMChatBlock",
                     "parameters_used": {"model": "gpt-4"},
                 }
-            ]
+            ],
         }
-        
+
         # Calculate with very high throughput (1000 req/sec based on 100 rows in 0.1 second)
         result = estimate_execution_time(
             dry_run_1=dry_run_high_throughput,
@@ -731,12 +730,12 @@ class TestTimeEstimatorIntegration:
                         "block_type": "LLMChatBlock",
                         "parameters_used": {"model": "gpt-4"},
                     }
-                ]
+                ],
             },
             total_dataset_size=10000,
-            max_concurrency=100
+            max_concurrency=100,
         )
-        
+
         # With correct max() function: time = 10000/1000 = 10 seconds
         # With incorrect min() function: time = 10000/0.1 = 100000 seconds
         # So if estimated time is < 1000 seconds, we're using max() correctly
