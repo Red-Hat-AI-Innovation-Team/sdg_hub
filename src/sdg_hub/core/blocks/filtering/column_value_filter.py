@@ -181,7 +181,8 @@ class ColumnValueFilterBlock(BaseBlock):
         # Apply filter operation
         samples = samples.filter(
             lambda x: any(
-                self._operation_func(x[self.column_name], value) for value in self.filter_value
+                self._operation_func(x[self.column_name], value)
+                for value in self.filter_value
             )
         )
 
