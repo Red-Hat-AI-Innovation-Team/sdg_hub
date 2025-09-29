@@ -33,6 +33,7 @@ from ..utils.error_handling import EmptyDatasetError, FlowValidationError
 from ..utils.flow_metrics import display_metrics_summary, save_metrics_to_json
 from ..utils.logger_config import setup_logger
 from ..utils.path_resolution import resolve_path
+from ..utils.time_estimator import estimate_execution_time
 from ..utils.yaml_utils import save_flow_yaml
 from .checkpointer import FlowCheckpointer
 from .metadata import DatasetRequirements, FlowMetadata
@@ -74,6 +75,9 @@ class Flow(BaseModel):
     _block_metrics: list[dict[str, Any]] = PrivateAttr(
         default_factory=list
     )  # Track block execution metrics
+    _cached_dry_run_results: Optional[dict[str, Any]] = PrivateAttr(
+        default=None
+    )  # Cache dry run results for time estimation
 
     @field_validator("blocks")
     @classmethod
@@ -1099,7 +1103,9 @@ class Flow(BaseModel):
                     # Execute block with validation and logging
                     current_dataset = block(current_dataset, **block_kwargs)
 
-                block_execution_time = time.time() - block_start_time
+                block_execution_time = (
+                    time.perf_counter() - block_start_time
+                )  # Fixed: use perf_counter consistently
 
                 # Record block execution info
                 block_info = {
@@ -1138,6 +1144,9 @@ class Flow(BaseModel):
                 f"in {execution_time:.2f}s"
             )
 
+            # Cache the dry run results for potential time estimation
+            self._cached_dry_run_results = dry_run_results
+
             return dry_run_results
 
         except Exception as exc:
@@ -1149,6 +1158,175 @@ class Flow(BaseModel):
             logger.error(f"Dry run failed for flow '{self.metadata.name}': {exc}")
 
             raise FlowValidationError(f"Dry run failed: {exc}") from exc
+
+    def estimate_total_time(
+        self,
+        dataset: Dataset,
+        sample_size: Optional[int] = None,
+        runtime_params: Optional[dict[str, dict[str, Any]]] = None,
+        max_concurrency: Optional[int] = None,
+    ) -> dict[str, Any]:
+        """Estimate execution time for the full dataset.
+
+        Uses cached dry_run results if available, otherwise runs dry_run(s) as needed.
+        For flows with async blocks, performs two dry_runs with different sample sizes
+        to calculate concurrency factor.
+
+        Parameters
+        ----------
+        dataset : Dataset
+            The full dataset to estimate execution time for.
+        sample_size : Optional[int], optional
+            Sample size for dry run. If None and cached results exist, uses cached sample size.
+            Defaults to 5 for async blocks (better scaling analysis) or 2 for sync blocks if no cached results.
+        runtime_params : Optional[Dict[str, Dict[str, Any]]], optional
+            Runtime parameters for dry run execution.
+        max_concurrency : Optional[int], optional
+            Maximum number of concurrent requests for LLM blocks. If not provided, uses 100 as default.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Time estimation results including sequential_time_seconds and concurrent_time_seconds.
+
+        Raises
+        ------
+        FlowValidationError
+            If dry run execution fails.
+        """
+
+        # Check if any blocks have async_mode enabled
+        has_async_blocks = any(
+            getattr(block, "async_mode", False) for block in self.blocks
+        )
+
+        # Determine sample size to use
+        if sample_size is None:
+            if self._cached_dry_run_results:
+                sample_size = self._cached_dry_run_results["sample_size"]
+            else:
+                # Default to 5 for async blocks (better scaling analysis) or 2 for sync blocks
+                sample_size = 5 if has_async_blocks else 2
+
+        logger.info(
+            f"Estimating execution time for full dataset ({len(dataset)} samples)"
+        )
+
+        if not has_async_blocks:
+            # Sequential execution - need only one dry_run
+            logger.info(
+                "All blocks are sequential, using single dry run for estimation"
+            )
+
+            if (
+                self._cached_dry_run_results
+                and self._cached_dry_run_results["sample_size"] == sample_size
+            ):
+                # Use cached results
+                logger.info(f"Using cached dry run results with {sample_size} samples")
+                dry_run_results = self._cached_dry_run_results
+            else:
+                # Run new dry_run
+                logger.info(f"Running dry run with {sample_size} samples")
+                dry_run_results = self.dry_run(dataset, sample_size, runtime_params)
+
+            # Estimate time for sequential execution
+            time_estimation = estimate_execution_time(
+                dry_run_1=dry_run_results,
+                dry_run_2=None,
+                total_dataset_size=len(dataset),
+                max_concurrency=max_concurrency,
+            )
+
+        else:
+            # Async execution - need two dry_runs with different sample sizes
+            logger.info("Detected async blocks, calculating concurrency factor")
+
+            # Determine what dry runs we need based on current sample_size
+            # For async blocks, we always use 1 and 5 samples for consistent scaling analysis
+            dry_run_1_samples = 1
+            dry_run_2_samples = 5
+
+            # If user explicitly requested a different sample_size, use it for second run
+            if sample_size is not None and sample_size != 1 and sample_size != 5:
+                dry_run_2_samples = max(
+                    5, sample_size
+                )  # Use at least 5 for good scaling data
+
+            # Get or run first dry_run (1 sample)
+            if (
+                self._cached_dry_run_results
+                and self._cached_dry_run_results["sample_size"] == dry_run_1_samples
+            ):
+                logger.info(
+                    f"Using cached dry run results with {dry_run_1_samples} sample"
+                )
+                dry_run_1 = self._cached_dry_run_results
+            else:
+                logger.info(f"Running dry run with {dry_run_1_samples} sample")
+                dry_run_1 = self.dry_run(dataset, dry_run_1_samples, runtime_params)
+
+            # Get or run second dry_run (2 or more samples)
+            if (
+                self._cached_dry_run_results
+                and self._cached_dry_run_results["sample_size"] == dry_run_2_samples
+            ):
+                logger.info(
+                    f"Using cached dry run results with {dry_run_2_samples} samples"
+                )
+                dry_run_2 = self._cached_dry_run_results
+            else:
+                logger.info(f"Running dry run with {dry_run_2_samples} samples")
+                dry_run_2 = self.dry_run(dataset, dry_run_2_samples, runtime_params)
+
+            # Estimate time with concurrency analysis
+            time_estimation = estimate_execution_time(
+                dry_run_1=dry_run_1,
+                dry_run_2=dry_run_2,
+                total_dataset_size=len(dataset),
+                max_concurrency=max_concurrency,
+            )
+
+        # Log results
+        sequential_secs = time_estimation["sequential_time_seconds"]
+        concurrent_secs = time_estimation["concurrent_time_seconds"]
+        sequential_hours = sequential_secs / 3600
+        concurrent_hours = concurrent_secs / 3600
+
+        logger.info(f"📊 Estimated execution time for {len(dataset)} samples:")
+
+        # Format time based on duration
+        if sequential_secs < 60:
+            logger.info(f"  Sequential: {sequential_secs:.1f} seconds")
+        elif sequential_secs < 3600:
+            logger.info(
+                f"  Sequential: {sequential_secs/60:.1f} minutes ({sequential_hours:.2f} hours)"
+            )
+        else:
+            logger.info(f"  Sequential: {sequential_hours:.2f} hours")
+
+        if concurrent_secs < 60:
+            logger.info(f"  Concurrent: {concurrent_secs:.1f} seconds")
+        elif concurrent_secs < 3600:
+            logger.info(
+                f"  Concurrent: {concurrent_secs/60:.1f} minutes ({concurrent_hours:.2f} hours)"
+            )
+        else:
+            logger.info(f"  Concurrent: {concurrent_hours:.2f} hours")
+
+        # Show speedup if there's a difference
+        if concurrent_secs > 0 and sequential_secs > concurrent_secs:
+            speedup = sequential_secs / concurrent_secs
+            logger.info(f"  🚀 Speedup: {speedup:.1f}x faster with concurrency")
+
+        # Show estimated requests (always available from time_estimator)
+        total_requests = time_estimation.get("total_estimated_requests", 0)
+        if total_requests > 0:
+            logger.info(f"  📝 Total estimated LLM requests: {total_requests:,}")
+            requests_per_sample = total_requests / len(dataset)
+            logger.info(f"  📝 Requests per sample: {requests_per_sample:.1f}")
+
+        return time_estimation
 
     def add_block(self, block: BaseBlock) -> "Flow":
         """Add a block to the flow, returning a new Flow instance.

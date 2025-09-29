@@ -149,6 +149,7 @@ Every block validates data at runtime:
 
 ### 1. Start Small
 - Use `dry_run()` to test with small samples
+- Run `estimate_total_time()` to predict duration and estimation of total api calls before full processing
 - Validate your pipeline before scaling up
 
 ### 2. Layer Validation
@@ -160,6 +161,7 @@ Every block validates data at runtime:
 - Use async-friendly blocks for LLM operations
 
 ### 4. Optimize for Scale
+- Use `estimate_total_time(dataset, max_concurrency=N)` to plan resource allocation
 - Use `max_concurrency` parameter to control API request rates
 - Start with conservative concurrency limits (5-10) for production
 - Increase concurrency carefully while monitoring error rates

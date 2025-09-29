@@ -67,6 +67,9 @@ print("🧪 Running dry run...")
 dry_result = flow.dry_run(dataset, sample_size=1)
 print(f"✅ Dry run completed in {dry_result['execution_time_seconds']:.2f}s")
 print(f"📊 Output columns: {list(dry_result['final_dataset']['columns'])}")
+
+# Estimate execution time for full dataset
+time_estimate = flow.estimate_total_time(dataset)
 ```
 
 ## 📊 Step 3: Generate Synthetic Data
