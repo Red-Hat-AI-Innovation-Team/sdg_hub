@@ -65,10 +65,16 @@ blocks:
     temperature: 1.0
     n: 1
     async_mode: true
+- block_type: LLMParserBlock
+  block_config:
+    block_name: extract_questions
+    input_cols: question_list
+    extract_content: true
+    expand_lists: true
 - block_type: TextParserBlock
   block_config:
     block_name: parse_question_list
-    input_cols: question_list
+    input_cols: extract_questions_content
     output_cols: question
     start_tags:
     - '[QUESTION]'
@@ -93,10 +99,16 @@ blocks:
     temperature: 1.0
     n: 1
     async_mode: true
+- block_type: LLMParserBlock
+  block_config:
+    block_name: extract_answer
+    input_cols: response_dict
+    extract_content: true
+    expand_lists: true
 - block_type: TextParserBlock
   block_config:
     block_name: parse_response_dict
-    input_cols: response_dict
+    input_cols: extract_answer_content
     output_cols: response
     start_tags:
     - ''
