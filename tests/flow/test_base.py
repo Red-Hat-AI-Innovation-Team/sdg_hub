@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for the base Flow class."""
 
+# ruff: noqa: I001
 # Standard
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -9,13 +10,13 @@ import tempfile
 # Third Party
 from datasets import Dataset
 from pydantic import ValidationError
+import pytest
+import yaml
 
 # First Party
 from sdg_hub import Flow, FlowMetadata
 from sdg_hub.core.flow.metadata import DatasetRequirements
 from sdg_hub.core.utils.error_handling import EmptyDatasetError, FlowValidationError
-import pytest
-import yaml
 
 
 class TestFlow:
@@ -349,6 +350,49 @@ class TestFlow:
         result = flow.dry_run(dataset, runtime_params=runtime_params)
 
         assert result["blocks_executed"][0]["parameters_used"]["temperature"] == 0.3
+
+    def test_dry_run_with_max_concurrency(self):
+        """Test dry run with max_concurrency parameter."""
+        block = self.create_mock_llm_block("llm_block")
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        flow._model_config_set = True
+        dataset = Dataset.from_dict({"input": ["test"]})
+
+        # Test with max_concurrency
+        result = flow.dry_run(dataset, sample_size=1, max_concurrency=50)
+
+        # Should store max_concurrency in results
+        assert result["max_concurrency"] == 50
+
+        # Should pass _flow_max_concurrency to LLM blocks
+        assert (
+            "_flow_max_concurrency" in result["blocks_executed"][0]["parameters_used"]
+        )
+        assert (
+            result["blocks_executed"][0]["parameters_used"]["_flow_max_concurrency"]
+            == 50
+        )
+
+    def test_dry_run_max_concurrency_validation(self):
+        """Test dry_run validates max_concurrency parameter."""
+        block = self.create_mock_block("test_block")
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset = Dataset.from_dict({"input": ["test"]})
+
+        # Test with zero value
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.dry_run(dataset, max_concurrency=0)
+        assert "must be greater than 0" in str(exc_info.value)
+
+        # Test with negative value
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.dry_run(dataset, max_concurrency=-1)
+        assert "must be greater than 0" in str(exc_info.value)
+
+        # Test with boolean value
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.dry_run(dataset, max_concurrency=True)
+        assert "must be an int" in str(exc_info.value)
 
     def test_add_block_success(self):
         """Test successfully adding a block."""
@@ -1238,6 +1282,7 @@ class TestFlow:
             await asyncio.sleep(0.01)
             active[0] -= 1
             # Return mock response in LiteLLM format
+            # Standard
             from types import SimpleNamespace
 
             return SimpleNamespace(
@@ -1305,6 +1350,7 @@ class TestFlow:
         flow._model_config_set = True
 
         # Mock LiteLLM's acompletion function
+        # Standard
         from types import SimpleNamespace
         from unittest.mock import patch
 

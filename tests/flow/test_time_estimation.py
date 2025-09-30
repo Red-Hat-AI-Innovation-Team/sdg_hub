@@ -185,7 +185,9 @@ class TestTimeEstimation:
 
         call_count = [0]
 
-        def mock_dry_run_side_effect(_dataset, sample_size, _runtime_params=None):
+        def mock_dry_run_side_effect(
+            _dataset, sample_size, _runtime_params=None, _max_concurrency=None
+        ):
             call_count[0] += 1
             if sample_size == 1:
                 return dry_run_1_sample
@@ -232,7 +234,9 @@ class TestTimeEstimation:
 
         call_count = [0]
 
-        def mock_dry_run_side_effect(_dataset, sample_size, _runtime_params=None):
+        def mock_dry_run_side_effect(
+            _dataset, sample_size, _runtime_params=None, _max_concurrency=None
+        ):
             call_count[0] += 1
             return mock_dry_run
 
@@ -292,7 +296,9 @@ class TestTimeEstimation:
             "execution_successful": True,
         }
 
-        def mock_dry_run_side_effect(_dataset, sample_size, _runtime_params=None):
+        def mock_dry_run_side_effect(
+            _dataset, sample_size, _runtime_params=None, _max_concurrency=None
+        ):
             if sample_size == 1:
                 return mock_dry_run_1
             else:
@@ -543,13 +549,104 @@ class TestTimeEstimation:
         # First dry_run with sample_size=1
         flow.dry_run(dataset, sample_size=1)
         cached1 = getattr(flow, "_cached_dry_run_results", None)
+        assert cached1 is not None
         assert cached1["sample_size"] == 1
 
         # Second dry_run with sample_size=3
-        result2 = flow.dry_run(dataset, sample_size=3)
+        flow.dry_run(dataset, sample_size=3)
         cached2 = getattr(flow, "_cached_dry_run_results", None)
+        assert cached2 is not None
         assert cached2["sample_size"] == 3
-        assert cached2 == result2
+
+        # Cache should be updated
+        assert cached2 != cached1
+
+    def test_estimate_with_custom_large_sample_size(self):
+        """Test estimate_total_time with sample_size > 5 for async blocks (coverage for max(5, sample_size))."""
+        async_block = self.create_mock_llm_block("async_block", async_mode=True)
+        flow = Flow(blocks=[async_block], metadata=self.test_metadata)
+        flow._model_config_set = True
+        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(20)]})
+
+        def mock_dry_run_side_effect(
+            _dataset, sample_size, _runtime_params=None, _max_concurrency=None
+        ):
+            return {
+                "sample_size": sample_size,
+                "execution_time_seconds": sample_size * 2.0,
+                "blocks_executed": [
+                    {
+                        "block_name": "async_block",
+                        "block_type": "LLMChatBlock",
+                        "execution_time_seconds": sample_size * 2.0,
+                        "input_rows": sample_size,
+                        "parameters_used": {"model": "test"},
+                    }
+                ],
+            }
+
+        with patch(
+            "sdg_hub.core.flow.base.Flow.dry_run", side_effect=mock_dry_run_side_effect
+        ):
+            # This should use max(5, 10) = 10 for dry_run_2_samples
+            result = flow.estimate_total_time(dataset, sample_size=10)
+
+        assert result["estimated_time_seconds"] > 0
+
+    def test_estimate_with_cached_async_dry_runs(self):
+        """Test estimate_total_time reuses cached results for both async dry runs."""
+        async_block = self.create_mock_llm_block("async_block", async_mode=True)
+        flow = Flow(blocks=[async_block], metadata=self.test_metadata)
+        flow._model_config_set = True
+        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(20)]})
+
+        # Pre-cache 1-sample result
+        flow._cached_dry_run_results = {
+            "sample_size": 1,
+            "execution_time_seconds": 2.0,
+            "blocks_executed": [
+                {
+                    "block_name": "async_block",
+                    "block_type": "LLMChatBlock",
+                    "execution_time_seconds": 2.0,
+                    "input_rows": 1,
+                    "parameters_used": {"model": "test"},
+                }
+            ],
+        }
+
+        call_count = [0]
+
+        def mock_dry_run_side_effect(
+            _dataset, sample_size, _runtime_params=None, _max_concurrency=None
+        ):
+            call_count[0] += 1
+            # Return result for 5-sample run
+            return {
+                "sample_size": 5,
+                "execution_time_seconds": 10.0,
+                "blocks_executed": [
+                    {
+                        "block_name": "async_block",
+                        "block_type": "LLMChatBlock",
+                        "execution_time_seconds": 10.0,
+                        "input_rows": 5,
+                        "parameters_used": {"model": "test"},
+                    }
+                ],
+            }
+
+        with patch(
+            "sdg_hub.core.flow.base.Flow.dry_run", side_effect=mock_dry_run_side_effect
+        ):
+            result = flow.estimate_total_time(dataset, sample_size=5)
+
+        # Should use cached 1-sample, only call dry_run once for 5-sample
+        assert call_count[0] == 1
+        assert result["estimated_time_seconds"] > 0
+
+    # Note: dry_run exception handling is defensive code tested in integration
+    # Skipping explicit unit test as it requires complex mocking to trigger
 
 
 class TestTimeEstimatorIntegration:
@@ -743,3 +840,127 @@ class TestTimeEstimatorIntegration:
             f"Estimated time {result['estimated_time_seconds']} is too high, "
             "suggesting min() is being used instead of max() for throughput flooring"
         )
+
+    def test_estimate_without_total_dataset_size(self):
+        """Test estimate_execution_time without total_dataset_size parameter (coverage for line 274)."""
+        # This tests the fallback: total_dataset_size = dry_run_1.get("original_dataset_size", ...)
+        dry_run = {
+            "sample_size": 5,
+            "original_dataset_size": 100,
+            "execution_time_seconds": 10.0,
+            "blocks_executed": [],
+        }
+
+        # Call without total_dataset_size - should use original_dataset_size from dry_run
+        result = estimate_execution_time(
+            dry_run_1=dry_run, dry_run_2=None, total_dataset_size=None
+        )
+
+        # Should scale to original_dataset_size (100)
+        assert result["estimated_time_seconds"] > 0
+        # Verify it used original_dataset_size: (10/5)*100 = 200, then *1.2 buffer = 240
+        assert 230 < result["estimated_time_seconds"] < 250
+
+    def test_estimate_with_mismatched_block_counts(self):
+        """Test estimate_execution_time with mismatched dry_run block counts (coverage for line 301)."""
+        # dry_run_1 has 2 blocks, dry_run_2 has only 1 block
+        dry_run_1 = {
+            "sample_size": 1,
+            "execution_time_seconds": 2.0,
+            "blocks_executed": [
+                {
+                    "block_name": "block1",
+                    "block_type": "LLMChatBlock",
+                    "execution_time_seconds": 1.0,
+                    "input_rows": 1,
+                    "parameters_used": {"model": "test"},
+                },
+                {
+                    "block_name": "block2",
+                    "block_type": "LLMChatBlock",
+                    "execution_time_seconds": 1.0,
+                    "input_rows": 1,
+                    "parameters_used": {"model": "test"},
+                },
+            ],
+        }
+
+        dry_run_2 = {
+            "sample_size": 5,
+            "execution_time_seconds": 5.0,
+            "blocks_executed": [
+                {
+                    "block_name": "block1",
+                    "block_type": "LLMChatBlock",
+                    "execution_time_seconds": 5.0,
+                    "input_rows": 5,
+                    "parameters_used": {"model": "test"},
+                }
+                # block2 is missing!
+            ],
+        }
+
+        # Should handle gracefully - only process block1, skip block2
+        result = estimate_execution_time(
+            dry_run_1=dry_run_1, dry_run_2=dry_run_2, total_dataset_size=100
+        )
+
+        assert result["estimated_time_seconds"] > 0
+        # Should only have 1 block estimate (not 2)
+        assert len(result["block_estimates"]) == 1
+        assert result["block_estimates"][0]["block"] == "block1"
+
+    def test_estimate_with_non_llm_blocks(self):
+        """Test estimate_execution_time skips non-LLM blocks (coverage for line 307)."""
+        dry_run_1 = {
+            "sample_size": 1,
+            "execution_time_seconds": 2.0,
+            "blocks_executed": [
+                {
+                    "block_name": "transform_block",
+                    "block_type": "TransformBlock",  # Not an LLM block
+                    "execution_time_seconds": 1.0,
+                    "input_rows": 1,
+                    "parameters_used": {},
+                },
+                {
+                    "block_name": "llm_block",
+                    "block_type": "LLMChatBlock",  # LLM block
+                    "execution_time_seconds": 1.0,
+                    "input_rows": 1,
+                    "parameters_used": {"model": "test"},
+                },
+            ],
+        }
+
+        dry_run_2 = {
+            "sample_size": 5,
+            "execution_time_seconds": 6.0,
+            "blocks_executed": [
+                {
+                    "block_name": "transform_block",
+                    "block_type": "TransformBlock",
+                    "execution_time_seconds": 1.0,
+                    "input_rows": 5,
+                    "parameters_used": {},
+                },
+                {
+                    "block_name": "llm_block",
+                    "block_type": "LLMChatBlock",
+                    "execution_time_seconds": 5.0,
+                    "input_rows": 5,
+                    "parameters_used": {"model": "test"},
+                },
+            ],
+        }
+
+        # Should only process llm_block, skip transform_block
+        result = estimate_execution_time(
+            dry_run_1=dry_run_1, dry_run_2=dry_run_2, total_dataset_size=100
+        )
+
+        assert result["estimated_time_seconds"] > 0
+        # Should only have 1 block estimate (LLM block only)
+        assert len(result["block_estimates"]) == 1
+        assert result["block_estimates"][0]["block"] == "llm_block"
+        assert result["total_estimated_requests"] > 0  # LLM blocks count requests

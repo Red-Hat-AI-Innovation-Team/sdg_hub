@@ -30,7 +30,11 @@ from ..blocks.base import BaseBlock
 from ..blocks.registry import BlockRegistry
 from ..utils.datautils import safe_concatenate_with_validation, validate_no_duplicates
 from ..utils.error_handling import EmptyDatasetError, FlowValidationError
-from ..utils.flow_metrics import display_metrics_summary, save_metrics_to_json
+from ..utils.flow_metrics import (
+    display_metrics_summary,
+    display_time_estimation_summary,
+    save_metrics_to_json,
+)
 from ..utils.logger_config import setup_logger
 from ..utils.path_resolution import resolve_path
 from ..utils.time_estimator import estimate_execution_time
@@ -1010,6 +1014,7 @@ class Flow(BaseModel):
         dataset: Dataset,
         sample_size: int = 2,
         runtime_params: Optional[dict[str, dict[str, Any]]] = None,
+        max_concurrency: Optional[int] = None,
     ) -> dict[str, Any]:
         """Perform a dry run of the flow with a subset of data.
 
@@ -1021,6 +1026,8 @@ class Flow(BaseModel):
             Number of samples to use for dry run testing.
         runtime_params : Optional[Dict[str, Dict[str, Any]]], optional
             Runtime parameters organized by block name.
+        max_concurrency : Optional[int], optional
+            Maximum concurrent requests for LLM blocks. If None, no limit is applied.
 
         Returns
         -------
@@ -1043,6 +1050,19 @@ class Flow(BaseModel):
 
         validate_no_duplicates(dataset)
 
+        # Validate max_concurrency parameter
+        if max_concurrency is not None:
+            if isinstance(max_concurrency, bool) or not isinstance(
+                max_concurrency, int
+            ):
+                raise FlowValidationError(
+                    f"max_concurrency must be an int, got {type(max_concurrency).__name__}"
+                )
+            if max_concurrency <= 0:
+                raise FlowValidationError(
+                    f"max_concurrency must be greater than 0, got {max_concurrency}"
+                )
+
         # Use smaller sample size if dataset is smaller
         actual_sample_size = min(sample_size, len(dataset))
 
@@ -1060,6 +1080,7 @@ class Flow(BaseModel):
             "flow_version": self.metadata.version,
             "sample_size": actual_sample_size,
             "original_dataset_size": len(dataset),
+            "max_concurrency": max_concurrency,
             "input_columns": dataset.column_names,
             "blocks_executed": [],
             "final_dataset": None,
@@ -1085,6 +1106,10 @@ class Flow(BaseModel):
 
                 # Prepare block execution parameters
                 block_kwargs = self._prepare_block_kwargs(block, runtime_params)
+
+                # Add max_concurrency to block kwargs if provided
+                if max_concurrency is not None:
+                    block_kwargs["_flow_max_concurrency"] = max_concurrency
 
                 # Check if this is a deprecated block and skip validations
                 is_deprecated_block = (
@@ -1241,7 +1266,9 @@ class Flow(BaseModel):
             else:
                 # Run new dry_run
                 logger.info(f"Running dry run with {sample_size} samples")
-                dry_run_results = self.dry_run(dataset, sample_size, runtime_params)
+                dry_run_results = self.dry_run(
+                    dataset, sample_size, runtime_params, max_concurrency
+                )
 
             # Estimate time for sequential execution
             try:
@@ -1282,7 +1309,9 @@ class Flow(BaseModel):
                 dry_run_1 = self._cached_dry_run_results
             else:
                 logger.info(f"Running dry run with {dry_run_1_samples} sample")
-                dry_run_1 = self.dry_run(dataset, dry_run_1_samples, runtime_params)
+                dry_run_1 = self.dry_run(
+                    dataset, dry_run_1_samples, runtime_params, max_concurrency
+                )
 
             # Get or run second dry_run (2 or more samples)
             if (
@@ -1295,7 +1324,9 @@ class Flow(BaseModel):
                 dry_run_2 = self._cached_dry_run_results
             else:
                 logger.info(f"Running dry run with {dry_run_2_samples} samples")
-                dry_run_2 = self.dry_run(dataset, dry_run_2_samples, runtime_params)
+                dry_run_2 = self.dry_run(
+                    dataset, dry_run_2_samples, runtime_params, max_concurrency
+                )
 
             # Estimate time with concurrency analysis
             try:
@@ -1310,28 +1341,8 @@ class Flow(BaseModel):
                     f"Error estimating execution time: {exc}"
                 ) from exc
 
-        # Log results
-        estimated_secs = time_estimation["estimated_time_seconds"]
-        estimated_hours = estimated_secs / 3600
-
-        logger.info(f"📊 Estimated execution time for {len(dataset)} samples:")
-
-        # Format time based on duration
-        if estimated_secs < 60:
-            logger.info(f"  ⏱️  {estimated_secs:.1f} seconds")
-        elif estimated_secs < 3600:
-            logger.info(
-                f"  ⏱️  {estimated_secs / 60:.1f} minutes ({estimated_hours:.2f} hours)"
-            )
-        else:
-            logger.info(f"  ⏱️  {estimated_hours:.2f} hours")
-
-        # Show estimated requests (always available from time_estimator)
-        total_requests = time_estimation.get("total_estimated_requests", 0)
-        if total_requests > 0:
-            logger.info(f"  📝 Total estimated LLM requests: {total_requests:,}")
-            requests_per_sample = total_requests / len(dataset)
-            logger.info(f"  📝 Requests per sample: {requests_per_sample:.1f}")
+        # Display estimation results in formatted table
+        display_time_estimation_summary(time_estimation, len(dataset), max_concurrency)
 
         return time_estimation
 
