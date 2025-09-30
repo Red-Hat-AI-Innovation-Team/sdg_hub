@@ -206,13 +206,6 @@ class TestMyNewBlock:
   - Comprehensive operator support
   - Good performance on large datasets
 
-#### Evaluation Blocks (`src/sdg_hub/core/blocks/evaluation/`)
-- **Purpose**: Quality assessment and scoring
-- **Examples**: Faithfulness evaluation, relevancy scoring
-- **Requirements**:
-  - Consistent scoring methodology
-  - Support for different evaluation criteria
-  - Clear documentation of scoring rubrics
 
 ## 🌊 Contributing Flows
 

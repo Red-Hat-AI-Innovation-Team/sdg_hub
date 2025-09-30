@@ -152,7 +152,7 @@ Every block validates data at runtime:
 - Validate your pipeline before scaling up
 
 ### 2. Layer Validation
-- Use evaluation blocks to assess quality
+- Use basic block composition (PromptBuilder → LLMChat → Parser → Filter) to assess quality
 - Implement filtering to maintain data standards
 
 ### 3. Monitor Performance
