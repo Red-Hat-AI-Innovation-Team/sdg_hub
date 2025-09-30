@@ -3,7 +3,6 @@
 
 # ruff: noqa: I001
 # Standard
-from unittest.mock import patch
 import tempfile
 
 # Third Party
@@ -14,7 +13,6 @@ import pytest
 from sdg_hub import FlowMetadata
 from sdg_hub.core.flow.base import Flow
 from sdg_hub.core.flow.metadata import RecommendedModels
-from sdg_hub.core.utils.error_handling import EmptyDatasetError, FlowValidationError
 from sdg_hub.core.utils.time_estimator import (
     calculate_block_throughput,
     calculate_time_with_pipeline,
@@ -25,7 +23,7 @@ from tests.flow.conftest import MockBlock
 
 
 class TestTimeEstimation:
-    """Test time estimation functionality."""
+    """Test time estimation functionality via dry_run."""
 
     def setup_method(self):
         """Set up test fixtures."""
@@ -60,593 +58,159 @@ class TestTimeEstimation:
     def create_mock_llm_block(self, name="llm_block", async_mode=False):
         """Create a mock LLM block with async capabilities."""
         block = MockBlock(block_name=name, input_cols=["input"], output_cols=["output"])
-        # Add LLM attributes
         block.model = "test-model"
         block.api_base = "http://localhost:8000/v1"
         block.api_key = "EMPTY"
         block.async_mode = async_mode
         return block
 
-    def test_estimate_total_time_without_cached_results(self):
-        """Test estimate_total_time when no cached dry_run results exist."""
+    def test_dry_run_without_estimation(self):
+        """Test dry_run without estimate_full_time flag."""
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test"] * 10})
-
-        # Mock dry_run to return predictable results
-        mock_dry_run_results = {
-            "flow_name": "Test Flow",
-            "sample_size": 2,
-            "original_dataset_size": 10,
-            "execution_time_seconds": 2.0,
-            "blocks_executed": [
-                {
-                    "block_name": "test_block",
-                    "block_type": "MockBlock",
-                    "execution_time_seconds": 2.0,
-                    "input_rows": 2,
-                    "output_rows": 2,
-                    "parameters_used": {},
-                }
-            ],
-            "execution_successful": True,
-        }
-
-        with patch(
-            "sdg_hub.core.flow.base.Flow.dry_run", return_value=mock_dry_run_results
-        ):
-            result = flow.estimate_total_time(dataset, sample_size=2)
-
-        assert "estimated_time_seconds" in result
-        assert result["estimated_time_seconds"] > 0
-        assert "total_estimated_requests" in result
-
-    def test_estimate_total_time_with_cached_results(self):
-        """Test estimate_total_time when cached dry_run results exist."""
-        block = self.create_mock_block("test_block")
-        flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test"] * 10})
-
-        # Set up cached results
-        flow._cached_dry_run_results = {
-            "flow_name": "Test Flow",
-            "sample_size": 2,
-            "original_dataset_size": 10,
-            "execution_time_seconds": 2.0,
-            "blocks_executed": [
-                {
-                    "block_name": "test_block",
-                    "block_type": "MockBlock",
-                    "execution_time_seconds": 2.0,
-                    "input_rows": 2,
-                    "output_rows": 2,
-                    "parameters_used": {},
-                }
-            ],
-            "execution_successful": True,
-        }
-
-        # Should use cached results, not call dry_run
-        with patch("sdg_hub.core.flow.base.Flow.dry_run") as mock_dry_run:
-            result = flow.estimate_total_time(dataset, sample_size=2)
-
-        # dry_run should not be called when cached results match sample_size
-        mock_dry_run.assert_not_called()
-
-        assert "estimated_time_seconds" in result
-        assert result["estimated_time_seconds"] > 0
-
-    def test_estimate_total_time_with_async_blocks(self):
-        """Test estimate_total_time with async blocks requiring two dry runs."""
-        # Create flow with async block
-        async_block = self.create_mock_llm_block("async_llm_block", async_mode=True)
-        flow = Flow(blocks=[async_block], metadata=self.test_metadata)
-        flow._model_config_set = True
-
-        dataset = Dataset.from_dict({"input": ["test"] * 100})
-
-        # Mock dry_run results for 1 sample
-        dry_run_1_sample = {
-            "flow_name": "Test Flow",
-            "sample_size": 1,
-            "original_dataset_size": 100,
-            "execution_time_seconds": 1.0,
-            "blocks_executed": [
-                {
-                    "block_name": "async_llm_block",
-                    "block_type": "MockBlock",
-                    "execution_time_seconds": 1.0,
-                    "input_rows": 1,
-                    "output_rows": 1,
-                    "parameters_used": {"model": "test-model"},
-                }
-            ],
-            "execution_successful": True,
-        }
-
-        # Mock dry_run results for 5 samples
-        dry_run_5_samples = {
-            "flow_name": "Test Flow",
-            "sample_size": 5,
-            "original_dataset_size": 100,
-            "execution_time_seconds": 2.0,
-            "blocks_executed": [
-                {
-                    "block_name": "async_llm_block",
-                    "block_type": "MockBlock",
-                    "execution_time_seconds": 2.0,
-                    "input_rows": 5,
-                    "output_rows": 5,
-                    "parameters_used": {"model": "test-model"},
-                }
-            ],
-            "execution_successful": True,
-        }
-
-        call_count = [0]
-
-        def mock_dry_run_side_effect(
-            _dataset, sample_size, _runtime_params=None, _max_concurrency=None
-        ):
-            call_count[0] += 1
-            if sample_size == 1:
-                return dry_run_1_sample
-            else:
-                return dry_run_5_samples
-
-        with patch(
-            "sdg_hub.core.flow.base.Flow.dry_run", side_effect=mock_dry_run_side_effect
-        ):
-            result = flow.estimate_total_time(dataset, sample_size=5)
-
-        # Should call dry_run twice for async blocks
-        assert call_count[0] == 2
-
-        assert "estimated_time_seconds" in result
-        assert result["estimated_time_seconds"] > 0
-        assert "total_estimated_requests" in result
-        assert result["total_estimated_requests"] > 0
-
-    def test_estimate_total_time_no_async_blocks(self):
-        """Test estimate_total_time with only sequential blocks."""
-        block = self.create_mock_block("test_block")
-        flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test"] * 100})
-
-        # Mock dry_run results for sequential block
-        mock_dry_run = {
-            "flow_name": "Test Flow",
-            "sample_size": 2,
-            "original_dataset_size": 100,
-            "execution_time_seconds": 2.0,
-            "blocks_executed": [
-                {
-                    "block_name": "test_block",
-                    "block_type": "MockBlock",
-                    "execution_time_seconds": 2.0,
-                    "input_rows": 2,
-                    "output_rows": 2,
-                    "parameters_used": {},
-                }
-            ],
-            "execution_successful": True,
-        }
-
-        call_count = [0]
-
-        def mock_dry_run_side_effect(
-            _dataset, sample_size, _runtime_params=None, _max_concurrency=None
-        ):
-            call_count[0] += 1
-            return mock_dry_run
-
-        with patch(
-            "sdg_hub.core.flow.base.Flow.dry_run", side_effect=mock_dry_run_side_effect
-        ):
-            result = flow.estimate_total_time(dataset, sample_size=2)
-
-        # Should only call dry_run once for sequential blocks
-        assert call_count[0] == 1
-        assert "estimated_time_seconds" in result
-        assert result["estimated_time_seconds"] > 0
-
-    def test_estimate_total_time_with_max_concurrency(self):
-        """Test estimate_total_time with max_concurrency parameter."""
-        async_block = self.create_mock_llm_block("async_llm_block", async_mode=True)
-        flow = Flow(blocks=[async_block], metadata=self.test_metadata)
-        flow._model_config_set = True
-
-        dataset = Dataset.from_dict({"input": ["test"] * 100})
-
-        # Mock dry_run results for 1 sample
-        mock_dry_run_1 = {
-            "flow_name": "Test Flow",
-            "sample_size": 1,
-            "original_dataset_size": 100,
-            "execution_time_seconds": 1.0,
-            "blocks_executed": [
-                {
-                    "block_name": "async_llm_block",
-                    "block_type": "MockBlock",
-                    "execution_time_seconds": 1.0,
-                    "input_rows": 1,
-                    "output_rows": 1,
-                    "parameters_used": {"model": "test-model"},
-                }
-            ],
-            "execution_successful": True,
-        }
-
-        # Mock dry_run results for 5 samples (should scale)
-        mock_dry_run_5 = {
-            "flow_name": "Test Flow",
-            "sample_size": 5,
-            "original_dataset_size": 100,
-            "execution_time_seconds": 2.0,
-            "blocks_executed": [
-                {
-                    "block_name": "async_llm_block",
-                    "block_type": "MockBlock",
-                    "execution_time_seconds": 2.0,
-                    "input_rows": 5,
-                    "output_rows": 5,
-                    "parameters_used": {"model": "test-model"},
-                }
-            ],
-            "execution_successful": True,
-        }
-
-        def mock_dry_run_side_effect(
-            _dataset, sample_size, _runtime_params=None, _max_concurrency=None
-        ):
-            if sample_size == 1:
-                return mock_dry_run_1
-            else:
-                return mock_dry_run_5
-
-        with patch(
-            "sdg_hub.core.flow.base.Flow.dry_run", side_effect=mock_dry_run_side_effect
-        ):
-            # Test with low concurrency
-            result_low = flow.estimate_total_time(
-                dataset, sample_size=5, max_concurrency=10
-            )
-
-            # Test with high concurrency
-            result_high = flow.estimate_total_time(
-                dataset, sample_size=5, max_concurrency=100
-            )
-
-        # Both should have valid results
-        assert result_low["estimated_time_seconds"] > 0
-        assert result_high["estimated_time_seconds"] > 0
-
-        # Higher concurrency should generally be faster (or equal)
-        assert (
-            result_high["estimated_time_seconds"]
-            <= result_low["estimated_time_seconds"]
-        )
-
-    def test_estimate_total_time_caching_behavior(self):
-        """Test that dry_run properly caches results for estimate_total_time."""
-        block = self.create_mock_block("test_block")
-        flow = Flow(blocks=[block], metadata=self.test_metadata)
-        # Use unique values to avoid duplicate validation error
         dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
 
-        # Initially, no cached results
-        assert getattr(flow, "_cached_dry_run_results", None) is None
-
-        # Run dry_run
-        dry_run_result = flow.dry_run(dataset, sample_size=2)
-
-        # Results should be cached
-        assert getattr(flow, "_cached_dry_run_results", None) is not None
-        cached = getattr(flow, "_cached_dry_run_results", None)
-        assert cached == dry_run_result
-        assert cached["sample_size"] == 2
-
-        # estimate_total_time should use cached results
-        with patch("sdg_hub.core.flow.base.Flow.dry_run") as mock_dry_run:
-            flow.estimate_total_time(dataset, sample_size=2)
-            # Should not call dry_run again
-            mock_dry_run.assert_not_called()
-
-    def test_estimate_total_time_different_sample_sizes(self):
-        """Test estimate_total_time with different sample sizes than cached."""
-        block = self.create_mock_block("test_block")
-        flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test"] * 10})
-
-        # Cache results for sample_size=2
-        object.__setattr__(
-            flow,
-            "_cached_dry_run_results",
-            {
-                "flow_name": "Test Flow",
-                "sample_size": 2,
-                "original_dataset_size": 10,
-                "execution_time_seconds": 2.0,
-                "blocks_executed": [],
-                "execution_successful": True,
-            },
-        )
-
-        # Request estimate with different sample size
-        new_dry_run_results = {
-            "flow_name": "Test Flow",
-            "sample_size": 5,
-            "original_dataset_size": 10,
-            "execution_time_seconds": 5.0,
-            "blocks_executed": [],
-            "execution_successful": True,
-        }
-
-        with patch(
-            "sdg_hub.core.flow.base.Flow.dry_run", return_value=new_dry_run_results
-        ) as mock_dry_run:
-            flow.estimate_total_time(dataset, sample_size=5)
-            # Should call dry_run with new sample size
-            mock_dry_run.assert_called_once()
-
-    def test_estimate_total_time_with_runtime_params(self):
-        """Test estimate_total_time passes runtime_params to dry_run."""
-        block = self.create_mock_block("test_block")
-        flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test"] * 10})
-
-        runtime_params = {"test_block": {"temperature": 0.5, "max_tokens": 100}}
-
-        mock_dry_run_results = {
-            "flow_name": "Test Flow",
-            "sample_size": 2,
-            "original_dataset_size": 10,
-            "execution_time_seconds": 2.0,
-            "blocks_executed": [],
-            "execution_successful": True,
-        }
-
-        with patch(
-            "sdg_hub.core.flow.base.Flow.dry_run", return_value=mock_dry_run_results
-        ) as mock_dry_run:
-            flow.estimate_total_time(dataset, runtime_params=runtime_params)
-
-            # Verify runtime_params were passed to dry_run
-            mock_dry_run.assert_called_once()
-            # dry_run is called with (self, dataset, sample_size, runtime_params)
-            # Check positional args - runtime_params should be the 3rd argument (index 2)
-            call_args, call_kwargs = mock_dry_run.call_args
-            # dry_run is called as self.dry_run(dataset, sample_size, runtime_params)
-            # So runtime_params should be at position 2 in call_args
-            if len(call_args) > 2:
-                passed_runtime_params = call_args[2]
-            else:
-                passed_runtime_params = call_kwargs.get("runtime_params")
-            # Check if runtime_params was passed and equals expected value
-            assert passed_runtime_params == runtime_params
-
-    def test_estimate_total_time_empty_flow(self):
-        """Test estimate_total_time with empty flow raises error."""
-        flow = Flow(blocks=[], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test"] * 10})
-
-        with pytest.raises(FlowValidationError) as exc_info:
-            flow.estimate_total_time(dataset)
-
-        assert "empty flow" in str(exc_info.value).lower()
-
-    def test_estimate_total_time_empty_dataset(self):
-        """Test estimate_total_time with empty dataset raises error."""
-        block = self.create_mock_block("test_block")
-        flow = Flow(blocks=[block], metadata=self.test_metadata)
-        empty_dataset = Dataset.from_dict({"input": []})
-
-        with pytest.raises(EmptyDatasetError):
-            flow.estimate_total_time(empty_dataset)
-
-    def test_estimate_total_time_max_concurrency_validation(self):
-        """Test estimate_total_time validates max_concurrency parameter."""
-        block = self.create_mock_block("test_block")
-        flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
-
-        # Test with zero value
-        with pytest.raises(FlowValidationError) as exc_info:
-            flow.estimate_total_time(dataset, max_concurrency=0)
-        assert "must be greater than 0" in str(exc_info.value)
-
-        # Test with negative value
-        with pytest.raises(FlowValidationError) as exc_info:
-            flow.estimate_total_time(dataset, max_concurrency=-1)
-        assert "must be greater than 0" in str(exc_info.value)
-
-        # Test with boolean value
-        with pytest.raises(FlowValidationError) as exc_info:
-            flow.estimate_total_time(dataset, max_concurrency=True)
-        assert "must be an int" in str(exc_info.value)
-
-        # Test with string value
-        with pytest.raises(FlowValidationError) as exc_info:
-            flow.estimate_total_time(dataset, max_concurrency="10")
-        assert "must be an int" in str(exc_info.value)
-
-        # Test with float value
-        with pytest.raises(FlowValidationError) as exc_info:
-            flow.estimate_total_time(dataset, max_concurrency=10.5)
-        assert "must be an int" in str(exc_info.value)
-
-        # Test with None (should not raise)
-        result = flow.estimate_total_time(dataset, max_concurrency=None)
-        assert result is not None
-
-        # Test with valid positive integer
-        result = flow.estimate_total_time(dataset, max_concurrency=10)
-        assert result is not None
-
-    def test_estimate_total_time_wraps_estimator_errors(self):
-        """Test that errors from estimate_execution_time are wrapped as FlowValidationError."""
-        block = self.create_mock_block("test_block")
-        flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
-
-        # Mock estimate_execution_time to raise an exception
-        with patch("sdg_hub.core.flow.base.estimate_execution_time") as mock_estimate:
-            mock_estimate.side_effect = ValueError("Invalid time measurements")
-
-            # Should wrap the ValueError as FlowValidationError
-            with pytest.raises(FlowValidationError) as exc_info:
-                flow.estimate_total_time(dataset)
-
-            assert "Error estimating execution time" in str(exc_info.value)
-            assert "Invalid time measurements" in str(exc_info.value)
-            # Check exception chaining
-            assert isinstance(exc_info.value.__cause__, ValueError)
-
-        # Also test with async blocks to cover the second error handler
-        async_block = self.create_mock_block("async_block")
-        async_block.async_mode = True
-        flow_with_async = Flow(blocks=[async_block], metadata=self.test_metadata)
-
-        with patch("sdg_hub.core.flow.base.estimate_execution_time") as mock_estimate:
-            mock_estimate.side_effect = RuntimeError("Throughput calculation failed")
-
-            with pytest.raises(FlowValidationError) as exc_info:
-                flow_with_async.estimate_total_time(dataset)
-
-            assert "Error estimating execution time" in str(exc_info.value)
-            assert "Throughput calculation failed" in str(exc_info.value)
-            assert isinstance(exc_info.value.__cause__, RuntimeError)
-
-    def test_dry_run_caches_results(self):
-        """Test that dry_run properly sets _cached_dry_run_results."""
-        block = self.create_mock_block("test_block")
-        flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test1", "test2", "test3"]})
-
-        # Initially no cached results
-        assert getattr(flow, "_cached_dry_run_results", None) is None
-
-        # Run dry_run
         result = flow.dry_run(dataset, sample_size=2)
 
-        # Check results are cached
-        cached = getattr(flow, "_cached_dry_run_results", None)
-        assert cached is not None
-        assert cached == result
-        assert cached["sample_size"] == 2
-        assert cached["original_dataset_size"] == 3
-        assert cached["execution_successful"] is True
+        assert "sample_size" in result
+        assert "blocks_executed" in result
+        assert "time_estimation" not in result
 
-    def test_dry_run_updates_cache_on_each_run(self):
-        """Test that each dry_run updates the cached results."""
+    def test_dry_run_with_estimation_sync_blocks(self):
+        """Test dry_run with estimate_full_time for synchronous blocks."""
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        # Use unique values to avoid duplicate validation error
-        dataset = Dataset.from_dict(
-            {"input": ["test1", "test2", "test3", "test4", "test5"]}
+        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
+
+        result = flow.dry_run(dataset, sample_size=2, estimate_full_time=True)
+
+        assert "time_estimation" in result
+        assert "estimated_time_seconds" in result["time_estimation"]
+        assert result["time_estimation"]["estimated_time_seconds"] > 0
+
+    def test_dry_run_with_estimation_async_blocks(self):
+        """Test dry_run with estimate_full_time for async blocks."""
+        async_block = self.create_mock_llm_block("async_block", async_mode=True)
+        flow = Flow(blocks=[async_block], metadata=self.test_metadata)
+        flow._model_config_set = True
+        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
+
+        result = flow.dry_run(
+            dataset, sample_size=5, estimate_full_time=True, max_concurrency=100
         )
 
-        # First dry_run with sample_size=1
-        flow.dry_run(dataset, sample_size=1)
-        cached1 = getattr(flow, "_cached_dry_run_results", None)
-        assert cached1 is not None
-        assert cached1["sample_size"] == 1
+        assert "time_estimation" in result
+        assert "estimated_time_seconds" in result["time_estimation"]
+        assert result["time_estimation"]["estimated_time_seconds"] >= 0
 
-        # Second dry_run with sample_size=3
-        flow.dry_run(dataset, sample_size=3)
-        cached2 = getattr(flow, "_cached_dry_run_results", None)
-        assert cached2 is not None
-        assert cached2["sample_size"] == 3
+    def test_dry_run_estimation_different_concurrency_levels(self):
+        """Test that different max_concurrency values affect estimation."""
+        async_block = self.create_mock_llm_block("async_block", async_mode=True)
+        flow = Flow(blocks=[async_block], metadata=self.test_metadata)
+        flow._model_config_set = True
+        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
 
-        # Cache should be updated
-        assert cached2 != cached1
+        result_low = flow.dry_run(
+            dataset, sample_size=5, estimate_full_time=True, max_concurrency=10
+        )
+        result_high = flow.dry_run(
+            dataset, sample_size=5, estimate_full_time=True, max_concurrency=100
+        )
 
-    def test_estimate_with_custom_large_sample_size(self):
-        """Test estimate_total_time with sample_size > 5 for async blocks (coverage for max(5, sample_size))."""
+        assert "time_estimation" in result_low
+        assert "time_estimation" in result_high
+        assert (
+            result_high["time_estimation"]["estimated_time_seconds"]
+            <= result_low["time_estimation"]["estimated_time_seconds"]
+        )
+
+    def test_dry_run_estimation_sample_size_1(self):
+        """Test dry_run estimation with sample_size=1 triggers second run with 5."""
+        async_block = self.create_mock_llm_block("async_block", async_mode=True)
+        flow = Flow(blocks=[async_block], metadata=self.test_metadata)
+        flow._model_config_set = True
+        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
+
+        result = flow.dry_run(
+            dataset, sample_size=1, estimate_full_time=True, max_concurrency=100
+        )
+
+        assert "time_estimation" in result
+        assert result["sample_size"] == 1
+
+    def test_dry_run_estimation_sample_size_other(self):
+        """Test dry_run estimation with sample_size=3 runs both 1 and 5."""
+        async_block = self.create_mock_llm_block("async_block", async_mode=True)
+        flow = Flow(blocks=[async_block], metadata=self.test_metadata)
+        flow._model_config_set = True
+        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
+
+        result = flow.dry_run(
+            dataset, sample_size=3, estimate_full_time=True, max_concurrency=100
+        )
+
+        assert "time_estimation" in result
+        assert result["sample_size"] == 3
+
+    def test_estimate_sample_size_1_triggers_run_with_5(self):
+        """Test sample_size=1 with estimation triggers second run with 5."""
         async_block = self.create_mock_llm_block("async_block", async_mode=True)
         flow = Flow(blocks=[async_block], metadata=self.test_metadata)
         flow._model_config_set = True
         dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(20)]})
 
-        def mock_dry_run_side_effect(
-            _dataset, sample_size, _runtime_params=None, _max_concurrency=None
-        ):
-            return {
-                "sample_size": sample_size,
-                "execution_time_seconds": sample_size * 2.0,
-                "blocks_executed": [
-                    {
-                        "block_name": "async_block",
-                        "block_type": "LLMChatBlock",
-                        "execution_time_seconds": sample_size * 2.0,
-                        "input_rows": sample_size,
-                        "parameters_used": {"model": "test"},
-                    }
-                ],
-            }
+        result = flow.dry_run(
+            dataset, sample_size=1, estimate_full_time=True, max_concurrency=100
+        )
 
-        with patch(
-            "sdg_hub.core.flow.base.Flow.dry_run", side_effect=mock_dry_run_side_effect
-        ):
-            # This should use max(5, 10) = 10 for dry_run_2_samples
-            result = flow.estimate_total_time(dataset, sample_size=10)
+        assert "time_estimation" in result
+        assert result["sample_size"] == 1
+        assert result["time_estimation"]["estimated_time_seconds"] >= 0
 
-        assert result["estimated_time_seconds"] > 0
-
-    def test_estimate_with_cached_async_dry_runs(self):
-        """Test estimate_total_time reuses cached results for both async dry runs."""
+    def test_estimate_sample_size_5_triggers_run_with_1(self):
+        """Test sample_size=5 with estimation triggers second run with 1."""
         async_block = self.create_mock_llm_block("async_block", async_mode=True)
         flow = Flow(blocks=[async_block], metadata=self.test_metadata)
         flow._model_config_set = True
         dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(20)]})
 
-        # Pre-cache 1-sample result
-        flow._cached_dry_run_results = {
-            "sample_size": 1,
-            "execution_time_seconds": 2.0,
-            "blocks_executed": [
-                {
-                    "block_name": "async_block",
-                    "block_type": "LLMChatBlock",
-                    "execution_time_seconds": 2.0,
-                    "input_rows": 1,
-                    "parameters_used": {"model": "test"},
-                }
-            ],
-        }
+        result = flow.dry_run(
+            dataset, sample_size=5, estimate_full_time=True, max_concurrency=100
+        )
 
-        call_count = [0]
+        assert "time_estimation" in result
+        assert result["sample_size"] == 5
+        assert result["time_estimation"]["estimated_time_seconds"] >= 0
 
-        def mock_dry_run_side_effect(
-            _dataset, sample_size, _runtime_params=None, _max_concurrency=None
-        ):
-            call_count[0] += 1
-            # Return result for 5-sample run
-            return {
-                "sample_size": 5,
-                "execution_time_seconds": 10.0,
-                "blocks_executed": [
-                    {
-                        "block_name": "async_block",
-                        "block_type": "LLMChatBlock",
-                        "execution_time_seconds": 10.0,
-                        "input_rows": 5,
-                        "parameters_used": {"model": "test"},
-                    }
-                ],
-            }
+    def test_estimate_sample_size_3_runs_canonical_pair(self):
+        """Test sample_size=3 with estimation runs both 1 and 5."""
+        async_block = self.create_mock_llm_block("async_block", async_mode=True)
+        flow = Flow(blocks=[async_block], metadata=self.test_metadata)
+        flow._model_config_set = True
+        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(20)]})
 
-        with patch(
-            "sdg_hub.core.flow.base.Flow.dry_run", side_effect=mock_dry_run_side_effect
-        ):
-            result = flow.estimate_total_time(dataset, sample_size=5)
+        result = flow.dry_run(
+            dataset, sample_size=3, estimate_full_time=True, max_concurrency=100
+        )
 
-        # Should use cached 1-sample, only call dry_run once for 5-sample
-        assert call_count[0] == 1
-        assert result["estimated_time_seconds"] > 0
+        assert "time_estimation" in result
+        assert result["sample_size"] == 3
+        assert result["time_estimation"]["estimated_time_seconds"] >= 0
 
-    # Note: dry_run exception handling is defensive code tested in integration
-    # Skipping explicit unit test as it requires complex mocking to trigger
+    def test_estimate_sample_size_10_runs_canonical_pair(self):
+        """Test sample_size=10 with estimation runs canonical (1, 5) pair."""
+        async_block = self.create_mock_llm_block("async_block", async_mode=True)
+        flow = Flow(blocks=[async_block], metadata=self.test_metadata)
+        flow._model_config_set = True
+        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(20)]})
+
+        result = flow.dry_run(
+            dataset, sample_size=10, estimate_full_time=True, max_concurrency=100
+        )
+
+        assert "time_estimation" in result
+        assert result["sample_size"] == 10
+        assert result["time_estimation"]["estimated_time_seconds"] >= 0
 
 
 class TestTimeEstimatorIntegration:

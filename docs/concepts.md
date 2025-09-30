@@ -148,9 +148,23 @@ Every block validates data at runtime:
 ## 🚀 Best Practices
 
 ### 1. Start Small
-- Use `dry_run()` to test with small samples
-- Run `estimate_total_time()` to predict duration and estimation of total api calls before full processing
+- Use `dry_run()` to test with small samples before processing full datasets
+- Add `estimate_full_time=True` to predict execution time for the complete dataset
 - Validate your pipeline before scaling up
+
+```python
+# Test AND estimate in one call
+result = flow.dry_run(dataset, sample_size=5, estimate_full_time=True, max_concurrency=100)
+
+# Access dry run results
+print(f"Tested with {result['sample_size']} samples")
+
+# Access time estimation
+if 'time_estimation' in result:
+    est = result['time_estimation']
+    print(f"Full dataset will take ~{est['estimated_time_seconds']/60:.0f} minutes")
+    print(f"Total API calls: {est['total_estimated_requests']:,}")
+```
 
 ### 2. Layer Validation
 - Use basic block composition (PromptBuilder → LLMChat → Parser → Filter) to assess quality
@@ -161,7 +175,6 @@ Every block validates data at runtime:
 - Use async-friendly blocks for LLM operations
 
 ### 4. Optimize for Scale
-- Use `estimate_total_time(dataset, max_concurrency=N)` to plan resource allocation
 - Use `max_concurrency` parameter to control API request rates
 - Start with conservative concurrency limits (5-10) for production
 - Increase concurrency carefully while monitoring error rates
