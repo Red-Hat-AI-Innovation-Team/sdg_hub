@@ -50,8 +50,7 @@ tests/integration/knowledge_tuning/enhanced_summary_knowledge_tuning/
 ├── __init__.py
 ├── conftest.py                     # Fixtures and env setup
 ├── test_knowledge_generation.py    # Main integration tests
-├── test_data/
-│   └── seed_data_minimal.jsonl    # Minimal test data (2 docs)
+├── CI_SETUP.md                     # CI/CD setup guide
 └── README.md                       # This file
 ```
 
