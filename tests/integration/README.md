@@ -18,7 +18,6 @@ tests/integration/
         ├── test_knowledge_generation.py    # Integration tests
         ├── test_data/                      # Minimal test data
         ├── README.md                       # Test documentation
-        └── CI_SETUP.md                     # CI/CD setup guide
 ```
 
 ## Running Integration Tests
@@ -57,8 +56,6 @@ Integration tests use **nbconvert** to convert notebooks to Python scripts and e
 2. **Execute**: Run the script with test environment variables
 3. **Validate**: Check that output datasets exist and are loadable
 
-This approach is simpler and more maintainable than previous cell-injection patterns.
-
 ## Environment Configuration
 
 Tests automatically handle both local and CI environments:
@@ -95,5 +92,4 @@ uv pip install .[dev,examples]
 
 Key dependencies:
 - `nbconvert`: Convert notebooks to Python scripts
-- `jupyter` and `ipykernel`: Notebook execution environment
 - `pytest` and plugins: Test framework

@@ -48,7 +48,8 @@ def test_notebook_execution_and_output_validity(test_env_setup, tmp_path):
     converted_script = tmp_path / "knowledge_generation.py"
     subprocess.run(
         [
-            "jupyter",
+            "python",
+            "-m",
             "nbconvert",
             "--to",
             "script",
