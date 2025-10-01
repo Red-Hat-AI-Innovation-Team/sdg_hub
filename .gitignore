@@ -84,6 +84,11 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 
+# Integration test artifacts
+tests/integration/**/converted_scripts/
+tests/integration/**/test_output/
+tests/integration/**/output_data/
+
 # IPython
 profile_default/
 ipython_config.py

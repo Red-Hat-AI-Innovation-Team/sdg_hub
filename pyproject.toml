@@ -86,7 +86,7 @@ dev = [
     "ruff",
     "pytest-env",
     # Integration testing dependencies
-    "papermill>=2.4.0",
+    "nbconvert>=7.0.0",
     "jupyter>=1.0.0",
     "ipykernel>=6.0.0",
 ]

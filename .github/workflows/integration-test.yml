@@ -16,14 +16,14 @@ on:
       - 'tox.ini'
       - '.github/workflows/integration-test.yml' # This workflow
       # dynamic paths, UPDATE THESE when necessary (when an example is considered for validation by a maintainer)
-      - 'examples/knowledge_tuning/instructlab/**'
+      - 'examples/knowledge_tuning/enhanced_summary_knowledge_tuning/**'
   pull_request:
     branches:
       - "main"
       - "release-**"
     paths:
       - 'src/sdg_hub/core/**/*.py'
-      - 'examples/knowledge_tuning/instructlab/**'
+      - 'examples/knowledge_tuning/enhanced_summary_knowledge_tuning/**'
       - 'tests/integration/**/*.py'
       - 'pyproject.toml'
       - 'tox.ini'
@@ -94,6 +94,8 @@ jobs:
           python -m pip install tox tox-gh>=1.2
 
       - name: Run integration tests with tox
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           tox -e py3-integrationcov
 

@@ -4,64 +4,96 @@ This directory contains integration tests for SDG Hub notebooks and end-to-end w
 
 ## Overview
 
-Integration tests validate that complete workflows (especially notebooks) execute successfully. These tests use [papermill](https://papermill.readthedocs.io/) to execute notebooks with test parameters and validate their outputs.
+Integration tests validate that complete workflows (especially notebooks) execute successfully using real components and configurations.
+
+## Test Structure
+
+Tests are organized to mirror the `examples/` directory structure:
+
+```
+tests/integration/
+└── knowledge_tuning/
+    └── enhanced_summary_knowledge_tuning/
+        ├── conftest.py                     # Test fixtures and env setup
+        ├── test_knowledge_generation.py    # Integration tests
+        ├── test_data/                      # Minimal test data
+        ├── README.md                       # Test documentation
+        └── CI_SETUP.md                     # CI/CD setup guide
+```
 
 ## Running Integration Tests
 
 ### Via tox (Recommended)
 
 ```bash
-# Run all integration tests
-tox -e py3-integration
+# Run all integration tests with coverage
+tox -e py3-integrationcov
 
-# Run integration tests with verbose output
-tox -e py3-integration -- -v
+# Run integration tests only (no coverage)
+tox -e py3-integration
 ```
 
 ### Direct pytest
 
 ```bash
-# Install with integration test dependencies
-pip install -e .[dev,examples]
+# Install with dev dependencies
+uv pip install .[dev,examples]
 
-# Run integration tests
+# Run all integration tests
 pytest tests/integration/ -v -m integration
+
+# Run specific test suite
+pytest tests/integration/knowledge_tuning/enhanced_summary_knowledge_tuning/ -v -m integration
 
 # Run all tests except integration
 pytest -m "not integration"
 ```
 
-## Test Structure
+## Test Approach
 
-- `conftest.py`: Shared fixtures and configuration
-- `notebook_utils.py`: Utility functions for notebook testing
-- `test_*_notebook.py`: Individual notebook integration tests
+Integration tests use **nbconvert** to convert notebooks to Python scripts and execute them:
 
-## Writing New Integration Tests
+1. **Convert**: Notebook → Python script (via nbconvert)
+2. **Execute**: Run the script with test environment variables
+3. **Validate**: Check that output datasets exist and are loadable
 
-1. Create a new test file: `test_your_notebook_name.py`
-2. Use the `@pytest.mark.integration` marker
-3. Mock external dependencies (LLM servers, datasets) when possible
-4. Use `execute_notebook_with_params()` to run notebooks with test parameters
-5. Validate outputs using `validate_notebook_execution()` and custom assertions
+This approach is simpler and more maintainable than previous cell-injection patterns.
 
-## Dependencies
+## Environment Configuration
 
-Integration tests require additional dependencies installed via the `[dev]` and `[examples]` extras:
+Tests automatically handle both local and CI environments:
 
-- `papermill`: For notebook execution
-- `jupyter` and `ipykernel`: For notebook execution environment
+- **Local**: Reads from `.env` file in the example directory
+- **CI**: Uses GitHub Actions secrets passed as environment variables
+
+See individual test suite README files for specific configuration requirements.
 
 ## CI/CD Integration
 
-Integration tests can be added to GitHub Actions workflows:
+Integration tests run automatically in GitHub Actions on changes to:
+- Core SDG Hub code (`src/sdg_hub/core/**`)
+- Example notebooks and flows
+- Integration test code itself
 
-```yaml
-- name: Run integration tests
-  run: tox -e py3-integration
+See `.github/workflows/integration-test.yml` for workflow configuration.
+
+## Writing New Integration Tests
+
+1. Create test directory mirroring `examples/` structure
+2. Add `conftest.py` with environment setup fixtures
+3. Write simple tests: convert → execute → validate outputs
+4. Document any required API keys or environment variables
+5. Update `.github/workflows/integration-test.yml` trigger paths
+
+## Dependencies
+
+Integration tests require the `[dev]` and `[examples]` extras:
+
+```bash
+uv pip install .[dev,examples]
 ```
 
-For tests requiring LLM servers, consider:
-- Using mock servers in CI
-- Skipping real server tests in CI (mark with `@pytest.mark.slow`)
-- Running full integration tests in a separate, scheduled workflow
+Key dependencies:
+- `nbconvert`: Convert notebooks to Python scripts
+- `jupyter` and `ipykernel`: Notebook execution environment
+- `pytest` and plugins: Test framework
