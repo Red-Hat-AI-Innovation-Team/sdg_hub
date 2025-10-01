@@ -61,6 +61,24 @@ def test_notebook_execution_and_output_validity(test_env_setup, tmp_path):
         check=True,
     )
 
+    # Validate that notebook uses the correct flows
+    expected_flows = [
+        "Extractive Summary Knowledge Tuning Dataset Generation Flow",
+        "Detailed Summary Knowledge Tuning Dataset Generation Flow",
+        "Key Facts Knowledge Tuning Dataset Generation Flow",
+        "Document Based Knowledge Tuning Dataset Generation Flow",
+    ]
+
+    with open(converted_script, "r") as f:
+        script_content = f.read()
+
+    for flow_name in expected_flows:
+        assert (
+            flow_name in script_content
+        ), f"Expected flow not found in notebook: {flow_name}"
+
+    print(f"✓ Validated all {len(expected_flows)} required flows are present")
+
     notebook_dir = notebook_path.parent
     subprocess.run(
         ["python", str(converted_script)],
