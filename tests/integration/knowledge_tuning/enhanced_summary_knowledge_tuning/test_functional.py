@@ -9,7 +9,6 @@ Simple test that:
 3. Verifies output datasets are saved and loadable
 """
 
-from pathlib import Path
 import os
 import subprocess
 
@@ -18,16 +17,14 @@ import pytest
 
 
 @pytest.mark.integration
-def test_notebook_execution_and_output_validity(test_env_setup, tmp_path):
+def test_notebook_execution_and_output_validity(
+    test_env_setup, tmp_path, notebook_path
+):
     """
     Test that output datasets are created and can be loaded.
 
     This test runs after the notebook execution and verifies outputs.
     """
-    # Re-run the notebook to generate fresh outputs for verification
-    notebook_path = Path(
-        "examples/knowledge_tuning/enhanced_summary_knowledge_tuning/knowledge_generation.ipynb"
-    )
     output_folder = tmp_path / "output_data"
     output_folder.mkdir(parents=True, exist_ok=True)
 
