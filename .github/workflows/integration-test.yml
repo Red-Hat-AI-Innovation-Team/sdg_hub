@@ -2,32 +2,20 @@
 
 name: Integration Test
 
+# Integration tests require manual approval via label
+# To run integration tests on a PR:
+# 1. Review the PR code carefully
+# 2. Add the "run-integration-tests" label to the PR
+# 3. Tests will trigger automatically once label is added
+#
+# Note: Only maintainers/collaborators of can add labels (security gate)
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - "main"
-      - "release-**"
-    paths:
-      # static paths, DONT CHANGE THEM
-      - 'src/sdg_hub/core/**/*.py'
-      - 'tests/integration/**/*.py'
-      - 'pyproject.toml'
-      - 'tox.ini'
-      - '.github/workflows/integration-test.yml' # This workflow
-      # dynamic paths, UPDATE THESE when necessary (when an example is considered for validation by a maintainer)
-      - 'examples/knowledge_tuning/enhanced_summary_knowledge_tuning/**'
   pull_request:
+    types: [labeled, synchronize]
     branches:
       - "main"
       - "release-**"
-    paths:
-      - 'src/sdg_hub/core/**/*.py'
-      - 'examples/knowledge_tuning/enhanced_summary_knowledge_tuning/**'
-      - 'tests/integration/**/*.py'
-      - 'pyproject.toml'
-      - 'tox.ini'
-      - '.github/workflows/integration-test.yml' # This workflow
 
 env:
   LC_ALL: en_US.UTF-8
@@ -40,9 +28,40 @@ permissions:
   contents: read
 
 jobs:
+  # Check if this is a fork PR with the label - explain why tests can't run
+  check-fork-pr:
+    name: "Check Fork PR"
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'run-integration-tests') &&
+      github.event.pull_request.head.repo.full_name != github.repository
+    steps:
+      - name: Explain fork PR limitation
+        run: |
+          echo "⚠️ Cannot run integration tests on fork PRs for security reasons"
+          echo ""
+          echo "Fork PRs cannot access repository secrets (OPENAI_API_KEY) to prevent"
+          echo "malicious code from exfiltrating credentials."
+          echo ""
+          echo "To run integration tests on this PR:"
+          echo "1. Create a branch in the main repository from this fork"
+          echo "2. Add the 'run-integration-tests' label to trigger tests"
+          echo ""
+          echo "Alternatively, tests will run automatically after merge to main."
+          exit 1
+
   integration-test:
     name: "Integration Tests - ${{ matrix.python }} on ${{ matrix.platform }}"
     runs-on: "${{ matrix.platform }}"
+    # Only run if:
+    # 1. Manual workflow_dispatch trigger, OR
+    # 2. PR has "run-integration-tests" label AND is from main repo (not fork)
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       contains(github.event.pull_request.labels.*.name, 'run-integration-tests') &&
+       github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       matrix:
         python:
