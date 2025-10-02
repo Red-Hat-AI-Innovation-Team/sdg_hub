@@ -292,34 +292,135 @@ print(f"Output columns: {dry_result['final_dataset']['columns']}")
 print(f"Sample output: {dry_result['sample_output']}")
 ```
 
-### Parameter Override
+### Runtime Parameters
 
-Customize flow behavior at runtime:
+Runtime parameters allow you to customize block behavior at execution time without modifying flow YAML files. You can override global parameters for all blocks or configure specific blocks individually.
+
+**Global Parameter Override:**
+
+Apply parameters to all compatible blocks in the flow:
 
 ```python
-# Override default runtime parameters
+# Override global parameters
 result = flow.generate(
     dataset,
     runtime_params={
+        "temperature": 0.7,
         "max_tokens": 200,
-        "temperature": 0.9,
+        "top_p": 0.95
     }
 )
 ```
 
-### Block-Specific Runtime Arguments
+**Block-Specific Configuration:**
 
-You can enable or disable advanced features—such as "thinking mode"—for individual blocks at runtime using the `runtime_params` argument. This allows fine-grained control over block behavior without modifying the flow YAML.
-
-For example, to disable "thinking mode" for several blocks:
+Target individual blocks by their `block_name` for fine-grained control:
 
 ```python
-# Set runtime_params for specific blocks
+# Configure different parameters for each block
 result = flow.generate(
-    dataset, 
-    runtime_params = {
-    # LLMChatBlock blocks
-    "llm_chat_block_1": {"extra_body": {"chat_template_kwargs": {"enable_thinking": False}}},
+    dataset,
+    runtime_params={
+        # LLM blocks - control generation parameters
+        "question_generator": {
+            "temperature": 0.9,
+            "max_tokens": 100,
+            "top_p": 0.95,
+            "frequency_penalty": 0.5
+        },
+        "answer_generator": {
+            "temperature": 0.5,
+            "max_tokens": 300,
+            "presence_penalty": 0.3
+        },
+
+        # LLM parser blocks - configure extraction
+        "extract_eval_content": {
+            "extract_content": True,
+            "extract_reasoning_content": True,
+            "field_prefix": "llm_"
+        },
+
+        # Text parsing blocks - override parsing tags
+        "parse_evaluation": {
+            "start_tags": ["[Answer]", "[Explanation]", "[Score]"],
+            "end_tags": ["[/Answer]", "[/Explanation]", "[/Score]"],
+            "parser_cleanup_tags": ["```", "###", "---"]
+        },
+
+        # Filter blocks - adjust filter criteria
+        "quality_filter": {
+            "filter_value": 0.9,
+            "operation": "ge"
+        },
+        "faithfulness_filter": {
+            "filter_value": "YES",
+            "operation": "eq"
+        }
+    }
+)
+```
+
+**Common Runtime Parameters by Block Type:**
+
+| Block Type | Parameter | Description | Example Values |
+|------------|-----------|-------------|----------------|
+| **LLMChatBlock** | `temperature` | Control randomness in generation | `0.0` - `2.0` |
+| | `max_tokens` | Maximum response length | `50`, `200`, `1000` |
+| | `top_p` | Nucleus sampling threshold | `0.0` - `1.0` |
+| | `frequency_penalty` | Penalize token repetition | `-2.0` - `2.0` |
+| | `presence_penalty` | Penalize new topics | `-2.0` - `2.0` |
+| **LLMParserBlock** | `extract_content` | Extract main content field | `True`, `False` |
+| | `extract_reasoning_content` | Extract reasoning/thinking | `True`, `False` |
+| | `extract_tool_calls` | Extract tool call data | `True`, `False` |
+| | `field_prefix` | Prefix for output fields | `"llm_"`, `"parsed_"` |
+| **TextParserBlock** | `start_tags` | Opening tags for extraction | `["<answer>", "[Q]"]` |
+| | `end_tags` | Closing tags for extraction | `["</answer>", "[/Q]"]` |
+| | `parsing_pattern` | Custom regex pattern | `r"Answer:\s*(.+)"` |
+| | `parser_cleanup_tags` | Tags to remove from output | `["```", "###"]` |
+| **ColumnValueFilterBlock** | `filter_value` | Value to filter by | `0.8`, `"YES"`, `[1, 2]` |
+| | `operation` | Comparison operation | `"eq"`, `"gt"`, `"contains"` |
+| | `convert_dtype` | Type conversion | `"float"`, `"int"` |
+
+**Practical Examples:**
+
+```python
+# Experiment with different generation styles
+result = flow.generate(
+    dataset,
+    runtime_params={
+        "temperature": 0.9,  # More creative
+        "top_p": 0.95
+    }
+)
+
+# Adjust parsing for different prompt formats
+result = flow.generate(
+    dataset,
+    runtime_params={
+        "text_parser": {
+            "start_tags": ["<thinking>", "<answer>"],
+            "end_tags": ["</thinking>", "</answer>"]
+        }
+    }
+)
+
+# Increase quality thresholds for production
+result = flow.generate(
+    dataset,
+    runtime_params={
+        "quality_filter": {"filter_value": 0.95},
+        "relevancy_filter": {"filter_value": 0.90}
+    }
+)
+
+# Mix global and block-specific parameters
+result = flow.generate(
+    dataset,
+    runtime_params={
+        "temperature": 0.7,  # Global default
+        "creative_generator": {"temperature": 1.0},  # Override for one block
+        "quality_filter": {"filter_value": 0.85}
     }
 )
 ```

@@ -155,8 +155,32 @@ flow.set_model_config(
 ```
 
 ### Flow Runtime Parameters
-#TODO: Add runtime parameters
 
+Customize block behavior at runtime without modifying flow YAML files:
+
+```python
+# Global parameters (apply to all compatible blocks)
+result = flow.generate(
+    dataset,
+    runtime_params={
+        "temperature": 0.7,
+        "max_tokens": 200,
+    }
+)
+
+# Block-specific configuration
+result = flow.generate(
+    dataset,
+    runtime_params={
+        "question_generator": {"temperature": 0.9, "max_tokens": 100},
+        "answer_generator": {"temperature": 0.5, "max_tokens": 300},
+        "text_parser": {"start_tags": ["<answer>"], "end_tags": ["</answer>"]},
+        "quality_filter": {"filter_value": 0.9, "operation": "ge"}
+    }
+)
+```
+
+Runtime parameters work with any block type - LLM blocks, parser blocks, filter blocks, etc. For detailed parameter options by block type, see [Flow Execution](flows/overview.md#-flow-execution).
 
 ### Error Handling
 #TODO: Add error handling
