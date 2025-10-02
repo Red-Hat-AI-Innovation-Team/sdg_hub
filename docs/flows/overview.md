@@ -369,6 +369,73 @@ result = flow.generate(dataset, max_concurrency=20)
 result = flow.generate(dataset)  # Default behavior
 ```
 
+### Checkpointing
+
+Flow checkpointing enables resuming interrupted executions by saving progress periodically. This is essential for long-running flows that process large datasets, preventing data loss from failures or interruptions.
+
+**Basic Checkpointing:**
+
+```python
+# Enable checkpointing with automatic resume
+result = flow.generate(
+    dataset,
+    checkpoint_dir="./my_flow_checkpoints",
+    save_freq=100  # Save every 100 completed samples
+)
+```
+
+**How It Works:**
+
+1. **Progress Tracking** - Flow saves completed samples to checkpoint files after every `save_freq` samples
+2. **Automatic Resume** - On restart, Flow detects existing checkpoints and processes only remaining samples
+3. **Final Merge** - Completed and newly processed samples are automatically combined in the final result
+
+**Use Cases:**
+
+- **Long-Running Flows** - Process thousands of samples safely over hours or days
+- **Unreliable Infrastructure** - Protect against network failures, rate limits, or system crashes
+- **Iterative Development** - Test and refine flows without reprocessing completed samples
+- **Cost Management** - Avoid wasting API credits by restarting from failures
+
+**Configuration Options:**
+
+```python
+# Save checkpoints every N samples (recommended for large datasets)
+result = flow.generate(
+    dataset,
+    checkpoint_dir="./checkpoints",
+    save_freq=50  # Checkpoint after each 50 samples
+)
+
+# Only save final result (minimal overhead)
+result = flow.generate(
+    dataset,
+    checkpoint_dir="./checkpoints"
+    # No save_freq - only saves at completion
+)
+
+# Combine with other execution features
+result = flow.generate(
+    dataset,
+    checkpoint_dir="./checkpoints",
+    save_freq=100,
+    max_concurrency=10
+)
+```
+
+**Checkpoint Structure:**
+
+Checkpoint directories contain:
+- `checkpoint_NNNN.jsonl` - Completed sample batches in JSONL format
+- `flow_metadata.json` - Flow ID, progress counters, and validation data
+
+**Important Notes:**
+
+- Checkpoints are flow-specific using `flow_id` to prevent mixing incompatible data
+- Remaining samples are identified by comparing input dataset with completed samples using common columns
+- If all samples are completed, Flow skips processing and returns merged results immediately
+- Clean up checkpoint directories manually when no longer needed
+
 ## 🚀 Next Steps
 
 Ready to master the flow system? Explore these detailed guides:
