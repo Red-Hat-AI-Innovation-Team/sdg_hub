@@ -41,8 +41,7 @@ jobs:
         run: |
           echo "⚠️ Cannot run integration tests on fork PRs for security reasons"
           echo ""
-          echo "Fork PRs cannot access repository secrets (OPENAI_API_KEY) to prevent"
-          echo "malicious code from exfiltrating credentials."
+          echo "Fork PRs cannot access repository env vars or secrets"
           echo ""
           echo "To run integration tests on this PR:"
           echo "1. Create a branch in the main repository from this fork"
