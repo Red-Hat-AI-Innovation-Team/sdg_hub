@@ -8,19 +8,23 @@ on:
       - "main"
       - "release-**"
     paths:
-      - 'src/sdg_hub/core/**/*.py'
+      # Only trigger on changes to relevant flows and examples (EXTEND THIS):
+      - 'src/sdg_hub/flows/qa_generation/document_grounded_qa/enhanced_multi_summary_qa/**'
+      - 'examples/knowledge_tuning/enhanced_summary_knowledge_tuning/**'
+      # Standard integration test triggers, DONT CHANGE THIS
       - 'tests/integration/**/*.py'
       - 'pyproject.toml'
       - 'tox.ini'
       - '.github/workflows/integration-test.yml'
-      - 'examples/knowledge_tuning/enhanced_summary_knowledge_tuning/**'
   pull_request:
     branches:
       - "main"
       - "release-**"
     paths:
-      - 'src/sdg_hub/core/**/*.py'
+      # Only trigger on changes to relevant flows and examples (EXTEND THIS):
+      - 'src/sdg_hub/flows/qa_generation/document_grounded_qa/enhanced_multi_summary_qa/**'
       - 'examples/knowledge_tuning/enhanced_summary_knowledge_tuning/**'
+      # Standard integration test triggers, DONT CHANGE THIS
       - 'tests/integration/**/*.py'
       - 'pyproject.toml'
       - 'tox.ini'
