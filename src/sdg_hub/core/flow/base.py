@@ -35,7 +35,7 @@ from ..utils.logger_config import setup_logger
 from ..utils.path_resolution import resolve_path
 from ..utils.yaml_utils import save_flow_yaml
 from .checkpointer import FlowCheckpointer
-from .metadata import DatasetRequirements, FlowMetadata, FlowParameter
+from .metadata import DatasetRequirements, FlowMetadata
 from .migration import FlowMigration
 from .validation import FlowValidator
 
@@ -55,8 +55,6 @@ class Flow(BaseModel):
         Ordered list of blocks to execute in the flow.
     metadata : FlowMetadata
         Flow metadata including name, version, author, etc.
-    parameters : Dict[str, FlowParameter]
-        Runtime parameters that can be overridden during execution.
     """
 
     blocks: list[BaseBlock] = Field(
@@ -65,10 +63,6 @@ class Flow(BaseModel):
     )
     metadata: FlowMetadata = Field(
         description="Flow metadata including name, version, author, etc."
-    )
-    parameters: dict[str, FlowParameter] = Field(
-        default_factory=dict,
-        description="Runtime parameters that can be overridden during execution",
     )
 
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
@@ -96,31 +90,6 @@ class Flow(BaseModel):
 
         return v
 
-    @field_validator("parameters")
-    @classmethod
-    def validate_parameters(
-        cls, v: dict[str, FlowParameter]
-    ) -> dict[str, FlowParameter]:
-        """Validate parameter names and ensure they are FlowParameter instances."""
-        if not v:
-            return v
-
-        validated = {}
-        for param_name, param_value in v.items():
-            if not isinstance(param_name, str) or not param_name.strip():
-                raise ValueError(
-                    f"Parameter name must be a non-empty string: {param_name}"
-                )
-
-            if not isinstance(param_value, FlowParameter):
-                raise ValueError(
-                    f"Parameter '{param_name}' must be a FlowParameter instance, "
-                    f"got: {type(param_value)}"
-                )
-
-            validated[param_name.strip()] = param_value
-
-        return validated
 
     @model_validator(mode="after")
     def validate_block_names_unique(self) -> "Flow":
@@ -215,16 +184,6 @@ class Flow(BaseModel):
         except Exception as exc:
             raise FlowValidationError(f"Invalid metadata configuration: {exc}") from exc
 
-        # Extract and validate parameters
-        parameters = {}
-        params_dict = flow_config.get("parameters", {})
-        for param_name, param_config in params_dict.items():
-            try:
-                parameters[param_name] = FlowParameter(**param_config)
-            except Exception as exc:
-                raise FlowValidationError(
-                    f"Invalid parameter '{param_name}': {exc}"
-                ) from exc
 
         # Create blocks with validation
         blocks = []
@@ -254,7 +213,7 @@ class Flow(BaseModel):
 
         # Create and validate the flow
         try:
-            flow = cls(blocks=blocks, metadata=metadata, parameters=parameters)
+            flow = cls(blocks=blocks, metadata=metadata)
             # Persist generated id back to the YAML file (only on initial load)
             # If the file had no metadata.id originally, update and rewrite
             if not flow_config.get("metadata", {}).get("id"):
@@ -1226,16 +1185,13 @@ class Flow(BaseModel):
         new_blocks = self.blocks + [block]
 
         return Flow(
-            blocks=new_blocks, metadata=self.metadata, parameters=self.parameters
+            blocks=new_blocks, metadata=self.metadata
         )
 
     def get_info(self) -> dict[str, Any]:
         """Get information about the flow."""
         return {
             "metadata": self.metadata.model_dump(),
-            "parameters": {
-                name: param.model_dump() for name, param in self.parameters.items()
-            },
             "blocks": [
                 {
                     "block_type": block.__class__.__name__,
@@ -1339,8 +1295,7 @@ class Flow(BaseModel):
 
         The summary contains:
         1. Flow metadata (name, version, author, description)
-        2. Defined runtime parameters with type hints and defaults
-        3. A table of all blocks with their input and output columns
+        2. A table of all blocks with their input and output columns
 
         Notes
         -----
@@ -1374,16 +1329,6 @@ class Flow(BaseModel):
                 f"Description: [white]{self.metadata.description}[/white]"
             )
 
-        # Parameters section
-        if self.parameters:
-            params_branch = flow_tree.add(
-                "[bold bright_yellow]Parameters[/bold bright_yellow]"
-            )
-            for name, param in self.parameters.items():
-                param_info = f"[bright_cyan]{name}[/bright_cyan]: [white]{param.type_hint}[/white]"
-                if param.default is not None:
-                    param_info += f" = [bright_white]{param.default}[/bright_white]"
-                params_branch.add(param_info)
 
         # Blocks overview
         flow_tree.add(
@@ -1446,10 +1391,6 @@ class Flow(BaseModel):
             ],
         }
 
-        if self.parameters:
-            config["parameters"] = {
-                name: param.model_dump() for name, param in self.parameters.items()
-            }
 
         save_flow_yaml(output_path, config)
 

@@ -32,20 +32,10 @@ class TestFlowIntegration:
                     "experimental": [],
                 },
                 "tags": ["integration", "test"],
-                "estimated_cost": "low",
-                "estimated_duration": "1 minute",
                 "dataset_requirements": {
                     "required_columns": ["input"],
                     "min_samples": 1,
                 },
-            },
-            "parameters": {
-                "temperature": {
-                    "default": 0.7,
-                    "description": "Model temperature",
-                    "type_hint": "float",
-                    "required": False,
-                }
             },
             "blocks": [
                 {
@@ -100,8 +90,6 @@ class TestFlowIntegration:
             assert len(flow.blocks) == 2
             assert flow.blocks[0].block_name == "chat_block"
             assert flow.blocks[1].block_name == "processor"
-            assert len(flow.parameters) == 1
-            assert flow.parameters["temperature"].default == 0.7
 
             # Create test dataset
             dataset = Dataset.from_dict(
@@ -331,21 +319,6 @@ class TestFlowIntegration:
                     "max_samples": 1000,
                 },
             },
-            "parameters": {
-                "global_temperature": {
-                    "default": 0.7,
-                    "description": "Global temperature setting",
-                    "type_hint": "float",
-                    "required": True,
-                    "constraints": {"min": 0.0, "max": 1.0},
-                },
-                "max_tokens": {
-                    "default": 512,
-                    "description": "Maximum tokens per response",
-                    "type_hint": "int",
-                    "required": False,
-                },
-            },
             "blocks": [
                 {
                     "block_type": "ContextProcessor",
@@ -390,11 +363,6 @@ class TestFlowIntegration:
 
             # Load the flow
             flow = Flow.from_yaml(str(yaml_path))
-
-            # Verify parameter handling
-            assert len(flow.parameters) == 2
-            assert flow.parameters["global_temperature"].required is True
-            assert flow.parameters["max_tokens"].required is False
 
             # Test dataset validation
             # Valid dataset

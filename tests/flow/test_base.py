@@ -11,7 +11,7 @@ from datasets import Dataset
 from pydantic import ValidationError
 
 # First Party
-from sdg_hub import Flow, FlowMetadata, FlowParameter
+from sdg_hub import Flow, FlowMetadata
 from sdg_hub.core.flow.metadata import DatasetRequirements
 from sdg_hub.core.utils.error_handling import EmptyDatasetError, FlowValidationError
 import pytest
@@ -61,7 +61,6 @@ class TestFlow:
         flow = Flow(blocks=[], metadata=self.test_metadata)
         assert len(flow.blocks) == 0
         assert flow.metadata.name == "Test Flow"
-        assert flow.parameters == {}
 
     def test_flow_creation_with_blocks(self):
         """Test creating a flow with blocks."""
@@ -73,21 +72,6 @@ class TestFlow:
         assert flow.blocks[0].block_name == "block1"
         assert flow.blocks[1].block_name == "block2"
 
-    def test_flow_creation_with_parameters(self):
-        """Test creating a flow with parameters."""
-        param1 = FlowParameter(default="value1", description="Test param 1")
-        param2 = FlowParameter(default=42, description="Test param 2", required=True)
-
-        flow = Flow(
-            blocks=[],
-            metadata=self.test_metadata,
-            parameters={"param1": param1, "param2": param2},
-        )
-
-        assert len(flow.parameters) == 2
-        assert flow.parameters["param1"].default == "value1"
-        assert flow.parameters["param2"].default == 42
-        assert flow.parameters["param2"].required is True
 
     def test_validate_blocks_invalid_type(self):
         """Test block validation with invalid block type."""
@@ -106,29 +90,6 @@ class TestFlow:
 
         assert "Duplicate block name" in str(exc_info.value)
 
-    def test_validate_parameters_invalid_name(self):
-        """Test parameter validation with invalid name."""
-        param = FlowParameter(default="value")
-
-        with pytest.raises(ValidationError) as exc_info:
-            Flow(
-                blocks=[],
-                metadata=self.test_metadata,
-                parameters={"": param},  # Empty name
-            )
-
-        assert "non-empty string" in str(exc_info.value)
-
-    def test_validate_parameters_invalid_type(self):
-        """Test parameter validation with invalid parameter type."""
-        with pytest.raises(ValidationError) as exc_info:
-            Flow(
-                blocks=[],
-                metadata=self.test_metadata,
-                parameters={"param": "not a FlowParameter"},
-            )
-
-        assert "instance of FlowParameter" in str(exc_info.value)
 
     def test_from_yaml_valid_file(self):
         """Test loading flow from valid YAML file."""
@@ -428,12 +389,10 @@ class TestFlow:
         block = self.create_mock_block(
             "test_block", input_cols=["input"], output_cols=["output"]
         )
-        param = FlowParameter(default="test_value", description="Test parameter")
 
         flow = Flow(
             blocks=[block],
             metadata=self.test_metadata,
-            parameters={"test_param": param},
         )
 
         info = flow.get_info()
@@ -441,8 +400,6 @@ class TestFlow:
         assert info["metadata"]["name"] == "Test Flow"
         assert info["total_blocks"] == 1
         assert info["block_names"] == ["test_block"]
-        assert len(info["parameters"]) == 1
-        assert info["parameters"]["test_param"]["default"] == "test_value"
         assert len(info["blocks"]) == 1
         assert info["blocks"][0]["block_name"] == "test_block"
 
