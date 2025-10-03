@@ -144,7 +144,6 @@ class TestRecommendedModels:
         assert models.get_best_model(available) is None
 
 
-
 class TestDatasetRequirements:
     """Test DatasetRequirements class."""
 
@@ -305,7 +304,6 @@ class TestFlowMetadata:
         ]
         assert metadata.recommended_models.experimental == []
 
-
     def test_get_best_model(self):
         """Test getting the best model with new format."""
         models = RecommendedModels(
@@ -339,7 +337,6 @@ class TestFlowMetadata:
         empty_metadata = FlowMetadata(name="Empty Flow")
         best = empty_metadata.get_best_model()
         assert best is None
-
 
     def test_dataset_requirements_integration(self):
         """Test dataset requirements integration."""

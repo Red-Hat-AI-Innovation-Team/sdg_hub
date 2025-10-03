@@ -72,7 +72,6 @@ class TestFlow:
         assert flow.blocks[0].block_name == "block1"
         assert flow.blocks[1].block_name == "block2"
 
-
     def test_validate_blocks_invalid_type(self):
         """Test block validation with invalid block type."""
         with pytest.raises(ValidationError) as exc_info:
@@ -89,7 +88,6 @@ class TestFlow:
             Flow(blocks=[block1, block2], metadata=self.test_metadata)
 
         assert "Duplicate block name" in str(exc_info.value)
-
 
     def test_from_yaml_valid_file(self):
         """Test loading flow from valid YAML file."""

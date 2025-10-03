@@ -90,7 +90,6 @@ class Flow(BaseModel):
 
         return v
 
-
     @model_validator(mode="after")
     def validate_block_names_unique(self) -> "Flow":
         """Ensure all block names are unique within the flow."""
@@ -183,7 +182,6 @@ class Flow(BaseModel):
             metadata = FlowMetadata(**metadata_dict)
         except Exception as exc:
             raise FlowValidationError(f"Invalid metadata configuration: {exc}") from exc
-
 
         # Create blocks with validation
         blocks = []
@@ -1184,9 +1182,7 @@ class Flow(BaseModel):
         # Create new flow with added block
         new_blocks = self.blocks + [block]
 
-        return Flow(
-            blocks=new_blocks, metadata=self.metadata
-        )
+        return Flow(blocks=new_blocks, metadata=self.metadata)
 
     def get_info(self) -> dict[str, Any]:
         """Get information about the flow."""
@@ -1329,7 +1325,6 @@ class Flow(BaseModel):
                 f"Description: [white]{self.metadata.description}[/white]"
             )
 
-
         # Blocks overview
         flow_tree.add(
             f"[bold bright_magenta]Blocks[/bold bright_magenta] ({len(self.blocks)} total)"
@@ -1390,7 +1385,6 @@ class Flow(BaseModel):
                 for block in self.blocks
             ],
         }
-
 
         save_flow_yaml(output_path, config)
 

@@ -3,7 +3,7 @@
 
 # Standard
 from enum import Enum
-from typing import Any, Optional
+from typing import Optional
 
 # Third Party
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -115,8 +115,6 @@ class RecommendedModels(BaseModel):
                 return model
 
         return None
-
-
 
 
 class DatasetRequirements(BaseModel):
@@ -290,7 +288,6 @@ class FlowMetadata(BaseModel):
         """Validate recommended models structure."""
         # Validation is handled within RecommendedModels class
         return v
-
 
     @model_validator(mode="after")
     def ensure_id(self) -> "FlowMetadata":
