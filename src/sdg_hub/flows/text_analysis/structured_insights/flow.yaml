@@ -24,7 +24,6 @@ metadata:
     - "entity-extraction"
     - "keyword-extraction"
   license: "Apache-2.0"
-  min_sdg_hub_version: "0.2.0"
   dataset_requirements:
     required_columns:
       - "text"
