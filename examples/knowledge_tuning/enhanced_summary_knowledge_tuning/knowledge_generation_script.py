@@ -124,6 +124,7 @@ class ResourceMonitor:
 
 
 # %%
+MAX_CONCURRENCY = 200
 SEED_DATA_SIZE = int(os.getenv('SEED_DATA_SIZE', '5'))
 
 # %%
@@ -343,7 +344,7 @@ if enable_reasoning:
         }
     
 
-extractive_summary_generated_data = flow.generate(quality_corpus, runtime_params=runtime_params, max_concurrency=2)
+extractive_summary_generated_data = flow.generate(quality_corpus, runtime_params=runtime_params, max_concurrency=MAX_CONCURRENCY)
 save_data_path = os.getenv('OUTPUT_DATA_FOLDER', '')
 extractive_summary_generated_data.to_json(os.path.join(save_data_path, 'extractive_summary', 'gen.jsonl'), orient='records', lines=True)
 
@@ -371,7 +372,7 @@ if enable_reasoning:
         flow_name_map[flow_name]: {'n': number_of_summaries, 'max_tokens': 6000}
         }
 # Generate data for detailed summary
-detailed_summary_generated_data = flow.generate(quality_corpus, runtime_params=runtime_params, max_concurrency=50)
+detailed_summary_generated_data = flow.generate(quality_corpus, runtime_params=runtime_params, max_concurrency=MAX_CONCURRENCY)
 save_data_path = os.getenv('OUTPUT_DATA_FOLDER', '')
 detailed_summary_generated_data.to_json(os.path.join(save_data_path, 'detailed_summary', 'gen.jsonl'), orient='records', lines=True)
 
@@ -395,7 +396,7 @@ if enable_reasoning:
         }
 
 # Generate data for key facts summary
-key_facts_generated_data = flow.generate(quality_corpus, runtime_params=runtime_params, max_concurrency=50)
+key_facts_generated_data = flow.generate(quality_corpus, runtime_params=runtime_params, max_concurrency=MAX_CONCURRENCY)
 
 save_data_path = os.getenv('OUTPUT_DATA_FOLDER', '')
 key_facts_generated_data.to_json(os.path.join(save_data_path, 'key_facts_to_qa', 'gen.jsonl'), orient='records', lines=True)
@@ -418,7 +419,7 @@ if enable_reasoning:
         'question_generation': {'max_tokens': 1024}, 
         }
 
-document_based_generated_data = flow.generate(quality_corpus, runtime_params=runtime_params, max_concurrency=200)
+document_based_generated_data = flow.generate(quality_corpus, runtime_params=runtime_params, max_concurrency=MAX_CONCURRENCY)
     
 save_data_path = os.getenv('OUTPUT_DATA_FOLDER', '')
 document_based_generated_data.to_json(os.path.join(save_data_path, 'document_based_qa', 'gen.jsonl'), orient='records', lines=True)
