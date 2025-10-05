@@ -64,15 +64,12 @@ dataset = Dataset.from_dict({
 
 # Test with a small sample AND get time estimate (recommended!)
 print("🧪 Running dry run with time estimation...")
-dry_result = flow.dry_run(dataset, sample_size=5, estimate_full_time=True, max_concurrency=100)
+dry_result = flow.dry_run(dataset, sample_size=5, enable_time_estimation=True, max_concurrency=100)
 print(f"✅ Dry run completed in {dry_result['execution_time_seconds']:.2f}s")
 print(f"📊 Output columns: {list(dry_result['final_dataset']['columns'])}")
 
-# Time estimation results (automatically calculated and displayed)
-if 'time_estimation' in dry_result:
-    est = dry_result['time_estimation']
-    print(f"⏱️  Full dataset will take ~{est['estimated_time_seconds']/60:.0f} minutes")
-    print(f"📝 Total API calls: {est['total_estimated_requests']:,}")
+# Time estimation is automatically displayed in a Rich table format
+# The table shows estimated time, total API calls, and per-block breakdowns
 ```
 
 ## 📊 Step 3: Generate Synthetic Data

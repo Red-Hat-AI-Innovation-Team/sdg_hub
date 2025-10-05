@@ -65,7 +65,7 @@ class TestTimeEstimation:
         return block
 
     def test_dry_run_without_estimation(self):
-        """Test dry_run without estimate_full_time flag."""
+        """Test dry_run without enable_time_estimation flag."""
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
@@ -74,55 +74,55 @@ class TestTimeEstimation:
 
         assert "sample_size" in result
         assert "blocks_executed" in result
+        # Time estimation is not returned in results (only displayed in table)
         assert "time_estimation" not in result
 
     def test_dry_run_with_estimation_sync_blocks(self):
-        """Test dry_run with estimate_full_time for synchronous blocks."""
+        """Test dry_run with enable_time_estimation for synchronous blocks."""
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
 
-        result = flow.dry_run(dataset, sample_size=2, estimate_full_time=True)
+        # Time estimation is displayed in table but not returned in results
+        result = flow.dry_run(dataset, sample_size=2, enable_time_estimation=True)
 
-        assert "time_estimation" in result
-        assert "estimated_time_seconds" in result["time_estimation"]
-        assert result["time_estimation"]["estimated_time_seconds"] > 0
+        assert "sample_size" in result
+        assert "blocks_executed" in result
+        assert result["execution_successful"] is True
 
     def test_dry_run_with_estimation_async_blocks(self):
-        """Test dry_run with estimate_full_time for async blocks."""
+        """Test dry_run with enable_time_estimation for async blocks."""
         async_block = self.create_mock_llm_block("async_block", async_mode=True)
         flow = Flow(blocks=[async_block], metadata=self.test_metadata)
         flow._model_config_set = True
         dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
 
+        # Time estimation is displayed in table but not returned in results
         result = flow.dry_run(
-            dataset, sample_size=5, estimate_full_time=True, max_concurrency=100
+            dataset, sample_size=5, enable_time_estimation=True, max_concurrency=100
         )
 
-        assert "time_estimation" in result
-        assert "estimated_time_seconds" in result["time_estimation"]
-        assert result["time_estimation"]["estimated_time_seconds"] >= 0
+        assert "sample_size" in result
+        assert "blocks_executed" in result
+        assert result["execution_successful"] is True
 
     def test_dry_run_estimation_different_concurrency_levels(self):
-        """Test that different max_concurrency values affect estimation."""
+        """Test that dry_run completes successfully with different max_concurrency values."""
         async_block = self.create_mock_llm_block("async_block", async_mode=True)
         flow = Flow(blocks=[async_block], metadata=self.test_metadata)
         flow._model_config_set = True
         dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
 
+        # Both should complete successfully (estimation displayed but not returned)
         result_low = flow.dry_run(
-            dataset, sample_size=5, estimate_full_time=True, max_concurrency=10
+            dataset, sample_size=5, enable_time_estimation=True, max_concurrency=10
         )
         result_high = flow.dry_run(
-            dataset, sample_size=5, estimate_full_time=True, max_concurrency=100
+            dataset, sample_size=5, enable_time_estimation=True, max_concurrency=100
         )
 
-        assert "time_estimation" in result_low
-        assert "time_estimation" in result_high
-        assert (
-            result_high["time_estimation"]["estimated_time_seconds"]
-            <= result_low["time_estimation"]["estimated_time_seconds"]
-        )
+        assert result_low["execution_successful"] is True
+        assert result_high["execution_successful"] is True
 
     def test_dry_run_estimation_sample_size_1(self):
         """Test dry_run estimation with sample_size=1 triggers second run with 5."""
@@ -132,11 +132,11 @@ class TestTimeEstimation:
         dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
 
         result = flow.dry_run(
-            dataset, sample_size=1, estimate_full_time=True, max_concurrency=100
+            dataset, sample_size=1, enable_time_estimation=True, max_concurrency=100
         )
 
-        assert "time_estimation" in result
         assert result["sample_size"] == 1
+        assert result["execution_successful"] is True
 
     def test_dry_run_estimation_sample_size_other(self):
         """Test dry_run estimation with sample_size=3 runs both 1 and 5."""
@@ -146,11 +146,11 @@ class TestTimeEstimation:
         dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
 
         result = flow.dry_run(
-            dataset, sample_size=3, estimate_full_time=True, max_concurrency=100
+            dataset, sample_size=3, enable_time_estimation=True, max_concurrency=100
         )
 
-        assert "time_estimation" in result
         assert result["sample_size"] == 3
+        assert result["execution_successful"] is True
 
     def test_estimate_sample_size_1_triggers_run_with_5(self):
         """Test sample_size=1 with estimation triggers second run with 5."""
@@ -160,12 +160,11 @@ class TestTimeEstimation:
         dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(20)]})
 
         result = flow.dry_run(
-            dataset, sample_size=1, estimate_full_time=True, max_concurrency=100
+            dataset, sample_size=1, enable_time_estimation=True, max_concurrency=100
         )
 
-        assert "time_estimation" in result
         assert result["sample_size"] == 1
-        assert result["time_estimation"]["estimated_time_seconds"] >= 0
+        assert result["execution_successful"] is True
 
     def test_estimate_sample_size_5_triggers_run_with_1(self):
         """Test sample_size=5 with estimation triggers second run with 1."""
@@ -175,12 +174,11 @@ class TestTimeEstimation:
         dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(20)]})
 
         result = flow.dry_run(
-            dataset, sample_size=5, estimate_full_time=True, max_concurrency=100
+            dataset, sample_size=5, enable_time_estimation=True, max_concurrency=100
         )
 
-        assert "time_estimation" in result
         assert result["sample_size"] == 5
-        assert result["time_estimation"]["estimated_time_seconds"] >= 0
+        assert result["execution_successful"] is True
 
     def test_estimate_sample_size_3_runs_canonical_pair(self):
         """Test sample_size=3 with estimation runs both 1 and 5."""
@@ -190,12 +188,11 @@ class TestTimeEstimation:
         dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(20)]})
 
         result = flow.dry_run(
-            dataset, sample_size=3, estimate_full_time=True, max_concurrency=100
+            dataset, sample_size=3, enable_time_estimation=True, max_concurrency=100
         )
 
-        assert "time_estimation" in result
         assert result["sample_size"] == 3
-        assert result["time_estimation"]["estimated_time_seconds"] >= 0
+        assert result["execution_successful"] is True
 
     def test_estimate_sample_size_10_runs_canonical_pair(self):
         """Test sample_size=10 with estimation runs canonical (1, 5) pair."""
@@ -205,12 +202,11 @@ class TestTimeEstimation:
         dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(20)]})
 
         result = flow.dry_run(
-            dataset, sample_size=10, estimate_full_time=True, max_concurrency=100
+            dataset, sample_size=10, enable_time_estimation=True, max_concurrency=100
         )
 
-        assert "time_estimation" in result
         assert result["sample_size"] == 10
-        assert result["time_estimation"]["estimated_time_seconds"] >= 0
+        assert result["execution_successful"] is True
 
 
 class TestTimeEstimatorIntegration:

@@ -1012,7 +1012,7 @@ class Flow(BaseModel):
         sample_size: int = 2,
         runtime_params: Optional[dict[str, dict[str, Any]]] = None,
         max_concurrency: Optional[int] = None,
-        estimate_full_time: bool = False,
+        enable_time_estimation: bool = False,
     ) -> dict[str, Any]:
         """Perform a dry run of the flow with a subset of data.
 
@@ -1026,15 +1026,16 @@ class Flow(BaseModel):
             Runtime parameters organized by block name.
         max_concurrency : Optional[int], optional
             Maximum concurrent requests for LLM blocks. If None, no limit is applied.
-        estimate_full_time : bool, default=False
-            If True, estimates execution time for the full dataset. Automatically runs
-            a second dry run if needed for accurate scaling analysis.
+        enable_time_estimation : bool, default=False
+            If True, estimates execution time for the full dataset and displays it
+            in a Rich table. Automatically runs a second dry run if needed for 
+            accurate scaling analysis.
 
         Returns
         -------
         Dict[str, Any]
             Dry run results with execution info and sample outputs.
-            If estimate_full_time=True, includes "time_estimation" field.
+            Time estimation is displayed in a table but not included in return value.
 
         Raises
         ------
@@ -1171,12 +1172,11 @@ class Flow(BaseModel):
                 f"in {execution_time:.2f}s"
             )
 
-            # Perform time estimation if requested
-            if estimate_full_time:
-                estimation = self._estimate_total_time(
+            # Perform time estimation if requested (displays table but doesn't store in results)
+            if enable_time_estimation:
+                self._estimate_total_time(
                     dry_run_results, dataset, runtime_params, max_concurrency
                 )
-                dry_run_results["time_estimation"] = estimation
 
             return dry_run_results
 
@@ -1243,7 +1243,7 @@ class Flow(BaseModel):
                     5,
                     runtime_params,
                     max_concurrency,
-                    estimate_full_time=False,
+                    enable_time_estimation=False,
                 )
                 dry_run_1, dry_run_2 = first_run_results, second_run
             elif first_sample_size == 5:
@@ -1254,7 +1254,7 @@ class Flow(BaseModel):
                     1,
                     runtime_params,
                     max_concurrency,
-                    estimate_full_time=False,
+                    enable_time_estimation=False,
                 )
                 dry_run_1, dry_run_2 = second_run, first_run_results
             else:
@@ -1265,14 +1265,14 @@ class Flow(BaseModel):
                     1,
                     runtime_params,
                     max_concurrency,
-                    estimate_full_time=False,
+                    enable_time_estimation=False,
                 )
                 dry_run_2 = self.dry_run(
                     dataset,
                     5,
                     runtime_params,
                     max_concurrency,
-                    estimate_full_time=False,
+                    enable_time_estimation=False,
                 )
 
             estimation = estimate_execution_time(
