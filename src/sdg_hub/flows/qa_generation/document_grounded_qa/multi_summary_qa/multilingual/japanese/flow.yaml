@@ -19,7 +19,7 @@ metadata:
     - "japanese"
   
   license: "Apache-2.0"
-  
+
   dataset_requirements:
     required_columns:
       - "document"
@@ -54,17 +54,19 @@ blocks:
       output_cols: raw_summary_detailed
       max_tokens: 2048
       async_mode: true
+      # n: 2
 
   - block_type: LLMParserBlock
     block_config:
-      block_name: extract_detailed_summary
+      block_name: detailed_summary
       input_cols: raw_summary_detailed
       extract_content: true
+      # extract_reasoning_content: true
 
   - block_type: TextParserBlock
     block_config:
       block_name: parse_detailed_summary
-      input_cols: extract_detailed_summary_content
+      input_cols: detailed_summary_content
       output_cols: summary_detailed
       start_tags: [""]
       end_tags: [""]
@@ -86,14 +88,14 @@ blocks:
 
   - block_type: LLMParserBlock
     block_config:
-      block_name: extract_atomic_facts
+      block_name: atomic_facts
       input_cols: raw_atomic_facts
       extract_content: true
 
   - block_type: TextParserBlock
     block_config:
       block_name: parse_atomic_facts
-      input_cols: extract_atomic_facts_content
+      input_cols: atomic_facts_content
       output_cols: summary_atomic_facts
       start_tags: [""]
       end_tags: [""]
@@ -115,14 +117,14 @@ blocks:
 
   - block_type: LLMParserBlock
     block_config:
-      block_name: extract_extractive_summary
+      block_name: extractive_summary
       input_cols: raw_summary_extractive
       extract_content: true
 
   - block_type: TextParserBlock
     block_config:
       block_name: parse_extractive_summary
-      input_cols: extract_extractive_summary_content
+      input_cols: extractive_summary_content
       output_cols: summary_extractive
       start_tags: [""]
       end_tags: [""]
@@ -156,14 +158,14 @@ blocks:
 
   - block_type: LLMParserBlock
     block_config:
-      block_name: extract_knowledge_generation
+      block_name: get_knowledge_generation
       input_cols: raw_knowledge_generation
       extract_content: true
 
   - block_type: TextParserBlock
     block_config:
       block_name: parse_knowledge_generation
-      input_cols: extract_knowledge_generation_content
+      input_cols: get_knowledge_generation_content
       output_cols: [question, response]
       parsing_pattern: "\\[(?:Question|QUESTION)\\]\\s*(.*?)\\s*\\[(?:Answer|ANSWER)\\]\\s*(.*?)\\s*(?=\\[(?:Question|QUESTION)\\]|$)"
       parser_cleanup_tags: ["[END]"]
