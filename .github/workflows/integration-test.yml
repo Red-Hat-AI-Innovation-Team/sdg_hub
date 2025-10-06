@@ -20,7 +20,7 @@ on:
     branches:
       - "main"
       - "release-**"
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, labeled]
     paths:
       # Only trigger on changes to relevant flows and examples (EXTEND THIS):
       - 'src/sdg_hub/flows/qa_generation/document_grounded_qa/enhanced_multi_summary_qa/**'
@@ -30,11 +30,6 @@ on:
       - 'pyproject.toml'
       - 'tox.ini'
       - '.github/workflows/integration-test.yml'
-  pull_request:
-    types: [labeled]
-    branches:
-      - "main"
-      - "release-**"
 
 env:
   LC_ALL: en_US.UTF-8
