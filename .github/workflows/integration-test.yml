@@ -89,9 +89,6 @@ jobs:
             **/pyproject.toml
             **/requirements*.txt
 
-      - name: Remove llama-cpp-python from cache
-        run: |
-          pip cache remove llama_cpp_python
 
       - name: Cache huggingface datasets
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
@@ -111,10 +108,6 @@ jobs:
         run: |
           tox -e py3-integrationcov
 
-      - name: Remove llama-cpp-python from cache
-        if: always()
-        run: |
-          pip cache remove llama_cpp_python
 
       - name: Upload integration test coverage to Codecov
         uses: codecov/codecov-action@v4
