@@ -4,7 +4,7 @@
 # Runs knowledge_generation_script.py with different SEED_DATA_SIZE values
 
 # Array of SEED_DATA_SIZE values to test
-SIZES=(1 5 10 20 50 100 500 1000)
+SIZES=(1 5 10 20 50 100 200 263)
 
 # Create output directory for logs
 OUTPUT_DIR="perf_results"
