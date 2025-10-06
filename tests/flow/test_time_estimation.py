@@ -215,12 +215,32 @@ class TestTimeEstimatorIntegration:
     def test_time_estimator_module_functions(self):
         """Test that time_estimator module functions are called correctly."""
 
-        # Test is_llm_using_block
+        # Test is_llm_using_block - block type detection
         llm_block_info = {
             "block_type": "LLMChatBlock",
             "parameters_used": {"model": "test-model"},
         }
         assert is_llm_using_block(llm_block_info) is True
+
+        # Test is_llm_using_block - parameter-based detection
+        # Block with model parameter but non-LLM block type
+        llm_by_params_model = {
+            "block_type": "CustomBlock",
+            "parameters_used": {"model": "test-model"},
+        }
+        assert is_llm_using_block(llm_by_params_model) is True
+
+        llm_by_params_api_base = {
+            "block_type": "CustomBlock",
+            "parameters_used": {"api_base": "http://localhost:8000"},
+        }
+        assert is_llm_using_block(llm_by_params_api_base) is True
+
+        llm_by_params_api_key = {
+            "block_type": "CustomBlock",
+            "parameters_used": {"api_key": "secret"},
+        }
+        assert is_llm_using_block(llm_by_params_api_key) is True
 
         non_llm_block_info = {"block_type": "TextConcat", "parameters_used": {}}
         assert is_llm_using_block(non_llm_block_info) is False

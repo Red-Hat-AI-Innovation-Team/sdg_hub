@@ -394,6 +394,33 @@ class TestFlow:
             flow.dry_run(dataset, max_concurrency=True)
         assert "must be an int" in str(exc_info.value)
 
+    def test_dry_run_block_execution_failure(self):
+        """Test dry_run exception handling when a block fails during execution."""
+        # Create a block that raises an exception when executed
+        from tests.flow.conftest import MockBlock
+
+        class FailingBlock(MockBlock):
+            """Mock block that raises an exception during execution."""
+
+            def __call__(self, dataset, **kwargs):
+                raise RuntimeError("Block execution failed intentionally")
+
+        failing_block = FailingBlock(block_name="failing_block")
+        flow = Flow(blocks=[failing_block], metadata=self.test_metadata)
+        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+
+        # Should raise FlowValidationError wrapping the original exception
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.dry_run(dataset, sample_size=2)
+
+        # Check that the error message contains information about the failure
+        assert "Dry run failed" in str(exc_info.value)
+        assert "Block execution failed intentionally" in str(exc_info.value)
+
+        # Verify the original exception is chained
+        assert exc_info.value.__cause__ is not None
+        assert isinstance(exc_info.value.__cause__, RuntimeError)
+
     def test_add_block_success(self):
         """Test successfully adding a block."""
         flow = Flow(blocks=[], metadata=self.test_metadata)

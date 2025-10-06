@@ -1028,7 +1028,7 @@ class Flow(BaseModel):
             Maximum concurrent requests for LLM blocks. If None, no limit is applied.
         enable_time_estimation : bool, default=False
             If True, estimates execution time for the full dataset and displays it
-            in a Rich table. Automatically runs a second dry run if needed for 
+            in a Rich table. Automatically runs a second dry run if needed for
             accurate scaling analysis.
 
         Returns

@@ -220,9 +220,9 @@ def display_time_estimation_summary(
     if est_seconds < 60:
         time_str = f"{est_seconds:.1f} seconds"
     elif est_seconds < 3600:
-        time_str = f"{est_seconds/60:.1f} minutes ({est_seconds/3600:.2f} hours)"
+        time_str = f"{est_seconds / 60:.1f} minutes ({est_seconds / 3600:.2f} hours)"
     else:
-        time_str = f"{est_seconds/3600:.2f} hours ({est_seconds/60:.0f} minutes)"
+        time_str = f"{est_seconds / 3600:.2f} hours ({est_seconds / 60:.0f} minutes)"
 
     summary_table.add_row("Estimated Time:", time_str)
     summary_table.add_row(
@@ -274,7 +274,7 @@ def display_time_estimation_summary(
             if block_seconds < 60:
                 time_str = f"{block_seconds:.1f}s"
             else:
-                time_str = f"{block_seconds/60:.1f}min"
+                time_str = f"{block_seconds / 60:.1f}min"
 
             # Format requests
             requests_str = f"{block['estimated_requests']:,.0f}"
