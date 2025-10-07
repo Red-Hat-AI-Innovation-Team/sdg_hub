@@ -314,7 +314,18 @@ class LLMParserBlock(BaseBlock):
             logger.warning("No samples to process, returning empty dataset")
             return Dataset.from_list([])
 
-        new_data = []
+        #(rohan)
+        # new_data = []
+        # for sample in samples:
+        #     _tmp = self._generate(sample)
+        #     new_data.extend(_tmp)
+        # return Dataset.from_list(new_data)
+
+        new_data = None
         for sample in samples:
-            new_data.extend(self._generate(sample))
-        return Dataset.from_list(new_data)
+            _tmp = self._generate(sample)
+            if new_data is None: new_data = Dataset.from_list(_tmp)
+            else:
+                for x in _tmp:
+                    new_data = new_data.add_item(x)
+        return new_data
