@@ -74,12 +74,36 @@ if command -v pipreqsnb &> /dev/null; then
         echo "✅ Requirements generated with pipreqsnb"
     else
         echo "⚠️ pipreqsnb failed, trying regular pipreqs on converted files..."
-        export PATH=$PATH:/Users/$(whoami)/Library/Python/3.9/bin
+        # Dynamically find user-site bin directory and add to PATH if it exists
+        if command -v python3 &> /dev/null; then
+            USER_BIN_DIR=$(python3 -m site --user-base)/bin
+        elif command -v python &> /dev/null; then
+            USER_BIN_DIR=$(python -m site --user-base)/bin
+        else
+            USER_BIN_DIR=""
+        fi
+        
+        if [ -n "$USER_BIN_DIR" ] && [ -d "$USER_BIN_DIR" ]; then
+            export PATH=$PATH:$USER_BIN_DIR
+        fi
+        
         pipreqs "$TEMP_DIR" --force --savepath "$TEMP_DIR/requirements.txt" 2>/dev/null || true
     fi
 else
     echo "📋 pipreqsnb not found, using pipreqs on converted Python files..."
-    export PATH=$PATH:/Users/$(whoami)/Library/Python/3.9/bin
+    # Dynamically find user-site bin directory and add to PATH if it exists
+    if command -v python3 &> /dev/null; then
+        USER_BIN_DIR=$(python3 -m site --user-base)/bin
+    elif command -v python &> /dev/null; then
+        USER_BIN_DIR=$(python -m site --user-base)/bin
+    else
+        USER_BIN_DIR=""
+    fi
+    
+    if [ -n "$USER_BIN_DIR" ] && [ -d "$USER_BIN_DIR" ]; then
+        export PATH=$PATH:$USER_BIN_DIR
+    fi
+    
     pipreqs "$TEMP_DIR" --force --savepath "$TEMP_DIR/requirements.txt" 2>/dev/null || true
 fi
 
@@ -161,5 +185,5 @@ echo ""
 echo "📋 Summary:"
 echo "   - Notebooks processed: ${#notebooks[@]}"
 echo "   - Reports location: $REPORTS_DIR"
-echo "   - Check *_vulnerabilities.txt files for human-readable results"
+echo "   - Check *_vulnerabilities.txt files for results in text format"
 echo "   - Check *_vulnerabilities.json files for programmatic analysis"
