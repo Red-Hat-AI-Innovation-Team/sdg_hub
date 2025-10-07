@@ -254,7 +254,7 @@ def test_large_dataset_performance(sample_dataset):
     # Create a larger dataset by repeating the sample
     large_data = {}
     for col in sample_dataset.column_names:
-        large_data[col] = sample_dataset[col] * 100  # 300 samples total
+        large_data[col] = list(sample_dataset[col]) * 100  # 300 samples total
 
     large_dataset = Dataset.from_dict(large_data)
 
