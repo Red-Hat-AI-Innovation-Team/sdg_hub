@@ -37,9 +37,15 @@ def test_notebook_execution_and_output_validity(
     ]:
         (output_folder / subdir).mkdir(parents=True, exist_ok=True)
 
-    # Override output folder
+    # Override output folder and set minimal runtime parameters for testing
     env = os.environ.copy()
     env["OUTPUT_DATA_FOLDER"] = str(output_folder)
+    # Use test seed data (single row) from the test directory
+    test_dir = os.path.dirname(os.path.abspath(__file__))
+    test_seed_data = os.path.join(test_dir, "test_data", "test_seed_data.jsonl")
+    env["SEED_DATA_PATH"] = test_seed_data
+    env["NUMBER_OF_SUMMARIES"] = "1"  # Generate only 1 summary per document
+    env["MAX_CONCURRENCY"] = "20"  # Reduce concurrency for testing
 
     # Convert and run
     converted_script = tmp_path / "knowledge_generation.py"

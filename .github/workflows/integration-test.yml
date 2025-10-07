@@ -20,6 +20,7 @@ on:
     branches:
       - "main"
       - "release-**"
+    types: [opened, synchronize, reopened, labeled]
     paths:
       # Only trigger on changes to relevant flows and examples (EXTEND THIS):
       - 'src/sdg_hub/flows/qa_generation/document_grounded_qa/enhanced_multi_summary_qa/**'
@@ -47,11 +48,13 @@ jobs:
     # Require manual approval before running (via GitHub Environment)
     environment: integration-tests
     # Skip fork PRs (they can't access environment secrets anyway)
+    # Also check for 'run-integration-tests' label on labeled events
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' &&
-       github.event.pull_request.head.repo.full_name == github.repository)
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       (github.event.action != 'labeled' || contains(github.event.pull_request.labels.*.name, 'run-integration-tests')))
     strategy:
       matrix:
         python:
