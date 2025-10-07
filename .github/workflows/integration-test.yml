@@ -60,22 +60,22 @@ jobs:
         id: check
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] || [[ "${{ github.event_name }}" == "push" ]]; then
-            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
           elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
             # Check if from fork
             if [[ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]]; then
-              echo "should_run=false" >> $GITHUB_OUTPUT
+              echo "should_run=false" >> "$GITHUB_OUTPUT"
             # Check if labeled event with correct label
             elif [[ "${{ github.event.action }}" == "labeled" ]] && [[ "${{ contains(github.event.pull_request.labels.*.name, 'run-integration-tests') }}" == "true" ]]; then
-              echo "should_run=true" >> $GITHUB_OUTPUT
+              echo "should_run=true" >> "$GITHUB_OUTPUT"
             # Check if relevant paths changed for non-labeled events
             elif [[ "${{ github.event.action }}" != "labeled" ]] && [[ "${{ steps.filter.outputs.relevant }}" == "true" ]]; then
-              echo "should_run=true" >> $GITHUB_OUTPUT
+              echo "should_run=true" >> "$GITHUB_OUTPUT"
             else
-              echo "should_run=false" >> $GITHUB_OUTPUT
+              echo "should_run=false" >> "$GITHUB_OUTPUT"
             fi
           else
-            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
           fi
 
   integration-test:
