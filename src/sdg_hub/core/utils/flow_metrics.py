@@ -188,6 +188,122 @@ def display_metrics_summary(
     console.print()
 
 
+def display_time_estimation_summary(
+    time_estimation: dict[str, Any],
+    dataset_size: int,
+    max_concurrency: Optional[int] = None,
+) -> None:
+    """Display a rich table summarizing time estimation results.
+
+    Parameters
+    ----------
+    time_estimation : dict[str, Any]
+        Time estimation results from estimate_total_time().
+    dataset_size : int
+        Total number of samples in the dataset.
+    max_concurrency : Optional[int], optional
+        Maximum concurrency used for estimation.
+    """
+    console = Console()
+
+    # Create main summary table
+    summary_table = Table(
+        show_header=False,
+        box=None,
+        padding=(0, 1),
+    )
+    summary_table.add_column("Metric", style="bright_cyan")
+    summary_table.add_column("Value", style="bright_white")
+
+    # Format time
+    est_seconds = time_estimation["estimated_time_seconds"]
+    if est_seconds < 60:
+        time_str = f"{est_seconds:.1f} seconds"
+    elif est_seconds < 3600:
+        time_str = f"{est_seconds / 60:.1f} minutes ({est_seconds / 3600:.2f} hours)"
+    else:
+        time_str = f"{est_seconds / 3600:.2f} hours ({est_seconds / 60:.0f} minutes)"
+
+    summary_table.add_row("Estimated Time:", time_str)
+    summary_table.add_row(
+        "Total LLM Requests:", f"{time_estimation.get('total_estimated_requests', 0):,}"
+    )
+
+    if time_estimation.get("total_estimated_requests", 0) > 0:
+        requests_per_sample = time_estimation["total_estimated_requests"] / dataset_size
+        summary_table.add_row("Requests per Sample:", f"{requests_per_sample:.1f}")
+
+    if max_concurrency is not None:
+        summary_table.add_row("Max Concurrency:", str(max_concurrency))
+
+    # Display summary panel
+    console.print()
+    console.print(
+        Panel(
+            summary_table,
+            title=f"[bold bright_white]Time Estimation for {dataset_size:,} Samples[/bold bright_white]",
+            border_style="bright_blue",
+        )
+    )
+
+    # Display per-block breakdown if available
+    block_estimates = time_estimation.get("block_estimates", [])
+    if block_estimates:
+        console.print()
+
+        # Create per-block table
+        block_table = Table(
+            show_header=True,
+            header_style="bold bright_white",
+        )
+        block_table.add_column("Block Name", style="bright_cyan", width=20)
+        block_table.add_column("Time", justify="right", style="bright_yellow", width=10)
+        block_table.add_column(
+            "Requests", justify="right", style="bright_green", width=10
+        )
+        block_table.add_column(
+            "Throughput", justify="right", style="bright_blue", width=12
+        )
+        block_table.add_column(
+            "Amplif.", justify="right", style="bright_magenta", width=10
+        )
+
+        for block in block_estimates:
+            # Format time
+            block_seconds = block["estimated_time"]
+            if block_seconds < 60:
+                time_str = f"{block_seconds:.1f}s"
+            else:
+                time_str = f"{block_seconds / 60:.1f}min"
+
+            # Format requests
+            requests_str = f"{block['estimated_requests']:,.0f}"
+
+            # Format throughput
+            throughput_str = f"{block['throughput']:.2f}/s"
+
+            # Format amplification
+            amplif_str = f"{block['amplification']:.1f}x"
+
+            block_table.add_row(
+                block["block"],
+                time_str,
+                requests_str,
+                throughput_str,
+                amplif_str,
+            )
+
+        console.print(
+            Panel(
+                block_table,
+                title="[bold bright_white]Per-Block Breakdown[/bold bright_white]",
+                border_style="bright_blue",
+            )
+        )
+
+    console.print()
+
+
 def save_metrics_to_json(
     block_metrics: list[dict[str, Any]],
     flow_name: str,

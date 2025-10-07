@@ -148,8 +148,21 @@ Every block validates data at runtime:
 ## 🚀 Best Practices
 
 ### 1. Start Small
-- Use `dry_run()` to test with small samples
+- Use `dry_run()` to test with small samples before processing full datasets
+- Add `enable_time_estimation=True` to predict execution time for the complete dataset
 - Validate your pipeline before scaling up
+
+```python
+# Test AND estimate in one call
+result = flow.dry_run(dataset, sample_size=5, enable_time_estimation=True, max_concurrency=100)
+
+# Access dry run results
+print(f"Tested with {result['sample_size']} samples")
+print(f"Output columns: {result['final_dataset']['columns']}")
+
+# Time estimation is automatically displayed in a Rich table format
+# No need to access it programmatically - the table shows all estimation details
+```
 
 ### 2. Layer Validation
 - Use basic block composition (PromptBuilder → LLMChat → Parser → Filter) to assess quality
