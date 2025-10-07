@@ -1,4 +1,4 @@
-"""Tests for the SetToMajorityValue block."""
+"""Tests for the UniformColumnValueSetter block."""
 
 # Third Party
 from datasets import Dataset
