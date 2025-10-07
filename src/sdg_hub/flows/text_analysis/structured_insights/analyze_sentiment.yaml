@@ -1,0 +1,27 @@
+- role: system
+  content: You are an AI assistant expert at analyzing the emotional tone and sentiment of text content.
+
+- role: user
+  content: |
+    Analyze the overall sentiment and emotional tone of the following text. Consider:
+    
+    1. **Emotional tone**: Is the text positive, negative, or neutral?
+    2. **Intensity**: How strong is the sentiment expressed?
+    3. **Context**: Consider the subject matter and how it's presented
+    4. **Balance**: If there are mixed sentiments, which one dominates?
+    
+    Sentiment categories:
+    - **positive**: Optimistic, encouraging, favorable, upbeat content
+    - **negative**: Critical, pessimistic, unfavorable, concerning content  
+    - **neutral**: Factual, balanced, objective content without strong emotional tone
+    
+    Text to analyze:
+    {{text}}
+    
+    Provide your response in the following format:
+    [SENTIMENT]
+    positive
+    [/SENTIMENT]
+    
+    Where the sentiment value is one of: positive, negative, or neutral
+    

@@ -1,0 +1,176 @@
+metadata:
+  id: green-clay-812
+  name: "Structured Text Insights Extraction Flow"
+  description: >-
+    Multi-step pipeline for extracting structured insights from text including
+    summary, keywords, entities, and sentiment analysis combined into a JSON output
+  version: "1.0.0"
+  author: "SDG Hub Contributors"
+  recommended_models:
+    default: "openai/gpt-oss-120b"
+    compatible:
+      - "meta-llama/Llama-3.3-70B-Instruct"
+      - "microsoft/phi-4"
+      - "mistralai/Mixtral-8x7B-Instruct-v0.1"
+    experimental:
+      - "gpt-4o"
+  tags:
+    - "text-analysis"
+    - "summarization"
+    - "nlp"
+    - "structured-output"
+    - "insights"
+    - "sentiment-analysis"
+    - "entity-extraction"
+    - "keyword-extraction"
+  license: "Apache-2.0"
+  dataset_requirements:
+    required_columns:
+      - "text"
+    description: >-
+      Input dataset should contain text content for analysis. Each text should be
+      substantial enough for meaningful analysis (minimum 50 words recommended).
+      Works well with news articles, blog posts, reviews, and other content.
+
+blocks:
+  # Extract Summary
+  - block_type: "PromptBuilderBlock"
+    block_config:
+      block_name: "build_summary_prompt"
+      input_cols:
+        - "text"
+      output_cols: "summary_prompt"
+      prompt_config_path: "summarize.yaml"
+  - block_type: "LLMChatBlock"
+    block_config:
+      block_name: "generate_summary"
+      input_cols: "summary_prompt"
+      output_cols: "raw_summary"
+      max_tokens: 1024
+      temperature: 0.3
+      async_mode: true
+  - block_type: "LLMParserBlock"
+    block_config:
+      block_name: "extract_summary"
+      input_cols: "raw_summary"
+      extract_content: true
+      expand_lists: true
+  - block_type: "TextParserBlock"
+    block_config:
+      block_name: "parse_summary"
+      input_cols: "extract_summary_content"
+      output_cols: "summary"
+      start_tags:
+        - "[SUMMARY]"
+      end_tags:
+        - "[/SUMMARY]"
+
+  # Extract Keywords
+  - block_type: "PromptBuilderBlock"
+    block_config:
+      block_name: "build_keywords_prompt"
+      input_cols:
+        - "text"
+      output_cols: "keywords_prompt"
+      prompt_config_path: "extract_keywords.yaml"
+  - block_type: "LLMChatBlock"
+    block_config:
+      block_name: "generate_keywords"
+      input_cols: "keywords_prompt"
+      output_cols: "raw_keywords"
+      max_tokens: 512
+      temperature: 0.3
+      async_mode: true
+  - block_type: "LLMParserBlock"
+    block_config:
+      block_name: "extract_keywords"
+      input_cols: "raw_keywords"
+      extract_content: true
+      expand_lists: true
+  - block_type: "TextParserBlock"
+    block_config:
+      block_name: "parse_keywords"
+      input_cols: "extract_keywords_content"
+      output_cols: "keywords"
+      start_tags:
+        - "[KEYWORDS]"
+      end_tags:
+        - "[/KEYWORDS]"
+
+  # Extract Entities
+  - block_type: "PromptBuilderBlock"
+    block_config:
+      block_name: "build_entities_prompt"
+      input_cols:
+        - "text"
+      output_cols: "entities_prompt"
+      prompt_config_path: "extract_entities.yaml"
+  - block_type: "LLMChatBlock"
+    block_config:
+      block_name: "generate_entities"
+      input_cols: "entities_prompt"
+      output_cols: "raw_entities"
+      max_tokens: 1024
+      temperature: 0.3
+      async_mode: true
+  - block_type: "LLMParserBlock"
+    block_config:
+      block_name: "extract_entities"
+      input_cols: "raw_entities"
+      extract_content: true
+      expand_lists: true
+  - block_type: "TextParserBlock"
+    block_config:
+      block_name: "parse_entities"
+      input_cols: "extract_entities_content"
+      output_cols: "entities"
+      start_tags:
+        - "[ENTITIES]"
+      end_tags:
+        - "[/ENTITIES]"
+
+  # Extract Sentiment
+  - block_type: "PromptBuilderBlock"
+    block_config:
+      block_name: "build_sentiment_prompt"
+      input_cols:
+        - "text"
+      output_cols: "sentiment_prompt"
+      prompt_config_path: "analyze_sentiment.yaml"
+  - block_type: "LLMChatBlock"
+    block_config:
+      block_name: "generate_sentiment"
+      input_cols: "sentiment_prompt"
+      output_cols: "raw_sentiment"
+      max_tokens: 256
+      temperature: 0.1
+      async_mode: true
+  - block_type: "LLMParserBlock"
+    block_config:
+      block_name: "extract_sentiment"
+      input_cols: "raw_sentiment"
+      extract_content: true
+      expand_lists: true
+  - block_type: "TextParserBlock"
+    block_config:
+      block_name: "parse_sentiment"
+      input_cols: "extract_sentiment_content"
+      output_cols: "sentiment"
+      start_tags:
+        - "[SENTIMENT]"
+      end_tags:
+        - "[/SENTIMENT]"
+
+  # Create Structured Insights
+  - block_type: "JSONStructureBlock"
+    block_config:
+      block_name: "create_structured_insights"
+      input_cols:
+        - "summary"
+        - "keywords"
+        - "entities"
+        - "sentiment"
+      output_cols:
+        - "structured_insights"
+      ensure_json_serializable: true
+  

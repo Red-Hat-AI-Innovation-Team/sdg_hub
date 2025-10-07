@@ -2,21 +2,23 @@
 """Unified LLM chat block supporting all providers via LiteLLM."""
 
 # Standard
-from typing import Any, Optional, Union
+from typing import Any, Optional
 import asyncio
 
 # Third Party
 from datasets import Dataset
-from pydantic import Field, field_validator
+from litellm import acompletion, completion
+from pydantic import ConfigDict, Field, field_validator
+import litellm
 
-# Local
 from ...utils.error_handling import BlockValidationError
 from ...utils.logger_config import setup_logger
+
+# Local
 from ..base import BaseBlock
 from ..registry import BlockRegistry
-from .client_manager import LLMClientManager
-from .config import LLMConfig
 
+litellm.drop_params = True
 logger = setup_logger(__name__)
 
 
@@ -26,10 +28,12 @@ logger = setup_logger(__name__)
     "Unified LLM chat block supporting 100+ providers via LiteLLM",
 )
 class LLMChatBlock(BaseBlock):
+    model_config = ConfigDict(extra="allow")
+
     """Unified LLM chat block supporting all providers via LiteLLM.
 
-    This block replaces OpenAIChatBlock and OpenAIAsyncChatBlock with a single
-    implementation that supports 100+ LLM providers through LiteLLM, including:
+    This block provides a minimal wrapper around LiteLLM's completion API,
+    supporting 100+ LLM providers including:
     - OpenAI (GPT-3.5, GPT-4, etc.)
     - Anthropic (Claude models)
     - Google (Gemini, PaLM)
@@ -42,14 +46,11 @@ class LLMChatBlock(BaseBlock):
         Name of the block.
     input_cols : Union[str, List[str]]
         Input column name(s). Should contain the messages list.
-    output_cols : Union[str, List[str]]
-        Output column name(s) for the response. When n > 1, the column will contain
-        a list of responses instead of a single string.
-    model : str
-        Model identifier in LiteLLM format. Examples:
-        - "openai/gpt-4"
-        - "anthropic/claude-3-sonnet-20240229"
-        - "hosted_vllm/meta-llama/Llama-2-7b-chat-hf"
+    output_cols : Union[dict, List[dict]]
+        Output column name(s) for the response.
+    model : Optional[str], optional
+        Model identifier in LiteLLM format. Can be set later via flow.set_model_config().
+        Examples: "openai/gpt-4", "anthropic/claude-3-sonnet-20240229"
     api_key : Optional[str], optional
         API key for the provider. Falls back to environment variables.
     api_base : Optional[str], optional
@@ -58,138 +59,68 @@ class LLMChatBlock(BaseBlock):
         Whether to use async processing, by default False.
     timeout : float, optional
         Request timeout in seconds, by default 120.0.
-    max_retries : int, optional
-        Maximum number of retry attempts, by default 6.
-
-    ### Generation Parameters ###
-
-    temperature : Optional[float], optional
-        Sampling temperature (0.0 to 2.0).
-    max_tokens : Optional[int], optional
-        Maximum tokens to generate.
-    top_p : Optional[float], optional
-        Nucleus sampling parameter (0.0 to 1.0).
-    frequency_penalty : Optional[float], optional
-        Frequency penalty (-2.0 to 2.0).
-    presence_penalty : Optional[float], optional
-        Presence penalty (-2.0 to 2.0).
-    stop : Optional[Union[str, List[str]]], optional
-        Stop sequences.
-    seed : Optional[int], optional
-        Random seed for reproducible outputs.
-    response_format : Optional[Dict[str, Any]], optional
-        Response format specification (e.g., JSON mode).
-    stream : Optional[bool], optional
-        Whether to stream responses.
-    n : Optional[int], optional
-        Number of completions to generate. When n > 1, the output column will contain
-        a list of responses for each input sample.
-    logprobs : Optional[bool], optional
-        Whether to return log probabilities.
-    top_logprobs : Optional[int], optional
-        Number of top log probabilities to return.
-    user : Optional[str], optional
-        End-user identifier.
-    extra_headers : Optional[Dict[str, str]], optional
-        Additional headers to send with requests.
-    extra_body : Optional[Dict[str, Any]], optional
-        Additional parameters for the request body.
+    num_retries : int, optional
+        Number of retry attempts (uses LiteLLM's built-in retry mechanism), by default 6.
+        Note: For rate limit handling, use LiteLLM's fallbacks parameter instead.
+    drop_params : bool, optional
+        Whether to drop unsupported parameters to prevent API errors, by default True.
     **kwargs : Any
-        Additional provider-specific parameters.
+        Any LiteLLM completion parameters (temperature, max_tokens, top_p, etc.).
+        See https://docs.litellm.ai/docs/completion/input for full list.
 
     Examples
     --------
-    >>> # OpenAI GPT-4
+    >>> # OpenAI GPT-4 with generation parameters
     >>> block = LLMChatBlock(
     ...     block_name="gpt4_block",
     ...     input_cols="messages",
     ...     output_cols="response",
     ...     model="openai/gpt-4",
-    ...     temperature=0.7
+    ...     temperature=0.7,
+    ...     max_tokens=1000
     ... )
 
-    >>> # Anthropic Claude
-    >>> block = LLMChatBlock(
-    ...     block_name="claude_block",
-    ...     input_cols="messages",
-    ...     output_cols="response",
-    ...     model="anthropic/claude-3-sonnet-20240229",
-    ...     temperature=0.7
-    ... )
-
-    >>> # Local vLLM model
+    >>> # Local vLLM model with custom parameters
     >>> block = LLMChatBlock(
     ...     block_name="local_llama",
     ...     input_cols="messages",
     ...     output_cols="response",
     ...     model="hosted_vllm/meta-llama/Llama-2-7b-chat-hf",
     ...     api_base="http://localhost:8000/v1",
-    ...     temperature=0.7
-    ... )
-
-    >>> # Multiple completions (n > 1)
-    >>> block = LLMChatBlock(
-    ...     block_name="gpt4_multiple",
-    ...     input_cols="messages",
-    ...     output_cols="responses",  # Will contain lists of strings
-    ...     model="openai/gpt-4",
-    ...     n=3,  # Generate 3 responses per input
-    ...     temperature=0.8
+    ...     temperature=0.7,
+    ...     response_format={"type": "json_object"}
     ... )
     """
 
-    # LLM Configuration
-    model: Optional[str] = Field(None, description="Model identifier in LiteLLM format")
-    api_key: Optional[str] = Field(None, description="API key for the provider")
-    api_base: Optional[str] = Field(None, description="Base URL for the API")
-    async_mode: bool = Field(False, description="Whether to use async processing")
-    timeout: float = Field(120.0, description="Request timeout in seconds")
-    max_retries: int = Field(6, description="Maximum number of retry attempts")
-
-    # Generation parameters
-    temperature: Optional[float] = Field(
-        None, description="Sampling temperature (0.0 to 2.0)"
+    # Essential operational fields (excluded from YAML serialization)
+    model: Optional[str] = Field(
+        None, exclude=True, description="Model identifier in LiteLLM format"
     )
-    max_tokens: Optional[int] = Field(None, description="Maximum tokens to generate")
-    top_p: Optional[float] = Field(
-        None, description="Nucleus sampling parameter (0.0 to 1.0)"
+    api_key: Optional[str] = Field(
+        None, exclude=True, description="API key for the provider"
     )
-    frequency_penalty: Optional[float] = Field(
-        None, description="Frequency penalty (-2.0 to 2.0)"
+    api_base: Optional[str] = Field(
+        None, exclude=True, description="Base URL for the API"
     )
-    presence_penalty: Optional[float] = Field(
-        None, description="Presence penalty (-2.0 to 2.0)"
+    async_mode: bool = Field(
+        False, exclude=True, description="Whether to use async processing"
     )
-    stop: Optional[Union[str, list[str]]] = Field(None, description="Stop sequences")
-    seed: Optional[int] = Field(
-        None, description="Random seed for reproducible outputs"
+    timeout: float = Field(
+        120.0, exclude=True, description="Request timeout in seconds"
     )
-    response_format: Optional[dict[str, Any]] = Field(
-        None, description="Response format specification"
+    num_retries: int = Field(
+        6,
+        exclude=True,
+        description="Number of retry attempts (uses LiteLLM's built-in retry mechanism)",
     )
-    stream: Optional[bool] = Field(None, description="Whether to stream responses")
-    n: Optional[int] = Field(None, description="Number of completions to generate")
-    logprobs: Optional[bool] = Field(
-        None, description="Whether to return log probabilities"
-    )
-    top_logprobs: Optional[int] = Field(
-        None, description="Number of top log probabilities to return"
-    )
-    user: Optional[str] = Field(None, description="End-user identifier")
-    extra_headers: Optional[dict[str, str]] = Field(
-        None, description="Additional headers"
-    )
-    extra_body: Optional[dict[str, Any]] = Field(
-        None, description="Additional request body parameters"
-    )
-    provider_specific: Optional[dict[str, Any]] = Field(
-        None, description="Provider-specific parameters"
+    drop_params: bool = Field(
+        True, description="Whether to drop unsupported parameters to prevent API errors"
     )
 
-    # Exclude from serialization - internal computed field
-    client_manager: Optional[Any] = Field(
-        None, exclude=True, description="Internal client manager"
-    )
+    # All LiteLLM completion parameters can be passed via extra="allow"
+    # Common examples: temperature, max_tokens, top_p, frequency_penalty,
+    # presence_penalty, stop, seed, response_format, stream, n, logprobs,
+    # top_logprobs, user, extra_headers, extra_body, etc.
 
     @field_validator("input_cols")
     @classmethod
@@ -223,83 +154,29 @@ class LLMChatBlock(BaseBlock):
         """Initialize after Pydantic validation."""
         super().model_post_init(__context)
 
-        # Initialize client manager
-        self._setup_client_manager()
-
-    def _setup_client_manager(self) -> None:
-        """Set up the LLM client manager with current configuration."""
-        # Create configuration with current values
-        config = LLMConfig(
-            model=self.model,
-            api_key=self.api_key,
-            api_base=self.api_base,
-            timeout=self.timeout,
-            max_retries=self.max_retries,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-            top_p=self.top_p,
-            frequency_penalty=self.frequency_penalty,
-            presence_penalty=self.presence_penalty,
-            stop=self.stop,
-            seed=self.seed,
-            response_format=self.response_format,
-            stream=self.stream,
-            n=self.n,
-            logprobs=self.logprobs,
-            top_logprobs=self.top_logprobs,
-            user=self.user,
-            extra_headers=self.extra_headers,
-            extra_body=self.extra_body,
-            provider_specific=self.provider_specific,
-        )
-
-        # Create client manager
-        self.client_manager = LLMClientManager(config)
-
-        # Load client immediately
-        self.client_manager.load()
-
         # Log initialization only when model is configured
         if self.model:
             logger.info(
-                f"Initialized LLMChatBlock '{self.block_name}' with model '{self.model}'",
+                "Initialized LLMChatBlock '%s' with model '%s'",
+                self.block_name,
+                self.model,
                 extra={
                     "block_name": self.block_name,
                     "model": self.model,
-                    "provider": self.client_manager.config.get_provider(),
-                    "is_local": self.client_manager.config.is_local_model(),
                     "async_mode": self.async_mode,
-                    "generation_params": self.client_manager.config.get_generation_kwargs(),
                 },
             )
 
-    def _reinitialize_client_manager(self) -> None:
-        """Reinitialize the client manager with updated model configuration.
-
-        This should be called after model configuration changes to ensure
-        the client manager uses the updated model, api_base, api_key, etc.
-        """
-        self._setup_client_manager()
-
-    def generate(self, samples: Dataset, **override_kwargs: dict[str, Any]) -> Dataset:
+    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
         """Generate responses from the LLM.
-
-        Parameters set at runtime override those set during initialization.
-        Supports all LiteLLM parameters for the configured provider.
 
         Parameters
         ----------
         samples : Dataset
             Input dataset containing the messages column.
-        **override_kwargs : Dict[str, Any]
+        **kwargs : Any
             Runtime parameters that override initialization defaults.
-            Valid parameters depend on the provider but typically include:
-            temperature, max_tokens, top_p, frequency_penalty, presence_penalty,
-            stop, seed, response_format, stream, n, and provider-specific params.
-
-            Special flow-level parameters:
-            _flow_max_concurrency : int, optional
-                Maximum concurrency for async requests (passed by Flow).
+            Supports all LiteLLM completion parameters.
 
         Returns
         -------
@@ -318,16 +195,21 @@ class LLMChatBlock(BaseBlock):
                 f"Call flow.set_model_config() before generating."
             )
 
-        # Extract max_concurrency if provided by flow
-        flow_max_concurrency = override_kwargs.pop("_flow_max_concurrency", None)
+        # Extract flow-specific parameters (BaseBlock already handled block field overrides)
+        flow_max_concurrency = kwargs.pop("_flow_max_concurrency", None)
+
+        # Build completion kwargs from ALL fields + runtime overrides
+        completion_kwargs = self._build_completion_kwargs(**kwargs)
 
         # Extract messages
         messages_list = samples[self.input_cols[0]]
 
         # Log generation start
         logger.info(
-            f"Starting {'async' if self.async_mode else 'sync'} generation for {len(messages_list)} samples"
-            + (
+            "Starting %s generation for %d samples%s",
+            "async" if self.async_mode else "sync",
+            len(messages_list),
+            (
                 f" (max_concurrency={flow_max_concurrency})"
                 if flow_max_concurrency
                 else ""
@@ -335,21 +217,9 @@ class LLMChatBlock(BaseBlock):
             extra={
                 "block_name": self.block_name,
                 "model": self.model,
-                "provider": self.client_manager.config.get_provider(),
                 "batch_size": len(messages_list),
                 "async_mode": self.async_mode,
                 "flow_max_concurrency": flow_max_concurrency,
-                "override_params": {
-                    k: (
-                        "***"
-                        if any(
-                            s in k.lower()
-                            for s in ["key", "token", "secret", "authorization"]
-                        )
-                        else v
-                    )
-                    for k, v in override_kwargs.items()
-                },
             },
         )
 
@@ -359,7 +229,6 @@ class LLMChatBlock(BaseBlock):
                 # Check if there's already a running event loop
                 loop = asyncio.get_running_loop()
                 # Check if nest_asyncio is applied (allows nested asyncio.run)
-                # Use multiple detection methods for robustness
                 nest_asyncio_applied = (
                     hasattr(loop, "_nest_patched")
                     or getattr(asyncio.run, "__module__", "") == "nest_asyncio"
@@ -369,7 +238,7 @@ class LLMChatBlock(BaseBlock):
                     # nest_asyncio is applied, safe to use asyncio.run
                     responses = asyncio.run(
                         self._generate_async(
-                            messages_list, flow_max_concurrency, **override_kwargs
+                            messages_list, completion_kwargs, flow_max_concurrency
                         )
                     )
                 else:
@@ -382,19 +251,19 @@ class LLMChatBlock(BaseBlock):
                 # No running loop; safe to create one
                 responses = asyncio.run(
                     self._generate_async(
-                        messages_list, flow_max_concurrency, **override_kwargs
+                        messages_list, completion_kwargs, flow_max_concurrency
                     )
                 )
         else:
-            responses = self._generate_sync(messages_list, **override_kwargs)
+            responses = self._generate_sync(messages_list, completion_kwargs)
 
         # Log completion
         logger.info(
-            f"Generation completed successfully for {len(responses)} samples",
+            "Generation completed successfully for %d samples",
+            len(responses),
             extra={
                 "block_name": self.block_name,
                 "model": self.model,
-                "provider": self.client_manager.config.get_provider(),
                 "batch_size": len(responses),
             },
         )
@@ -402,38 +271,98 @@ class LLMChatBlock(BaseBlock):
         # Add responses as new column
         return samples.add_column(self.output_cols[0], responses)
 
+    def _build_completion_kwargs(self, **overrides) -> dict[str, Any]:
+        """Build kwargs for LiteLLM completion call.
+
+        Returns
+        -------
+        dict[str, Any]
+            Kwargs for litellm.completion() or litellm.acompletion().
+        """
+        # Start with extra fields (temperature, max_tokens, etc.) from extra="allow"
+        extra_values = self.model_dump(exclude_unset=True)
+
+        # Remove block-operational fields that shouldn't go to LiteLLM
+        block_only_fields = {
+            "block_name",
+            "input_cols",
+            "output_cols",
+            "async_mode",
+        }
+
+        completion_kwargs = {
+            k: v for k, v in extra_values.items() if k not in block_only_fields
+        }
+
+        # Add essential LiteLLM fields (even though they're excluded from serialization)
+        if self.model is not None:
+            completion_kwargs["model"] = self.model
+        if self.api_key is not None:
+            completion_kwargs["api_key"] = self.api_key
+        if self.api_base is not None:
+            completion_kwargs["api_base"] = self.api_base
+        if self.timeout is not None:
+            completion_kwargs["timeout"] = self.timeout
+        if self.num_retries is not None:
+            completion_kwargs["num_retries"] = self.num_retries
+
+        # Apply only non-block-field overrides (flow params + unknown LiteLLM params)
+        # BaseBlock already handles block field overrides by modifying instance attributes
+        non_block_overrides = {
+            k: v for k, v in overrides.items() if k not in self.__class__.model_fields
+        }
+        completion_kwargs.update(non_block_overrides)
+
+        # Ensure drop_params is set to handle unknown parameters gracefully
+        completion_kwargs["drop_params"] = self.drop_params
+
+        return completion_kwargs
+
+    def _message_to_dict(self, message) -> dict[str, Any]:
+        """Convert LiteLLM message to dict."""
+        return {"content": message.content, **getattr(message, "__dict__", {})}
+
     def _generate_sync(
         self,
         messages_list: list[list[dict[str, Any]]],
-        **override_kwargs: dict[str, Any],
-    ) -> list[Union[str, list[str]]]:
+        completion_kwargs: dict[str, Any],
+    ) -> list[list[dict[str, Any]]]:
         """Generate responses synchronously.
 
         Parameters
         ----------
-        messages_list : List[List[Dict[str, Any]]]
+        messages_list : list[list[dict[str, Any]]]
             List of message lists to process.
-        **override_kwargs : Dict[str, Any]
-            Runtime parameter overrides.
+        completion_kwargs : dict[str, Any]
+            Kwargs for LiteLLM completion.
 
         Returns
         -------
-        List[Union[str, List[str]]]
-            List of response strings or lists of response strings (when n > 1).
+        list[list[dict[str, Any]]]
+            List of response lists, each containing LiteLLM completion response dictionaries.
         """
         responses = []
 
         for i, messages in enumerate(messages_list):
             try:
-                response = self.client_manager.create_completion(
-                    messages, **override_kwargs
-                )
-                responses.append(response)
+                response = completion(messages=messages, **completion_kwargs)
+                # Extract response based on n parameter
+                n_value = completion_kwargs.get("n", 1)
+                if n_value > 1:
+                    response_data = [
+                        self._message_to_dict(choice.message)
+                        for choice in response.choices
+                    ]
+                else:
+                    response_data = [self._message_to_dict(response.choices[0].message)]
+                responses.append(response_data)
 
                 # Log progress for large batches
                 if (i + 1) % 10 == 0:
                     logger.debug(
-                        f"Generated {i + 1}/{len(messages_list)} responses",
+                        "Generated %d/%d responses",
+                        i + 1,
+                        len(messages_list),
                         extra={
                             "block_name": self.block_name,
                             "progress": f"{i + 1}/{len(messages_list)}",
@@ -441,11 +370,10 @@ class LLMChatBlock(BaseBlock):
                     )
 
             except Exception as e:
-                error_msg = self.client_manager.error_handler.format_error_message(
-                    e, {"model": self.model, "sample_index": i}
-                )
                 logger.error(
-                    f"Failed to generate response for sample {i}: {error_msg}",
+                    "Failed to generate response for sample %d: %s",
+                    i,
+                    str(e),
                     extra={
                         "block_name": self.block_name,
                         "sample_index": i,
@@ -456,42 +384,127 @@ class LLMChatBlock(BaseBlock):
 
         return responses
 
+    async def _make_acompletion(
+        self,
+        messages: list[dict[str, Any]],
+        completion_kwargs: dict[str, Any],
+        semaphore: Optional[asyncio.Semaphore] = None,
+    ) -> list[dict[str, Any]]:
+        """Make a single async completion with optional concurrency control.
+
+        Parameters
+        ----------
+        messages : list[dict[str, Any]]
+            Messages for this completion.
+        completion_kwargs : dict[str, Any]
+            Kwargs for LiteLLM acompletion.
+        semaphore : Optional[asyncio.Semaphore], optional
+            Semaphore for concurrency control.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            List of response dictionaries.
+        """
+        if semaphore:
+            async with semaphore:
+                response = await acompletion(messages=messages, **completion_kwargs)
+        else:
+            response = await acompletion(messages=messages, **completion_kwargs)
+
+        # Extract response based on n parameter
+        n_value = completion_kwargs.get("n", 1)
+        if n_value > 1:
+            return [
+                self._message_to_dict(choice.message) for choice in response.choices
+            ]
+        return [self._message_to_dict(response.choices[0].message)]
+
     async def _generate_async(
         self,
         messages_list: list[list[dict[str, Any]]],
+        completion_kwargs: dict[str, Any],
         flow_max_concurrency: Optional[int] = None,
-        **override_kwargs: dict[str, Any],
-    ) -> list[Union[str, list[str]]]:
+    ) -> list[list[dict[str, Any]]]:
         """Generate responses asynchronously.
 
         Parameters
         ----------
-        messages_list : List[List[Dict[str, Any]]]
+        messages_list : list[list[dict[str, Any]]]
             List of message lists to process.
+        completion_kwargs : dict[str, Any]
+            Kwargs for LiteLLM acompletion.
         flow_max_concurrency : Optional[int], optional
             Maximum concurrency for async requests.
-        **override_kwargs : Dict[str, Any]
-            Runtime parameter overrides.
 
         Returns
         -------
-        List[Union[str, List[str]]]
-            List of response strings or lists of response strings (when n > 1).
+        list[list[dict[str, Any]]]
+            List of response lists, each containing LiteLLM completion response dictionaries.
         """
-        try:
-            # Use unified client manager method with optional concurrency control
-            responses = await self.client_manager.acreate_completion(
-                messages_list, max_concurrency=flow_max_concurrency, **override_kwargs
-            )
 
+        try:
+            if flow_max_concurrency is not None:
+                # Validate max_concurrency parameter
+                if flow_max_concurrency < 1:
+                    raise ValueError(
+                        f"max_concurrency must be greater than 0, got {flow_max_concurrency}"
+                    )
+
+                # Adjust concurrency based on n parameter (number of completions per request)
+                effective_concurrency = flow_max_concurrency
+                n_value = completion_kwargs.get("n", 1)
+
+                if n_value and n_value > 1:
+                    if flow_max_concurrency >= n_value:
+                        # Adjust concurrency to account for n completions per request
+                        effective_concurrency = flow_max_concurrency // n_value
+                        logger.debug(
+                            "Adjusted max_concurrency from %d to %d for n=%d completions per request",
+                            flow_max_concurrency,
+                            effective_concurrency,
+                            n_value,
+                            extra={
+                                "block_name": self.block_name,
+                                "original_max_concurrency": flow_max_concurrency,
+                                "adjusted_max_concurrency": effective_concurrency,
+                                "n_value": n_value,
+                            },
+                        )
+                    else:
+                        # Warn when max_concurrency is less than n
+                        logger.warning(
+                            "max_concurrency (%d) is less than n (%d). Consider increasing max_concurrency for optimal performance.",
+                            flow_max_concurrency,
+                            n_value,
+                            extra={
+                                "block_name": self.block_name,
+                                "max_concurrency": flow_max_concurrency,
+                                "n_value": n_value,
+                            },
+                        )
+                        effective_concurrency = flow_max_concurrency
+
+                # Use semaphore for concurrency control
+                semaphore = asyncio.Semaphore(effective_concurrency)
+                tasks = [
+                    self._make_acompletion(messages, completion_kwargs, semaphore)
+                    for messages in messages_list
+                ]
+            else:
+                # No concurrency limit
+                tasks = [
+                    self._make_acompletion(messages, completion_kwargs)
+                    for messages in messages_list
+                ]
+
+            responses = await asyncio.gather(*tasks)
             return responses
 
         except Exception as e:
-            error_msg = self.client_manager.error_handler.format_error_message(
-                e, {"model": self.model}
-            )
             logger.error(
-                f"Failed to generate async responses: {error_msg}",
+                "Failed to generate async responses: %s",
+                str(e),
                 extra={
                     "block_name": self.block_name,
                     "batch_size": len(messages_list),
@@ -500,26 +513,8 @@ class LLMChatBlock(BaseBlock):
             )
             raise
 
-    def get_model_info(self) -> dict[str, Any]:
-        """Get information about the configured model.
-
-        Returns
-        -------
-        Dict[str, Any]
-            Model information including provider, capabilities, etc.
-        """
-        return {
-            **self.client_manager.get_model_info(),
-            "block_name": self.block_name,
-            "input_column": self.input_cols[0],
-            "output_column": self.output_cols[0],
-            "async_mode": self.async_mode,
-        }
-
     def _validate_custom(self, dataset: Dataset) -> None:
         """Custom validation for LLMChatBlock message format.
-
-        Validates that all samples contain properly formatted messages.
 
         Parameters
         ----------
@@ -573,25 +568,19 @@ class LLMChatBlock(BaseBlock):
                         details=f"Block: {self.block_name}, Row: {idx}, Message: {msg_idx}, Available fields: {list(message.keys())}",
                     )
 
-            return True  # Return something for map
+            return True
 
-        # Use map to validate all samples
-        # Add index to each sample for better error reporting
+        # Validate all samples
         indexed_samples = [(i, sample) for i, sample in enumerate(dataset)]
         list(map(validate_sample, indexed_samples))
 
-    def __del__(self) -> None:
-        """Cleanup when block is destroyed."""
-        try:
-            if hasattr(self, "client_manager"):
-                self.client_manager.unload()
-        except Exception:
-            # Ignore errors during cleanup to prevent issues during shutdown
-            pass
-
     def __repr__(self) -> str:
         """String representation of the block."""
+        provider = None
+        if self.model and "/" in self.model:
+            provider = self.model.split("/")[0]
+
         return (
             f"LLMChatBlock(name='{self.block_name}', model='{self.model}', "
-            f"provider='{self.client_manager.config.get_provider()}', async_mode={self.async_mode})"
+            f"provider='{provider}', async_mode={self.async_mode})"
         )

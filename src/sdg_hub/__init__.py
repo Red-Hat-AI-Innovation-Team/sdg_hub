@@ -8,7 +8,6 @@ from .core import (
     BlockRegistry,
     Flow,
     FlowMetadata,
-    FlowParameter,
     FlowRegistry,
     FlowValidator,
     GenerateError,
@@ -23,7 +22,6 @@ __all__ = [
     "FlowRegistry",
     # Metadata and utilities
     "FlowMetadata",
-    "FlowParameter",
     "FlowValidator",
     "GenerateError",
     "resolve_path",

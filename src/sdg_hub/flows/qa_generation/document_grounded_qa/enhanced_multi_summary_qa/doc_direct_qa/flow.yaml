@@ -1,0 +1,158 @@
+metadata:
+  name: Document Based Knowledge Tuning Dataset Generation Flow
+  description: Directly generates QA pairs from the raw document.
+  version: 2.0.0
+  author: SDG Hub Contributors
+  recommended_models:
+    default: openai/gpt-oss-120b
+    compatible:
+    - meta-llama/Llama-3.3-70B-Instruct
+    - microsoft/phi-4
+    - mistralai/Mixtral-8x7B-Instruct-v0.1
+    experimental: []
+  tags:
+  - knowledge-tuning
+  - document-internalization
+  - question-generation
+  - qa-pairs
+  - detailed-summaries
+  license: Apache-2.0
+  dataset_requirements:
+    required_columns:
+    - document
+    - document_outline
+    - domain
+    - icl_document
+    - icl_query_1
+    - icl_query_2
+    - icl_query_3
+    description: 'Input dataset should contain documents with text content and domain classification. Each document should be substantial enough for meaningful question generation (minimum 100 words recommended). The flow generates three types
+      of summaries: detailed (n=20), extractive (n=10), and key facts (n=50), each producing corresponding QA pairs designed to help LLMs internalize document knowledge for knowledge tuning.'
+  output_columns:
+  - question
+  - response
+  - raw_document
+  - faithfulness_explanation
+  - faithfulness_judgment
+  id: stellar-peak-605
+blocks:
+- block_type: DuplicateColumnsBlock
+  block_config:
+    block_name: duplicate_document_col
+    input_cols:
+      document: base_document
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: question_generation_prompt
+    input_cols:
+    - domain
+    - document
+    - document_outline
+    - icl_document
+    - icl_query_1
+    - icl_query_2
+    - icl_query_3
+    output_cols: question_generation_prompt
+    prompt_config_path: ../generate_question_list.yaml
+    format_as_messages: true
+- block_type: LLMChatBlock
+  block_config:
+    block_name: question_generation
+    input_cols: question_generation_prompt
+    output_cols: question_list
+    max_tokens: 256
+    temperature: 1.0
+    n: 1
+    async_mode: true
+- block_type: LLMParserBlock
+  block_config:
+    block_name: extract_questions
+    input_cols: question_list
+    extract_content: true
+    expand_lists: true
+- block_type: TextParserBlock
+  block_config:
+    block_name: parse_question_list
+    input_cols: extract_questions_content
+    output_cols: question
+    start_tags:
+    - '[QUESTION]'
+    end_tags:
+    - '[END]'
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: answer_generation_prompt
+    input_cols:
+    - question
+    - document
+    - document_outline
+    output_cols: answer_generation_prompt
+    prompt_config_path: ../generate_answers.yaml
+    format_as_messages: true
+- block_type: LLMChatBlock
+  block_config:
+    block_name: answer_generation
+    input_cols: answer_generation_prompt
+    output_cols: response_dict
+    max_tokens: 4096
+    temperature: 1.0
+    n: 1
+    async_mode: true
+- block_type: LLMParserBlock
+  block_config:
+    block_name: extract_answer
+    input_cols: response_dict
+    extract_content: true
+    expand_lists: true
+- block_type: TextParserBlock
+  block_config:
+    block_name: parse_response_dict
+    input_cols: extract_answer_content
+    output_cols: response
+    start_tags:
+    - ''
+    end_tags:
+    - ''
+    save_reasoning_content: true
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: eval_faithful_prompt
+    input_cols:
+    - document
+    - response
+    output_cols: eval_faithful_prompt
+    prompt_config_path: ../../multi_summary_qa/instructlab/evaluate_faithfulness.yaml
+    format_as_messages: true
+- block_type: LLMChatBlock
+  block_config:
+    block_name: eval_faithful_llm_chat
+    input_cols: eval_faithful_prompt
+    output_cols: eval_faithful_response_dict
+    n: 1
+    async_mode: true
+- block_type: LLMParserBlock
+  block_config:
+    block_name: extract_eval_faithful
+    input_cols: eval_faithful_response_dict
+    extract_content: true
+    
+- block_type: TextParserBlock
+  block_config:
+    block_name: parse_eval_faithful
+    input_cols: extract_eval_faithful_content
+    output_cols: 
+    - faithfulness_explanation
+    - faithfulness_judgment
+    start_tags:
+    - '[Start of Explanation]'
+    - '[Start of Answer]'
+    end_tags:
+    - '[End of Explanation]'
+    - '[End of Answer]'
+- block_type: ColumnValueFilterBlock
+  block_config:
+    block_name: eval_faithful_filter
+    input_cols:
+      - faithfulness_judgment
+    filter_value: 'YES'
+    operation: eq

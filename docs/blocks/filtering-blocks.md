@@ -10,7 +10,6 @@ Filters dataset rows based on column values using flexible comparison operators 
 
 ## 🚀 Next Steps
 
-- **[Evaluation Blocks](evaluation-blocks.md)** - Quality assessment and scoring
 - **[LLM Blocks](llm-blocks.md)** - AI-powered text generation
 - **[Transform Blocks](transform-blocks.md)** - Data manipulation and reshaping
 - **[Flow Integration](../flows/overview.md)** - Combine filtering into complete pipelines

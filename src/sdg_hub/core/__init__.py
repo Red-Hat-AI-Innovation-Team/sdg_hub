@@ -3,7 +3,7 @@
 
 # Local
 from .blocks import BaseBlock, BlockRegistry
-from .flow import Flow, FlowMetadata, FlowParameter, FlowRegistry, FlowValidator
+from .flow import Flow, FlowMetadata, FlowRegistry, FlowValidator
 from .utils import GenerateError, resolve_path
 
 __all__ = [
@@ -14,7 +14,6 @@ __all__ = [
     "Flow",
     "FlowRegistry",
     "FlowMetadata",
-    "FlowParameter",
     "FlowValidator",
     # Utils
     "GenerateError",

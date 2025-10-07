@@ -2,9 +2,8 @@
 """Flow metadata and parameter definitions."""
 
 # Standard
-from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Optional
 
 # Third Party
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -118,39 +117,6 @@ class RecommendedModels(BaseModel):
         return None
 
 
-class FlowParameter(BaseModel):
-    """Represents a runtime parameter for a flow.
-
-    Attributes
-    ----------
-    default : Any
-        Default value for the parameter.
-    description : str
-        Human-readable description of the parameter.
-    type_hint : str
-        Type hint as string (e.g., "float", "str").
-    required : bool
-        Whether this parameter is required at runtime.
-    constraints : Dict[str, Any]
-        Additional constraints for the parameter.
-    """
-
-    default: Any = Field(..., description="Default value for the parameter")
-    description: str = Field(default="", description="Human-readable description")
-    type_hint: str = Field(default="Any", description="Type hint as string")
-    required: bool = Field(default=False, description="Whether parameter is required")
-    constraints: dict[str, Any] = Field(
-        default_factory=dict, description="Additional constraints for the parameter"
-    )
-
-    @model_validator(mode="after")
-    def validate_required_default(self) -> "FlowParameter":
-        """Validate that required parameters have appropriate defaults."""
-        if self.required and self.default is None:
-            raise ValueError("Required parameters cannot have None as default")
-        return self
-
-
 class DatasetRequirements(BaseModel):
     """Dataset requirements for flow execution.
 
@@ -255,20 +221,10 @@ class FlowMetadata(BaseModel):
         Simplified recommended models structure with default, compatible, and experimental lists.
     tags : List[str]
         Tags for categorization and search.
-    created_at : str
-        Creation timestamp.
-    updated_at : str
-        Last update timestamp.
     license : str
         License identifier.
-    min_sdg_hub_version : str
-        Minimum required SDG Hub version.
     dataset_requirements : Optional[DatasetRequirements]
         Requirements for input datasets.
-    estimated_cost : str
-        Estimated cost tier for running the flow.
-    estimated_duration : str
-        Estimated duration for flow execution.
     """
 
     name: str = Field(..., min_length=1, description="Human-readable name")
@@ -288,28 +244,9 @@ class FlowMetadata(BaseModel):
     tags: list[str] = Field(
         default_factory=list, description="Tags for categorization and search"
     )
-    created_at: str = Field(
-        default_factory=lambda: datetime.now().isoformat(),
-        description="Creation timestamp",
-    )
-    updated_at: str = Field(
-        default_factory=lambda: datetime.now().isoformat(),
-        description="Last update timestamp",
-    )
     license: str = Field(default="Apache-2.0", description="License identifier")
-    min_sdg_hub_version: str = Field(
-        default="", description="Minimum required SDG Hub version"
-    )
     dataset_requirements: Optional[DatasetRequirements] = Field(
         default=None, description="Requirements for input datasets"
-    )
-    estimated_cost: str = Field(
-        default="medium",
-        pattern="^(low|medium|high)$",
-        description="Estimated cost tier for running the flow",
-    )
-    estimated_duration: str = Field(
-        default="", description="Estimated duration for flow execution"
     )
 
     @field_validator("id")
@@ -351,10 +288,6 @@ class FlowMetadata(BaseModel):
         """Validate recommended models structure."""
         # Validation is handled within RecommendedModels class
         return v
-
-    def update_timestamp(self) -> None:
-        """Update the updated_at timestamp."""
-        self.updated_at = datetime.now().isoformat()
 
     @model_validator(mode="after")
     def ensure_id(self) -> "FlowMetadata":

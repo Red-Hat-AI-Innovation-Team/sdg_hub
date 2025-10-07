@@ -18,6 +18,7 @@ from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
 from ..registry import BlockRegistry
 from .llm_chat_block import LLMChatBlock
+from .llm_parser_block import LLMParserBlock
 from .text_parser_block import TextParserBlock
 
 logger = setup_logger(__name__)
@@ -66,45 +67,12 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         Maximum number of retry attempts for parsing failures (default: 3).
         This is different from max_retries, which handles LLM network/API failures.
 
-    ### LLM Generation Parameters ###
-    async_mode : bool, optional
-        Whether to use async processing (default: False).
-    timeout : float, optional
-        Request timeout in seconds (default: 120.0).
-    max_retries : int, optional
-        Maximum number of LLM retry attempts for network failures (default: 6).
-    temperature : Optional[float], optional
-        Sampling temperature (0.0 to 2.0).
-    max_tokens : Optional[int], optional
-        Maximum tokens to generate.
-    top_p : Optional[float], optional
-        Nucleus sampling parameter (0.0 to 1.0).
-    frequency_penalty : Optional[float], optional
-        Frequency penalty (-2.0 to 2.0).
-    presence_penalty : Optional[float], optional
-        Presence penalty (-2.0 to 2.0).
-    stop : Optional[Union[str, List[str]]], optional
-        Stop sequences.
-    seed : Optional[int], optional
-        Random seed for reproducible outputs.
-    response_format : Optional[Dict[str, Any]], optional
-        Response format specification (e.g., JSON mode).
-    stream : Optional[bool], optional
-        Whether to stream responses.
-    n : Optional[int], optional
-        Number of completions to generate per retry attempt.
-    logprobs : Optional[bool], optional
-        Whether to return log probabilities.
-    top_logprobs : Optional[int], optional
-        Number of top log probabilities to return.
-    user : Optional[str], optional
-        End-user identifier.
-    extra_headers : Optional[Dict[str, str]], optional
-        Additional headers to send with requests.
-    extra_body : Optional[Dict[str, Any]], optional
-        Additional parameters for the request body.
-    provider_specific : Optional[Dict[str, Any]], optional
-        Provider-specific parameters.
+    **llm_kwargs : Any
+        Any LiteLLM completion parameters (model, api_base, api_key, temperature,
+        max_tokens, top_p, frequency_penalty, presence_penalty, stop, seed,
+        response_format, stream, n, logprobs, top_logprobs, user, extra_headers,
+        extra_body, async_mode, timeout, num_retries, etc.).
+        See https://docs.litellm.ai/docs/completion/input for full list.
 
     ### Text Parser Parameters ###
     start_tags : List[str], optional
@@ -115,6 +83,18 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         Regex pattern for custom parsing.
     parser_cleanup_tags : Optional[List[str]], optional
         List of tags to clean from parsed output.
+
+    ### LLMParserBlock Parameters ###
+    extract_content : bool, optional
+        Whether to extract 'content' field from responses.
+    extract_reasoning_content : bool, optional
+        Whether to extract 'reasoning_content' field from responses.
+    extract_tool_calls : bool, optional
+        Whether to extract 'tool_calls' field from responses.
+    expand_lists : bool, optional
+        Whether to expand list inputs into individual rows (True) or preserve lists (False).
+    field_prefix : Optional[str], optional
+        Prefix for the field names in the parsed output.
 
     Examples
     --------
@@ -165,9 +145,30 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         None, description="List of tags to clean from parsed output"
     )
 
+    ### LLMParserBlock Parameters ###
+    extract_content: bool = Field(
+        default=True, description="Whether to extract 'content' field from responses."
+    )
+    extract_reasoning_content: bool = Field(
+        default=False,
+        description="Whether to extract 'reasoning_content' field from responses.",
+    )
+    extract_tool_calls: bool = Field(
+        default=False,
+        description="Whether to extract 'tool_calls' field from responses.",
+    )
+    expand_lists: bool = Field(
+        default=True,
+        description="Whether to expand list inputs into individual rows (True) or preserve lists (False).",
+    )
+    field_prefix: Optional[str] = Field(
+        default="", description="Prefix for the field names in the parsed output."
+    )
+
     # Internal blocks - excluded from serialization
     llm_chat: Optional[LLMChatBlock] = Field(None, exclude=True)
     text_parser: Optional[TextParserBlock] = Field(None, exclude=True)
+    llm_parser: Optional[LLMParserBlock] = Field(None, exclude=True)
 
     @field_validator("input_cols")
     @classmethod
@@ -197,19 +198,19 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         self._create_internal_blocks(**kwargs)
 
         # Log initialization if model is configured
-        if hasattr(self, "model") and self.model:
+        if self.llm_chat and self.llm_chat.model:
             logger.info(
-                f"Initialized LLMChatWithParsingRetryBlock '{self.block_name}' with model '{self.model}'",
+                f"Initialized LLMChatWithParsingRetryBlock '{self.block_name}' with model '{self.llm_chat.model}'",
                 extra={
                     "block_name": self.block_name,
-                    "model": self.model,
+                    "model": self.llm_chat.model,
                     "parsing_max_retries": self.parsing_max_retries,
                 },
             )
 
     def _extract_params(self, kwargs: dict, block_class) -> dict:
-        """Extract parameters for specific block class based on its model_fields."""
-        # Exclude parameters that are handled by this wrapper
+        """Extract parameters for specific block class."""
+        # Parameters that belong to this wrapper and shouldn't be forwarded
         wrapper_params = {
             "block_name",
             "input_cols",
@@ -217,22 +218,66 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
             "parsing_max_retries",
         }
 
-        # Extract parameters that the target block accepts
-        params = {
-            k: v
-            for k, v in kwargs.items()
-            if k in block_class.model_fields and k not in wrapper_params
-        }
+        if block_class == LLMChatBlock:
+            # LLMChatBlock accepts any parameters via extra="allow"
+            # Forward everything except wrapper-specific and parser-specific params
+            parser_specific_params = {
+                "start_tags",
+                "end_tags",
+                "parsing_pattern",
+                "parser_cleanup_tags",
+            }
+            llm_parser_specific_params = {
+                "extract_content",
+                "extract_reasoning_content",
+                "extract_tool_calls",
+                "expand_lists",
+                "field_prefix",
+            }
+            excluded_params = (
+                wrapper_params | parser_specific_params | llm_parser_specific_params
+            )
 
-        # Also include declared fields from this composite block that the target block accepts
-        for field_name in self.__class__.model_fields:
-            if (
-                field_name in block_class.model_fields
-                and field_name not in wrapper_params
-            ):
-                field_value = getattr(self, field_name)
-                if field_value is not None:  # Only forward non-None values
+            # Forward all other kwargs
+            params = {k: v for k, v in kwargs.items() if k not in excluded_params}
+
+            # Also forward instance attributes that aren't parser-specific
+            for field_name, field_value in self.__dict__.items():
+                if (
+                    field_name not in excluded_params
+                    and not field_name.startswith("_")
+                    and field_name not in ["llm_chat", "text_parser", "llm_parser"]
+                    and field_value is not None
+                ):
                     params[field_name] = field_value
+
+        else:
+            # For TextParserBlock, only forward known fields and parser-specific params
+            non_llm_chat_params = {
+                "start_tags",
+                "end_tags",
+                "parsing_pattern",
+                "parser_cleanup_tags",
+                "expand_lists",
+                "field_prefix",
+                "extract_content",
+                "extract_reasoning_content",
+                "extract_tool_calls",
+            }
+
+            # Forward parser-specific parameters from kwargs
+            params = {
+                k: v
+                for k, v in kwargs.items()
+                if k in block_class.model_fields and k not in wrapper_params
+            }
+
+            # Forward parser-specific instance attributes
+            for field_name in non_llm_chat_params:
+                if hasattr(self, field_name):
+                    field_value = getattr(self, field_name)
+                    if field_value is not None:
+                        params[field_name] = field_value
 
         return params
 
@@ -241,6 +286,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         # Route parameters to appropriate blocks
         llm_params = self._extract_params(kwargs, LLMChatBlock)
         parser_params = self._extract_params(kwargs, TextParserBlock)
+        llm_parser_params = self._extract_params(kwargs, LLMParserBlock)
 
         # 1. LLMChatBlock
         self.llm_chat = LLMChatBlock(
@@ -250,25 +296,56 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
             **llm_params,
         )
 
+        # 2. LLMParserBlock
+        self.llm_parser = LLMParserBlock(
+            block_name=f"{self.block_name}_llm_parser",
+            input_cols=[f"{self.block_name}_raw_response"],
+            **llm_parser_params,
+        )
+
         # 2. TextParserBlock
         self.text_parser = TextParserBlock(
             block_name=f"{self.block_name}_text_parser",
-            input_cols=[f"{self.block_name}_raw_response"],
+            input_cols=[
+                f"{self.llm_parser.field_prefix if self.llm_parser.field_prefix!='' else self.llm_parser.block_name}_content"
+            ],
             output_cols=self.output_cols,
             **parser_params,
         )
 
     def __getattr__(self, name: str) -> Any:
         """Forward attribute access to appropriate internal block."""
-        # Check each internal block to see which one has this parameter
-        for block_attr, block_class in [
-            ("llm_chat", LLMChatBlock),
-            ("text_parser", TextParserBlock),
-        ]:
-            if hasattr(self, block_attr) and name in block_class.model_fields:
-                internal_block = getattr(self, block_attr)
-                if internal_block is not None:
-                    return getattr(internal_block, name)
+        # Parser-specific parameters go to text_parser
+        parser_params = {
+            "start_tags",
+            "end_tags",
+            "parsing_pattern",
+            "parser_cleanup_tags",
+        }
+        llm_parser_params = {
+            "extract_content",
+            "extract_reasoning_content",
+            "extract_tool_calls",
+            "expand_lists",
+            "field_prefix",
+        }
+
+        if name in parser_params and hasattr(self, "text_parser") and self.text_parser:
+            return getattr(self.text_parser, name)
+
+        if (
+            name in llm_parser_params
+            and hasattr(self, "llm_parser")
+            and self.llm_parser
+        ):
+            return getattr(self.llm_parser, name)
+
+        # Everything else goes to llm_chat (which accepts any parameters via extra="allow")
+        if hasattr(self, "llm_chat") and self.llm_chat:
+            # Always try LLMChatBlock - it will return None for unset attributes
+            # due to extra="allow", which makes hasattr() work correctly
+            return getattr(self.llm_chat, name, None)
+
         raise AttributeError(
             f"'{self.__class__.__name__}' object has no attribute '{name}'"
         )
@@ -277,24 +354,51 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         """Handle dynamic parameter updates from flow.set_model_config()."""
         super().__setattr__(name, value)
 
-        # Forward to appropriate internal blocks
-        for block_attr, block_class in [
-            ("llm_chat", LLMChatBlock),
-            ("text_parser", TextParserBlock),
-        ]:
-            if hasattr(self, block_attr) and name in block_class.model_fields:
-                setattr(getattr(self, block_attr), name, value)
+        # Don't forward during initialization or for internal attributes
+        if not hasattr(self, "llm_chat") or name.startswith("_"):
+            return
 
-    def _reinitialize_client_manager(self) -> None:
-        """Reinitialize the internal LLM chat block's client manager.
+        # Parser-specific parameters go to text_parser
+        parser_params = {
+            "start_tags",
+            "end_tags",
+            "parsing_pattern",
+            "parser_cleanup_tags",
+        }
+        llm_parser_params = {
+            "extract_content",
+            "extract_reasoning_content",
+            "extract_tool_calls",
+            "expand_lists",
+            "field_prefix",
+        }
 
-        This should be called after model configuration changes to ensure
-        the internal LLM chat block uses the updated model configuration.
-        """
-        if self.llm_chat and hasattr(self.llm_chat, "_reinitialize_client_manager"):
-            # The parameters should already be forwarded via __setattr__ magic method
-            # Just reinitialize the client manager with the current configuration
-            self.llm_chat._reinitialize_client_manager()
+        if name in parser_params and hasattr(self, "text_parser") and self.text_parser:
+            setattr(self.text_parser, name, value)
+
+        if (
+            name in llm_parser_params
+            and hasattr(self, "llm_parser")
+            and self.llm_parser
+        ):
+            setattr(self.llm_parser, name, value)
+
+        # LLM-related parameters go to llm_chat (which accepts any via extra="allow")
+        elif (
+            hasattr(self, "llm_chat")
+            and self.llm_chat
+            and name
+            not in {
+                "block_name",
+                "input_cols",
+                "output_cols",
+                "parsing_max_retries",
+                "llm_chat",
+                "llm_parser",
+                "text_parser",
+            }
+        ):
+            setattr(self.llm_chat, name, value)
 
     def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
         """Generate responses with parsing retry logic.
@@ -325,8 +429,8 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         MaxRetriesExceededError
             If target count not reached after max retries for any sample.
         """
-        # Validate that model is configured
-        if not hasattr(self, "model") or not self.model:
+        # Validate that model is configured (check internal LLM block)
+        if not self.llm_chat or not self.llm_chat.model:
             raise BlockValidationError(
                 f"Model not configured for block '{self.block_name}'. "
                 f"Call flow.set_model_config() before generating."
@@ -336,7 +440,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
             f"Starting LLM generation with parsing retry for {len(samples)} samples",
             extra={
                 "block_name": self.block_name,
-                "model": self.model,
+                "model": self.llm_chat.model,
                 "batch_size": len(samples),
                 "parsing_max_retries": self.parsing_max_retries,
             },
@@ -358,7 +462,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                 },
             )
 
-            if self.text_parser.expand_lists:
+            if self.llm_parser.expand_lists:
                 # Current behavior for expand_lists=True: count rows directly
                 sample_results = []
                 total_parsed_count = 0
@@ -372,9 +476,14 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                         # Generate LLM responses for this sample
                         temp_dataset = Dataset.from_list([sample])
                         llm_result = self.llm_chat.generate(temp_dataset, **kwargs)
+                        llm_parser_result = self.llm_parser.generate(
+                            llm_result, **kwargs
+                        )
 
                         # Parse the responses
-                        parsed_result = self.text_parser.generate(llm_result, **kwargs)
+                        parsed_result = self.text_parser.generate(
+                            llm_parser_result, **kwargs
+                        )
 
                         # Count successful parses and accumulate results
                         new_parsed_count = len(parsed_result)
@@ -433,10 +542,12 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                         # Generate LLM responses for this sample
                         temp_dataset = Dataset.from_list([sample])
                         llm_result = self.llm_chat.generate(temp_dataset, **kwargs)
-
+                        llm_parser_result = self.llm_parser.generate(
+                            llm_result, **kwargs
+                        )
                         # Get the raw responses (should be a list when n > 1)
-                        raw_response_col = f"{self.block_name}_raw_response"
-                        raw_responses = llm_result[0][raw_response_col]
+                        raw_response_col = f"{self.llm_parser.field_prefix if self.llm_parser.field_prefix!='' else self.llm_parser.block_name}_content"
+                        raw_responses = llm_parser_result[0][raw_response_col]
                         if not isinstance(raw_responses, list):
                             raw_responses = [raw_responses]
 
@@ -451,9 +562,11 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                             temp_parse_dataset = Dataset.from_list(temp_parse_data)
 
                             # Force expand_lists=True temporarily to get individual parsed items
-                            original_expand_lists = self.text_parser.expand_lists
+                            original_expand_lists = self.llm_parser.expand_lists
                             try:
-                                self.text_parser.expand_lists = True
+                                self.llm_parser.expand_lists = (
+                                    self.llm_parser.expand_lists
+                                )
                                 parsed_result = self.text_parser.generate(
                                     temp_parse_dataset, **kwargs
                                 )
@@ -463,7 +576,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                                 )
                                 continue
                             finally:
-                                self.text_parser.expand_lists = original_expand_lists
+                                self.llm_parser.expand_lists = original_expand_lists
 
                             # If parsing was successful, accumulate the results
                             if len(parsed_result) > 0:
@@ -545,7 +658,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                 )
 
             # For expand_lists=True, trim results to exact target count if we exceeded it
-            if self.text_parser.expand_lists and total_parsed_count > target:
+            if self.llm_parser.expand_lists and total_parsed_count > target:
                 sample_results = sample_results[:target]
                 logger.debug(
                     f"Trimmed sample {sample_idx} results from {total_parsed_count} to {target}",
@@ -566,7 +679,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                 "block_name": self.block_name,
                 "input_samples": len(samples),
                 "output_rows": len(all_results),
-                "model": self.model,
+                "model": self.llm_chat.model,
             },
         )
 
@@ -641,12 +754,17 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         """
         return {
             "llm_chat": self.llm_chat.get_info() if self.llm_chat else None,
+            "llm_parser": self.llm_parser.get_info() if self.llm_parser else None,
             "text_parser": self.text_parser.get_info() if self.text_parser else None,
         }
 
     def __repr__(self) -> str:
         """String representation of the block."""
-        model = getattr(self, "model", "not_configured")
+        model = (
+            self.llm_chat.model
+            if (self.llm_chat and self.llm_chat.model)
+            else "not_configured"
+        )
         return (
             f"LLMChatWithParsingRetryBlock(name='{self.block_name}', "
             f"model='{model}', parsing_max_retries={self.parsing_max_retries})"

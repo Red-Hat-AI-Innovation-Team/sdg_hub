@@ -739,11 +739,11 @@ def test_enhanced_logging_regex_parsing():
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
         block.generate(dataset)
 
-        # Should log debug info about matches found
+        # Should log debug info about parsing
         mock_logger.debug.assert_called()
-        debug_call = mock_logger.debug.call_args[0][0]
-        assert "Regex parsing found" in debug_call
-        assert "matches with pattern" in debug_call
+        debug_calls = [call[0][0] for call in mock_logger.debug.call_args_list]
+        # Check for the general parsing message
+        assert any("Parsing outputs for" in call for call in debug_calls)
 
 
 def test_enhanced_logging_tag_parsing():
@@ -762,16 +762,15 @@ def test_enhanced_logging_tag_parsing():
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
         block.generate(dataset)
 
-        # Should log debug info about tag parsing
+        # Should log debug info about parsing
         mock_logger.debug.assert_called()
-        debug_call = mock_logger.debug.call_args[0][0]
-        assert "Tag parsing for" in debug_call
-        assert "found" in debug_call
-        assert "matches" in debug_call
+        debug_calls = [call[0][0] for call in mock_logger.debug.call_args_list]
+        # Check for the general parsing message
+        assert any("Parsing outputs for" in call for call in debug_calls)
 
 
-def test_generate_with_list_input_tag_parsing():
-    """Test generate functionality with list input from LLMChatBlock (n > 1) using tag parsing."""
+def test_generate_with_string_input():
+    """Test generate functionality with string input."""
     block = TextParserBlock(
         block_name="test_block",
         input_cols="raw_output",
@@ -780,7 +779,51 @@ def test_generate_with_list_input_tag_parsing():
         end_tags=["</answer>"],
     )
 
-    # Simulate output from LLMChatBlock with n=3
+    # String input
+    data = [{"raw_output": "<answer>String response</answer>"}]
+    dataset = Dataset.from_list(data)
+
+    result = block.generate(dataset)
+
+    assert len(result) == 1
+    assert result[0]["output"] == "String response"
+
+
+def test_generate_with_empty_string_input():
+    """Test generate functionality with empty string input."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+    )
+
+    # Empty string should trigger warning and return empty result
+    data = [{"raw_output": ""}]
+    dataset = Dataset.from_list(data)
+
+    with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
+        result = block.generate(dataset)
+
+        # Should log warning about empty string
+        mock_logger.warning.assert_called_with(
+            "Input column 'raw_output' contains empty string"
+        )
+        assert len(result) == 0
+
+
+def test_generate_with_list_input_basic():
+    """Test generate functionality with list of strings input."""
+    block = TextParserBlock(
+        block_name="test_block",
+        input_cols="raw_output",
+        output_cols=["output"],
+        start_tags=["<answer>"],
+        end_tags=["</answer>"],
+    )
+
+    # List of strings input
     data = [
         {
             "raw_output": [
@@ -794,131 +837,13 @@ def test_generate_with_list_input_tag_parsing():
 
     result = block.generate(dataset)
 
-    # Should create 3 output rows, one for each response in the list
-    assert len(result) == 3
-    assert result[0]["output"] == "First response"
-    assert result[1]["output"] == "Second response"
-    assert result[2]["output"] == "Third response"
-
-
-def test_generate_with_list_input_regex_parsing():
-    """Test generate functionality with list input using regex parsing."""
-    block = TextParserBlock(
-        block_name="test_block",
-        input_cols="raw_output",
-        output_cols=["output"],
-        parsing_pattern=r"Answer: (.*?)(?:\n|$)",
-    )
-
-    # Simulate output from LLMChatBlock with n=2
-    data = [
-        {
-            "raw_output": [
-                "Question: What is 2+2?\nAnswer: Four",
-                "Question: What is 3+3?\nAnswer: Six",
-            ]
-        }
+    # Should return single row with all parsed results collected as lists
+    assert len(result) == 1
+    assert result[0]["output"] == [
+        "First response",
+        "Second response",
+        "Third response",
     ]
-    dataset = Dataset.from_list(data)
-
-    result = block.generate(dataset)
-
-    # Should create 2 output rows
-    assert len(result) == 2
-    assert result[0]["output"] == "Four"
-    assert result[1]["output"] == "Six"
-
-
-def test_generate_with_list_input_multiple_matches_per_response():
-    """Test list input where each response contains multiple matches."""
-    block = TextParserBlock(
-        block_name="test_block",
-        input_cols="raw_output",
-        output_cols=["title", "content"],
-        start_tags=["<title>", "<content>"],
-        end_tags=["</title>", "</content>"],
-    )
-
-    # Each response has multiple matches
-    data = [
-        {
-            "raw_output": [
-                "<title>Title 1</title><content>Content 1</content><title>Title 2</title><content>Content 2</content>",
-                "<title>Title 3</title><content>Content 3</content>",
-            ]
-        }
-    ]
-    dataset = Dataset.from_list(data)
-
-    result = block.generate(dataset)
-
-    # First response creates 2 rows, second response creates 1 row = 3 total
-    assert len(result) == 3
-    assert result[0]["title"] == "Title 1"
-    assert result[0]["content"] == "Content 1"
-    assert result[1]["title"] == "Title 2"
-    assert result[1]["content"] == "Content 2"
-    assert result[2]["title"] == "Title 3"
-    assert result[2]["content"] == "Content 3"
-
-
-def test_generate_with_empty_list_input():
-    """Test generate functionality with empty list input."""
-    block = TextParserBlock(
-        block_name="test_block",
-        input_cols="raw_output",
-        output_cols=["output"],
-        start_tags=["<answer>"],
-        end_tags=["</answer>"],
-    )
-
-    data = [{"raw_output": []}]
-    dataset = Dataset.from_list(data)
-
-    with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
-        result = block.generate(dataset)
-
-        # Should log warning about empty list
-        mock_logger.warning.assert_called_with(
-            "Input column 'raw_output' contains empty list"
-        )
-        assert len(result) == 0
-
-
-def test_generate_with_mixed_valid_invalid_list_items():
-    """Test list input with some valid and some invalid items."""
-    block = TextParserBlock(
-        block_name="test_block",
-        input_cols="raw_output",
-        output_cols=["output"],
-        start_tags=["<answer>"],
-        end_tags=["</answer>"],
-    )
-
-    # Test separate cases since PyArrow doesn't handle mixed types well
-    # Test with empty strings
-    data_with_empty = [
-        {
-            "raw_output": [
-                "<answer>Valid response 1</answer>",
-                "",  # Empty string
-                "<answer>Valid response 2</answer>",
-            ]
-        }
-    ]
-    dataset = Dataset.from_list(data_with_empty)
-
-    with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
-        result = block.generate(dataset)
-
-        # Should process only the 2 valid responses
-        assert len(result) == 2
-        assert result[0]["output"] == "Valid response 1"
-        assert result[1]["output"] == "Valid response 2"
-
-        # Should log warning for empty string
-        warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
-        assert any("List item 1" in call and "empty" in call for call in warning_calls)
 
 
 def test_generate_with_list_input_parsing_failures():
@@ -948,9 +873,8 @@ def test_generate_with_list_input_parsing_failures():
         result = block.generate(dataset)
 
         # Should process only the 2 parseable responses
-        assert len(result) == 2
-        assert result[0]["output"] == "Parseable response 1"
-        assert result[1]["output"] == "Parseable response 2"
+        assert len(result) == 1
+        assert result[0]["output"] == ["Parseable response 1", "Parseable response 2"]
 
         # Should log warnings for parsing failures
         warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
@@ -962,8 +886,8 @@ def test_generate_with_list_input_parsing_failures():
         )
 
 
-def test_generate_with_list_input_all_invalid():
-    """Test list input where all items are invalid or fail parsing."""
+def test_generate_with_invalid_list_items():
+    """Test list input with invalid (non-string) items."""
     block = TextParserBlock(
         block_name="test_block",
         input_cols="raw_output",
@@ -972,17 +896,25 @@ def test_generate_with_list_input_all_invalid():
         end_tags=["</answer>"],
     )
 
-    data = [{"raw_output": ["No tags here", "", None, "Also no tags"]}]
+    # Test with separate datasets since PyArrow doesn't handle mixed types well
+    # Test with valid string and empty string
+    data = [{"raw_output": ["<answer>Valid</answer>", ""]}]
     dataset = Dataset.from_list(data)
 
-    result = block.generate(dataset)
+    with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
+        result = block.generate(dataset)
 
-    # Should return empty result
-    assert len(result) == 0
+        # Should process only the valid string
+        assert len(result) == 1
+        assert result[0]["output"] == ["Valid"]
+
+        # Should log warning for empty string
+        warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
+        assert any("is empty" in call for call in warning_calls)
 
 
-def test_backwards_compatibility_string_input():
-    """Test that string inputs still work exactly as before (backwards compatibility)."""
+def test_generate_with_empty_list_input():
+    """Test generate functionality with empty list input."""
     block = TextParserBlock(
         block_name="test_block",
         input_cols="raw_output",
@@ -991,15 +923,17 @@ def test_backwards_compatibility_string_input():
         end_tags=["</answer>"],
     )
 
-    # Traditional string input (existing behavior)
-    data = [{"raw_output": "<answer>Single string response</answer>"}]
+    data = [{"raw_output": []}]
     dataset = Dataset.from_list(data)
 
-    result = block.generate(dataset)
+    with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
+        result = block.generate(dataset)
 
-    # Should work exactly as before
-    assert len(result) == 1
-    assert result[0]["output"] == "Single string response"
+        # Should log warning about empty list
+        mock_logger.warning.assert_called_with(
+            "Input column 'raw_output' contains empty list"
+        )
+        assert len(result) == 0
 
 
 def test_generate_with_invalid_input_type():
@@ -1012,259 +946,17 @@ def test_generate_with_invalid_input_type():
         end_tags=["</answer>"],
     )
 
-    # Dictionary input (invalid type)
-    data = [{"raw_output": {"not": "valid"}}]
+    # Test with dict input (invalid type - should be string or list of strings)
+    data = [{"raw_output": {"content": "test"}}]
     dataset = Dataset.from_list(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
         result = block.generate(dataset)
 
-        # Should log warning about invalid type
+        # Should log warning about invalid data type
         mock_logger.warning.assert_called()
-        warning_call = mock_logger.warning.call_args[0][0]
-        assert "invalid data type" in warning_call
-        assert "Expected str or List[str]" in warning_call
+        warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
+        assert any("invalid data type" in call for call in warning_calls)
 
         # Should return empty result
         assert len(result) == 0
-
-
-# Tests for expand_lists functionality
-def test_expand_lists_false_basic_functionality():
-    """Test basic functionality with expand_lists=False."""
-    block = TextParserBlock(
-        block_name="test_block",
-        input_cols="raw_output",
-        output_cols=["entities"],
-        start_tags=["<entity>"],
-        end_tags=["</entity>"],
-        expand_lists=False,
-    )
-
-    # List input with multiple entity responses
-    data = [
-        {
-            "raw_output": [
-                "<entity>A</entity><entity>B</entity>",
-                "<entity>C</entity>",
-            ]
-        }
-    ]
-    dataset = Dataset.from_list(data)
-
-    result = block.generate(dataset)
-
-    # Should return single row with entities as a list
-    assert len(result) == 1
-    assert result[0]["entities"] == ["A", "B", "C"]
-
-
-def test_expand_lists_false_multiple_output_columns():
-    """Test expand_lists=False with multiple output columns."""
-    block = TextParserBlock(
-        block_name="test_block",
-        input_cols="raw_output",
-        output_cols=["title", "content"],
-        start_tags=["<title>", "<content>"],
-        end_tags=["</title>", "</content>"],
-        expand_lists=False,
-    )
-
-    # List input with title/content pairs
-    data = [
-        {
-            "raw_output": [
-                "<title>Title 1</title><content>Content 1</content>",
-                "<title>Title 2</title><content>Content 2</content>",
-            ]
-        }
-    ]
-    dataset = Dataset.from_list(data)
-
-    result = block.generate(dataset)
-
-    # Should return single row with lists for each column
-    assert len(result) == 1
-    assert result[0]["title"] == ["Title 1", "Title 2"]
-    assert result[0]["content"] == ["Content 1", "Content 2"]
-
-
-def test_expand_lists_false_with_regex_parsing():
-    """Test expand_lists=False with regex parsing."""
-    block = TextParserBlock(
-        block_name="test_block",
-        input_cols="raw_output",
-        output_cols=["answer"],
-        parsing_pattern=r"Answer: (.*?)(?:\n|$)",
-        expand_lists=False,
-    )
-
-    # List input with multiple answers
-    data = [
-        {
-            "raw_output": [
-                "Question 1\nAnswer: Response 1",
-                "Question 2\nAnswer: Response 2\nAnswer: Response 3",
-            ]
-        }
-    ]
-    dataset = Dataset.from_list(data)
-
-    result = block.generate(dataset)
-
-    # Should return single row with all answers as a list
-    assert len(result) == 1
-    assert result[0]["answer"] == ["Response 1", "Response 2", "Response 3"]
-
-
-def test_expand_lists_false_with_parsing_failures():
-    """Test expand_lists=False when some items fail to parse."""
-    block = TextParserBlock(
-        block_name="test_block",
-        input_cols="raw_output",
-        output_cols=["entity"],
-        start_tags=["<entity>"],
-        end_tags=["</entity>"],
-        expand_lists=False,
-    )
-
-    # Mix of valid and invalid responses
-    data = [
-        {
-            "raw_output": [
-                "<entity>Valid 1</entity>",
-                "No tags here",  # Will fail to parse
-                "<entity>Valid 2</entity>",
-            ]
-        }
-    ]
-    dataset = Dataset.from_list(data)
-
-    with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
-        result = block.generate(dataset)
-
-        # Should return single row with only valid entities
-        assert len(result) == 1
-        assert result[0]["entity"] == ["Valid 1", "Valid 2"]
-
-        # Should log warning for parsing failure
-        warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
-        assert any(
-            "Failed to parse content from list item 1" in call for call in warning_calls
-        )
-
-
-def test_expand_lists_false_empty_list():
-    """Test expand_lists=False with empty list input."""
-    block = TextParserBlock(
-        block_name="test_block",
-        input_cols="raw_output",
-        output_cols=["entity"],
-        start_tags=["<entity>"],
-        end_tags=["</entity>"],
-        expand_lists=False,
-    )
-
-    data = [{"raw_output": []}]
-    dataset = Dataset.from_list(data)
-
-    with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
-        result = block.generate(dataset)
-
-        # Should return empty result and log warning
-        assert len(result) == 0
-        mock_logger.warning.assert_called_with(
-            "Input column 'raw_output' contains empty list"
-        )
-
-
-def test_expand_lists_false_all_parsing_failures():
-    """Test expand_lists=False when all items fail to parse."""
-    block = TextParserBlock(
-        block_name="test_block",
-        input_cols="raw_output",
-        output_cols=["entity"],
-        start_tags=["<entity>"],
-        end_tags=["</entity>"],
-        expand_lists=False,
-    )
-
-    # All responses fail to parse
-    data = [
-        {
-            "raw_output": [
-                "No tags here",
-                "Also no tags",
-            ]
-        }
-    ]
-    dataset = Dataset.from_list(data)
-
-    result = block.generate(dataset)
-
-    # Should return empty result
-    assert len(result) == 0
-
-
-def test_expand_lists_true_backward_compatibility():
-    """Test that expand_lists=True (default) maintains backward compatibility."""
-    block = TextParserBlock(
-        block_name="test_block",
-        input_cols="raw_output",
-        output_cols=["entity"],
-        start_tags=["<entity>"],
-        end_tags=["</entity>"],
-        expand_lists=True,  # Explicit True (same as default)
-    )
-
-    # List input
-    data = [
-        {
-            "raw_output": [
-                "<entity>A</entity><entity>B</entity>",
-                "<entity>C</entity>",
-            ]
-        }
-    ]
-    dataset = Dataset.from_list(data)
-
-    result = block.generate(dataset)
-
-    # Should expand to individual rows (existing behavior)
-    assert len(result) == 3
-    assert result[0]["entity"] == "A"
-    assert result[1]["entity"] == "B"
-    assert result[2]["entity"] == "C"
-
-
-def test_expand_lists_default_value():
-    """Test that expand_lists defaults to True for backward compatibility."""
-    block = TextParserBlock(
-        block_name="test_block",
-        input_cols="raw_output",
-        output_cols=["entity"],
-        start_tags=["<entity>"],
-        end_tags=["</entity>"],
-        # expand_lists not specified - should default to True
-    )
-
-    # Verify default value
-    assert block.expand_lists is True
-
-    # Test behavior matches expanding behavior
-    data = [
-        {
-            "raw_output": [
-                "<entity>A</entity>",
-                "<entity>B</entity>",
-            ]
-        }
-    ]
-    dataset = Dataset.from_list(data)
-
-    result = block.generate(dataset)
-
-    # Should expand to individual rows (default behavior)
-    assert len(result) == 2
-    assert result[0]["entity"] == "A"
-    assert result[1]["entity"] == "B"

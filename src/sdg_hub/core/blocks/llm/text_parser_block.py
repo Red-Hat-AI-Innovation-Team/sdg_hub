@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Text parser block for parsing and post-processing LLM outputs.
+"""Text parser block for parsing and post-processing text content.
 
-This module provides the TextParserBlock for handling output parsing using
+This module provides the TextParserBlock for handling text parsing using
 start/end tags, custom regex patterns, and cleanup operations.
 """
 
@@ -24,20 +24,21 @@ logger = setup_logger(__name__)
 @BlockRegistry.register(
     "TextParserBlock",
     "llm",
-    "Parses and post-processes LLM outputs using tags or regex patterns",
+    "Parses and post-processes text content using tags or regex patterns",
 )
 class TextParserBlock(BaseBlock):
-    """Block for parsing and post-processing LLM outputs.
+    """Block for parsing and post-processing text content.
 
-    This block handles output parsing using start/end tags, custom regex patterns,
-    and cleanup operations. It expects exactly one input column containing raw LLM output.
+    This block handles text parsing using start/end tags, custom regex patterns,
+    and cleanup operations. It expects exactly one input column containing text content
+    as either a string or a list of strings.
 
     Attributes
     ----------
     block_name : str
         Unique identifier for this block instance.
     input_cols : Union[str, List[str], Dict[str, Any], None]
-        Input column name(s) containing raw LLM output. Must specify exactly one column.
+        Input column name(s) containing text content (str or List[str]). Must specify exactly one column.
     output_cols : Union[str, List[str], Dict[str, Any], None]
         Output column name(s) for parsed results.
     start_tags : List[str]
@@ -64,10 +65,6 @@ class TextParserBlock(BaseBlock):
     )
     parser_cleanup_tags: Optional[list[str]] = Field(
         default=None, description="List of tags to clean from parsed output"
-    )
-    expand_lists: bool = Field(
-        default=True,
-        description="Whether to expand list inputs into individual rows (True) or preserve lists (False). ",
     )
 
     @field_validator("start_tags", "end_tags", mode="before")
@@ -238,82 +235,51 @@ class TextParserBlock(BaseBlock):
         input_column = self.input_cols[0]
         raw_output = sample[input_column]
 
-        # Handle list inputs (e.g., from LLMChatBlock with n > 1)
+        # Handle list inputs (e.g., multiple text strings to process)
         if isinstance(raw_output, list):
             if not raw_output:
                 logger.warning(f"Input column '{input_column}' contains empty list")
                 return []
 
-            if not self.expand_lists:
-                # When expand_lists=False, preserve the list structure
-                # Parse each response in the list and collect results as lists
-                all_parsed_outputs = {col: [] for col in self.output_cols}
-                valid_responses = 0
+            # Parse each text string in the list and collect results as lists
+            all_parsed_outputs = {col: [] for col in self.output_cols}
+            valid_responses = 0
 
-                for i, response in enumerate(raw_output):
-                    if not response or not isinstance(response, str):
-                        logger.warning(
-                            f"List item {i} in column '{input_column}' contains invalid data "
-                            f"(empty or non-string): {type(response)}"
-                        )
-                        continue
+            for i, message in enumerate(raw_output):
+                # Ensure each item in the list is a string
+                if not isinstance(message, str):
+                    logger.warning(
+                        f"List item {i} in column '{input_column}' is not a string: {type(message)}. "
+                        f"Expected List[str], skipping this item."
+                    )
+                    continue
 
-                    parsed_outputs = self._parse(response)
+                if not message:
+                    logger.warning(f"List item {i} in column '{input_column}' is empty")
+                    continue
 
-                    if not parsed_outputs or not any(
-                        len(value) > 0 for value in parsed_outputs.values()
-                    ):
-                        logger.warning(
-                            f"Failed to parse content from list item {i}. Raw output length: {len(response)}, "
-                            f"parsing method: {'regex' if self.parsing_pattern else 'tags'}"
-                        )
-                        continue
+                parsed_outputs = self._parse(message)
 
-                    valid_responses += 1
-                    # Collect all parsed values for each column as lists
-                    for col in self.output_cols:
-                        all_parsed_outputs[col].extend(parsed_outputs.get(col, []))
+                if not parsed_outputs or not any(
+                    len(value) > 0 for value in parsed_outputs.values()
+                ):
+                    logger.warning(
+                        f"Failed to parse content from list item {i}. Text length: {len(message)}, "
+                        f"parsing method: {'regex' if self.parsing_pattern else 'tags'}"
+                    )
+                    continue
 
-                if valid_responses == 0:
-                    return []
+                valid_responses += 1
+                # Collect all parsed values for each column as lists
+                for col in self.output_cols:
+                    all_parsed_outputs[col].extend(parsed_outputs.get(col, []))
 
-                # Return single row with lists as values
-                return [{**sample, **all_parsed_outputs}]
+            if valid_responses == 0:
+                return []
 
-            else:
-                # When expand_lists=True, use existing expanding behavior
-                all_results = []
-                for i, response in enumerate(raw_output):
-                    if not response or not isinstance(response, str):
-                        logger.warning(
-                            f"List item {i} in column '{input_column}' contains invalid data "
-                            f"(empty or non-string): {type(response)}"
-                        )
-                        continue
-
-                    parsed_outputs = self._parse(response)
-
-                    if not parsed_outputs or not any(
-                        len(value) > 0 for value in parsed_outputs.values()
-                    ):
-                        logger.warning(
-                            f"Failed to parse content from list item {i}. Raw output length: {len(response)}, "
-                            f"parsing method: {'regex' if self.parsing_pattern else 'tags'}"
-                        )
-                        continue
-
-                    # Create output rows for this response
-                    max_length = max(len(value) for value in parsed_outputs.values())
-                    for values in zip(
-                        *(lst[:max_length] for lst in parsed_outputs.values())
-                    ):
-                        all_results.append(
-                            {**sample, **dict(zip(parsed_outputs.keys(), values))}
-                        )
-
-                return all_results
-
-        # Handle string inputs (existing logic)
+            # Return single row with lists as values
+            return [{**sample, **all_parsed_outputs}]
+        # Handle string inputs
         elif isinstance(raw_output, str):
             if not raw_output:
                 logger.warning(f"Input column '{input_column}' contains empty string")
@@ -325,7 +291,7 @@ class TextParserBlock(BaseBlock):
                 len(value) > 0 for value in parsed_outputs.values()
             ):
                 logger.warning(
-                    f"Failed to parse any content from input. Raw output length: {len(raw_output)}, "
+                    f"Failed to parse any content from input. Text length: {len(raw_output)}, "
                     f"parsing method: {'regex' if self.parsing_pattern else 'tags'}"
                 )
                 return []
@@ -333,7 +299,9 @@ class TextParserBlock(BaseBlock):
             result = []
             max_length = max(len(value) for value in parsed_outputs.values())
             for values in zip(*(lst[:max_length] for lst in parsed_outputs.values())):
-                result.append({**sample, **dict(zip(parsed_outputs.keys(), values))})
+                result_row = {**sample, **dict(zip(parsed_outputs.keys(), values))}
+                result.append(result_row)
+
             return result
 
         else:

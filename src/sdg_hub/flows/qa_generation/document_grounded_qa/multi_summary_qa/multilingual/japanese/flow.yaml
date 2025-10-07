@@ -1,0 +1,305 @@
+metadata:
+  id: clean-shadow-397
+  name: "Advanced Japanese Document Grounded Question-Answer Generation Flow for Knowledge Tuning"
+  description: "A comprehensive flow that generates high-quality question-answer pairs from Japanese input documents using multiple LLM blocks for question generation, answer synthesis, and quality evaluation."
+  version: "1.0.0"
+  author: "SDG Hub Contributors"
+  
+  recommended_models:
+    default: "microsoft/phi-4"
+    compatible: ["meta-llama/Llama-3.3-70B-Instruct", "mistralai/Mixtral-8x7B-Instruct-v0.1"]
+    experimental: []
+  
+  tags:
+    - "question-generation"
+    - "knowledge-extraction"
+    - "qa-pairs"
+    - "document-processing"
+    - "educational"
+    - "japanese"
+  
+  license: "Apache-2.0"
+
+  dataset_requirements:
+    required_columns:
+      - "document"
+      - "document_outline"
+      - "domain"
+      - "icl_document"
+      - "icl_query_1"
+      - "icl_response_1"
+      - "icl_query_2"
+      - "icl_response_2"
+      - "icl_query_3"
+      - "icl_response_3"
+    description: "Input dataset should contain documents with Japanese text content and domain classification. Each document should be substantial enough for meaningful question generation (minimum 100 words recommended)."
+
+blocks:
+  - block_type: DuplicateColumnsBlock
+    block_config:
+      block_name: duplicate_document_col
+      input_cols: {document: base_document}
+
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: detailed_summary_prompt
+      input_cols: [document, document_outline]
+      output_cols: summary_prompt
+      prompt_config_path: detailed_summary_ja.yaml
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: gen_detailed_summary
+      input_cols: summary_prompt
+      output_cols: raw_summary_detailed
+      max_tokens: 2048
+      async_mode: true
+      # n: 2
+
+  - block_type: LLMParserBlock
+    block_config:
+      block_name: detailed_summary
+      input_cols: raw_summary_detailed
+      extract_content: true
+      # extract_reasoning_content: true
+
+  - block_type: TextParserBlock
+    block_config:
+      block_name: parse_detailed_summary
+      input_cols: detailed_summary_content
+      output_cols: summary_detailed
+      start_tags: [""]
+      end_tags: [""]
+
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: atomic_facts_prompt
+      input_cols: [document, document_outline, domain]
+      output_cols: atomic_facts_prompt
+      prompt_config_path: atomic_facts_ja.yaml
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: gen_atomic_facts
+      input_cols: atomic_facts_prompt
+      output_cols: raw_atomic_facts
+      max_tokens: 2048
+      async_mode: true
+
+  - block_type: LLMParserBlock
+    block_config:
+      block_name: atomic_facts
+      input_cols: raw_atomic_facts
+      extract_content: true
+
+  - block_type: TextParserBlock
+    block_config:
+      block_name: parse_atomic_facts
+      input_cols: atomic_facts_content
+      output_cols: summary_atomic_facts
+      start_tags: [""]
+      end_tags: [""]
+
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: extractive_summary_prompt
+      input_cols: [document, document_outline]
+      output_cols: extractive_summary_prompt
+      prompt_config_path: extractive_summary_ja.yaml
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: gen_extractive_summary
+      input_cols: extractive_summary_prompt
+      output_cols: raw_summary_extractive
+      max_tokens: 2048
+      async_mode: true
+
+  - block_type: LLMParserBlock
+    block_config:
+      block_name: extractive_summary
+      input_cols: raw_summary_extractive
+      extract_content: true
+
+  - block_type: TextParserBlock
+    block_config:
+      block_name: parse_extractive_summary
+      input_cols: extractive_summary_content
+      output_cols: summary_extractive
+      start_tags: [""]
+      end_tags: [""]
+
+  - block_type: MeltColumnsBlock
+    block_config:
+      block_name: melt_summary_columns
+      input_cols: [summary_detailed, summary_extractive, summary_atomic_facts, base_document]
+      output_cols: [summary, dataset_type]
+
+  - block_type: RenameColumnsBlock
+    block_config:
+      block_name: rename_to_document_column
+      input_cols: {document: raw_document, summary: document}
+
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: knowledge_generation_prompt
+      input_cols: [domain, document, document_outline, icl_document, icl_query_1, icl_response_1, icl_query_2, icl_response_2, icl_query_3, icl_response_3]
+      output_cols: knowledge_generation_prompt
+      prompt_config_path: generate_questions_responses_ja.yaml
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: knowledge_generation
+      input_cols: knowledge_generation_prompt
+      output_cols: raw_knowledge_generation
+      temperature: 0.0
+      max_tokens: 2048
+      async_mode: true
+
+  - block_type: LLMParserBlock
+    block_config:
+      block_name: get_knowledge_generation
+      input_cols: raw_knowledge_generation
+      extract_content: true
+
+  - block_type: TextParserBlock
+    block_config:
+      block_name: parse_knowledge_generation
+      input_cols: get_knowledge_generation_content
+      output_cols: [question, response]
+      parsing_pattern: "\\[(?:Question|QUESTION)\\]\\s*(.*?)\\s*\\[(?:Answer|ANSWER)\\]\\s*(.*?)\\s*(?=\\[(?:Question|QUESTION)\\]|$)"
+      parser_cleanup_tags: ["[END]"]
+
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: eval_faithful_prompt
+      input_cols: [document, response]
+      output_cols: eval_faithful_prompt
+      prompt_config_path: ../../instructlab/evaluate_faithfulness.yaml
+      format_as_messages: true
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: eval_faithful_llm_chat
+      input_cols: eval_faithful_prompt
+      output_cols: eval_faithful_response_dict
+      max_tokens: 2048
+      n: 1
+      async_mode: true
+
+  - block_type: LLMParserBlock
+    block_config:
+      block_name: extract_eval_faithful
+      input_cols: eval_faithful_response_dict
+      extract_content: true
+      
+  - block_type: TextParserBlock
+    block_config:
+      block_name: parse_eval_faithful
+      input_cols: extract_eval_faithful_content
+      output_cols: 
+      - faithfulness_explanation
+      - faithfulness_judgment
+      start_tags:
+      - '[Start of Explanation]'
+      - '[Start of Answer]'
+      end_tags:
+      - '[End of Explanation]'
+      - '[End of Answer]'
+
+  - block_type: ColumnValueFilterBlock
+    block_config:
+      block_name: eval_faithful_filter
+      input_cols:
+        - faithfulness_judgment
+      filter_value: "YES"
+      operation: eq
+
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: eval_relevancy_prompt
+      input_cols:
+      - question
+      - response
+      output_cols: eval_relevancy_prompt
+      prompt_config_path: ../../instructlab/evaluate_relevancy.yaml
+      format_as_messages: true
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: eval_relevancy_llm_chat
+      input_cols: eval_relevancy_prompt
+      output_cols: eval_relevancy_response_dict
+      max_tokens: 2048
+      n: 1
+      async_mode: true
+  - block_type: LLMParserBlock
+    block_config:
+      block_name: extract_eval_relevancy
+      input_cols: eval_relevancy_response_dict
+      extract_content: true
+      
+  - block_type: TextParserBlock
+    block_config:
+      block_name: parse_eval_relevancy
+      input_cols: extract_eval_relevancy_content
+      output_cols: 
+      - relevancy_explanation
+      - relevancy_score
+      start_tags:
+      - '[Start of Feedback]'
+      - '[Start of Score]'
+      end_tags:
+      - '[End of Feedback]'
+      - '[End of Score]'
+  - block_type: ColumnValueFilterBlock
+    block_config:
+      block_name: eval_relevancy_filter
+      input_cols:
+        - relevancy_score
+      filter_value: 2.0
+      operation: eq
+      convert_dtype: float
+
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: verify_question_prompt
+      input_cols:
+      - question
+      output_cols: verify_question_prompt
+      prompt_config_path: ../../instructlab/evaluate_question.yaml
+      format_as_messages: true
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: verify_question_llm_chat
+      input_cols: verify_question_prompt
+      output_cols: verify_question_response_dict
+      max_tokens: 2048
+      n: 1
+      async_mode: true
+  - block_type: LLMParserBlock
+    block_config:
+      block_name: extract_verify_question
+      input_cols: verify_question_response_dict
+      extract_content: true
+      
+  - block_type: TextParserBlock
+    block_config:
+      block_name: parse_verify_question
+      input_cols: extract_verify_question_content
+      output_cols: 
+      - verification_explanation
+      - verification_rating
+      start_tags:
+      - '[Start of Explanation]'
+      - '[Start of Rating]'
+      end_tags:
+      - '[End of Explanation]'
+      - '[End of Rating]'
+  - block_type: ColumnValueFilterBlock
+    block_config:
+      block_name: verify_question_filter
+      input_cols:
+        - verification_rating
+      filter_value: 1.0
+      operation: ge
+      convert_dtype: float

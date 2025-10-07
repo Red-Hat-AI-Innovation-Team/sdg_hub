@@ -65,11 +65,6 @@ Data manipulation and transformation:
 Quality control and data validation:
 - **ColumnValueFilterBlock** - Filter rows based on column values
 
-### 📊 Evaluation Blocks (`evaluation/`)
-Quality assessment and scoring:
-- **EvaluateFaithfulnessBlock** - Assess factual accuracy
-- **EvaluateRelevancyBlock** - Measure relevance scores
-- **VerifyQuestionBlock** - Validate question quality
 
 ## 🔧 Block Lifecycle
 
@@ -149,5 +144,4 @@ Ready to dive deeper? Explore specific block categories:
 - **[LLM Blocks](llm-blocks.md)** - AI-powered language model operations
 - **[Transform Blocks](transform-blocks.md)** - Data manipulation and reshaping
 - **[Filtering Blocks](filtering-blocks.md)** - Quality control and validation
-- **[Evaluation Blocks](evaluation-blocks.md)** - Quality assessment and scoring
 - **[Custom Blocks](custom-blocks.md)** - Build your own processing blocks

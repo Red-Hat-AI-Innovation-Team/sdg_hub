@@ -10,7 +10,14 @@ import uuid
 
 # Third Party
 from datasets import Dataset
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    field_validator,
+    model_validator,
+)
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -23,11 +30,17 @@ from ..blocks.base import BaseBlock
 from ..blocks.registry import BlockRegistry
 from ..utils.datautils import safe_concatenate_with_validation, validate_no_duplicates
 from ..utils.error_handling import EmptyDatasetError, FlowValidationError
+from ..utils.flow_metrics import (
+    display_metrics_summary,
+    display_time_estimation_summary,
+    save_metrics_to_json,
+)
 from ..utils.logger_config import setup_logger
 from ..utils.path_resolution import resolve_path
+from ..utils.time_estimator import estimate_execution_time
 from ..utils.yaml_utils import save_flow_yaml
 from .checkpointer import FlowCheckpointer
-from .metadata import DatasetRequirements, FlowMetadata, FlowParameter
+from .metadata import DatasetRequirements, FlowMetadata
 from .migration import FlowMigration
 from .validation import FlowValidator
 
@@ -47,8 +60,6 @@ class Flow(BaseModel):
         Ordered list of blocks to execute in the flow.
     metadata : FlowMetadata
         Flow metadata including name, version, author, etc.
-    parameters : Dict[str, FlowParameter]
-        Runtime parameters that can be overridden during execution.
     """
 
     blocks: list[BaseBlock] = Field(
@@ -58,10 +69,6 @@ class Flow(BaseModel):
     metadata: FlowMetadata = Field(
         description="Flow metadata including name, version, author, etc."
     )
-    parameters: dict[str, FlowParameter] = Field(
-        default_factory=dict,
-        description="Runtime parameters that can be overridden during execution",
-    )
 
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
@@ -69,6 +76,9 @@ class Flow(BaseModel):
     _migrated_runtime_params: dict[str, dict[str, Any]] = {}
     _llm_client: Any = None  # Only used for backward compatibility with old YAMLs
     _model_config_set: bool = False  # Track if model configuration has been set
+    _block_metrics: list[dict[str, Any]] = PrivateAttr(
+        default_factory=list
+    )  # Track block execution metrics
 
     @field_validator("blocks")
     @classmethod
@@ -84,32 +94,6 @@ class Flow(BaseModel):
                 )
 
         return v
-
-    @field_validator("parameters")
-    @classmethod
-    def validate_parameters(
-        cls, v: dict[str, FlowParameter]
-    ) -> dict[str, FlowParameter]:
-        """Validate parameter names and ensure they are FlowParameter instances."""
-        if not v:
-            return v
-
-        validated = {}
-        for param_name, param_value in v.items():
-            if not isinstance(param_name, str) or not param_name.strip():
-                raise ValueError(
-                    f"Parameter name must be a non-empty string: {param_name}"
-                )
-
-            if not isinstance(param_value, FlowParameter):
-                raise ValueError(
-                    f"Parameter '{param_name}' must be a FlowParameter instance, "
-                    f"got: {type(param_value)}"
-                )
-
-            validated[param_name.strip()] = param_value
-
-        return validated
 
     @model_validator(mode="after")
     def validate_block_names_unique(self) -> "Flow":
@@ -204,17 +188,6 @@ class Flow(BaseModel):
         except Exception as exc:
             raise FlowValidationError(f"Invalid metadata configuration: {exc}") from exc
 
-        # Extract and validate parameters
-        parameters = {}
-        params_dict = flow_config.get("parameters", {})
-        for param_name, param_config in params_dict.items():
-            try:
-                parameters[param_name] = FlowParameter(**param_config)
-            except Exception as exc:
-                raise FlowValidationError(
-                    f"Invalid parameter '{param_name}': {exc}"
-                ) from exc
-
         # Create blocks with validation
         blocks = []
         block_configs = flow_config.get("blocks", [])
@@ -243,7 +216,7 @@ class Flow(BaseModel):
 
         # Create and validate the flow
         try:
-            flow = cls(blocks=blocks, metadata=metadata, parameters=parameters)
+            flow = cls(blocks=blocks, metadata=metadata)
             # Persist generated id back to the YAML file (only on initial load)
             # If the file had no metadata.id originally, update and rewrite
             if not flow_config.get("metadata", {}).get("id"):
@@ -507,72 +480,121 @@ class Flow(BaseModel):
             + (f" (max_concurrency={max_concurrency})" if max_concurrency else "")
         )
 
+        # Reset metrics for this execution
+        self._block_metrics = []
+        run_start = time.perf_counter()
+
         # Merge migrated runtime params with provided ones (provided ones take precedence)
         merged_runtime_params = self._migrated_runtime_params.copy()
         if runtime_params:
             merged_runtime_params.update(runtime_params)
         runtime_params = merged_runtime_params
 
-        # Process dataset in chunks if checkpointing with save_freq
-        if checkpointer and save_freq:
-            all_processed = []
+        # Execute flow with metrics capture, ensuring metrics are always displayed/saved
+        final_dataset = None
+        execution_successful = False
 
-            # Process in chunks of save_freq
-            for i in range(0, len(dataset), save_freq):
-                chunk_end = min(i + save_freq, len(dataset))
-                chunk_dataset = dataset.select(range(i, chunk_end))
+        try:
+            # Process dataset in chunks if checkpointing with save_freq
+            if checkpointer and save_freq:
+                all_processed = []
 
-                flow_logger.info(
-                    f"Processing chunk {i // save_freq + 1}: samples {i} to {chunk_end - 1}"
-                )
+                # Process in chunks of save_freq
+                for i in range(0, len(dataset), save_freq):
+                    chunk_end = min(i + save_freq, len(dataset))
+                    chunk_dataset = dataset.select(range(i, chunk_end))
 
-                # Execute all blocks on this chunk
-                processed_chunk = self._execute_blocks_on_dataset(
-                    chunk_dataset, runtime_params, flow_logger, max_concurrency
-                )
-                all_processed.append(processed_chunk)
+                    flow_logger.info(
+                        f"Processing chunk {i // save_freq + 1}: samples {i} to {chunk_end - 1}"
+                    )
 
-                # Save checkpoint after chunk completion
-                checkpointer.add_completed_samples(processed_chunk)
+                    # Execute all blocks on this chunk
+                    processed_chunk = self._execute_blocks_on_dataset(
+                        chunk_dataset, runtime_params, flow_logger, max_concurrency
+                    )
+                    all_processed.append(processed_chunk)
 
-            # Save final checkpoint for any remaining samples
-            checkpointer.save_final_checkpoint()
+                    # Save checkpoint after chunk completion
+                    checkpointer.add_completed_samples(processed_chunk)
 
-            # Combine all processed chunks
-            final_dataset = safe_concatenate_with_validation(
-                all_processed, "processed chunks from flow execution"
-            )
-
-            # Combine with previously completed samples if any
-            if checkpointer and completed_dataset:
-                final_dataset = safe_concatenate_with_validation(
-                    [completed_dataset, final_dataset],
-                    "completed checkpoint data with newly processed data",
-                )
-
-        else:
-            # Process entire dataset at once
-            final_dataset = self._execute_blocks_on_dataset(
-                dataset, runtime_params, flow_logger, max_concurrency
-            )
-
-            # Save final checkpoint if checkpointing enabled
-            if checkpointer:
-                checkpointer.add_completed_samples(final_dataset)
+                # Save final checkpoint for any remaining samples
                 checkpointer.save_final_checkpoint()
 
+                # Combine all processed chunks
+                final_dataset = safe_concatenate_with_validation(
+                    all_processed, "processed chunks from flow execution"
+                )
+
                 # Combine with previously completed samples if any
-                if completed_dataset:
+                if checkpointer and completed_dataset:
                     final_dataset = safe_concatenate_with_validation(
                         [completed_dataset, final_dataset],
                         "completed checkpoint data with newly processed data",
                     )
 
-        flow_logger.info(
-            f"Flow '{self.metadata.name}' completed successfully: "
-            f"{len(final_dataset)} final samples, "
-            f"{len(final_dataset.column_names)} final columns"
-        )
+            else:
+                # Process entire dataset at once
+                final_dataset = self._execute_blocks_on_dataset(
+                    dataset, runtime_params, flow_logger, max_concurrency
+                )
+
+                # Save final checkpoint if checkpointing enabled
+                if checkpointer:
+                    checkpointer.add_completed_samples(final_dataset)
+                    checkpointer.save_final_checkpoint()
+
+                    # Combine with previously completed samples if any
+                    if completed_dataset:
+                        final_dataset = safe_concatenate_with_validation(
+                            [completed_dataset, final_dataset],
+                            "completed checkpoint data with newly processed data",
+                        )
+
+            execution_successful = True
+
+        finally:
+            # Always display metrics and save JSON, even if execution failed
+            display_metrics_summary(
+                self._block_metrics, self.metadata.name, final_dataset
+            )
+
+            # Save metrics to JSON if log_dir is provided
+            if log_dir is not None:
+                # Ensure necessary variables exist
+                if "timestamp" not in locals() or "flow_name" not in locals():
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    flow_name = self.metadata.name.replace(" ", "_").lower()
+
+                save_metrics_to_json(
+                    self._block_metrics,
+                    self.metadata.name,
+                    self.metadata.version,
+                    execution_successful,
+                    run_start,
+                    log_dir,
+                    timestamp,
+                    flow_name,
+                    flow_logger,
+                )
+
+        # Keep a basic log entry for file logs (only if execution was successful)
+        if execution_successful and final_dataset is not None:
+            flow_logger.info(
+                f"Flow '{self.metadata.name}' completed successfully: "
+                f"{len(final_dataset)} final samples, "
+                f"{len(final_dataset.column_names)} final columns"
+            )
+
+        # Close file handlers if we opened a flow-specific logger
+        if log_dir is not None and flow_logger is not logger:
+            for h in list(getattr(flow_logger, "handlers", [])):
+                try:
+                    h.flush()
+                    h.close()
+                except Exception:
+                    pass
+                finally:
+                    flow_logger.removeHandler(h)
 
         return final_dataset
 
@@ -619,6 +641,11 @@ class Flow(BaseModel):
             if max_concurrency is not None:
                 block_kwargs["_flow_max_concurrency"] = max_concurrency
 
+            # Capture metrics before execution
+            start_time = time.perf_counter()
+            input_rows = len(current_dataset)
+            input_cols = set(current_dataset.column_names)
+
             try:
                 # Check if this is a deprecated block and skip validations
                 is_deprecated_block = (
@@ -643,6 +670,27 @@ class Flow(BaseModel):
                         f"Block '{block.block_name}' produced empty dataset"
                     )
 
+                # Capture metrics after successful execution
+                execution_time = time.perf_counter() - start_time
+                output_rows = len(current_dataset)
+                output_cols = set(current_dataset.column_names)
+                added_cols = output_cols - input_cols
+                removed_cols = input_cols - output_cols
+
+                # Store block metrics
+                self._block_metrics.append(
+                    {
+                        "block_name": block.block_name,
+                        "block_type": block.__class__.__name__,
+                        "execution_time": execution_time,
+                        "input_rows": input_rows,
+                        "output_rows": output_rows,
+                        "added_cols": list(added_cols),
+                        "removed_cols": list(removed_cols),
+                        "status": "success",
+                    }
+                )
+
                 exec_logger.info(
                     f"Block '{block.block_name}' completed successfully: "
                     f"{len(current_dataset)} samples, "
@@ -650,6 +698,22 @@ class Flow(BaseModel):
                 )
 
             except Exception as exc:
+                # Capture metrics for failed execution
+                execution_time = time.perf_counter() - start_time
+                self._block_metrics.append(
+                    {
+                        "block_name": block.block_name,
+                        "block_type": block.__class__.__name__,
+                        "execution_time": execution_time,
+                        "input_rows": input_rows,
+                        "output_rows": 0,
+                        "added_cols": [],
+                        "removed_cols": [],
+                        "status": "failed",
+                        "error": str(exc),
+                    }
+                )
+
                 exec_logger.error(
                     f"Block '{block.block_name}' failed during execution: {exc}"
                 )
@@ -775,15 +839,18 @@ class Flow(BaseModel):
                             f"Block '{block.block_name}': {param_name} "
                             f"'{old_value}' -> '{param_value}'"
                         )
+                    ## check if allow extra
+                    elif block.model_config["extra"] == "allow":
+                        setattr(block, param_name, param_value)
+                        logger.debug(
+                            f"Block '{block.block_name}': {param_name} "
+                            f"'{old_value}' -> '{param_value}'"
+                        )
                     else:
                         logger.warning(
                             f"Block '{block.block_name}' ({block.__class__.__name__}) "
                             f"does not have attribute '{param_name}' - skipping"
                         )
-
-                # Reinitialize client manager for LLM blocks after updating config
-                if hasattr(block, "_reinitialize_client_manager"):
-                    block._reinitialize_client_manager()
 
                 modified_count += 1
 
@@ -944,6 +1011,8 @@ class Flow(BaseModel):
         dataset: Dataset,
         sample_size: int = 2,
         runtime_params: Optional[dict[str, dict[str, Any]]] = None,
+        max_concurrency: Optional[int] = None,
+        enable_time_estimation: bool = False,
     ) -> dict[str, Any]:
         """Perform a dry run of the flow with a subset of data.
 
@@ -955,11 +1024,18 @@ class Flow(BaseModel):
             Number of samples to use for dry run testing.
         runtime_params : Optional[Dict[str, Dict[str, Any]]], optional
             Runtime parameters organized by block name.
+        max_concurrency : Optional[int], optional
+            Maximum concurrent requests for LLM blocks. If None, no limit is applied.
+        enable_time_estimation : bool, default=False
+            If True, estimates execution time for the full dataset and displays it
+            in a Rich table. Automatically runs a second dry run if needed for
+            accurate scaling analysis.
 
         Returns
         -------
         Dict[str, Any]
             Dry run results with execution info and sample outputs.
+            Time estimation is displayed in a table but not included in return value.
 
         Raises
         ------
@@ -976,6 +1052,19 @@ class Flow(BaseModel):
             raise EmptyDatasetError("Input dataset is empty")
 
         validate_no_duplicates(dataset)
+
+        # Validate max_concurrency parameter
+        if max_concurrency is not None:
+            if isinstance(max_concurrency, bool) or not isinstance(
+                max_concurrency, int
+            ):
+                raise FlowValidationError(
+                    f"max_concurrency must be an int, got {type(max_concurrency).__name__}"
+                )
+            if max_concurrency <= 0:
+                raise FlowValidationError(
+                    f"max_concurrency must be greater than 0, got {max_concurrency}"
+                )
 
         # Use smaller sample size if dataset is smaller
         actual_sample_size = min(sample_size, len(dataset))
@@ -994,6 +1083,7 @@ class Flow(BaseModel):
             "flow_version": self.metadata.version,
             "sample_size": actual_sample_size,
             "original_dataset_size": len(dataset),
+            "max_concurrency": max_concurrency,
             "input_columns": dataset.column_names,
             "blocks_executed": [],
             "final_dataset": None,
@@ -1001,7 +1091,7 @@ class Flow(BaseModel):
             "execution_time_seconds": 0,
         }
 
-        start_time = time.time()
+        start_time = time.perf_counter()
 
         try:
             # Execute the flow with sample data
@@ -1009,7 +1099,7 @@ class Flow(BaseModel):
             runtime_params = runtime_params or {}
 
             for i, block in enumerate(self.blocks):
-                block_start_time = time.time()
+                block_start_time = time.perf_counter()
                 input_rows = len(current_dataset)
 
                 logger.info(
@@ -1019,6 +1109,10 @@ class Flow(BaseModel):
 
                 # Prepare block execution parameters
                 block_kwargs = self._prepare_block_kwargs(block, runtime_params)
+
+                # Add max_concurrency to block kwargs if provided
+                if max_concurrency is not None:
+                    block_kwargs["_flow_max_concurrency"] = max_concurrency
 
                 # Check if this is a deprecated block and skip validations
                 is_deprecated_block = (
@@ -1037,7 +1131,9 @@ class Flow(BaseModel):
                     # Execute block with validation and logging
                     current_dataset = block(current_dataset, **block_kwargs)
 
-                block_execution_time = time.time() - block_start_time
+                block_execution_time = (
+                    time.perf_counter() - block_start_time
+                )  # Fixed: use perf_counter consistently
 
                 # Record block execution info
                 block_info = {
@@ -1068,7 +1164,7 @@ class Flow(BaseModel):
                 else {},
             }
 
-            execution_time = time.time() - start_time
+            execution_time = time.perf_counter() - start_time
             dry_run_results["execution_time_seconds"] = execution_time
 
             logger.info(
@@ -1076,10 +1172,16 @@ class Flow(BaseModel):
                 f"in {execution_time:.2f}s"
             )
 
+            # Perform time estimation if requested (displays table but doesn't store in results)
+            if enable_time_estimation:
+                self._estimate_total_time(
+                    dry_run_results, dataset, runtime_params, max_concurrency
+                )
+
             return dry_run_results
 
         except Exception as exc:
-            execution_time = time.time() - start_time
+            execution_time = time.perf_counter() - start_time
             dry_run_results["execution_successful"] = False
             dry_run_results["execution_time_seconds"] = execution_time
             dry_run_results["error"] = str(exc)
@@ -1087,6 +1189,103 @@ class Flow(BaseModel):
             logger.error(f"Dry run failed for flow '{self.metadata.name}': {exc}")
 
             raise FlowValidationError(f"Dry run failed: {exc}") from exc
+
+    def _estimate_total_time(
+        self,
+        first_run_results: dict[str, Any],
+        dataset: Dataset,
+        runtime_params: Optional[dict[str, dict[str, Any]]],
+        max_concurrency: Optional[int],
+    ) -> dict[str, Any]:
+        """Estimate execution time using 2 dry runs (private method).
+
+        This method contains all the estimation logic. It determines if a second
+        dry run is needed, executes it, and calls estimate_execution_time.
+
+        Parameters
+        ----------
+        first_run_results : dict
+            Results from the first dry run.
+        dataset : Dataset
+            Full dataset for estimation.
+        runtime_params : Optional[dict]
+            Runtime parameters.
+        max_concurrency : Optional[int]
+            Maximum concurrency.
+
+        Returns
+        -------
+        dict
+            Estimation results with estimated_time_seconds, total_estimated_requests, etc.
+        """
+        first_sample_size = first_run_results["sample_size"]
+
+        # Check if we need a second dry run
+        has_async_blocks = any(
+            getattr(block, "async_mode", False) for block in self.blocks
+        )
+
+        # For sequential or no async blocks, single run is sufficient
+        if max_concurrency == 1 or not has_async_blocks:
+            estimation = estimate_execution_time(
+                dry_run_1=first_run_results,
+                dry_run_2=None,
+                total_dataset_size=len(dataset),
+                max_concurrency=max_concurrency,
+            )
+        else:
+            # Need second measurement - always use canonical (1, 5) pair
+            if first_sample_size == 1:
+                # Already have 1, need 5
+                logger.info("Running second dry run with 5 samples for time estimation")
+                second_run = self.dry_run(
+                    dataset,
+                    5,
+                    runtime_params,
+                    max_concurrency,
+                    enable_time_estimation=False,
+                )
+                dry_run_1, dry_run_2 = first_run_results, second_run
+            elif first_sample_size == 5:
+                # Already have 5, need 1
+                logger.info("Running second dry run with 1 sample for time estimation")
+                second_run = self.dry_run(
+                    dataset,
+                    1,
+                    runtime_params,
+                    max_concurrency,
+                    enable_time_estimation=False,
+                )
+                dry_run_1, dry_run_2 = second_run, first_run_results
+            else:
+                # For other sizes: run both 1 and 5 for canonical pair
+                logger.info("Running dry runs with 1 and 5 samples for time estimation")
+                dry_run_1 = self.dry_run(
+                    dataset,
+                    1,
+                    runtime_params,
+                    max_concurrency,
+                    enable_time_estimation=False,
+                )
+                dry_run_2 = self.dry_run(
+                    dataset,
+                    5,
+                    runtime_params,
+                    max_concurrency,
+                    enable_time_estimation=False,
+                )
+
+            estimation = estimate_execution_time(
+                dry_run_1=dry_run_1,
+                dry_run_2=dry_run_2,
+                total_dataset_size=len(dataset),
+                max_concurrency=max_concurrency,
+            )
+
+        # Display estimation summary
+        display_time_estimation_summary(estimation, len(dataset), max_concurrency)
+
+        return estimation
 
     def add_block(self, block: BaseBlock) -> "Flow":
         """Add a block to the flow, returning a new Flow instance.
@@ -1120,17 +1319,12 @@ class Flow(BaseModel):
         # Create new flow with added block
         new_blocks = self.blocks + [block]
 
-        return Flow(
-            blocks=new_blocks, metadata=self.metadata, parameters=self.parameters
-        )
+        return Flow(blocks=new_blocks, metadata=self.metadata)
 
     def get_info(self) -> dict[str, Any]:
         """Get information about the flow."""
         return {
             "metadata": self.metadata.model_dump(),
-            "parameters": {
-                name: param.model_dump() for name, param in self.parameters.items()
-            },
             "blocks": [
                 {
                     "block_type": block.__class__.__name__,
@@ -1234,8 +1428,7 @@ class Flow(BaseModel):
 
         The summary contains:
         1. Flow metadata (name, version, author, description)
-        2. Defined runtime parameters with type hints and defaults
-        3. A table of all blocks with their input and output columns
+        2. A table of all blocks with their input and output columns
 
         Notes
         -----
@@ -1268,17 +1461,6 @@ class Flow(BaseModel):
             metadata_branch.add(
                 f"Description: [white]{self.metadata.description}[/white]"
             )
-
-        # Parameters section
-        if self.parameters:
-            params_branch = flow_tree.add(
-                "[bold bright_yellow]Parameters[/bold bright_yellow]"
-            )
-            for name, param in self.parameters.items():
-                param_info = f"[bright_cyan]{name}[/bright_cyan]: [white]{param.type_hint}[/white]"
-                if param.default is not None:
-                    param_info += f" = [bright_white]{param.default}[/bright_white]"
-                params_branch.add(param_info)
 
         # Blocks overview
         flow_tree.add(
@@ -1340,11 +1522,6 @@ class Flow(BaseModel):
                 for block in self.blocks
             ],
         }
-
-        if self.parameters:
-            config["parameters"] = {
-                name: param.model_dump() for name, param in self.parameters.items()
-            }
 
         save_flow_yaml(output_path, config)
 

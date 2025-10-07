@@ -119,7 +119,7 @@ class ColumnValueFilterBlock(BaseBlock):
             self.output_cols = []
 
         # Set derived attributes
-        self.value = (
+        self.filter_value = (
             self.filter_value
             if isinstance(self.filter_value, list)
             else [self.filter_value]
@@ -181,7 +181,8 @@ class ColumnValueFilterBlock(BaseBlock):
         # Apply filter operation
         samples = samples.filter(
             lambda x: any(
-                self._operation_func(x[self.column_name], value) for value in self.value
+                self._operation_func(x[self.column_name], value)
+                for value in self.filter_value
             )
         )
 

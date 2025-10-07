@@ -1,14 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for flow metadata models."""
 
-# Standard
-from datetime import datetime
-
 # Third Party
 from pydantic import ValidationError
 
 # First Party
-from sdg_hub import FlowMetadata, FlowParameter
+from sdg_hub import FlowMetadata
 from sdg_hub.core.flow.metadata import (
     DatasetRequirements,
     ModelCompatibility,
@@ -147,39 +144,6 @@ class TestRecommendedModels:
         assert models.get_best_model(available) is None
 
 
-class TestFlowParameter:
-    """Test FlowParameter class."""
-
-    def test_flow_parameter_creation(self):
-        """Test creating a FlowParameter."""
-        param = FlowParameter(
-            default="test", description="Test parameter", type_hint="str", required=True
-        )
-        assert param.default == "test"
-        assert param.description == "Test parameter"
-        assert param.type_hint == "str"
-        assert param.required is True
-
-    def test_flow_parameter_defaults(self):
-        """Test parameter defaults."""
-        param = FlowParameter(default="test")
-        assert param.description == ""
-        assert param.type_hint == "Any"
-        assert param.required is False
-        assert param.constraints == {}
-
-    def test_flow_parameter_required_validation(self):
-        """Test required parameter validation."""
-        # Required parameter with None default should fail
-        with pytest.raises(ValidationError):
-            FlowParameter(default=None, required=True)
-
-        # Required parameter with non-None default should pass
-        param = FlowParameter(default="value", required=True)
-        assert param.default == "value"
-        assert param.required is True
-
-
 class TestDatasetRequirements:
     """Test DatasetRequirements class."""
 
@@ -270,8 +234,6 @@ class TestFlowMetadata:
             author="Test Author",
             recommended_models=models,
             tags=["test", "example"],
-            estimated_cost="low",
-            estimated_duration="1-2 minutes",
         )
 
         assert metadata.name == "Test Flow"
@@ -282,8 +244,6 @@ class TestFlowMetadata:
             metadata.recommended_models.default == "meta-llama/Llama-3.3-70B-Instruct"
         )
         assert metadata.tags == ["test", "example"]
-        assert metadata.estimated_cost == "low"
-        assert metadata.estimated_duration == "1-2 minutes"
 
     def test_flow_metadata_defaults(self):
         """Test default values."""
@@ -294,8 +254,6 @@ class TestFlowMetadata:
         assert metadata.recommended_models is None
         assert metadata.tags == []
         assert metadata.license == "Apache-2.0"
-        assert metadata.estimated_cost == "medium"
-        assert metadata.estimated_duration == ""
 
     def test_flow_metadata_validation(self):
         """Test metadata validation."""
@@ -306,10 +264,6 @@ class TestFlowMetadata:
         # Invalid version should fail
         with pytest.raises(ValidationError):
             FlowMetadata(name="Test", version="invalid")
-
-        # Invalid cost should fail
-        with pytest.raises(ValidationError):
-            FlowMetadata(name="Test", estimated_cost="invalid")
 
     def test_tags_validation(self):
         """Test tags validation and cleaning."""
@@ -350,20 +304,6 @@ class TestFlowMetadata:
         ]
         assert metadata.recommended_models.experimental == []
 
-    def test_update_timestamp(self):
-        """Test timestamp updating."""
-        metadata = FlowMetadata(name="Test Flow")
-        original_time = metadata.updated_at
-
-        # Small delay to ensure different timestamp
-        # Standard
-        import time
-
-        time.sleep(0.01)
-
-        metadata.update_timestamp()
-        assert metadata.updated_at != original_time
-
     def test_get_best_model(self):
         """Test getting the best model with new format."""
         models = RecommendedModels(
@@ -397,18 +337,6 @@ class TestFlowMetadata:
         empty_metadata = FlowMetadata(name="Empty Flow")
         best = empty_metadata.get_best_model()
         assert best is None
-
-    def test_timestamps_auto_generation(self):
-        """Test automatic timestamp generation."""
-        metadata = FlowMetadata(name="Test Flow")
-
-        # Should have created_at and updated_at
-        assert metadata.created_at != ""
-        assert metadata.updated_at != ""
-
-        # Should be valid ISO format
-        datetime.fromisoformat(metadata.created_at)
-        datetime.fromisoformat(metadata.updated_at)
 
     def test_dataset_requirements_integration(self):
         """Test dataset requirements integration."""

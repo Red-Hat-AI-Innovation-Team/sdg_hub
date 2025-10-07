@@ -67,7 +67,44 @@ for flow_name in all_flows:
 
 ### Getting Flow Information
 
-#TODO: Add flow info example
+Access detailed flow metadata and configuration:
+
+```python
+from sdg_hub.core.flow import FlowRegistry, Flow
+
+# Get metadata for a specific flow
+flow_name = "Advanced Document Grounded Question-Answer Generation Flow for Knowledge Tuning"
+metadata = FlowRegistry.get_flow_metadata(flow_name)
+
+if metadata:
+    print(f"Flow: {metadata.name}")
+    print(f"Version: {metadata.version}")
+    print(f"Author: {metadata.author}")
+    print(f"Description: {metadata.description}")
+    print(f"Tags: {', '.join(metadata.tags)}")
+    print(f"Recommended model: {metadata.recommended_models.get('default', 'Not specified')}")
+
+# Load flow and get detailed information
+flow_path = FlowRegistry.get_flow_path(flow_name)
+flow = Flow.from_yaml(flow_path)
+
+# Get comprehensive flow info
+info = flow.get_info()
+print(f"Total blocks: {info['total_blocks']}")
+print(f"Block sequence: {', '.join(info['block_names'])}")
+
+# Get dataset requirements
+requirements = flow.get_dataset_requirements()
+if requirements:
+    print(f"Required columns: {requirements.required_columns}")
+    print(f"Description: {requirements.description}")
+    print(f"Min samples: {requirements.min_samples}")
+
+# Get model recommendations
+recommendations = flow.get_model_recommendations()
+print(f"Default model: {recommendations.get('default')}")
+print(f"Compatible models: {recommendations.get('compatible', [])}")
+```
 
 ### Getting Flow Paths
 

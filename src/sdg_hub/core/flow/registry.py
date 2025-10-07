@@ -360,7 +360,6 @@ class FlowRegistry:
                     "tags": ", ".join(metadata.tags) if metadata.tags else "-",
                     "description": metadata.description or "No description",
                     "version": metadata.version,
-                    "cost": metadata.estimated_cost,
                 }
             )
 

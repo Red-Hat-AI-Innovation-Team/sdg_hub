@@ -1,5 +1,6 @@
 # Third Party
 from datasets import Dataset, concatenate_datasets
+import numpy as np
 
 # Local
 from .error_handling import FlowValidationError
@@ -19,7 +20,8 @@ def validate_no_duplicates(dataset: Dataset) -> None:
     """
     Validate that the input dataset contains only unique rows.
 
-    Uses pandas `.duplicated()` for efficient duplicate detection.
+    Uses pandas `.duplicated()` for efficient duplicate detection, with preprocessing
+    to handle numpy arrays that cause TypeError in pandas duplicate detection.
     Raises FlowValidationError if duplicates are found, including a count
     of the duplicate rows detected.
 
@@ -33,9 +35,50 @@ def validate_no_duplicates(dataset: Dataset) -> None:
     FlowValidationError
         If duplicate rows are detected in the dataset.
     """
-    df = dataset.to_pandas()
-    duplicate_count = int(df.duplicated(keep="first").sum())
+    if len(dataset) == 0:
+        return
 
+    df = dataset.to_pandas()
+
+    def is_hashable(x):
+        try:
+            hash(x)
+            return True
+        except TypeError:
+            return False
+
+    def make_hashable(x):
+        if is_hashable(x):
+            # int, float, str, bytes, None etc. are already hashable
+            return x
+        if isinstance(x, np.ndarray):
+            if x.ndim == 0:
+                return make_hashable(x.item())
+            return tuple(make_hashable(i) for i in x)
+        if isinstance(x, dict):
+            # sort robustly even with heterogeneous key types
+            return tuple(
+                sorted(
+                    ((k, make_hashable(v)) for k, v in x.items()),
+                    key=lambda kv: repr(kv[0]),
+                )
+            )
+        if isinstance(x, (set, frozenset)):
+            # order‑insensitive
+            return frozenset(make_hashable(i) for i in x)
+        if hasattr(x, "__iter__"):
+            # lists, tuples, custom iterables
+            return tuple(make_hashable(i) for i in x)
+        # last‑resort fallback to a stable representation
+        return repr(x)
+
+    # Apply to the whole dataframe to ensure every cell is hashable
+    if hasattr(df, "map"):
+        df = df.map(make_hashable)
+    else:
+        df = df.applymap(make_hashable)
+
+    duplicate_count = int(df.duplicated(keep="first").sum())
     if duplicate_count > 0:
         raise FlowValidationError(
             f"Input dataset contains {duplicate_count} duplicate rows. "

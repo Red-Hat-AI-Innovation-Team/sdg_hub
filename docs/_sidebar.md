@@ -9,7 +9,6 @@
   * [LLM Blocks](blocks/llm-blocks.md)
   * [Transform Blocks](blocks/transform-blocks.md)
   * [Filtering Blocks](blocks/filtering-blocks.md)
-  * [Evaluation Blocks](blocks/evaluation-blocks.md)
   * [Custom Blocks](blocks/custom-blocks.md)
 
 * **Flow System**

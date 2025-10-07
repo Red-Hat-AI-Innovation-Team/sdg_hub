@@ -29,6 +29,12 @@ def setup_logger(name, log_dir=None, log_filename="sdg_hub.log"):
     logger = logging.getLogger(name)
     logger.setLevel(log_level)
 
+    # Suppress litellm logs to reduce noise
+    litellm_log_level = os.getenv("LITELLM_LOG_LEVEL", "WARNING").upper()
+    logging.getLogger("litellm").setLevel(litellm_log_level)
+    logging.getLogger("litellm.proxy").setLevel(litellm_log_level)
+    logging.getLogger("litellm.router").setLevel(litellm_log_level)
+
     # Prevent duplicate handlers if setup_logger is called multiple times
     if not logger.handlers:
         # Rich console handler

@@ -261,18 +261,73 @@ class BaseBlock(BaseModel, ABC):
         ----------
         samples : Dataset
             Input dataset.
+        **kwargs : Any
+            Runtime parameters to override block configuration
 
         Returns
         -------
         Dataset
             Output dataset after block processing.
         """
-        self._log_input_data(samples)
-        self._validate_dataset(samples)
-        self._validate_custom(samples)
-        output_dataset = self.generate(samples, **kwargs)
-        self._log_output_data(samples, output_dataset)
-        return output_dataset
+        # Handle runtime kwargs overrides
+        if kwargs:
+            # Validate that all kwargs are either valid block fields or flow parameters
+            # Skip validation for blocks that accept arbitrary parameters (extra="allow")
+            allows_extra = self.model_config.get("extra") == "allow"
+            if not allows_extra:
+                for key in kwargs:
+                    if (
+                        not key.startswith("_flow_")
+                        and key not in self.__class__.model_fields
+                    ):
+                        logger.warning(
+                            f"Unknown field '{key}' passed to {self.__class__.__name__}. "
+                            f"This may be a provider-specific parameter or typo. "
+                            f"Valid fields: {list(self.__class__.model_fields.keys())}"
+                        )
+
+            # Only override actual block fields (not flow parameters)
+            block_overrides = {
+                k: v for k, v in kwargs.items() if k in self.__class__.model_fields
+            }
+
+            # Validate and apply block field overrides if any
+            original_values = {}
+            if block_overrides:
+                # Validate the merged configuration for block fields only
+                merged_config = {**self.model_dump(), **block_overrides}
+                try:
+                    self.__class__.model_validate(merged_config)
+                except Exception as e:
+                    raise ValueError(
+                        f"Invalid runtime override for {self.__class__.__name__}: {e}"
+                    ) from e
+
+                # Apply temporary overrides for block fields
+                for key, value in block_overrides.items():
+                    original_values[key] = getattr(self, key)
+                    setattr(self, key, value)
+
+            try:
+                self._log_input_data(samples)
+                self._validate_dataset(samples)
+                self._validate_custom(samples)
+                # Pass ALL kwargs to generate (including flow params)
+                output_dataset = self.generate(samples, **kwargs)
+                self._log_output_data(samples, output_dataset)
+                return output_dataset
+            finally:
+                # Always restore original values for block fields
+                for key, value in original_values.items():
+                    setattr(self, key, value)
+        else:
+            # Normal execution without overrides
+            self._log_input_data(samples)
+            self._validate_dataset(samples)
+            self._validate_custom(samples)
+            output_dataset = self.generate(samples)
+            self._log_output_data(samples, output_dataset)
+            return output_dataset
 
     def __repr__(self) -> str:
         """Compact string representation."""

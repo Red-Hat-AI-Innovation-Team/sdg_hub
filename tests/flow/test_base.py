@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for the base Flow class."""
 
+# ruff: noqa: I001
 # Standard
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -9,13 +10,13 @@ import tempfile
 # Third Party
 from datasets import Dataset
 from pydantic import ValidationError
-
-# First Party
-from sdg_hub import Flow, FlowMetadata, FlowParameter
-from sdg_hub.core.flow.metadata import DatasetRequirements
-from sdg_hub.core.utils.error_handling import EmptyDatasetError, FlowValidationError
 import pytest
 import yaml
+
+# First Party
+from sdg_hub import Flow, FlowMetadata
+from sdg_hub.core.flow.metadata import DatasetRequirements
+from sdg_hub.core.utils.error_handling import EmptyDatasetError, FlowValidationError
 
 
 class TestFlow:
@@ -61,7 +62,6 @@ class TestFlow:
         flow = Flow(blocks=[], metadata=self.test_metadata)
         assert len(flow.blocks) == 0
         assert flow.metadata.name == "Test Flow"
-        assert flow.parameters == {}
 
     def test_flow_creation_with_blocks(self):
         """Test creating a flow with blocks."""
@@ -72,22 +72,6 @@ class TestFlow:
         assert len(flow.blocks) == 2
         assert flow.blocks[0].block_name == "block1"
         assert flow.blocks[1].block_name == "block2"
-
-    def test_flow_creation_with_parameters(self):
-        """Test creating a flow with parameters."""
-        param1 = FlowParameter(default="value1", description="Test param 1")
-        param2 = FlowParameter(default=42, description="Test param 2", required=True)
-
-        flow = Flow(
-            blocks=[],
-            metadata=self.test_metadata,
-            parameters={"param1": param1, "param2": param2},
-        )
-
-        assert len(flow.parameters) == 2
-        assert flow.parameters["param1"].default == "value1"
-        assert flow.parameters["param2"].default == 42
-        assert flow.parameters["param2"].required is True
 
     def test_validate_blocks_invalid_type(self):
         """Test block validation with invalid block type."""
@@ -105,30 +89,6 @@ class TestFlow:
             Flow(blocks=[block1, block2], metadata=self.test_metadata)
 
         assert "Duplicate block name" in str(exc_info.value)
-
-    def test_validate_parameters_invalid_name(self):
-        """Test parameter validation with invalid name."""
-        param = FlowParameter(default="value")
-
-        with pytest.raises(ValidationError) as exc_info:
-            Flow(
-                blocks=[],
-                metadata=self.test_metadata,
-                parameters={"": param},  # Empty name
-            )
-
-        assert "non-empty string" in str(exc_info.value)
-
-    def test_validate_parameters_invalid_type(self):
-        """Test parameter validation with invalid parameter type."""
-        with pytest.raises(ValidationError) as exc_info:
-            Flow(
-                blocks=[],
-                metadata=self.test_metadata,
-                parameters={"param": "not a FlowParameter"},
-            )
-
-        assert "instance of FlowParameter" in str(exc_info.value)
 
     def test_from_yaml_valid_file(self):
         """Test loading flow from valid YAML file."""
@@ -391,6 +351,76 @@ class TestFlow:
 
         assert result["blocks_executed"][0]["parameters_used"]["temperature"] == 0.3
 
+    def test_dry_run_with_max_concurrency(self):
+        """Test dry run with max_concurrency parameter."""
+        block = self.create_mock_llm_block("llm_block")
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        flow._model_config_set = True
+        dataset = Dataset.from_dict({"input": ["test"]})
+
+        # Test with max_concurrency
+        result = flow.dry_run(dataset, sample_size=1, max_concurrency=50)
+
+        # Should store max_concurrency in results
+        assert result["max_concurrency"] == 50
+
+        # Should pass _flow_max_concurrency to LLM blocks
+        assert (
+            "_flow_max_concurrency" in result["blocks_executed"][0]["parameters_used"]
+        )
+        assert (
+            result["blocks_executed"][0]["parameters_used"]["_flow_max_concurrency"]
+            == 50
+        )
+
+    def test_dry_run_max_concurrency_validation(self):
+        """Test dry_run validates max_concurrency parameter."""
+        block = self.create_mock_block("test_block")
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset = Dataset.from_dict({"input": ["test"]})
+
+        # Test with zero value
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.dry_run(dataset, max_concurrency=0)
+        assert "must be greater than 0" in str(exc_info.value)
+
+        # Test with negative value
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.dry_run(dataset, max_concurrency=-1)
+        assert "must be greater than 0" in str(exc_info.value)
+
+        # Test with boolean value
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.dry_run(dataset, max_concurrency=True)
+        assert "must be an int" in str(exc_info.value)
+
+    def test_dry_run_block_execution_failure(self):
+        """Test dry_run exception handling when a block fails during execution."""
+        # Create a block that raises an exception when executed
+        from tests.flow.conftest import MockBlock
+
+        class FailingBlock(MockBlock):
+            """Mock block that raises an exception during execution."""
+
+            def __call__(self, dataset, **kwargs):
+                raise RuntimeError("Block execution failed intentionally")
+
+        failing_block = FailingBlock(block_name="failing_block")
+        flow = Flow(blocks=[failing_block], metadata=self.test_metadata)
+        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+
+        # Should raise FlowValidationError wrapping the original exception
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.dry_run(dataset, sample_size=2)
+
+        # Check that the error message contains information about the failure
+        assert "Dry run failed" in str(exc_info.value)
+        assert "Block execution failed intentionally" in str(exc_info.value)
+
+        # Verify the original exception is chained
+        assert exc_info.value.__cause__ is not None
+        assert isinstance(exc_info.value.__cause__, RuntimeError)
+
     def test_add_block_success(self):
         """Test successfully adding a block."""
         flow = Flow(blocks=[], metadata=self.test_metadata)
@@ -428,12 +458,10 @@ class TestFlow:
         block = self.create_mock_block(
             "test_block", input_cols=["input"], output_cols=["output"]
         )
-        param = FlowParameter(default="test_value", description="Test parameter")
 
         flow = Flow(
             blocks=[block],
             metadata=self.test_metadata,
-            parameters={"test_param": param},
         )
 
         info = flow.get_info()
@@ -441,8 +469,6 @@ class TestFlow:
         assert info["metadata"]["name"] == "Test Flow"
         assert info["total_blocks"] == 1
         assert info["block_names"] == ["test_block"]
-        assert len(info["parameters"]) == 1
-        assert info["parameters"]["test_param"]["default"] == "test_value"
         assert len(info["blocks"]) == 1
         assert info["blocks"][0]["block_name"] == "test_block"
 
@@ -1272,16 +1298,23 @@ class TestFlow:
     def test_generate_with_max_concurrency_limit(self):
         """Test that max_concurrency limits concurrent requests."""
         # Standard
+        from unittest.mock import patch
         import asyncio
 
         active, max_concurrent = [0], [0]
 
-        async def mock_acreate(*args, **kwargs):
+        async def mock_acompletion(*args, **kwargs):
             active[0] += 1
             max_concurrent[0] = max(max_concurrent[0], active[0])
             await asyncio.sleep(0.01)
             active[0] -= 1
-            return "response"
+            # Return mock response in LiteLLM format
+            # Standard
+            from types import SimpleNamespace
+
+            return SimpleNamespace(
+                choices=[SimpleNamespace(message=SimpleNamespace(content="response"))]
+            )
 
         # Use real LLMChatBlock
         # First Party
@@ -1297,12 +1330,17 @@ class TestFlow:
             model="test/model",
             async_mode=True,
         )
-        llm_block.client_manager._acreate_single = mock_acreate
 
         flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
         flow._model_config_set = True
 
-        flow.generate(dataset, max_concurrency=3)
+        # Mock LiteLLM's acompletion function
+        with patch(
+            "sdg_hub.core.blocks.llm.llm_chat_block.acompletion",
+            side_effect=mock_acompletion,
+        ):
+            flow.generate(dataset, max_concurrency=3)
+
         assert max_concurrent[0] <= 3
 
     def test_generate_without_concurrency_limit(self):
@@ -1334,13 +1372,32 @@ class TestFlow:
             model="test/model",
             async_mode=True,
         )
-        llm_block.client_manager._acreate_single = mock_acreate
 
         flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
         flow._model_config_set = True
 
-        flow.generate(dataset)
-        assert max_concurrent[0] == 5
+        # Mock LiteLLM's acompletion function
+        # Standard
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        async def mock_acompletion(*args, **kwargs):
+            active[0] += 1
+            max_concurrent[0] = max(max_concurrent[0], active[0])
+            await asyncio.sleep(0.01)
+            active[0] -= 1
+            # Return mock response in LiteLLM format
+            return SimpleNamespace(
+                choices=[SimpleNamespace(message=SimpleNamespace(content="response"))]
+            )
+
+        with patch(
+            "sdg_hub.core.blocks.llm.llm_chat_block.acompletion",
+            side_effect=mock_acompletion,
+        ):
+            flow.generate(dataset)  # No max_concurrency limit
+
+        assert max_concurrent[0] == 5  # All 5 should run concurrently
 
     def test_generate_max_concurrency_validation(self):
         """Test that max_concurrency parameter validation works correctly."""

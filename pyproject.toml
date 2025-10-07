@@ -72,6 +72,7 @@ examples = [
     "instructor",
     "fastapi",
     "nest-asyncio",
+    "ipykernel",
 ]
 dev = [
     "pre-commit>=3.0.4,<4.0",
@@ -83,7 +84,9 @@ dev = [
     "pytest-html",
     "tox>=4.4.2,<5",
     "ruff",
-    "pytest-env"
+    "pytest-env",
+    # Integration testing dependencies
+    "nbconvert>=7.0.0",
 ]
 
 [tool.setuptools_scm]
@@ -151,4 +154,8 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 env = [
     "LOG_LEVEL=WARNING"
+]
+markers = [
+    "integration: notebook-based end-to-end tests (deselect with '-m \"not integration\"')",
+    "slow: long-running tests (>60 s) (deselect with '-m \"not slow\"')",
 ]

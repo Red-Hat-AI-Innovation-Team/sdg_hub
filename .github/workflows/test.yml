@@ -9,7 +9,8 @@ on:
       - "main"
       - "release-**"
     paths:
-      - '**.py'
+      - 'src/**/*.py'
+      - 'tests/**/*.py'
       - 'pyproject.toml'
       - 'requirements*.txt'
       - 'tox.ini'
@@ -19,7 +20,8 @@ on:
       - "main"
       - "release-**"
     paths:
-      - '**.py'
+      - 'src/**/*.py'
+      - 'tests/**/*.py'
       - 'pyproject.toml'
       - 'requirements*.txt'
       - 'tox.ini'
@@ -37,7 +39,7 @@ permissions:
 
 jobs:
   test:
-    name: "${{ matrix.python }} on ${{ matrix.platform }}"
+    name: "Unit Tests - ${{ matrix.python }} on ${{ matrix.platform }}"
     runs-on: "${{ matrix.platform }}"
     strategy:
       matrix:
@@ -103,6 +105,7 @@ jobs:
       - name: Run unit tests with tox
         run: |
           tox -e py3-unitcov
+
 
       - name: Remove llama-cpp-python from cache
         if: always()

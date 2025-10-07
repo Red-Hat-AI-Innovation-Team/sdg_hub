@@ -16,13 +16,54 @@ from sdg_hub.core.utils.error_handling import BlockValidationError
 import pytest
 
 
+class MockMessage:
+    """Mock message class that behaves like LiteLLM message for dict() conversion."""
+
+    def __init__(self, content):
+        self.content = content
+
+    def __iter__(self):
+        return iter(["content"])
+
+    def __getitem__(self, key):
+        if key == "content":
+            return self.content
+        raise KeyError(key)
+
+    def keys(self):
+        return ["content"]
+
+    def values(self):
+        return [self.content]
+
+    def items(self):
+        return [("content", self.content)]
+
+
+def create_mock_response(contents):
+    """Helper to create a mock response with multiple choices."""
+    mock_response = MagicMock()
+    choices = []
+    if isinstance(contents, str):
+        contents = [contents]
+
+    for content in contents:
+        choice = MagicMock()
+        choice.message = MockMessage(content)
+        choices.append(choice)
+
+    mock_response.choices = choices
+    return mock_response
+
+
 @pytest.fixture
 def mock_litellm_completion():
     """Mock LiteLLM completion function for successful responses."""
-    with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
+    with patch("sdg_hub.core.blocks.llm.llm_chat_block.completion") as mock_completion:
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "<answer>Test response</answer>"
+        choice = MagicMock()
+        choice.message = MockMessage("<answer>Test response</answer>")
+        mock_response.choices = [choice]
         mock_completion.return_value = mock_response
         yield mock_completion
 
@@ -30,12 +71,14 @@ def mock_litellm_completion():
 @pytest.fixture
 def mock_litellm_completion_multiple():
     """Mock LiteLLM completion function for multiple responses (n > 1)."""
-    with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
+    with patch("sdg_hub.core.blocks.llm.llm_chat_block.completion") as mock_completion:
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock(), MagicMock(), MagicMock()]
-        mock_response.choices[0].message.content = "<answer>Response 1</answer>"
-        mock_response.choices[1].message.content = "<answer>Response 2</answer>"
-        mock_response.choices[2].message.content = "<answer>Response 3</answer>"
+        choices = []
+        for i in range(3):
+            choice = MagicMock()
+            choice.message = MockMessage(f"<answer>Response {i + 1}</answer>")
+            choices.append(choice)
+        mock_response.choices = choices
         mock_completion.return_value = mock_response
         yield mock_completion
 
@@ -43,11 +86,13 @@ def mock_litellm_completion_multiple():
 @pytest.fixture
 def mock_litellm_completion_partial():
     """Mock LiteLLM completion that returns some parseable and some unparseable responses."""
-    with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
+    with patch("sdg_hub.core.blocks.llm.llm_chat_block.completion") as mock_completion:
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock(), MagicMock()]
-        mock_response.choices[0].message.content = "<answer>Good response</answer>"
-        mock_response.choices[1].message.content = "Unparseable response"
+        choice1 = MagicMock()
+        choice1.message = MockMessage("<answer>Good response</answer>")
+        choice2 = MagicMock()
+        choice2.message = MockMessage("Unparseable response")
+        mock_response.choices = [choice1, choice2]
         mock_completion.return_value = mock_response
         yield mock_completion
 
@@ -55,10 +100,11 @@ def mock_litellm_completion_partial():
 @pytest.fixture
 def mock_litellm_completion_unparseable():
     """Mock LiteLLM completion that always returns unparseable responses."""
-    with patch("sdg_hub.core.blocks.llm.client_manager.completion") as mock_completion:
+    with patch("sdg_hub.core.blocks.llm.llm_chat_block.completion") as mock_completion:
         mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "No tags in this response"
+        choice = MagicMock()
+        choice.message = MockMessage("No tags in this response")
+        mock_response.choices = [choice]
         mock_completion.return_value = mock_response
         yield mock_completion
 
@@ -285,11 +331,8 @@ class TestLLMChatWithParsingRetryBlockSuccessfulGeneration:
     ):
         """Test successful generation with multiple output columns."""
         # Mock response with multiple tags
-        mock_litellm_completion.return_value.choices[
-            0
-        ].message.content = (
-            "<explanation>This is an explanation</explanation><answer>42</answer>"
-        )
+        content = "<explanation>This is an explanation</explanation><answer>42</answer>"
+        mock_litellm_completion.return_value = create_mock_response(content)
 
         block = LLMChatWithParsingRetryBlock(
             block_name="test_multi_cols",
@@ -311,18 +354,11 @@ class TestLLMChatWithParsingRetryBlockSuccessfulGeneration:
     def test_successful_generation_after_retry(self, sample_dataset):
         """Test successful generation after initial parsing failures."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # First call returns unparseable, second returns parseable
-            mock_response_bad = MagicMock()
-            mock_response_bad.choices = [MagicMock()]
-            mock_response_bad.choices[0].message.content = "No tags here"
-
-            mock_response_good = MagicMock()
-            mock_response_good.choices = [MagicMock()]
-            mock_response_good.choices[
-                0
-            ].message.content = "<answer>Good response</answer>"
+            mock_response_bad = create_mock_response("No tags here")
+            mock_response_good = create_mock_response("<answer>Good response</answer>")
 
             # Alternate between bad and good responses
             mock_completion.side_effect = [
@@ -354,18 +390,15 @@ class TestLLMChatWithParsingRetryBlockSuccessfulGeneration:
     def test_partial_success_accumulation(self, sample_dataset):
         """Test accumulation of partial successes across retries."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # First call returns 1 parseable out of 2, second call returns 1 more
-            mock_response_1 = MagicMock()
-            mock_response_1.choices = [MagicMock(), MagicMock()]
-            mock_response_1.choices[0].message.content = "<answer>First good</answer>"
-            mock_response_1.choices[1].message.content = "Unparseable"
-
-            mock_response_2 = MagicMock()
-            mock_response_2.choices = [MagicMock(), MagicMock()]
-            mock_response_2.choices[0].message.content = "<answer>Second good</answer>"
-            mock_response_2.choices[1].message.content = "Also unparseable"
+            mock_response_1 = create_mock_response(
+                ["<answer>First good</answer>", "Unparseable"]
+            )
+            mock_response_2 = create_mock_response(
+                ["<answer>Second good</answer>", "Also unparseable"]
+            )
 
             mock_completion.side_effect = [mock_response_1, mock_response_2] * 2
 
@@ -391,15 +424,16 @@ class TestLLMChatWithParsingRetryBlockSuccessfulGeneration:
     def test_excess_results_trimming(self, sample_dataset):
         """Test trimming results when exceeding target count."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # Return 3 parseable responses when only 2 are needed
-            mock_response = MagicMock()
-            mock_response.choices = [MagicMock(), MagicMock(), MagicMock()]
-            mock_response.choices[0].message.content = "<answer>Response 1</answer>"
-            mock_response.choices[1].message.content = "<answer>Response 2</answer>"
-            mock_response.choices[2].message.content = "<answer>Response 3</answer>"
-            mock_completion.return_value = mock_response
+            mock_completion.return_value = create_mock_response(
+                [
+                    "<answer>Response 1</answer>",
+                    "<answer>Response 2</answer>",
+                    "<answer>Response 3</answer>",
+                ]
+            )
 
             block = LLMChatWithParsingRetryBlock(
                 block_name="test_trim",
@@ -455,15 +489,12 @@ class TestLLMChatWithParsingRetryBlockMaxRetriesExceeded:
     def test_max_retries_exceeded_partial_success(self, sample_dataset):
         """Test MaxRetriesExceededError when some but not all responses are parsed."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # Always return 1 parseable out of 3 needed
-            mock_response = MagicMock()
-            mock_response.choices = [MagicMock(), MagicMock(), MagicMock()]
-            mock_response.choices[0].message.content = "<answer>Only one good</answer>"
-            mock_response.choices[1].message.content = "Unparseable"
-            mock_response.choices[2].message.content = "Also unparseable"
-            mock_completion.return_value = mock_response
+            mock_completion.return_value = create_mock_response(
+                ["<answer>Only one good</answer>", "Unparseable", "Also unparseable"]
+            )
 
             block = LLMChatWithParsingRetryBlock(
                 block_name="test_partial_failure",
@@ -522,15 +553,12 @@ class TestLLMChatWithParsingRetryBlockMaxRetriesExceeded:
     def test_different_target_counts_per_sample(self, sample_dataset):
         """Test retry logic with runtime n parameter override."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # Return 1 parseable response per call
-            mock_response = MagicMock()
-            mock_response.choices = [MagicMock()]
-            mock_response.choices[
-                0
-            ].message.content = "<answer>Single response</answer>"
-            mock_completion.return_value = mock_response
+            mock_completion.return_value = create_mock_response(
+                "<answer>Single response</answer>"
+            )
 
             block = LLMChatWithParsingRetryBlock(
                 block_name="test_override_n",
@@ -575,7 +603,7 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
     def test_llm_generation_error_handling(self, sample_dataset):
         """Test handling of LLM generation errors."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # First call raises exception, continue to next attempt
             mock_completion.side_effect = [
@@ -605,12 +633,10 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
     def test_mixed_success_failure_across_attempts(self, sample_dataset):
         """Test mixed success/failure scenarios across retry attempts."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # Simulate pattern: error, success, error, success
-            mock_response_good = MagicMock()
-            mock_response_good.choices = [MagicMock()]
-            mock_response_good.choices[0].message.content = "<answer>Success</answer>"
+            mock_response_good = create_mock_response("<answer>Success</answer>")
 
             mock_completion.side_effect = [
                 Exception("First error"),
@@ -696,10 +722,10 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
         assert "openai/gpt-4" in repr_str
         assert "parsing_max_retries=5" in repr_str
 
-    def test_client_manager_reinitialization(self, mock_litellm_completion):
-        """Test reinitializing client manager after model config changes."""
+    def test_parameter_forwarding_to_internal_blocks(self, mock_litellm_completion):
+        """Test parameter forwarding to internal blocks via __setattr__."""
         block = LLMChatWithParsingRetryBlock(
-            block_name="test_reinit",
+            block_name="test_forwarding",
             input_cols="messages",
             output_cols="answer",
             model="openai/gpt-4",
@@ -710,20 +736,18 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
         # Change model configuration (simulates Flow.set_model_config)
         block.model = "anthropic/claude-3-sonnet-20240229"
         block.api_key = "new-api-key"
+        block.temperature = 0.7
 
-        # Reinitialize client manager
-        block._reinitialize_client_manager()
-
-        # Verify internal LLM chat block was updated
+        # Verify internal LLM chat block was updated via __setattr__
         assert block.llm_chat.model == "anthropic/claude-3-sonnet-20240229"
         assert block.llm_chat.api_key == "new-api-key"
+        assert block.llm_chat.temperature == 0.7
 
     def test_regex_parsing_configuration(self, mock_litellm_completion, sample_dataset):
         """Test regex-based parsing configuration and execution."""
         # Mock JSON-like response
-        mock_litellm_completion.return_value.choices[
-            0
-        ].message.content = 'Here is the result: "answer": "42" and more text'
+        content = 'Here is the result: "answer": "42" and more text'
+        mock_litellm_completion.return_value = create_mock_response(content)
 
         block = LLMChatWithParsingRetryBlock(
             block_name="test_regex",
@@ -805,19 +829,17 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
     def test_expand_lists_false_partial_success_with_retry(self, sample_dataset):
         """Test expand_lists=False with partial success requiring retries."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # First call: 2 responses, only 1 parseable
-            mock_response_1 = MagicMock()
-            mock_response_1.choices = [MagicMock(), MagicMock()]
-            mock_response_1.choices[0].message.content = "<answer>First good</answer>"
-            mock_response_1.choices[1].message.content = "Unparseable response"
+            mock_response_1 = create_mock_response(
+                ["<answer>First good</answer>", "Unparseable response"]
+            )
 
             # Second call: 2 responses, only 1 parseable (should reach target of 2)
-            mock_response_2 = MagicMock()
-            mock_response_2.choices = [MagicMock(), MagicMock()]
-            mock_response_2.choices[0].message.content = "<answer>Second good</answer>"
-            mock_response_2.choices[1].message.content = "Also unparseable"
+            mock_response_2 = create_mock_response(
+                ["<answer>Second good</answer>", "Also unparseable"]
+            )
 
             mock_completion.side_effect = [mock_response_1, mock_response_2] * 2
 
@@ -848,14 +870,12 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
     def test_expand_lists_false_max_retries_exceeded(self, sample_dataset):
         """Test expand_lists=False with MaxRetriesExceededError."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # Always return 1 parseable out of 3 needed
-            mock_response = MagicMock()
-            mock_response.choices = [MagicMock(), MagicMock()]
-            mock_response.choices[0].message.content = "<answer>Only one good</answer>"
-            mock_response.choices[1].message.content = "Unparseable"
-            mock_completion.return_value = mock_response
+            mock_completion.return_value = create_mock_response(
+                ["<answer>Only one good</answer>", "Unparseable"]
+            )
 
             block = LLMChatWithParsingRetryBlock(
                 block_name="test_expand_false_failure",
@@ -884,13 +904,11 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
     def test_expand_lists_false_vs_true_comparison(self, sample_dataset):
         """Test that expand_lists=False vs True produce different output structures."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
-            mock_response = MagicMock()
-            mock_response.choices = [MagicMock(), MagicMock()]
-            mock_response.choices[0].message.content = "<answer>Response 1</answer>"
-            mock_response.choices[1].message.content = "<answer>Response 2</answer>"
-            mock_completion.return_value = mock_response
+            mock_completion.return_value = create_mock_response(
+                ["<answer>Response 1</answer>", "<answer>Response 2</answer>"]
+            )
 
             # Test expand_lists=False
             block_false = LLMChatWithParsingRetryBlock(
@@ -937,13 +955,12 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
     def test_expand_lists_flag_restored_on_exception(self, sample_dataset):
         """Test that expand_lists flag is properly restored even when parsing throws an exception."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # Mock successful LLM response
-            mock_response = MagicMock()
-            mock_response.choices = [MagicMock()]
-            mock_response.choices[0].message.content = "<answer>Response</answer>"
-            mock_completion.return_value = mock_response
+            mock_completion.return_value = create_mock_response(
+                "<answer>Response</answer>"
+            )
 
             block = LLMChatWithParsingRetryBlock(
                 block_name="test_flag_restore",
@@ -958,17 +975,13 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
             )
 
             # Verify initial state
-            assert block.text_parser.expand_lists is False
+            assert block.llm_parser.expand_lists is False
 
             # Mock the text parser to throw an exception during generate
-            original_generate = block.text_parser.generate
 
             def mock_generate_with_exception(*args, **kwargs):
-                if (
-                    block.text_parser.expand_lists is True
-                ):  # Only throw when temporarily True
-                    raise ValueError("Simulated parsing exception")
-                return original_generate(*args, **kwargs)
+                # Always throw exception to test exception handling
+                raise ValueError("Simulated parsing exception")
 
             with patch.object(
                 block.text_parser, "generate", side_effect=mock_generate_with_exception
@@ -981,32 +994,22 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
                 with pytest.raises(MaxRetriesExceededError):
                     block.generate(single_dataset)
 
-            # Critical assertion: expand_lists should be back to original False value
-            assert block.text_parser.expand_lists is False
+            # Critical assertion: expand_lists should remain unchanged
+            assert block.llm_parser.expand_lists is False
 
     def test_partial_parses_rejected_expand_lists_false(self, sample_dataset):
         """Test that partial parses (missing some output columns) are rejected when expand_lists=False."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # Mock responses where some have complete parses, others have partial parses
-            mock_response = MagicMock()
-            mock_response.choices = [MagicMock(), MagicMock(), MagicMock()]
-            # Response 1: Complete parse (both explanation and answer)
-            mock_response.choices[
-                0
-            ].message.content = "<explanation>Complete explanation</explanation><answer>Complete answer</answer>"
-            # Response 2: Partial parse (only explanation, missing answer)
-            mock_response.choices[
-                1
-            ].message.content = (
-                "<explanation>Partial explanation</explanation>No answer tag here"
+            mock_completion.return_value = create_mock_response(
+                [
+                    "<explanation>Complete explanation</explanation><answer>Complete answer</answer>",  # Complete
+                    "<explanation>Partial explanation</explanation>No answer tag here",  # Partial - missing answer
+                    "<explanation>Another explanation</explanation><answer>Another answer</answer>",  # Complete
+                ]
             )
-            # Response 3: Another complete parse
-            mock_response.choices[
-                2
-            ].message.content = "<explanation>Another explanation</explanation><answer>Another answer</answer>"
-            mock_completion.return_value = mock_response
 
             block = LLMChatWithParsingRetryBlock(
                 block_name="test_partial_reject",
@@ -1047,13 +1050,11 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
     def test_non_list_columns_preserved_both_modes(self):
         """Test that non-output columns are preserved with correct types in both expand_lists modes."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
-            mock_response = MagicMock()
-            mock_response.choices = [MagicMock(), MagicMock()]
-            mock_response.choices[0].message.content = "<answer>Response 1</answer>"
-            mock_response.choices[1].message.content = "<answer>Response 2</answer>"
-            mock_completion.return_value = mock_response
+            mock_completion.return_value = create_mock_response(
+                ["<answer>Response 1</answer>", "<answer>Response 2</answer>"]
+            )
 
             # Create dataset with various column types that should be preserved
             test_dataset = Dataset.from_dict(
@@ -1144,12 +1145,13 @@ class TestLLMChatWithParsingRetryBlockIntegration:
     def test_full_pipeline_integration(self, mock_litellm_completion, sample_dataset):
         """Test full pipeline integration between LLM and parser blocks."""
         # Configure complex response that tests both blocks
-        mock_litellm_completion.return_value.choices[0].message.content = (
+        content = (
             "Here's my analysis:\n"
             "<explanation>This is a detailed explanation of the problem.</explanation>\n"
             "<answer>The final answer is 42.</answer>\n"
             "Additional text that should be ignored."
         )
+        mock_litellm_completion.return_value = create_mock_response(content)
 
         block = LLMChatWithParsingRetryBlock(
             block_name="test_integration",
@@ -1184,9 +1186,8 @@ class TestLLMChatWithParsingRetryBlockIntegration:
     def test_cleanup_tags_integration(self, mock_litellm_completion, sample_dataset):
         """Test integration with parser cleanup tags using regex parsing."""
         # Use regex parsing since cleanup tags only work with regex, not tag parsing
-        mock_litellm_completion.return_value.choices[
-            0
-        ].message.content = "Answer: This has <br>line breaks</br> to clean"
+        content = "Answer: This has <br>line breaks</br> to clean"
+        mock_litellm_completion.return_value = create_mock_response(content)
 
         block = LLMChatWithParsingRetryBlock(
             block_name="test_cleanup",
@@ -1209,7 +1210,7 @@ class TestLLMChatWithParsingRetryBlockIntegration:
     def test_error_propagation_from_internal_blocks(self, sample_dataset):
         """Test that errors from internal blocks are properly propagated."""
         with patch(
-            "sdg_hub.core.blocks.llm.client_manager.completion"
+            "sdg_hub.core.blocks.llm.llm_chat_block.completion"
         ) as mock_completion:
             # Make LLM block raise a specific error
             from sdg_hub.core.blocks.llm.error_handler import AuthenticationError
