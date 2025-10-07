@@ -444,7 +444,6 @@ class Flow(BaseModel):
         self._block_metrics = []
         run_start = time.perf_counter()
 
-
         # Execute flow with metrics capture, ensuring metrics are always displayed/saved
         final_dataset = None
         execution_successful = False
