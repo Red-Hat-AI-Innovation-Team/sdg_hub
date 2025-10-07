@@ -137,8 +137,12 @@ blocks:
 
   - block_type: RenameColumnsBlock
     block_config:
+      block_name: rename_to_raw_document_column
+      input_cols: {document: raw_document}
+  - block_type: RenameColumnsBlock
+    block_config:
       block_name: rename_to_document_column
-      input_cols: {document: raw_document, summary: document}
+      input_cols: {summary: document}
 
   - block_type: PromptBuilderBlock
     block_config:
