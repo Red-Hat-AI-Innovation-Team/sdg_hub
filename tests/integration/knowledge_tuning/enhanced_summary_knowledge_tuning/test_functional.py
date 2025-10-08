@@ -44,7 +44,7 @@ def test_notebook_execution_and_output_validity(
     test_dir = os.path.dirname(os.path.abspath(__file__))
     test_seed_data = os.path.join(test_dir, "test_data", "test_seed_data.jsonl")
     env["SEED_DATA_PATH"] = test_seed_data
-    env["NUMBER_OF_SUMMARIES"] = "2"  # Generate only 1 summary per document
+    env["NUMBER_OF_SUMMARIES"] = "2"  # Generate only 2 summaries per document
     env["MAX_CONCURRENCY"] = "20"  # Reduce concurrency for testing
 
     # Convert and run
