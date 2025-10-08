@@ -128,11 +128,15 @@ def test_notebook_execution_and_output_validity(
         # For key_facts_to_qa, count unique key facts instead of summaries
         if summary_type == "key_facts_to_qa":
             unique_summaries = (
-                len(set(dataset["key_fact"])) if "key_fact" in dataset.column_names else 0
+                len(set(dataset["key_fact"]))
+                if "key_fact" in dataset.column_names
+                else 0
             )
         else:
             unique_summaries = (
-                len(set(dataset["document"])) if "document" in dataset.column_names else 0
+                len(set(dataset["document"]))
+                if "document" in dataset.column_names
+                else 0
             )
 
         # Calculate summaries/key facts per input document
