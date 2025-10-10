@@ -26,6 +26,22 @@ TEMP_DIR=$(mktemp -d)
 # Create reports directory
 mkdir -p "$REPORTS_DIR"
 
+# --- Function: Add user-site bin directory to PATH ---
+add_user_site_to_path() {
+    # Dynamically find user-site bin directory and add to PATH if it exists
+    local user_bin_dir=""
+    
+    if command -v python3 &> /dev/null; then
+        user_bin_dir=$(python3 -m site --user-base)/bin
+    elif command -v python &> /dev/null; then
+        user_bin_dir=$(python -m site --user-base)/bin
+    fi
+    
+    if [ -n "$user_bin_dir" ] && [ -d "$user_bin_dir" ]; then
+        export PATH=$PATH:$user_bin_dir
+    fi
+}
+
 echo "📂 Script located in: $SCRIPT_DIR"
 echo "🎯 Project root set to: $PROJECT_DIR"
 echo "📊 Reports will be saved to: $REPORTS_DIR"
@@ -74,36 +90,12 @@ if command -v pipreqsnb &> /dev/null; then
         echo "✅ Requirements generated with pipreqsnb"
     else
         echo "⚠️ pipreqsnb failed, trying regular pipreqs on converted files..."
-        # Dynamically find user-site bin directory and add to PATH if it exists
-        if command -v python3 &> /dev/null; then
-            USER_BIN_DIR=$(python3 -m site --user-base)/bin
-        elif command -v python &> /dev/null; then
-            USER_BIN_DIR=$(python -m site --user-base)/bin
-        else
-            USER_BIN_DIR=""
-        fi
-        
-        if [ -n "$USER_BIN_DIR" ] && [ -d "$USER_BIN_DIR" ]; then
-            export PATH=$PATH:$USER_BIN_DIR
-        fi
-        
+        add_user_site_to_path
         pipreqs "$TEMP_DIR" --force --savepath "$TEMP_DIR/requirements.txt" 2>/dev/null || true
     fi
 else
     echo "📋 pipreqsnb not found, using pipreqs on converted Python files..."
-    # Dynamically find user-site bin directory and add to PATH if it exists
-    if command -v python3 &> /dev/null; then
-        USER_BIN_DIR=$(python3 -m site --user-base)/bin
-    elif command -v python &> /dev/null; then
-        USER_BIN_DIR=$(python -m site --user-base)/bin
-    else
-        USER_BIN_DIR=""
-    fi
-    
-    if [ -n "$USER_BIN_DIR" ] && [ -d "$USER_BIN_DIR" ]; then
-        export PATH=$PATH:$USER_BIN_DIR
-    fi
-    
+    add_user_site_to_path
     pipreqs "$TEMP_DIR" --force --savepath "$TEMP_DIR/requirements.txt" 2>/dev/null || true
 fi
 
