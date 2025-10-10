@@ -73,9 +73,13 @@ done
 echo ""
 echo "🔄 Converting notebooks to Python scripts..."
 for notebook in "${notebooks[@]}"; do
-    echo "   - Converting $(basename "$notebook")"
-    if ! jupyter nbconvert --to script "$notebook" --output-dir="$TEMP_DIR" 2>/dev/null; then
-        echo "   ⚠️ Failed to convert $(basename "$notebook"), skipping..."
+    # Calculate relative path by removing PROJECT_DIR prefix and replacing slashes with underscores
+    rel_path="${notebook#$PROJECT_DIR/}"
+    flat_name=$(echo "${rel_path%.ipynb}" | tr '/' '_').py
+    
+    echo "   - Converting $rel_path to $flat_name"
+    if ! jupyter nbconvert --to script "$notebook" --output="${flat_name%.py}" --output-dir="$TEMP_DIR" 2>/dev/null; then
+        echo "   ⚠️ Failed to convert $rel_path, skipping..."
     fi
 done
 
