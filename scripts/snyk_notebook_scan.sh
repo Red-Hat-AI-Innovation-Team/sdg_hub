@@ -38,7 +38,7 @@ add_user_site_to_path() {
     fi
     
     if [ -n "$user_bin_dir" ] && [ -d "$user_bin_dir" ]; then
-        export PATH=$PATH:$user_bin_dir
+        export PATH="$PATH:$user_bin_dir"
     fi
 }
 
