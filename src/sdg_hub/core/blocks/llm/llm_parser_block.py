@@ -331,7 +331,7 @@ class LLMParserBlock(BaseBlock):
         # we convert the data to DF, save it to parquet and then
         # read that parquet into a Dataset object.
         _tmp = pd.DataFrame(new_data)
-        with tempfile.NamedTemporaryFile() as tmp_file:
-          _tmp.to_parquet(tmp_file)
-          ret = Dataset.from_parquet(tmp_file)
+        with tempfile.NamedTemporaryFile(suffix='.parquet', delete=True) as tmp_file:
+          _tmp.to_parquet(tmp_file.name)
+          ret = Dataset.from_parquet(tmp_file.name)
         return ret
