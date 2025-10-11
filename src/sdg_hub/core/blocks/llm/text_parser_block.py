@@ -9,11 +9,11 @@ start/end tags, custom regex patterns, and cleanup operations.
 from typing import Any, Optional
 import re
 import tempfile
+import json
 
 # Third Party
-from datasets import Dataset
+from datasets import Dataset, load_dataset
 from pydantic import Field, field_validator, model_validator
-import pandas as pd
 
 # Local
 from ...utils.logger_config import setup_logger
@@ -322,10 +322,12 @@ class TextParserBlock(BaseBlock):
         # to reduce the memory spike created by `Dataset.from_list`
         # we convert the data to DF, save it to parquet and then
         # read that parquet into a Dataset object.
-        new_data = [None] * len(samples)
-        for i, sample in enumerate(samples): new_data[i] = pd.DataFrame(self._generate(sample))
-        _tmp = pd.concat(new_data, ignore_index=True)
-        with tempfile.NamedTemporaryFile(suffix='.parquet', delete=True) as tmp_file:
-          _tmp.to_parquet(tmp_file.name)
-          ret = Dataset.from_parquet(tmp_file.name)
-        return ret
+        new_data = []
+        for sample in samples:
+            new_data.extend(self._generate(sample))
+        with tempfile.NamedTemporaryFile(suffix='.jsonl', delete=True) as tmp_file:
+            with open(tmp_file.name, 'w') as f:
+                for row in new_data:
+                    f.write(json.dumps(row) + '\n')
+            ret = load_dataset('json', data_files=tmp_file.name, split='train')
+            return ret
