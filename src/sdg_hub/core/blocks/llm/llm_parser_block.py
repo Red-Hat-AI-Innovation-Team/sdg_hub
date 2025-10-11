@@ -322,7 +322,8 @@ class LLMParserBlock(BaseBlock):
         new_data = []
         for sample in samples:
             new_data.extend(self._generate(sample))
-        if len(new_data) == 0: return Dataset.from_list([])
+        if len(new_data) == 0:
+            return Dataset.from_list([])
 
         with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=True) as tmp_file:
             with open(tmp_file.name, "w") as f:
