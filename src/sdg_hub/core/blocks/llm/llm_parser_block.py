@@ -322,9 +322,9 @@ class LLMParserBlock(BaseBlock):
         new_data = []
         for sample in samples:
             new_data.extend(self._generate(sample))
-        with tempfile.NamedTemporaryFile(suffix='.jsonl', delete=True) as tmp_file:
-            with open(tmp_file.name, 'w') as f:
+        with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=True) as tmp_file:
+            with open(tmp_file.name, "w") as f:
                 for row in new_data:
-                    f.write(json.dumps(row) + '\n')
-            ret = load_dataset('json', data_files=tmp_file.name, split='train')
+                    f.write(json.dumps(row) + "\n")
+            ret = load_dataset("json", data_files=tmp_file.name, split="train")
             return ret
