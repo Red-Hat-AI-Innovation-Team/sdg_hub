@@ -7,6 +7,7 @@ This module provides the LLMParserBlock for extracting specific fields
 
 # Standard
 from typing import Any
+import json
 import tempfile
 import json
 

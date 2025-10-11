@@ -7,6 +7,7 @@ start/end tags, custom regex patterns, and cleanup operations.
 
 # Standard
 from typing import Any, Optional
+import json
 import re
 import tempfile
 import json
