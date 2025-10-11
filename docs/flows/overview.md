@@ -292,6 +292,41 @@ print(f"Output columns: {dry_result['final_dataset']['columns']}")
 print(f"Sample output: {dry_result['sample_output']}")
 ```
 
+### Time Estimation
+
+Predict execution time for your full dataset before running:
+
+```python
+# Get dry run results AND time estimation in one call
+result = flow.dry_run(
+    dataset, 
+    sample_size=5, 
+    enable_time_estimation=True,
+    max_concurrency=100
+)
+
+# Time estimation is automatically displayed in a Rich table format
+# The table shows estimated time, total API requests, and per-block breakdowns
+print(f"Dry run completed with {result['sample_size']} samples")
+print(f"Output columns: {result['final_dataset']['columns']}")
+```
+
+**How It Works:**
+
+The estimation uses 2 dry runs to accurately predict execution time:
+- Extracts startup overhead (one-time costs)
+- Calculates per-sample throughput (variable costs)
+- Uses linear regression to separate fixed from variable costs
+
+**Accuracy:**
+- Includes a 20% conservative buffer to account for API variability
+- Typical accuracy: within 15-40% of actual runtime depending on workload
+- Better to finish early than run over time!
+
+**When to Use:**
+- Before processing with your full dataset
+- To identify bottleneck blocks and optimize your pipeline
+
 ### Runtime Parameters
 
 Runtime parameters allow you to customize block behavior at execution time without modifying flow YAML files. You can override global parameters for all blocks or configure specific blocks individually.

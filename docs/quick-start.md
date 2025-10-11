@@ -62,11 +62,14 @@ dataset = Dataset.from_dict({
     'icl_response_3': ['Java provides platform independence and strong object-oriented features.']
 })
 
-# Test with a small sample first (recommended!)
-print("🧪 Running dry run...")
-dry_result = flow.dry_run(dataset, sample_size=1)
+# Test with a small sample AND get time estimate (recommended!)
+print("🧪 Running dry run with time estimation...")
+dry_result = flow.dry_run(dataset, sample_size=5, enable_time_estimation=True, max_concurrency=100)
 print(f"✅ Dry run completed in {dry_result['execution_time_seconds']:.2f}s")
 print(f"📊 Output columns: {list(dry_result['final_dataset']['columns'])}")
+
+# Time estimation is automatically displayed in a Rich table format
+# The table shows estimated time, total API calls, and per-block breakdowns
 ```
 
 ## 📊 Step 3: Generate Synthetic Data

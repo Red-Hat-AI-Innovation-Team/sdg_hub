@@ -8,10 +8,12 @@ start/end tags, custom regex patterns, and cleanup operations.
 # Standard
 from typing import Any, Optional
 import re
+import tempfile
 
 # Third Party
 from datasets import Dataset
 from pydantic import Field, field_validator, model_validator
+import pandas as pd
 
 # Local
 from ...utils.logger_config import setup_logger
@@ -327,9 +329,13 @@ class TextParserBlock(BaseBlock):
 
         new_data = None
         for sample in samples:
-            _tmp = self._generate(sample)
-            if new_data is None:
-                new_data = Dataset.from_list(_tmp)
-            else:
-                for x in _tmp: new_data = new_data.add_item(x)
-        return new_data
+            new_data.extend(self._generate(sample))
+
+        # to reduce the memory spike created by `Dataset.from_list`
+        # we convert the data to DF, save it to parquet and then
+        # read that parquet into a Dataset object.
+        _tmp = pd.DataFrame(new_data)
+        with tempfile.NamedTemporaryFile() as tmp_file:
+          _tmp.to_parquet(tmp_file)
+          ret = Dataset.from_parquet(tmp_file)
+        return ret

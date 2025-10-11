@@ -30,7 +30,7 @@ classifiers = [
 # Core dependencies moved from requirements.txt
 dependencies = [
     "click>=8.1.7,<9.0.0",
-    "datasets>=2.18.0,<4.0.0",
+    "datasets>=4.0.0",
     "httpx>=0.25.0,<1.0.0",
     "jinja2",
     "litellm>=1.73.0,<1.75.0",
