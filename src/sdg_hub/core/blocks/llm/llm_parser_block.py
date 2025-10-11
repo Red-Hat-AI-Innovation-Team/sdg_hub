@@ -323,7 +323,7 @@ class LLMParserBlock(BaseBlock):
         #     new_data.extend(_tmp)
         # return Dataset.from_list(new_data)
 
-        new_data = None
+        new_data = []
         for sample in samples:
             new_data.extend(self._generate(sample))
 
