@@ -319,14 +319,12 @@ class TextParserBlock(BaseBlock):
             logger.warning("No samples to parse, returning empty dataset")
             return Dataset.from_list([])
 
-        new_data = []
-        for sample in samples:
-            new_data.extend(self._generate(sample))
-
         # to reduce the memory spike created by `Dataset.from_list`
         # we convert the data to DF, save it to parquet and then
         # read that parquet into a Dataset object.
-        _tmp = pd.DataFrame(new_data)
+        new_data = [None] * len(samples)
+        for i, sample in enumerate(samples): new_data[i] = pd.DataFrame(self._generate(sample))
+        _tmp = pd.concat(new_data, ignore_index=True)
         with tempfile.NamedTemporaryFile(suffix='.parquet', delete=True) as tmp_file:
           _tmp.to_parquet(tmp_file.name)
           ret = Dataset.from_parquet(tmp_file.name)
