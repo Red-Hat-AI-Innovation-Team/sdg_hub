@@ -237,20 +237,13 @@ def build_messages(raft_record: Dict[str, Any]):
     Output:
       messages: list of {"role": "system"|"user"|"assistant", "content": str}
     """
-    # 1. System message
-    sys_msg = raft_record.get("instruction") or (
-        "You are a domain expert. You must answer questions by first quoting a span "
-        "verbatim from the relevant passage, then giving reasoning, then the final answer. "
-        "Ignore distractor passages."
-    )
-
-    # 2. User message: serialize passages + question
+    # 1. User message: serialize passages + question
     passages = "\n\n".join(
         [f"[Passage {i+1}] {p}" for i, p in enumerate(raft_record["context"])]
     )
     user_msg = f"Passages:\n{passages}\n\nQuestion: {raft_record['question']}"
 
-    # 3. Assistant message: the gold output
+    # 2. Assistant message: the gold output
     assistant_msg = raft_record["answer"]
 
     return {"messages" : [

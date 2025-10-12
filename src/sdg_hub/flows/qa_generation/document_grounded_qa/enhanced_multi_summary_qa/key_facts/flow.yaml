@@ -72,9 +72,13 @@ blocks:
     parsing_pattern: '(?:^|\n)\s*\d+\.\s+(.*?)(?=\n\s*\d+\.\s+|\Z)'
 - block_type: RenameColumnsBlock
   block_config:
-    block_name: rename_to_document_column
+    block_name: rename_to_raw_document_column
     input_cols:
       document: raw_document
+- block_type: RenameColumnsBlock
+  block_config:
+    block_name: rename_to_document_column
+    input_cols:
       atomic_facts: document
 - block_type: PromptBuilderBlock
   block_config:

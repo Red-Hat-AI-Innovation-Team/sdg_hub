@@ -64,6 +64,25 @@ class RenameColumnsBlock(BaseBlock):
         -------
         Dataset
             Dataset with renamed columns.
+
+        Raises
+        ------
+        ValueError
+            If attempting to rename to a column name that already exists.
         """
+        # Check for column name collisions
+        # Strict validation: no target column name can be an existing column name
+        # This prevents chained/circular renames which can be confusing
+        existing_cols = set(samples.column_names)
+        target_cols = set(self.input_cols.values())
+
+        collision = target_cols & existing_cols
+        if collision:
+            raise ValueError(
+                f"Cannot rename to existing column names: {sorted(collision)}. "
+                "Target column names must not already exist in the dataset. "
+                "Chained renames are not supported."
+            )
+
         # Rename columns using HuggingFace datasets method
         return samples.rename_columns(self.input_cols)

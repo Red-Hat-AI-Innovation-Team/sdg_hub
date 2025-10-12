@@ -13,3 +13,21 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c
+        with:
+          role-to-assume: arn:aws:iam::851725220677:role/github-actions-packer-role
+          aws-region: us-east-2
+          role-session-name: github-actions-packer  # For tracking in CloudTrail
+
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@1aa358be5cf73883762b302a3a03abd66e75b232
+
+      - name: Build and create AMI
+        run: |
+          set -euo pipefail
+          cd scripts/packer
+          packer init .
+          packer validate .
+          packer build .

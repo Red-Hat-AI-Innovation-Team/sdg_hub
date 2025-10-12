@@ -86,7 +86,6 @@ The framework is built around a modular block system with **composability at its
   - `transform/`: Data transformation blocks (column operations, text manipulation)
   - `filtering/`: Data filtering blocks with quality thresholds
   - `evaluation/`: Quality evaluation blocks (faithfulness, relevancy assessment)
-  - `deprecated_blocks/`: Legacy blocks maintained for backward compatibility
 
 **Key Benefits**: Type-safe composition, automatic validation, rich logging, and high-performance async processing.
 
@@ -97,7 +96,6 @@ Flows orchestrate multiple blocks into data processing pipelines:
 - **FlowRegistry** (`src/sdg_hub/core/flow/registry.py`): Registry for flow discovery
 - **FlowMetadata** (`src/sdg_hub/core/flow/metadata.py`): Metadata and parameter definitions
 - **FlowValidator** (`src/sdg_hub/core/flow/validation.py`): YAML structure validation
-- **FlowMigration** (`src/sdg_hub/core/flow/migration.py`): Backward compatibility for old flow formats
 
 ### Flow Configuration
 Flows are defined in YAML files with this structure:
@@ -148,11 +146,6 @@ All blocks operate on HuggingFace `datasets.Dataset` objects:
 - Rich logging provides processing summaries
 - Empty dataset handling with appropriate errors
 
-### Backward Compatibility
-The framework maintains compatibility with legacy formats:
-- Deprecated blocks are preserved in `deprecated_blocks/`
-- Flow migration automatically converts old YAML formats
-- Legacy LLMBlocks receive special handling during execution
 
 ## Testing Guidelines
 

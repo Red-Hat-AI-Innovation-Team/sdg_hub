@@ -1,10 +1,10 @@
-"""Tests for the RenameColumns block."""
+"""Tests for the RenameColumnsBlock."""
 
 # Third Party
 from datasets import Dataset
 
 # First Party
-from sdg_hub.core.blocks import RenameColumns
+from sdg_hub.core.blocks.transform.rename_columns import RenameColumnsBlock
 import pytest
 
 
@@ -18,10 +18,10 @@ def test_rename_columns_basic():
     }
     dataset = Dataset.from_dict(data)
 
-    # Initialize the block with column mapping
-    block = RenameColumns(
+    # Initialize the block with column mapping (no chained renames)
+    block = RenameColumnsBlock(
         block_name="test_rename",
-        columns_map={"document": "raw_document", "summary": "document"},
+        input_cols={"document": "raw_document", "summary": "summary_text"},
     )
 
     # Apply the transformation
@@ -29,13 +29,14 @@ def test_rename_columns_basic():
 
     # Verify the results
     assert "raw_document" in result.column_names
-    assert "document" in result.column_names
+    assert "summary_text" in result.column_names
     assert "other" in result.column_names
+    assert "document" not in result.column_names
     assert "summary" not in result.column_names
 
     # Check values are preserved
     assert result["raw_document"] == ["doc1", "doc2"]
-    assert result["document"] == ["sum1", "sum2"]
+    assert result["summary_text"] == ["sum1", "sum2"]
     assert result["other"] == ["other1", "other2"]
 
 
@@ -44,8 +45,8 @@ def test_rename_columns_nonexistent_column():
     data = {"col1": [1, 2]}
     dataset = Dataset.from_dict(data)
 
-    block = RenameColumns(
-        block_name="test_nonexistent", columns_map={"nonexistent": "new_col"}
+    block = RenameColumnsBlock(
+        block_name="test_nonexistent", input_cols={"nonexistent": "new_col"}
     )
 
     # Should raise ValueError when trying to rename non-existent column
@@ -56,18 +57,17 @@ def test_rename_columns_nonexistent_column():
 
 
 def test_rename_columns_overwrite():
-    """Test behavior when renaming to an existing column name."""
+    """Test that renaming to an existing column name raises an error."""
     data = {"col1": [1, 2], "col2": [3, 4]}
     dataset = Dataset.from_dict(data)
 
-    block = RenameColumns(block_name="test_overwrite", columns_map={"col1": "col2"})
+    block = RenameColumnsBlock(block_name="test_overwrite", input_cols={"col1": "col2"})
 
-    result = block.generate(dataset)
-
-    # Verify that col1's values overwrite col2's values
-    assert "col1" not in result.column_names
-    assert "col2" in result.column_names
-    assert result["col2"] == [1, 2]  # Values from col1
+    # Should raise ValueError to prevent creating datasets with duplicate column names
+    with pytest.raises(
+        ValueError, match="Cannot rename to existing column names: \\['col2'\\]"
+    ):
+        block.generate(dataset)
 
 
 def test_rename_columns_preserve_data():
@@ -75,8 +75,8 @@ def test_rename_columns_preserve_data():
     data = {"old_name": ["value1", "value2", "value3"], "other_col": [1, 2, 3]}
     dataset = Dataset.from_dict(data)
 
-    block = RenameColumns(
-        block_name="test_preserve", columns_map={"old_name": "new_name"}
+    block = RenameColumnsBlock(
+        block_name="test_preserve", input_cols={"old_name": "new_name"}
     )
 
     result = block.generate(dataset)

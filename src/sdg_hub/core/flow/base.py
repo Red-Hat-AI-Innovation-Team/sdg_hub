@@ -41,7 +41,6 @@ from ..utils.time_estimator import estimate_execution_time
 from ..utils.yaml_utils import save_flow_yaml
 from .checkpointer import FlowCheckpointer
 from .metadata import DatasetRequirements, FlowMetadata
-from .migration import FlowMigration
 from .validation import FlowValidator
 
 logger = setup_logger(__name__)
@@ -73,8 +72,6 @@ class Flow(BaseModel):
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
     # Private attributes (not serialized)
-    _migrated_runtime_params: dict[str, dict[str, Any]] = {}
-    _llm_client: Any = None  # Only used for backward compatibility with old YAMLs
     _model_config_set: bool = False  # Track if model configuration has been set
     _block_metrics: list[dict[str, Any]] = PrivateAttr(
         default_factory=list
@@ -113,16 +110,13 @@ class Flow(BaseModel):
         return self
 
     @classmethod
-    def from_yaml(cls, yaml_path: str, client: Any = None) -> "Flow":
+    def from_yaml(cls, yaml_path: str) -> "Flow":
         """Load flow from YAML configuration file.
 
         Parameters
         ----------
         yaml_path : str
             Path to the YAML flow configuration file.
-        client : Any, optional
-            LLM client instance. Required for backward compatibility with old format YAMLs
-            that use deprecated LLMBlocks. Ignored for new format YAMLs.
 
         Returns
         -------
@@ -153,21 +147,6 @@ class Flow(BaseModel):
         except yaml.YAMLError as exc:
             raise FlowValidationError(f"Invalid YAML in {yaml_path}: {exc}") from exc
 
-        # Check if this is an old format flow and migrate if necessary
-        migrated_runtime_params = None
-        is_old_format = FlowMigration.is_old_format(flow_config)
-        if is_old_format:
-            logger.info(f"Detected old format flow, migrating: {yaml_path}")
-            if client is None:
-                logger.warning(
-                    "Old format YAML detected but no client provided. LLMBlocks may fail."
-                )
-            flow_config, migrated_runtime_params = FlowMigration.migrate_to_new_format(
-                flow_config, yaml_path
-            )
-            # Save migrated config back to YAML to persist id
-            save_flow_yaml(yaml_path, flow_config, "migrated to new format")
-
         # Validate YAML structure
         validator = FlowValidator()
         validation_errors = validator.validate_yaml_structure(flow_config)
@@ -194,19 +173,6 @@ class Flow(BaseModel):
 
         for i, block_config in enumerate(block_configs):
             try:
-                # Inject client for deprecated LLMBlocks if this is an old format flow
-                if (
-                    is_old_format
-                    and block_config.get("block_type") == "LLMBlock"
-                    and client is not None
-                ):
-                    if "block_config" not in block_config:
-                        block_config["block_config"] = {}
-                    block_config["block_config"]["client"] = client
-                    logger.debug(
-                        f"Injected client for deprecated LLMBlock: {block_config['block_config'].get('block_name')}"
-                    )
-
                 block = cls._create_block_from_config(block_config, yaml_dir)
                 blocks.append(block)
             except Exception as exc:
@@ -228,12 +194,6 @@ class Flow(BaseModel):
                 )
             else:
                 logger.debug(f"Flow already had id: {flow.metadata.id}")
-            # Store migrated runtime params and client for backward compatibility
-            if migrated_runtime_params:
-                flow._migrated_runtime_params = migrated_runtime_params
-            if is_old_format and client is not None:
-                flow._llm_client = client
-
             # Check if this is a flow without LLM blocks
             llm_blocks = flow._detect_llm_blocks()
             if not llm_blocks:
@@ -484,12 +444,6 @@ class Flow(BaseModel):
         self._block_metrics = []
         run_start = time.perf_counter()
 
-        # Merge migrated runtime params with provided ones (provided ones take precedence)
-        merged_runtime_params = self._migrated_runtime_params.copy()
-        if runtime_params:
-            merged_runtime_params.update(runtime_params)
-        runtime_params = merged_runtime_params
-
         # Execute flow with metrics capture, ensuring metrics are always displayed/saved
         final_dataset = None
         execution_successful = False
@@ -647,22 +601,8 @@ class Flow(BaseModel):
             input_cols = set(current_dataset.column_names)
 
             try:
-                # Check if this is a deprecated block and skip validations
-                is_deprecated_block = (
-                    hasattr(block, "__class__")
-                    and hasattr(block.__class__, "__module__")
-                    and "deprecated_blocks" in block.__class__.__module__
-                )
-
-                if is_deprecated_block:
-                    exec_logger.debug(
-                        f"Skipping validations for deprecated block: {block.block_name}"
-                    )
-                    # Call generate() directly to skip validations, but keep the runtime params
-                    current_dataset = block.generate(current_dataset, **block_kwargs)
-                else:
-                    # Execute block with validation and logging
-                    current_dataset = block(current_dataset, **block_kwargs)
+                # Execute block with validation and logging
+                current_dataset = block(current_dataset, **block_kwargs)
 
                 # Validate output
                 if len(current_dataset) == 0:
@@ -724,9 +664,11 @@ class Flow(BaseModel):
         return current_dataset
 
     def _prepare_block_kwargs(
-        self, block: BaseBlock, runtime_params: dict[str, dict[str, Any]]
+        self, block: BaseBlock, runtime_params: Optional[dict[str, dict[str, Any]]]
     ) -> dict[str, Any]:
         """Prepare execution parameters for a block."""
+        if runtime_params is None:
+            return {}
         return runtime_params.get(block.block_name, {})
 
     def set_model_config(
@@ -1114,22 +1056,8 @@ class Flow(BaseModel):
                 if max_concurrency is not None:
                     block_kwargs["_flow_max_concurrency"] = max_concurrency
 
-                # Check if this is a deprecated block and skip validations
-                is_deprecated_block = (
-                    hasattr(block, "__class__")
-                    and hasattr(block.__class__, "__module__")
-                    and "deprecated_blocks" in block.__class__.__module__
-                )
-
-                if is_deprecated_block:
-                    logger.debug(
-                        f"Dry run: Skipping validations for deprecated block: {block.block_name}"
-                    )
-                    # Call generate() directly to skip validations, but keep the runtime params
-                    current_dataset = block.generate(current_dataset, **block_kwargs)
-                else:
-                    # Execute block with validation and logging
-                    current_dataset = block(current_dataset, **block_kwargs)
+                # Execute block with validation and logging
+                current_dataset = block(current_dataset, **block_kwargs)
 
                 block_execution_time = (
                     time.perf_counter() - block_start_time

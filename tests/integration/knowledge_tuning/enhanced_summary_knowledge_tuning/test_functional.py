@@ -44,7 +44,7 @@ def test_notebook_execution_and_output_validity(
     test_dir = os.path.dirname(os.path.abspath(__file__))
     test_seed_data = os.path.join(test_dir, "test_data", "test_seed_data.jsonl")
     env["SEED_DATA_PATH"] = test_seed_data
-    env["NUMBER_OF_SUMMARIES"] = "1"  # Generate only 1 summary per document
+    env["NUMBER_OF_SUMMARIES"] = "2"  # Generate only 2 summaries per document
     env["MAX_CONCURRENCY"] = "20"  # Reduce concurrency for testing
 
     # Convert and run
@@ -100,7 +100,12 @@ def test_notebook_execution_and_output_validity(
         output_folder / "document_based_qa" / "gen.jsonl",
     ]
 
-    # Verify each output file exists and is loadable
+    # Verify each output file exists and is loadable, and collect statistics
+    print("\n" + "=" * 90)
+    print("📊 GENERATED DATA STATISTICS")
+    print("=" * 90)
+
+    stats = {}
     for output_file in expected_outputs:
         assert output_file.exists(), f"Output file not found: {output_file}"
 
@@ -109,6 +114,71 @@ def test_notebook_execution_and_output_validity(
         assert len(dataset) > 0, f"Dataset is empty: {output_file}"
         assert len(dataset.column_names) > 0, f"Dataset has no columns: {output_file}"
 
-        print(
-            f"✓ {output_file.name}: {len(dataset)} records, {len(dataset.column_names)} columns"
+        # Calculate statistics
+        summary_type = output_file.parent.name
+        total_records = len(dataset)
+
+        # Count unique raw documents and generated summaries/key facts
+        unique_raw_docs = (
+            len(set(dataset["raw_document"]))
+            if "raw_document" in dataset.column_names
+            else 0
         )
+
+        # For key_facts_to_qa, count unique key facts instead of summaries
+        if summary_type == "key_facts_to_qa":
+            unique_summaries = (
+                len(set(dataset["key_fact"]))
+                if "key_fact" in dataset.column_names
+                else 0
+            )
+        else:
+            unique_summaries = (
+                len(set(dataset["document"]))
+                if "document" in dataset.column_names
+                else 0
+            )
+
+        # Calculate summaries/key facts per input document
+        summaries_per_doc = (
+            unique_summaries / unique_raw_docs if unique_raw_docs > 0 else 0
+        )
+
+        # Calculate QA pairs per summary/key fact
+        qa_per_summary = total_records / unique_summaries if unique_summaries > 0 else 0
+
+        # Store stats
+        stats[summary_type] = {
+            "summary_type": summary_type.replace("_", " ").title(),
+            "total_qa_pairs": total_records,
+            "unique_raw_docs": unique_raw_docs,
+            "unique_summaries": unique_summaries,
+            "summaries_per_doc": summaries_per_doc,
+            "qa_per_summary": qa_per_summary,
+        }
+
+    # Print statistics table
+    print(
+        f"\n{'Summary Type':<25} {'Q&A Pairs':<12} {'Raw Docs':<12} "
+        f"{'Sum/KeyFacts':<12} {'Per Doc':<10} {'QA/Unit':<10}"
+    )
+    print("-" * 90)
+
+    for summary_type, stat in stats.items():
+        per_doc_str = (
+            f"{stat['summaries_per_doc']:.1f}"
+            if summary_type not in ["document_based_qa"]
+            else "N/A"
+        )
+        print(
+            f"{stat['summary_type']:<25} {stat['total_qa_pairs']:<12} "
+            f"{stat['unique_raw_docs']:<12} {stat['unique_summaries']:<12} "
+            f"{per_doc_str:<10} {stat['qa_per_summary']:<10.1f}"
+        )
+
+    # Print overall summary
+    print("-" * 90)
+    total_qa = sum(s["total_qa_pairs"] for s in stats.values())
+    total_unique_raw = stats.get("extractive_summary", {}).get("unique_raw_docs", 0)
+    print(f"{'TOTAL':<25} {total_qa:<12} {total_unique_raw:<12}")
+    print("=" * 90 + "\n")
