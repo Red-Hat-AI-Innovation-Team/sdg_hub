@@ -116,7 +116,139 @@ metadata:
     max_samples: 10000
 ```
 
-#TODO: Add metadata fields information
+### Metadata Fields Reference
+
+The metadata section supports the following fields for flow configuration:
+
+#### Core Metadata Fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `name` | `string` | Yes | - | Human-readable name of the flow. Must be at least 1 character. |
+| `id` | `string` | No | Auto-generated | Unique identifier for the flow. Auto-generated from name if not provided. Must be lowercase, contain only alphanumeric characters and hyphens, and not start/end with hyphens. |
+| `description` | `string` | No | `""` | Detailed description of what the flow does and its purpose. |
+| `version` | `string` | No | `"1.0.0"` | Semantic version following the format `MAJOR.MINOR.PATCH` (e.g., "1.0.0", "2.1.3-beta"). |
+| `author` | `string` | No | `""` | Name of the flow author or contributor. |
+| `license` | `string` | No | `"Apache-2.0"` | License identifier for the flow (e.g., "Apache-2.0", "MIT", "GPL-3.0"). |
+| `tags` | `List[string]` | No | `[]` | List of tags for categorization and discovery. Tags are automatically converted to lowercase. |
+| `recommended_models` | `RecommendedModels` | No | `None` | Recommended LLM models for optimal flow performance. See below for structure. |
+| `dataset_requirements` | `DatasetRequirements` | No | `None` | Input dataset requirements and validation rules. See below for structure. |
+
+#### RecommendedModels Structure
+
+The `recommended_models` field helps users choose appropriate LLM models for the flow:
+
+```yaml
+recommended_models:
+  default: "meta-llama/Llama-3.3-70B-Instruct"
+  compatible:
+    - "microsoft/phi-4"
+    - "mistralai/Mixtral-8x7B-Instruct-v0.1"
+  experimental:
+    - "google/gemini-pro"
+```
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `default` | `string` | Yes | - | The default model recommended for this flow. This is the primary model users should use. |
+| `compatible` | `List[string]` | No | `[]` | List of models known to work well with this flow. Alternative options with good performance. |
+| `experimental` | `List[string]` | No | `[]` | List of experimental models that may work but haven't been extensively tested with this flow. |
+
+**Model Selection Behavior:**
+
+When the framework needs to select a model, it prioritizes in this order:
+1. `default` model if available
+2. First available model from `compatible` list
+3. First available model from `experimental` list
+
+#### DatasetRequirements Structure
+
+The `dataset_requirements` field validates input datasets and documents expected data format:
+
+```yaml
+dataset_requirements:
+  required_columns:
+    - "document"
+    - "context"
+  optional_columns:
+    - "metadata"
+    - "source"
+  min_samples: 1
+  max_samples: 10000
+  column_types:
+    document: "string"
+    context: "string"
+  description: "Documents with context for Q&A generation"
+```
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `required_columns` | `List[string]` | No | `[]` | Column names that must be present in the input dataset. Flow validation will fail if these are missing. |
+| `optional_columns` | `List[string]` | No | `[]` | Column names that are optional but can enhance flow performance if provided. |
+| `min_samples` | `integer` | No | `1` | Minimum number of samples required in the input dataset. Must be at least 1. |
+| `max_samples` | `integer` | No | `None` | Maximum number of samples to process. Useful for resource management and preventing excessive processing. |
+| `column_types` | `Dict[string, string]` | No | `{}` | Expected data types for specific columns (e.g., "string", "integer", "float"). Used for documentation purposes. |
+| `description` | `string` | No | `""` | Human-readable description of the dataset requirements and expected format. |
+
+**Validation Behavior:**
+
+- The flow will validate the input dataset against `required_columns` before execution
+- Missing required columns will cause the flow to fail with a clear error message
+- Sample count validation ensures the dataset meets `min_samples` and respects `max_samples` if set
+- `max_samples` must be greater than or equal to `min_samples` if both are specified
+
+#### Complete Metadata Example
+
+Here's a comprehensive example using all available metadata fields:
+
+```yaml
+metadata:
+  name: "Advanced Document Q&A Generation"
+  id: "advanced-document-qa-generation"
+  description: |
+    A sophisticated flow that processes documents to generate high-quality
+    question-answer pairs with faithfulness evaluation and quality filtering.
+    Designed for educational content and training data generation.
+  version: "2.1.0"
+  author: "SDG Hub Team"
+  license: "Apache-2.0"
+
+  recommended_models:
+    default: "meta-llama/Llama-3.3-70B-Instruct"
+    compatible:
+      - "microsoft/phi-4"
+      - "mistralai/Mixtral-8x7B-Instruct-v0.1"
+      - "meta-llama/Llama-3.1-70B-Instruct"
+    experimental:
+      - "google/gemini-pro"
+      - "anthropic/claude-3-opus"
+
+  tags:
+    - "question-generation"
+    - "document-processing"
+    - "educational"
+    - "qa-pairs"
+
+  dataset_requirements:
+    required_columns:
+      - "document"
+      - "context"
+    optional_columns:
+      - "domain"
+      - "difficulty_level"
+      - "source_url"
+    min_samples: 10
+    max_samples: 5000
+    column_types:
+      document: "string"
+      context: "string"
+      domain: "string"
+      difficulty_level: "integer"
+    description: |
+      Input dataset should contain documents with contextual information.
+      Each document should be well-formed text suitable for Q&A generation.
+      Optional domain and difficulty_level fields help tailor generation.
+```
 
 ### Blocks Section
 
