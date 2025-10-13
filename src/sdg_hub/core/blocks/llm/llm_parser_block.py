@@ -8,10 +8,11 @@ This module provides the LLMParserBlock for extracting specific fields
 # Standard
 from typing import Any
 
-# Third Party
-import pyarrow as pa
 from datasets import Dataset
 from pydantic import Field, model_validator
+
+# Third Party
+import pyarrow as pa
 
 # Local
 from ...utils.logger_config import setup_logger

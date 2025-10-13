@@ -9,10 +9,11 @@ start/end tags, custom regex patterns, and cleanup operations.
 from typing import Any, Optional
 import re
 
-# Third Party
-import pyarrow as pa
 from datasets import Dataset
 from pydantic import Field, field_validator, model_validator
+
+# Third Party
+import pyarrow as pa
 
 # Local
 from ...utils.logger_config import setup_logger
