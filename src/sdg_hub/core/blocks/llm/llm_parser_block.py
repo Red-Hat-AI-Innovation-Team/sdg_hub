@@ -9,6 +9,7 @@ This module provides the LLMParserBlock for extracting specific fields
 from typing import Any
 
 # Third Party
+import pyarrow as pa
 from datasets import Dataset
 from pydantic import Field, model_validator
 
@@ -317,4 +318,11 @@ class LLMParserBlock(BaseBlock):
         new_data = []
         for sample in samples:
             new_data.extend(self._generate(sample))
-        return Dataset.from_list(new_data)
+
+        # Use PyArrow for efficient Dataset creation
+        # This avoids memory spikes from Dataset.from_list() on large datasets
+        if len(new_data) == 0:
+            return Dataset.from_list([])
+
+        arrow_table = pa.Table.from_pylist(new_data)
+        return Dataset(arrow_table)

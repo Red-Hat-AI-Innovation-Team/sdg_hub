@@ -9,6 +9,7 @@ LLM generation and parsing workflow with automatic retry on parsing failures.
 from typing import Any, Optional
 
 # Third Party
+import pyarrow as pa
 from datasets import Dataset
 from pydantic import ConfigDict, Field, field_validator
 
@@ -683,7 +684,13 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
             },
         )
 
-        return Dataset.from_list(all_results)
+        # Use PyArrow for efficient Dataset creation
+        # This avoids memory spikes from Dataset.from_list() on large datasets
+        if len(all_results) == 0:
+            return Dataset.from_list([])
+
+        arrow_table = pa.Table.from_pylist(all_results)
+        return Dataset(arrow_table)
 
     def _validate_custom(self, dataset: Dataset) -> None:
         """Custom validation for LLMChatWithParsingRetryBlock.
