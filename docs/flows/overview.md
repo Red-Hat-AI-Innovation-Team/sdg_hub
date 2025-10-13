@@ -704,6 +704,221 @@ Checkpoint directories contain:
 - If all samples are completed, Flow skips processing and returns merged results immediately
 - Clean up checkpoint directories manually when no longer needed
 
+## 📊 Flow Metrics and Reporting
+
+SDG Hub automatically tracks and reports detailed execution metrics for every flow run, providing visibility into performance, data transformations, and success/failure status. This built-in monitoring system helps you understand bottlenecks, debug issues, and optimize your pipelines.
+
+### Automatic Metrics Collection
+
+The flow execution system automatically collects comprehensive metrics for each block without any configuration required:
+
+**Collected Metrics:**
+- **Block Identification** - Block name and type for clear tracking
+- **Execution Time** - Precise timing for each block's execution
+- **Row Changes** - Input and output row counts to track data filtering
+- **Column Changes** - Added and removed columns to understand data transformations
+- **Status** - Success or failure status for each block
+- **Error Details** - Full error messages and types when blocks fail
+
+### Rich Console Output
+
+After every flow execution (whether successful or failed), a beautifully formatted summary table is automatically displayed in your terminal using the Rich library:
+
+```python
+from sdg_hub.core.flow import Flow
+from datasets import Dataset
+
+# Load and configure flow
+flow = Flow.from_yaml("path/to/flow.yaml")
+flow.set_model_config(
+    model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
+    api_base="http://localhost:8000/v1"
+)
+
+# Execute flow - metrics displayed automatically at completion
+result = flow.generate(dataset)
+```
+
+**Example Console Output:**
+
+```
+┌─────────────────── Advanced Document Q&A Generation - Complete ───────────────────┐
+│                          Flow Execution Summary                                     │
+│ ┌──────────────────────┬─────────────────┬──────────┬──────────────┬─────────┬──┐│
+│ │ Block Name           │ Type            │ Duration │ Rows         │ Columns │  ││
+│ ├──────────────────────┼─────────────────┼──────────┼──────────────┼─────────┼──┤│
+│ │ backup_document      │ DuplicateCol... │    0.05s │ 100 → 100    │ +1      │ ✓││
+│ │ build_question_...   │ PromptBuilder...│    0.12s │ 100 → 100    │ +1      │ ✓││
+│ │ generate_question    │ LLMChatBlock    │   45.30s │ 100 → 100    │ +1      │ ✓││
+│ │ generate_answer      │ LLMChatBlock    │   78.45s │ 100 → 100    │ +1      │ ✓││
+│ │ eval_faithfulness... │ LLMChatBlock    │   52.20s │ 100 → 100    │ +1      │ ✓││
+│ │ extract_eval_con...  │ LLMParserBlock  │    0.15s │ 100 → 100    │ +2      │ ✓││
+│ │ parse_evaluation     │ TextParserBlock │    0.22s │ 100 → 100    │ +2      │ ✓││
+│ │ filter_faithful      │ ColumnValueF... │    0.08s │ 100 → 87     │ —       │ ✓││
+│ ├──────────────────────┼─────────────────┼──────────┼──────────────┼─────────┼──┤│
+│ │ TOTAL                │ 8 blocks        │  176.57s │ 87 final     │ 9 final │ ✓││
+│ └──────────────────────┴─────────────────┴──────────┴──────────────┴─────────┴──┘│
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Table Columns Explained:**
+
+| Column | Description |
+|--------|-------------|
+| **Block Name** | The unique name of the block as defined in the flow YAML |
+| **Type** | The block class name (e.g., LLMChatBlock, PromptBuilderBlock) |
+| **Duration** | Execution time in seconds for that specific block |
+| **Rows** | Row transformation showing `input_count → output_count` |
+| **Columns** | Column changes: `+N` for added, `-N` for removed, `+N/-M` for both |
+| **Status** | `✓` for success, `✗` for failure |
+
+**Status Indicators:**
+
+The panel border color and title reflect the overall execution status:
+
+- **Green border + "Complete"** - All blocks executed successfully
+- **Red border + "Failed"** - Flow execution failed (exception thrown)
+- **Yellow border + "Partial"** - Some blocks completed but others failed
+
+### JSON Metrics Export
+
+For production workflows, detailed metrics can be automatically saved to JSON files for analysis, monitoring, and debugging:
+
+```python
+# Enable JSON metrics export by providing a log directory
+result = flow.generate(
+    dataset,
+    log_dir="./flow_logs"
+)
+
+# Metrics automatically saved to: ./flow_logs/{flow_name}_{timestamp}_metrics.json
+```
+
+**JSON Structure:**
+
+```json
+{
+  "flow_name": "Advanced Document Q&A Generation",
+  "flow_version": "2.1.0",
+  "execution_timestamp": "20250113_143052",
+  "execution_successful": true,
+  "total_execution_time": 176.57,
+  "total_wall_time": 178.23,
+  "total_blocks": 8,
+  "successful_blocks": 8,
+  "failed_blocks": 0,
+  "block_metrics": [
+    {
+      "block_name": "backup_document",
+      "block_type": "DuplicateColumnsBlock",
+      "execution_time": 0.05,
+      "input_rows": 100,
+      "output_rows": 100,
+      "added_cols": ["original_document"],
+      "removed_cols": [],
+      "status": "success"
+    },
+    {
+      "block_name": "generate_question",
+      "block_type": "LLMChatBlock",
+      "execution_time": 45.30,
+      "input_rows": 100,
+      "output_rows": 100,
+      "added_cols": ["question"],
+      "removed_cols": [],
+      "status": "success"
+    }
+  ]
+}
+```
+
+**JSON Fields Reference:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `flow_name` | string | Human-readable flow name from metadata |
+| `flow_version` | string | Flow version string |
+| `execution_timestamp` | string | Timestamp when execution started (YYYYMMDD_HHMMSS format) |
+| `execution_successful` | boolean | `true` if all blocks succeeded, `false` if any failed |
+| `total_execution_time` | float | Sum of all block execution times in seconds |
+| `total_wall_time` | float | End-to-end wall clock time including overhead |
+| `total_blocks` | integer | Number of blocks in the flow |
+| `successful_blocks` | integer | Count of blocks that executed successfully |
+| `failed_blocks` | integer | Count of blocks that failed |
+| `block_metrics` | array | Detailed metrics for each block (see below) |
+
+**Block Metrics Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `block_name` | string | Unique block identifier |
+| `block_type` | string | Block class name |
+| `execution_time` | float | Block execution duration in seconds |
+| `input_rows` | integer | Number of rows received by the block |
+| `output_rows` | integer | Number of rows produced by the block |
+| `added_cols` | array | List of column names added by this block |
+| `removed_cols` | array | List of column names removed by this block |
+| `status` | string | `"success"` or `"failed"` |
+| `error` | string | Error message (only present if `status` is `"failed"`) |
+| `error_type` | string | Error class name (only present if `status` is `"failed"`) |
+
+### Metrics Aggregation
+
+When using checkpointing with `save_freq`, blocks may execute multiple times on different chunks of data. The metrics system automatically aggregates these executions per block:
+
+- **Execution times** are summed across all chunks
+- **Row counts** are totaled for input and output
+- **Column changes** are merged (duplicates removed)
+- **Status** reflects the worst case (any failure marks the block as failed)
+
+This ensures the metrics summary and JSON export always show a cohesive view of the entire flow execution.
+
+### Use Cases
+
+**Performance Optimization:**
+```python
+# Identify slow blocks for optimization
+result = flow.generate(dataset, log_dir="./optimization_analysis")
+# Review metrics JSON to find blocks with high execution_time
+```
+
+**Data Quality Monitoring:**
+```python
+# Track how filtering affects dataset size
+result = flow.generate(dataset)
+# Check console output for row count changes: "100 → 87" indicates 13 filtered
+```
+
+**Production Monitoring:**
+```python
+# Continuous metrics collection for production pipelines
+for batch in data_batches:
+    result = flow.generate(
+        batch,
+        log_dir=f"./production_metrics/{date}",
+        checkpoint_dir=f"./checkpoints/{batch_id}"
+    )
+# Aggregate metrics JSON files for dashboards and alerting
+```
+
+**Debugging Failed Runs:**
+```python
+# Automatic error capture in metrics
+try:
+    result = flow.generate(dataset, log_dir="./debug_logs")
+except Exception as e:
+    # Metrics JSON contains full error details for failed blocks
+    print(f"Check ./debug_logs for detailed failure metrics")
+```
+
+### Important Notes
+
+- **Always Displayed** - Metrics are shown even if the flow fails, helping debug issues
+- **Zero Configuration** - No setup required, metrics collection is automatic
+- **Minimal Overhead** - Metrics collection adds negligible performance impact
+- **Thread-Safe** - Metrics are properly collected during concurrent block execution
+- **Checkpoint Aware** - Metrics correctly aggregate across checkpointed chunks
+
 ## 🚀 Next Steps
 
 Ready to master the flow system? Explore these detailed guides:
