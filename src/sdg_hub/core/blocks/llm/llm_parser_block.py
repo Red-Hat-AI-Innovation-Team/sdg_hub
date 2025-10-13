@@ -329,5 +329,7 @@ class LLMParserBlock(BaseBlock):
             with open(tmp_file.name, "w") as f:
                 for row in new_data:
                     f.write(json.dumps(row) + "\n")
-            ret = load_dataset("json", data_files=tmp_file.name, split="train", keep_in_memory=True)
+            ret = load_dataset(
+                "json", data_files=tmp_file.name, split="train", keep_in_memory=True
+            )
             return ret
