@@ -76,7 +76,7 @@ examples = [
 ]
 dev = [
     "pre-commit>=3.0.4,<4.0",
-    "pylint>=2.16.2,<4.0",
+    "pylint>=2.16.2,<5.0",
     "pylint-pydantic",
     "pytest",
     "pytest-asyncio",
