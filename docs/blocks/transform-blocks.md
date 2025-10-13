@@ -19,8 +19,8 @@ Maps values based on their position/index, useful for applying transformations b
 ### MeltColumnsBlock
 Reshapes data from wide format to long format, converting multiple columns into key-value pairs.
 
-### UniformColValSetterBlock
-Sets uniform values across specified columns, useful for adding metadata or default values.
+### UniformColumnValueSetter
+Replaces all values in a column with a single statistical aggregate (mode, min, max, mean, or median) computed from the data. Modifies the column in-place, useful for data normalization, creating baseline comparisons, or extracting dominant values.
 
 
 ## 🚀 Next Steps
