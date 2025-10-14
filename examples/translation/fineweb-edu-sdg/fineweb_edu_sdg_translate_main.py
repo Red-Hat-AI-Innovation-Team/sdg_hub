@@ -34,9 +34,6 @@ def load_data():
     return hf_dataset
 
 
-documents = load_data()
-
-
 # Setup model configuration in flow object
 def set_model_config(flow_object):
     model_provider = os.getenv("MODEL_PROVIDER", "hosted_vllm")
@@ -57,6 +54,8 @@ def set_model_config(flow_object):
     elif model_provider == "openai":
         openai_api_key = os.getenv("OPENAI_API_KEY")
         openai_model = os.getenv("OPENAI_MODEL", "openai/gpt-4")
+        if not openai_api_key:
+            raise ValueError("OPENAI_API_KEY is required when MODEL_PROVIDER=openai.")
         flow_object.set_model_config(
             model=openai_model,
             api_key=openai_api_key,
@@ -72,6 +71,10 @@ def set_model_config(flow_object):
         maas_model = os.getenv("MAAS_MODEL")
         maas_api_base = os.getenv("MAAS_API_BASE")
         maas_api_key = os.getenv("MAAS_API_KEY")
+        if not (maas_model and maas_api_base and maas_api_key):
+            raise ValueError(
+                "MAAS_MODEL, MAAS_API_BASE, and MAAS_API_KEY are required when MODEL_PROVIDER=maas."
+            )
         flow_object.set_model_config(
             model=maas_model,
             api_base=maas_api_base,
@@ -80,34 +83,45 @@ def set_model_config(flow_object):
     return flow_object
 
 
-# Load the flow
-flow_path = os.getenv("FLOW_PATH")
-flow = Flow.from_yaml(flow_path)
+if __name__ == "__main__":
+    documents = load_data()
 
-# Get all recommended Models
-recommendations = flow.get_model_recommendations()
-print(f"Compatible models: {recommendations['compatible']}")
-print(f"Experimental models: {recommendations['experimental']}")
+    # Load the flow
+    flow_path = os.getenv("FLOW_PATH")
+    if not flow_path:
+        raise ValueError(
+            "FLOW_PATH is required. Set it in .env before running the notebook."
+        )
+    flow = Flow.from_yaml(flow_path)
 
-# Print the default model
-default_model = flow.get_default_model()
-print(f"Default model: {default_model}")
+    # Get all recommended Models
+    recommendations = flow.get_model_recommendations()
+    print(f"Compatible models: {recommendations['compatible']}")
+    print(f"Experimental models: {recommendations['experimental']}")
 
-# Get runtime parameters
-save_data_path = os.getenv("OUTPUT_DATA_FOLDER", "")
+    # Print the default model
+    default_model = flow.get_default_model()
+    print(f"Default model: {default_model}")
 
-# Set model configuration
-flow = set_model_config(flow)
+    # Get runtime parameters
+    save_data_path = os.getenv("OUTPUT_DATA_FOLDER", "")
 
-# Generate qna pairs data
-translated_data = flow.generate(documents)
+    # Set model configuration
+    flow = set_model_config(flow)
 
-translated_data.to_json(
-    os.path.join(save_data_path, "qna_pairs_translated", "qna.jsonl"),
-    orient="records",
-    lines=True,
-)
+    # Generate qna pairs data
+    translated_data = flow.generate(documents)
 
-print(f"✓ SDG summary: {len(translated_data)} records")
+    out_dir = os.path.join(save_data_path, "qna_pairs_translated")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, "qna.jsonl")
 
-print(f"✓ Columns: {list(translated_data.column_names)}")
+    translated_data.to_json(
+        out_path,
+        orient="records",
+        lines=True,
+    )
+
+    print(f"✓ SDG summary: {len(translated_data)} records")
+
+    print(f"✓ Columns: {list(translated_data.column_names)}")

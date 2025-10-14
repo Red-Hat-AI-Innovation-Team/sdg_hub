@@ -2,7 +2,7 @@
   content: |
     You are given a document and a question whose answer is likely present in the provided document. 
     
-    Generate an answer keeping in mind a Generate an answer that is easy for a school student to understand. Use simple words and short sentences while keeping the meaning correct. The answer should be grounded in the provided document.
+    Generate an answer that is easy for a school student to understand. Use simple words and short sentences while keeping the meaning correct. The answer should be grounded in the provided document.
     Example:
     [Start of Document]The bacterium Micavibrio aeruginosavorus (yellow), leeching on a Pseudomonas aeruginosa bacterium (purple).
     What’s the news: If bacteria had blood, the predatory microbe Micavibrio aeruginosavorus would essentially be a vampire: it subsists by hunting down other bugs, attaching to them, and sucking their life out. For the first time, researchers have sequenced the genome of this strange microorganism, which was first identified decades ago in sewage water. The sequence will help better understand the unique bacterium, which has potential to be used as a “living antibiotic” due to its ability to attack drug-resistant biofilms and its apparent fondness for dining on pathogens.

@@ -34,7 +34,7 @@
     The translation accurately conveys the meaning of the English text without adding or omitting information.
     [End of Explanation]
     [Start of Label]
-    YES
+    ACCURATE
     [End of Label]
 
     Example 2:
@@ -48,7 +48,7 @@
     The translation contains a grammar error. The phrase "किए जा सकते हैं" is incorrect because it uses the plural form "सकते हैं" instead of the singular form "सकता है," which should agree with the singular noun "माइकाविब्रियो एरुगिनोसेवोरस." The meaning is still understandable but grammatically incorrect.
     [End of Explanation]
     [Start of Label]
-    NO
+    INACCURATE
     [End of Label]
 
     Now, based on the above examples and guidelines, determine if the translated text is accurate or not.
