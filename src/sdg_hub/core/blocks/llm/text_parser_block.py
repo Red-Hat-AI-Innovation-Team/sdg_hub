@@ -7,6 +7,7 @@ start/end tags, custom regex patterns, and cleanup operations.
 
 # Standard
 from typing import Any, Optional
+import gc
 import json
 import re
 import tempfile
@@ -332,6 +333,8 @@ class TextParserBlock(BaseBlock):
             with open(tmp_file.name, "w") as f:
                 for row in new_data:
                     f.write(json.dumps(row) + "\n")
+            del new_data
+            gc.collect()
             ret = load_dataset(
                 "json", data_files=tmp_file.name, split="train", keep_in_memory=True
             )
