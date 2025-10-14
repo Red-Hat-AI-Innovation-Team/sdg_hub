@@ -1,0 +1,13 @@
+- role: user
+  content: |
+    You are given a text from the education domain. Translate the given English text snippet into Hindi. Ensure that the translation is accurate, clear, and easy to understand for school students. Keep the meaning intact and do not add or omit any information.
+    
+    Example 1:
+    [Start of Text]Why do researchers believe Micavibrio aeruginosavorus could be used as a "living antibiotic" in medicine?[End of Text]
+    [Start of Translation]शोधकर्ताओं का मानना ​​है कि माइकाविब्रियो एरुगिनोसेवोरस का उपयोग चिकित्सा में "जीवित एंटीबायोटिक" के रूप में क्यों किया जा सकता है?[End of Translation]
+    Example 2:
+    [Start of Text]Researchers think Micavibrio aeruginosavorus could be used as a “living antibiotic” because it hunts and kills harmful bacteria. It can destroy bacteria that cause diseases and can even break down strong biofilms that normal antibiotics can’t easily remove. This makes it useful for fighting drug-resistant germs.[End of Text]
+    [Start of Translation]शोधकर्ताओं का मानना ​​है कि माइकाविब्रियो एरुगिनोसेवोरस को एक "जीवित एंटीबायोटिक" के रूप में इस्तेमाल किया जा सकता है क्योंकि यह हानिकारक बैक्टीरिया का शिकार करके उन्हें मार देता है। यह उन बैक्टीरिया को नष्ट कर सकता है जो रोग पैदा करते हैं और यहाँ तक कि उन मज़बूत बायोफिल्म्स को भी तोड़ सकता है जिन्हें सामान्य एंटीबायोटिक्स आसानी से नहीं हटा पाते। यह इसे दवा-प्रतिरोधी कीटाणुओं से लड़ने में उपयोगी बनाता है।[End of Translation]
+
+    Now translate the following text:
+    [Start of Text]{{answer}}[End of Text]

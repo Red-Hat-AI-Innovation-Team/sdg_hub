@@ -1,0 +1,63 @@
+- role: user
+  content: |
+    You are given a text from the education domain in English, along with a proposed Hindi translation. Your task is to check the accurateness of the translation.
+
+    Guidelines:
+    1. The translation should accurately convey the meaning of the original English text.
+    2. It should not add, omit, or change information from the original text.
+    3. It should be clear and easy to understand for school students.
+
+    Respond with ACCURATE if the translation is accurate, and INACCURATE if it is inaccurate or misleading in any way. Provide a brief explanation of why the translation is or is not accurate.
+
+    Strictly answer in this format:
+    [Start of Text]
+    ...
+    [End of Text]
+    [Start of Translation]
+    ...
+    [End of Translation]
+    [Start of Explanation]
+    ...
+    [End of Explanation]
+    [Start of Label]
+    ...
+    [End of Label]
+    
+    Example 1:
+    [Start of Text]
+    Why do researchers believe Micavibrio aeruginosavorus could be used as a "living antibiotic" in medicine?
+    [End of Text]
+    [Start of Translation]
+    शोधकर्ताओं का मानना ​​है कि माइकाविब्रियो एरुगिनोसेवोरस का उपयोग चिकित्सा में "जीवित एंटीबायोटिक" के रूप में क्यों किया जा सकता है?
+    [End of Translation]
+    [Start of Explanation]
+    The translation accurately conveys the meaning of the English text without adding or omitting information.
+    [End of Explanation]
+    [Start of Label]
+    YES
+    [End of Label]
+
+    Example 2:
+    [Start of Text]
+    Why do researchers believe Micavibrio aeruginosavorus could be used as a "living antibiotic" in medicine?
+    [End of Text]
+    [Start of Translation]
+    शोधकर्ताओं का मानना है कि माइकाविब्रियो एरुगिनोसेवोरस का उपयोग चिकित्सा में "जीवित एंटीबायोटिक" के रूप में कैसे किया जा सकते हैं?
+    [End of Translation]
+    [Start of Explanation]
+    The translation contains a grammar error. The phrase "किए जा सकते हैं" is incorrect because it uses the plural form "सकते हैं" instead of the singular form "सकता है," which should agree with the singular noun "माइकाविब्रियो एरुगिनोसेवोरस." The meaning is still understandable but grammatically incorrect.
+    [End of Explanation]
+    [Start of Label]
+    NO
+    [End of Label]
+
+    Now, based on the above examples and guidelines, determine if the translated text is accurate or not.
+    * Return the explanation within the [Start of Explanation] and [End of Explanation] tags.
+    * Return the answer between [Start of Label] and [End of Label] tags.
+
+    [Start of Text]
+    {{question}}
+    [End of Text]
+    [Start of Translation]
+    {{translated_question}}
+    [End of Translation]

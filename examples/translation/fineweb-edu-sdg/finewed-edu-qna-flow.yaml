@@ -1,0 +1,279 @@
+metadata:
+  name: SDG using Translation
+  description: Translate question and answers using a LLM in English to the target language
+  version: 1.0.0
+  author: Rudra Murthy
+  recommended_models:
+    default: meta-llama/llama-3-3-70b-instruct
+    compatible:
+    - openai/gpt-oss-120b
+    - meta-llama/llama-3-3-70b-instruct
+    - google/gemma-3-27b-it
+  tags:
+  - question-generation
+  - translation
+  dataset_requirements:
+    required_columns:
+    - document
+    description: Input documents for processing
+  id: exact-colt-111
+
+blocks:
+# Build Question Prompt
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: build_question_prompt
+    input_cols:
+    - document
+    output_cols:
+    - question_prompt
+    prompt_config_path: prompts/prompt_question.yaml
+    format_as_messages: true
+# Generate Scenario
+- block_type: LLMChatBlock
+  block_config:
+    block_name: generate_question
+    input_cols:
+    - question_prompt
+    output_cols:
+    - raw_question
+    max_tokens: 4000
+    temperature: 0.8
+    top_p: 1.0
+    async_mode: false
+    n: 2
+- block_type: TextParserBlock
+  block_config:
+    block_name: parse_generated_queries
+    input_cols: raw_question
+    output_cols: question
+    start_tags: [""]
+    end_tags: [""]
+
+# Build Answer Prompt
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: build_answer_prompt
+    input_cols:
+    - document
+    - question
+    output_cols:
+    - answer_prompt
+    prompt_config_path: prompts/prompt_answer.yaml
+    format_as_messages: true
+# Generate Answer
+- block_type: "LLMChatBlock"
+  block_config:
+    block_name: "generate_answer"
+    input_cols: 
+    - answer_prompt
+    output_cols:
+    - answer
+    max_tokens: 4000
+    temperature: 0.8
+    async_mode: false
+
+## Is Question Answerable
+# Build Question Answerable Prompt
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: build_question_answerable_prompt
+    input_cols:
+    - document
+    - question
+    output_cols:
+    - question_answerable_prompt
+    prompt_config_path: prompts/prompt_question_answerable.yaml
+    format_as_messages: true
+- block_type: "LLMChatBlock"
+  block_config:
+    block_name: "generate_question_answerable"
+    input_cols: 
+    - question_answerable_prompt
+    output_cols:
+    - question_answerable
+    max_tokens: 4000
+    temperature: 0.8
+    async_mode: false
+# Text Parser Block
+- block_type: "TextParserBlock"
+  block_config:
+    block_name: "extract_question_answerable"
+    input_cols: question_answerable
+    output_cols:
+    - question_answerable_explanation
+    - question_answerable_score
+    start_tags: ["[Start of Explanation]", "[Start of Answer]"]
+    end_tags: ["[End of Explanation]", "[End of Answer]"]
+# Filter Irrelevant Scenarios
+- block_type: ColumnValueFilterBlock
+  block_config:
+    block_name: drop_question_unanswerable
+    input_cols: question_answerable_score
+    operation: eq
+    filter_value: "YES"
+
+
+## Is Answer Faithful
+# Build Answer Faithful Prompt
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: build_answer_faithful_prompt
+    input_cols:
+    - document
+    - question
+    - answer
+    output_cols:
+    - answer_faithful_prompt
+    prompt_config_path: prompts/prompt_answer_faithful.yaml
+    format_as_messages: true
+- block_type: "LLMChatBlock"
+  block_config:
+    block_name: "generate_answer_faithful"
+    input_cols: 
+    - answer_faithful_prompt
+    output_cols:
+    - answer_faithful
+    max_tokens: 4000
+    temperature: 0.8
+    async_mode: false
+# Text Parser Block
+- block_type: "TextParserBlock"
+  block_config:
+    block_name: "extract_answer_faithful"
+    input_cols: answer_faithful
+    output_cols:
+    - answer_faithful_explanation
+    - answer_faithful_score
+    start_tags: ["[Start of Explanation]", "[Start of Label]"]
+    end_tags: ["[End of Explanation]", "[End of Label]"]
+# Filter Irrelevant Scenarios
+- block_type: ColumnValueFilterBlock
+  block_config:
+    block_name: drop_answer_unfaithful
+    input_cols: answer_faithful_score
+    operation: eq
+    filter_value: "FAITHFUL"
+
+# Translate Question Prompt
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: build_question_translation_prompt
+    input_cols:
+    - question
+    output_cols:
+    - translated_question_prompt
+    prompt_config_path: prompts/prompt_question_translate.yaml
+    format_as_messages: true
+- block_type: "LLMChatBlock"
+  block_config:
+    block_name: "generate_question_translation"
+    input_cols: 
+    - translated_question_prompt
+    output_cols:
+    - translated_question
+    max_tokens: 4000
+    temperature: 0.8
+    async_mode: false
+
+
+## Is Question Translation Accuract?
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: build_question_translation_accurate
+    input_cols:
+    - question
+    - translated_question
+    output_cols:
+    - question_translation_accurate_prompt
+    prompt_config_path: prompts/prompt_question_translation_accurate.yaml
+    format_as_messages: true
+- block_type: "LLMChatBlock"
+  block_config:
+    block_name: "generate_question_translation_accurate"
+    input_cols: 
+    - question_translation_accurate_prompt
+    output_cols:
+    - question_translation_accurate
+    max_tokens: 4000
+    temperature: 0.8
+    async_mode: false
+# Text Parser Block
+- block_type: "TextParserBlock"
+  block_config:
+    block_name: "extract_question_translation_accurate"
+    input_cols: question_translation_accurate
+    output_cols:
+    - question_translation_accurate_explanation
+    - question_translation_accurate_score
+    start_tags: ["[Start of Explanation]", "[Start of Label]"]
+    end_tags: ["[End of Explanation]", "[End of Label]"]
+# Filter Irrelevant Scenarios
+- block_type: ColumnValueFilterBlock
+  block_config:
+    block_name: drop_question_translation_accurate
+    input_cols: question_translation_accurate_score
+    operation: eq
+    filter_value: "ACCURATE"
+
+
+# Translate Answer Prompt
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: build_answer_translation_prompt
+    input_cols:
+    - answer
+    output_cols:
+    - translated_answer_prompt
+    prompt_config_path: prompts/prompt_answer_translate.yaml
+    format_as_messages: true
+- block_type: "LLMChatBlock"
+  block_config:
+    block_name: "generate_answer_translation"
+    input_cols: 
+    - translated_answer_prompt
+    output_cols:
+    - translated_answer
+    max_tokens: 4000
+    temperature: 0.8
+    async_mode: false
+
+
+## Is Answer Translation Accuract?
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: build_answer_translation_accurate
+    input_cols:
+    - answer
+    - translated_answer
+    output_cols:
+    - answer_translation_accurate_prompt
+    prompt_config_path: prompts/prompt_answer_translation_accurate.yaml
+    format_as_messages: true
+- block_type: "LLMChatBlock"
+  block_config:
+    block_name: "generate_answer_translation_accurate"
+    input_cols: 
+    - answer_translation_accurate_prompt
+    output_cols:
+    - answer_translation_accurate
+    max_tokens: 4000
+    temperature: 0.8
+    async_mode: false
+# Text Parser Block
+- block_type: "TextParserBlock"
+  block_config:
+    block_name: "extract_answer_translation_accurate"
+    input_cols: answer_translation_accurate
+    output_cols:
+    - answer_translation_accurate_explanation
+    - answer_translation_accurate_score
+    start_tags: ["[Start of Explanation]", "[Start of Label]"]
+    end_tags: ["[End of Explanation]", "[End of Label]"]
+# Filter Irrelevant Scenarios
+- block_type: ColumnValueFilterBlock
+  block_config:
+    block_name: drop_answer_translation_accurate
+    input_cols: answer_translation_accurate_score
+    operation: eq
+    filter_value: "ACCURATE"

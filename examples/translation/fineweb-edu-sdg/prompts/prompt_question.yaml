@@ -1,0 +1,29 @@
+- role: user
+  content: |
+    You are given a document from education domain. 
+    
+    Generate a question which a student would likely ask. The answer to the question should be present in the provided document. The question should not be more than 50 words. Here is a sample document and a question for your reference.
+    Example:
+    [Start of Document]The bacterium Micavibrio aeruginosavorus (yellow), leeching on a Pseudomonas aeruginosa bacterium (purple).
+    What’s the news: If bacteria had blood, the predatory microbe Micavibrio aeruginosavorus would essentially be a vampire: it subsists by hunting down other bugs, attaching to them, and sucking their life out. For the first time, researchers have sequenced the genome of this strange microorganism, which was first identified decades ago in sewage water. The sequence will help better understand the unique bacterium, which has potential to be used as a “living antibiotic” due to its ability to attack drug-resistant biofilms and its apparent fondness for dining on pathogens.
+    Anatomy of a Vampire:
+    - The bacterium has an interesting multi-stage life history. During its migratory phase it sprouts a single flagellum and goes hunting for prey. Once it find a delectable morsel of bacterium, it attacks and irreversibly attaches to the surface, and sucks out all of the good stuff: carbohydrates, amino acids, proteins, DNA, etc.
+    - Sated, the cell divides in two via binary fission, and the now-depleted host is left for dead.
+    Hungry for Pathogens:
+    - M. aeruginosavorus cannot be grown by itself; it must be cultured along with another bacteria to feed upon. A 2006 study found that it only grew upon three bacterial species, all of which can cause pneumonia-like disease in humans. A more recent study showed that it can prey upon a wider variety of microbes, most of them potentially pathogenic, like E. coli.
+    - These studies also found that M. aeruginosavorus has a knack for disrupting biofilms, the dense collection of bacteria that cause harmful plaques on teeth and medical implants alike, and can be up to 1,000 more resistant to antibiotics than free-swimming bugs.
+    - The bacteria can also swim through viscous fluids like mucous and kills Pseudomonas aeruginosa, the bacterium that can colonize lungs of cystic fibrosis patients and form a glue-like film.
+    - These qualities have caught the eye of researchers who think it could be used as a living antibiotic to treat biofilms and various types of drug-resistant bacteria, which are a growing problem in medicine. Sequencing the organism’s genome is an important step in understanding its biochemistry and how it preys on other microbes.
+    Clues From the Vampire Code:
+    - The new study found that each phase of life involves the use (or expression) of different sets of genes. The migratory/hunting phase involves many segments that code for flagellum formation and genes involved in quorum sensing. The attachment phase involves a wide variety of secreted chemicals and enzymes that facilitate the flow of materials from the host.
+    - Micavibrio aeruginosavorus possesses no genes for amino acid transporters, a rather rare trait only seen in a few other bacterial species that depend heavily upon their host to help them shuttle these vital protein building-blocks. This absence helps explain the bacterium’s dependence on a narrow range of prey, from which it directly steals amino acids. Although it remains unclear exactly how the microbe attaches to and infiltrates other cells.
+    The Future Holds:
+    - The range of microbes upon which Micavibrio aeruginosavorus can survive is expanding; after being kept in laboratory conditions for years it has apparently evolved a more diverse diet. If this expansion continues, that could be a real problem for its use as an antibiotic; it could begin to eat beneficial gut bacteria, for example.
+    - Researchers claim it is harmless to friendly gut microbes, but it hasn’t been tested on all the varieties of bacteria present in humans.
+    - Several important steps must be taken before testing in people, like learning more about what traits makes another bacteria tasty to Micavibrio aeruginosavorus. Researchers speculate the bacterium may need to be genetically altered in order to go after specific pathogens, or to reduce the risk of it causing unforeseen complications.
+    Reference: Zhang Wang, Daniel E Kadouri, Martin Wu. Genomic insights into an obligate epibiotic bacterial predator: Micavibrio aeruginosavorus ARL-13. BMC Genomics, 2011; 12 (1): 453 DOI: 10.1186/1471-2164-12-453
+    Image credit: University of Virginia[End of Document]
+    [Start of Question]Why do researchers believe Micavibrio aeruginosavorus could be used as a "living antibiotic" in medicine?[End of Question]
+    Now, generate a question for the given document below.
+    [Start of Document]{{document}}[End of Document]
+    [Start of Question]
