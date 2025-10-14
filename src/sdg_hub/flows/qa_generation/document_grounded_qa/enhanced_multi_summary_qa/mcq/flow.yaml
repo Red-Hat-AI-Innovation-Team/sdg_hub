@@ -1,0 +1,69 @@
+metadata:
+  name: MCQ Knowledge Tuning Dataset Generation Flow
+  description: Generates multiple choice questions from documents for knowledge tuning. Produces MCQ-style questions with options and answers.
+  version: 2.0.0
+  author: SDG Hub Contributors
+  recommended_models:
+    default: openai/gpt-oss-120b
+    compatible:
+    - meta-llama/Llama-3.3-70B-Instruct
+    - microsoft/phi-4
+    - mistralai/Mixtral-8x7B-Instruct-v0.1
+    experimental: []
+  tags:
+  - knowledge-tuning
+  - document-internalization
+  - question-generation
+  - mcq
+  - multiple-choice
+  license: Apache-2.0
+  dataset_requirements:
+    required_columns:
+    - document
+    - document_outline
+    - domain
+    description: 'Input dataset should contain documents with text content and domain classification. Each document should be substantial enough for meaningful question generation.'
+  output_columns:
+  - mmlubench_question
+  - mmlubench_answer
+  - raw_mcq_output
+  id: mcq-generation-flow
+blocks:
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: mcq_generation_prompt
+    input_cols:
+    - document
+    - document_outline
+    - domain
+    output_cols: mcq_prompt
+    prompt_config_path: mcq_generation.yaml
+    format_as_messages: true
+- block_type: LLMChatBlock
+  block_config:
+    block_name: gen_mmlu_knowledge
+    input_cols: mcq_prompt
+    output_cols: raw_mcq_output
+    max_tokens: 2048
+    temperature: 0
+    n: 1
+    async_mode: true
+- block_type: LLMParserBlock
+  block_config:
+    block_name: extract_mcq
+    input_cols: raw_mcq_output
+    extract_content: true
+    expand_lists: true
+- block_type: TextParserBlock
+  block_config:
+    block_name: parse_mcq
+    input_cols: extract_mcq_content
+    output_cols:
+    - mmlubench_question
+    - mmlubench_answer
+    start_tags:
+    - '[Start of Question]'
+    - '[Start of Answer]'
+    end_tags:
+    - '[End of Question]'
+    - '[End of Answer]'
