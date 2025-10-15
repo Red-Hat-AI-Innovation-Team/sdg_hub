@@ -9,7 +9,6 @@ start/end tags, custom regex patterns, and cleanup operations.
 from typing import Any, Optional
 import json
 import re
-import tempfile
 
 # Third Party
 from datasets import Dataset, load_dataset
@@ -17,6 +16,7 @@ from pydantic import Field, field_validator, model_validator
 
 # Local
 from ...utils.logger_config import setup_logger
+from ...utils.temp_manager import cleanup_path, create_temp_file
 from ..base import BaseBlock
 from ..registry import BlockRegistry
 
@@ -29,6 +29,8 @@ logger = setup_logger(__name__)
     "Parses and post-processes text content using tags or regex patterns",
 )
 class TextParserBlock(BaseBlock):
+    _flow_requires_jsonl_tmp: bool = True
+
     """Block for parsing and post-processing text content.
 
     This block handles text parsing using start/end tags, custom regex patterns,
@@ -319,20 +321,33 @@ class TextParserBlock(BaseBlock):
             logger.warning("No samples to parse, returning empty dataset")
             return Dataset.from_list([])
 
-        with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=True) as tmp_file:
-            rows_written = 0
-            with open(tmp_file.name, "w") as f:
-                for sample in samples:
-                    out = self._generate(sample)
-                    for row in out:
-                        f.write(json.dumps(row) + "\n")
-                        rows_written += 1
+        tmp_jsonl_path = kwargs.get("_flow_tmp_jsonl_path")
+        cleanup_locally = False
 
-            # Check if any rows were written
-            if rows_written == 0:
-                return Dataset.from_list([])
+        if tmp_jsonl_path is None:
+            tmp_jsonl_path = str(
+                create_temp_file(prefix=f"{self.block_name}_text_parser", suffix=".jsonl")
+            )
+            cleanup_locally = True
 
+        rows_written = 0
+        with open(tmp_jsonl_path, "w") as f:
+            for sample in samples:
+                out = self._generate(sample)
+                for row in out:
+                    f.write(json.dumps(row) + "\n")
+                    rows_written += 1
+
+        if rows_written == 0:
+            if cleanup_locally:
+                cleanup_path(tmp_jsonl_path)
+            return Dataset.from_list([])
+
+        try:
             ret = load_dataset(
-                "json", data_files=tmp_file.name, split="train", keep_in_memory=False
+                "json", data_files=tmp_jsonl_path, split="train", keep_in_memory=False
             )
             return ret
+        finally:
+            if cleanup_locally:
+                cleanup_path(tmp_jsonl_path)
