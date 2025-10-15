@@ -317,11 +317,18 @@ class LLMParserBlock(BaseBlock):
             return Dataset.from_list([])
 
         with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=True) as tmp_file:
+            rows_written = 0
             with open(tmp_file.name, "w") as f:
                 for sample in samples:
                     out = self._generate(sample)
                     for row in out:
                         f.write(json.dumps(row) + "\n")
+                        rows_written += 1
+
+            # Check if any rows were written
+            if rows_written == 0:
+                return Dataset.from_list([])
+
             ret = load_dataset(
                 "json", data_files=tmp_file.name, split="train", keep_in_memory=True
             )
