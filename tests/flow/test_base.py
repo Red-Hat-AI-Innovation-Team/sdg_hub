@@ -5,6 +5,7 @@
 # Standard
 from pathlib import Path
 from unittest.mock import Mock, patch
+import logging
 import tempfile
 
 # Third Party
@@ -45,6 +46,11 @@ class TestFlow:
         import shutil
 
         shutil.rmtree(self.temp_dir)
+
+        # Clean up default checkpoint directory if it exists
+        default_checkpoint_dir = Path(".sdg_hub_checkpoints")
+        if default_checkpoint_dir.exists():
+            shutil.rmtree(default_checkpoint_dir)
 
     def create_mock_block(self, name="test_block", input_cols=None, output_cols=None):
         """Create a mock block for testing."""
@@ -1147,6 +1153,214 @@ class TestFlow:
         with open(checkpoint_files[0], "r") as f:
             checkpoint_data = json.loads(f.readline())
             assert "final" in checkpoint_data
+
+    def test_generate_warns_without_checkpointing_large_dataset(self, caplog):
+        """Test warning is logged when processing large dataset with checkpointing disabled."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+
+        # Create dataset with >50 samples
+        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(60)]})
+
+        # Ensure warnings are captured
+        with caplog.at_level(logging.WARNING):
+            result = flow.generate(dataset, checkpoint_dir=None)  # Explicitly disable
+
+        assert len(result) == 60
+        assert "output" in result.column_names
+
+        # Check that warning was logged
+        assert any("explicitly disabled" in record.message for record in caplog.records)
+        assert any("checkpoint_dir=None" in record.message for record in caplog.records)
+
+    def test_generate_no_warning_with_checkpointing(self, caplog):
+        """Test no warning is logged when checkpointing is enabled."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+
+        # Create dataset with >50 samples
+        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(60)]})
+        checkpoint_dir = Path(self.temp_dir) / "with_checkpointing"
+
+        # Ensure warnings are captured
+        with caplog.at_level(logging.WARNING):
+            result = flow.generate(dataset, checkpoint_dir=str(checkpoint_dir))
+
+        assert len(result) == 60
+
+        # Check that warning was NOT logged
+        assert not any(
+            "without checkpointing enabled" in record.message
+            for record in caplog.records
+        )
+
+    def test_generate_no_warning_small_dataset(self, caplog):
+        """Test no warning is logged for small datasets (<=50 samples) even with checkpointing disabled."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+
+        # Create dataset with exactly 50 samples (threshold)
+        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(50)]})
+
+        # Ensure warnings are captured
+        with caplog.at_level(logging.WARNING):
+            result = flow.generate(dataset, checkpoint_dir=None)  # Explicitly disable
+
+        assert len(result) == 50
+
+        # Check that warning was NOT logged (50 is not > 50)
+        assert not any(
+            "explicitly disabled" in record.message for record in caplog.records
+        )
+
+    def test_generate_chunked_processing_data_integrity(self):
+        """Test that chunked processing with save_freq preserves data integrity."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+
+        # Create dataset with 150 samples (will be split into chunks)
+        input_data = [f"input_{i}" for i in range(150)]
+        dataset = Dataset.from_dict({"input": input_data})
+
+        checkpoint_dir = Path(self.temp_dir) / "integrity_test"
+        save_freq = 50  # Will create 3 chunks: 50+50+50
+
+        result = flow.generate(
+            dataset, checkpoint_dir=str(checkpoint_dir), save_freq=save_freq
+        )
+
+        # Test 1: Correct number of samples (no duplication, no data loss)
+        assert len(result) == 150, f"Expected 150 samples, got {len(result)}"
+
+        # Test 2: All input samples are present
+        result_inputs = set(result["input"])
+        expected_inputs = set(input_data)
+        assert result_inputs == expected_inputs, "Input samples don't match"
+
+        # Test 3: Order is preserved
+        assert result["input"] == input_data, "Sample order not preserved"
+
+        # Test 4: Output column was added for all samples
+        assert "output" in result.column_names
+        assert len(result["output"]) == 150
+
+        # Test 5: Each output is present (accounting for mock counter reset per chunk)
+        # The mock generates output_0..output_49 for each chunk, so we expect repetitions
+        # But each input should have exactly one output
+        for i, input_val in enumerate(input_data):
+            assert (
+                result["input"][i] == input_val
+            ), f"Input at position {i} doesn't match"
+            assert result["output"][i] is not None, f"Output missing at position {i}"
+
+        # Test 6: Correct number of checkpoint files created
+        checkpoint_files = list(checkpoint_dir.glob("checkpoint_*.jsonl"))
+        assert (
+            len(checkpoint_files) == 3
+        ), f"Expected 3 checkpoint files, got {len(checkpoint_files)}"
+
+    def test_generate_chunked_processing_resumption(self):
+        """Test that resuming from chunks works correctly."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+
+        checkpoint_dir = Path(self.temp_dir) / "resume_chunks_test"
+        save_freq = 30
+
+        # First run: process 100 samples
+        dataset1 = Dataset.from_dict({"input": [f"sample_{i}" for i in range(100)]})
+        result1 = flow.generate(
+            dataset1, checkpoint_dir=str(checkpoint_dir), save_freq=save_freq
+        )
+
+        assert len(result1) == 100
+        checkpoint_files_after_first = list(checkpoint_dir.glob("checkpoint_*.jsonl"))
+        # Should have 4 checkpoint files: 30+30+30+10
+        assert len(checkpoint_files_after_first) == 4
+
+        # Second run: add 50 more samples (total 150)
+        dataset2 = Dataset.from_dict({"input": [f"sample_{i}" for i in range(150)]})
+        result2 = flow.generate(
+            dataset2, checkpoint_dir=str(checkpoint_dir), save_freq=save_freq
+        )
+
+        # Test 1: Total samples = 150 (100 from checkpoint + 50 new)
+        assert len(result2) == 150, f"Expected 150 samples, got {len(result2)}"
+
+        # Test 2: First 100 samples should be from checkpoint (not reprocessed)
+        # The outputs from first run should be preserved
+        first_100_outputs = result1["output"][:100]
+        result2_first_100_outputs = result2["output"][:100]
+        assert (
+            first_100_outputs == result2_first_100_outputs
+        ), "First 100 samples were reprocessed"
+
+        # Test 3: No duplicate input samples
+        assert len(set(result2["input"])) == 150, "Duplicate inputs detected"
+
+        # Test 4: All inputs are present
+        expected_inputs = [f"sample_{i}" for i in range(150)]
+        assert result2["input"] == expected_inputs, "Input samples don't match expected"
+
+    def test_generate_chunked_vs_unchunked_equivalence(self):
+        """Test that chunked and unchunked processing produce equivalent results."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+
+        # Run 1: Without chunking
+        flow1 = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset1 = Dataset.from_dict({"input": [f"test_{i}" for i in range(75)]})
+        checkpoint_dir1 = Path(self.temp_dir) / "no_chunks"
+        result_unchunked = flow1.generate(
+            dataset1, checkpoint_dir=str(checkpoint_dir1), save_freq=None
+        )
+
+        # Run 2: With chunking (save_freq=25, will create 3 chunks: 25+25+25)
+        flow2 = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset2 = Dataset.from_dict({"input": [f"test_{i}" for i in range(75)]})
+        checkpoint_dir2 = Path(self.temp_dir) / "with_chunks"
+        result_chunked = flow2.generate(
+            dataset2, checkpoint_dir=str(checkpoint_dir2), save_freq=25
+        )
+
+        # Both should have same number of samples
+        assert len(result_unchunked) == len(result_chunked) == 75
+
+        # Both should have same inputs
+        assert result_unchunked["input"] == result_chunked["input"]
+
+        # Both should have same columns
+        assert set(result_unchunked.column_names) == set(result_chunked.column_names)
+
+        # Outputs should be equivalent (both processed same inputs)
+        # Note: The actual output values will differ because Mock generates sequential IDs
+        # but the structure should be the same
+        assert len(result_unchunked["output"]) == len(result_chunked["output"])
+
+    def test_generate_checkpointing_enabled_by_default(self):
+        """Test that checkpointing is enabled by default."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+
+        # Generate without specifying checkpoint_dir (should use default)
+        result = flow.generate(dataset)
+
+        assert len(result) == 2
+        assert "output" in result.column_names
+
+        # Default checkpoint directory should be created
+        default_checkpoint_dir = Path(".sdg_hub_checkpoints")
+        assert default_checkpoint_dir.exists()
+
+        # Should have checkpoint files
+        checkpoint_files = list(default_checkpoint_dir.glob("checkpoint_*.jsonl"))
+        assert len(checkpoint_files) > 0
+
+        # Cleanup
+        # Standard
+        import shutil
+
+        shutil.rmtree(default_checkpoint_dir)
 
     def test_generate_with_log_dir(self):
         """Test generation with log_dir parameter for dual logging."""

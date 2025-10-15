@@ -84,6 +84,9 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 
+# SDG Hub checkpoints
+.sdg_hub_checkpoints/
+
 # Integration test artifacts
 tests/integration/**/converted_scripts/
 tests/integration/**/test_output/

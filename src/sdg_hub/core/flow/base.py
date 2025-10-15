@@ -289,7 +289,7 @@ class Flow(BaseModel):
         self,
         dataset: Dataset,
         runtime_params: Optional[dict[str, dict[str, Any]]] = None,
-        checkpoint_dir: Optional[str] = None,
+        checkpoint_dir: str = ".sdg_hub_checkpoints",
         save_freq: Optional[int] = None,
         log_dir: Optional[str] = None,
         max_concurrency: Optional[int] = None,
@@ -309,11 +309,12 @@ class Flow(BaseModel):
                 "block_name": {"param1": value1, "param2": value2},
                 "other_block": {"param3": value3}
             }
-        checkpoint_dir : Optional[str], optional
-            Directory to save/load checkpoints. If provided, enables checkpointing.
+        checkpoint_dir : str, optional
+            Directory to save/load checkpoints. Defaults to '.sdg_hub_checkpoints'.
+            Set to None to disable checkpointing.
         save_freq : Optional[int], optional
             Number of completed samples after which to save a checkpoint.
-            If None, only saves final results when checkpointing is enabled.
+            If None (default), only saves final results when checkpointing is enabled.
         log_dir : Optional[str], optional
             Directory to save execution logs. If provided, logs will be written to both
             console and a log file in this directory. Maintains backward compatibility
@@ -400,6 +401,14 @@ class Flow(BaseModel):
         if max_concurrency is not None:
             logger.info(f"Using max_concurrency={max_concurrency} for LLM requests")
 
+        # Warn if processing large dataset without checkpointing
+        if checkpoint_dir is None and len(dataset) > 50:
+            logger.warning(
+                f"Processing {len(dataset)} samples with checkpointing explicitly disabled (checkpoint_dir=None). "
+                f"This may lead to memory issues with large datasets. "
+                f"Consider enabling checkpointing with default settings or custom directory."
+            )
+
         # Initialize checkpointer if enabled
         checkpointer = None
         completed_dataset = None
@@ -475,14 +484,9 @@ class Flow(BaseModel):
                 checkpointer.save_final_checkpoint()
 
                 # Load all processed chunks from checkpoint files
+                # Note: When using save_freq, all samples (both from previous runs and current run)
+                # are saved to checkpoint files. load_all_completed_samples() loads ALL checkpoints, including current chunk.
                 final_dataset = checkpointer.load_all_completed_samples()
-
-                # Combine with previously completed samples if any
-                if completed_dataset:
-                    final_dataset = safe_concatenate_with_validation(
-                        [completed_dataset, final_dataset],
-                        "completed checkpoint data with newly processed data",
-                    )
 
             else:
                 # Process entire dataset at once
