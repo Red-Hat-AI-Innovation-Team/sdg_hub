@@ -298,11 +298,41 @@ class TestFlowCheckpointer:
         checkpointer.add_completed_samples(checkpoint2_data)
 
         # Load all completed samples
-        completed = checkpointer._load_completed_samples()
+        completed = checkpointer.load_all_completed_samples()
 
         assert len(completed) == 4
         assert set(completed["input"]) == {"test1", "test2", "test3", "test4"}
         assert set(completed["output"]) == {"result1", "result2", "result3", "result4"}
+
+    def test_load_all_completed_samples_public_method(self):
+        """Test the public load_all_completed_samples() method."""
+        checkpointer = FlowCheckpointer(
+            checkpoint_dir=self.temp_dir, save_freq=2, flow_id=self.flow_id
+        )
+
+        # Test 1: No checkpoints exist
+        result = checkpointer.load_all_completed_samples()
+        assert result is None
+
+        # Test 2: Add some samples and verify they can be loaded
+        data1 = Dataset.from_dict({"input": ["a", "b"], "output": ["x", "y"]})
+        checkpointer.add_completed_samples(data1)
+
+        result = checkpointer.load_all_completed_samples()
+        assert result is not None
+        assert len(result) == 2
+        assert set(result["input"]) == {"a", "b"}
+        assert set(result["output"]) == {"x", "y"}
+
+        # Test 3: Add more samples and verify all are loaded
+        data2 = Dataset.from_dict({"input": ["c", "d"], "output": ["z", "w"]})
+        checkpointer.add_completed_samples(data2)
+
+        result = checkpointer.load_all_completed_samples()
+        assert result is not None
+        assert len(result) == 4
+        assert set(result["input"]) == {"a", "b", "c", "d"}
+        assert set(result["output"]) == {"x", "y", "z", "w"}
 
     def test_load_corrupted_checkpoint(self):
         """Test handling corrupted checkpoint files."""
@@ -323,7 +353,7 @@ class TestFlowCheckpointer:
             f.write("invalid json content")
 
         # Should still load the good checkpoint and warn about the bad one
-        completed = checkpointer._load_completed_samples()
+        completed = checkpointer.load_all_completed_samples()
 
         # Should get the good data (may be None if all checkpoints failed to load)
         if completed is not None:

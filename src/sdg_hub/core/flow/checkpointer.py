@@ -103,7 +103,7 @@ class FlowCheckpointer:
                 return input_dataset, None
 
             # Load all completed samples from checkpoints
-            completed_dataset = self._load_completed_samples()
+            completed_dataset = self.load_all_completed_samples()
             if completed_dataset is None or len(completed_dataset) == 0:
                 logger.info("No completed samples found in checkpoints")
                 return input_dataset, None
@@ -207,8 +207,15 @@ class FlowCheckpointer:
             logger.warning(f"Failed to load metadata: {exc}")
             return None
 
-    def _load_completed_samples(self) -> Optional[Dataset]:
-        """Load all completed samples from checkpoint files."""
+    def load_all_completed_samples(self) -> Optional[Dataset]:
+        """Load all completed samples from checkpoint files.
+
+        Returns
+        -------
+        Optional[Dataset]
+            Dataset containing all completed samples from checkpoint files,
+            or None if no checkpoints exist.
+        """
         checkpoint_files = []
         checkpoint_dir = Path(self.checkpoint_dir)
 

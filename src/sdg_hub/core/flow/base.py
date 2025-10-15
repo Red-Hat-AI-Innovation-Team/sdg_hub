@@ -451,8 +451,6 @@ class Flow(BaseModel):
         try:
             # Process dataset in chunks if checkpointing with save_freq
             if checkpointer and save_freq:
-                all_processed = []
-
                 # Process in chunks of save_freq
                 for i in range(0, len(dataset), save_freq):
                     chunk_end = min(i + save_freq, len(dataset))
@@ -466,21 +464,21 @@ class Flow(BaseModel):
                     processed_chunk = self._execute_blocks_on_dataset(
                         chunk_dataset, runtime_params, flow_logger, max_concurrency
                     )
-                    all_processed.append(processed_chunk)
 
                     # Save checkpoint after chunk completion
                     checkpointer.add_completed_samples(processed_chunk)
 
+                    # Explicitly free processed chunk to reduce memory footprint
+                    del processed_chunk
+
                 # Save final checkpoint for any remaining samples
                 checkpointer.save_final_checkpoint()
 
-                # Combine all processed chunks
-                final_dataset = safe_concatenate_with_validation(
-                    all_processed, "processed chunks from flow execution"
-                )
+                # Load all processed chunks from checkpoint files
+                final_dataset = checkpointer.load_all_completed_samples()
 
                 # Combine with previously completed samples if any
-                if checkpointer and completed_dataset:
+                if completed_dataset:
                     final_dataset = safe_concatenate_with_validation(
                         [completed_dataset, final_dataset],
                         "completed checkpoint data with newly processed data",
