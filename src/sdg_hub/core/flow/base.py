@@ -617,7 +617,7 @@ class Flow(BaseModel):
                     del current_dataset
                     gc.collect()
                     current_dataset = datasets.load_from_disk(
-                        temp_dir, keep_in_memory=True
+                        temp_dir, keep_in_memory=False
                     )
 
                 # Capture metrics after successful execution

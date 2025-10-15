@@ -333,6 +333,6 @@ class TextParserBlock(BaseBlock):
                 return Dataset.from_list([])
 
             ret = load_dataset(
-                "json", data_files=tmp_file.name, split="train", keep_in_memory=True
+                "json", data_files=tmp_file.name, split="train", keep_in_memory=False
             )
             return ret
