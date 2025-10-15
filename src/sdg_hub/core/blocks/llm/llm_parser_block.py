@@ -7,7 +7,6 @@ This module provides the LLMParserBlock for extracting specific fields
 
 # Standard
 from typing import Any
-import gc
 import json
 import tempfile
 
@@ -317,12 +316,13 @@ class LLMParserBlock(BaseBlock):
             logger.warning("No samples to process, returning empty dataset")
             return Dataset.from_list([])
 
-        with tempfile.NamedTemporaryFile(suffix='.jsonl', delete=True) as tmp_file:
-            with open(tmp_file.name, 'w') as f:
+        with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=True) as tmp_file:
+            with open(tmp_file.name, "w") as f:
                 for sample in samples:
                     out = self._generate(sample)
                     for row in out:
-                        f.write(json.dumps(row) + '\n')
-            ret = load_dataset('json', data_files=tmp_file.name, split='train', keep_in_memory=True)
+                        f.write(json.dumps(row) + "\n")
+            ret = load_dataset(
+                "json", data_files=tmp_file.name, split="train", keep_in_memory=True
+            )
             return ret
-
