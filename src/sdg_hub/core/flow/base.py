@@ -699,6 +699,13 @@ class Flow(BaseModel):
                     f"Block '{block.block_name}' execution failed: {exc}"
                 ) from exc
 
+        if current_dataset_temp_path is not None:
+            final_temp_path = current_dataset_temp_path
+            current_dataset = datasets.load_from_disk(
+                str(final_temp_path), keep_in_memory=True
+            )
+            cleanup_path(final_temp_path)
+
         return current_dataset
 
     def _prepare_block_kwargs(
