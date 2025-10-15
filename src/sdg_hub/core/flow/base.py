@@ -5,10 +5,10 @@
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Union
+from weakref import finalize
 import gc
 import time
 import uuid
-from weakref import finalize
 
 # Third Party
 from datasets import Dataset
@@ -627,9 +627,7 @@ class Flow(BaseModel):
                     )
 
                 previous_temp_path = current_dataset_temp_path
-                dataset_temp_dir = create_temp_dir(
-                    prefix=f"flow_{block.block_name}"
-                )
+                dataset_temp_dir = create_temp_dir(prefix=f"flow_{block.block_name}")
                 current_dataset.save_to_disk(str(dataset_temp_dir))
                 del current_dataset
                 gc.collect()

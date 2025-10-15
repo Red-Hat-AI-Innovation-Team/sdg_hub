@@ -326,7 +326,9 @@ class TextParserBlock(BaseBlock):
 
         if tmp_jsonl_path is None:
             tmp_jsonl_path = str(
-                create_temp_file(prefix=f"{self.block_name}_text_parser", suffix=".jsonl")
+                create_temp_file(
+                    prefix=f"{self.block_name}_text_parser", suffix=".jsonl"
+                )
             )
             cleanup_locally = True
 

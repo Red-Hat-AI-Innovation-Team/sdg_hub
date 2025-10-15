@@ -3,13 +3,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Optional, Union
+
 # Standard
 import os
 import shutil
 import uuid
-from pathlib import Path
-from typing import Optional, Union
-
 
 TEMP_ROOT_DIR_NAME = ".tmp_sdg_buffer"
 
