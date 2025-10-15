@@ -320,22 +320,12 @@ class TextParserBlock(BaseBlock):
             logger.warning("No samples to parse, returning empty dataset")
             return Dataset.from_list([])
 
-        # to reduce the memory spike created by `Dataset.from_list`
-        # we convert the data to DF, save it to parquet and then
-        # read that parquet into a Dataset object.
-        new_data = []
-        for sample in samples:
-            new_data.extend(self._generate(sample))
-        if len(new_data) == 0:
-            return Dataset.from_list([])
-
-        with tempfile.NamedTemporaryFile(suffix=".jsonl", delete=True) as tmp_file:
-            with open(tmp_file.name, "w") as f:
-                for row in new_data:
-                    f.write(json.dumps(row) + "\n")
-            del new_data
-            gc.collect()
-            ret = load_dataset(
-                "json", data_files=tmp_file.name, split="train", keep_in_memory=True
-            )
+        with tempfile.NamedTemporaryFile(suffix='.jsonl', delete=True) as tmp_file:
+            with open(tmp_file.name, 'w') as f:
+                for sample in samples:
+                    out = self._generate(sample)
+                    for row in out:
+                        f.write(json.dumps(row) + '\n')
+            ret = load_dataset('json', data_files=tmp_file.name, split='train', keep_in_memory=True)
             return ret
+

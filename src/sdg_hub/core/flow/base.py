@@ -5,6 +5,8 @@
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Union
+import gc
+import tempfile
 import time
 import uuid
 
@@ -609,6 +611,11 @@ class Flow(BaseModel):
                     raise EmptyDatasetError(
                         f"Block '{block.block_name}' produced empty dataset"
                     )
+
+                with tempfile.TemporaryDirectory() as temp_dir:
+                  current_dataset.save_to_disk(temp_dir)
+                  del current_dataset; gc.collect();
+                  current_dataset = datasets.load_from_disk(temp_dir, keep_in_memory=True)
 
                 # Capture metrics after successful execution
                 execution_time = time.perf_counter() - start_time
