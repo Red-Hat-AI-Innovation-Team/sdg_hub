@@ -9,7 +9,7 @@ including conversion to OpenAI Messages format and template rendering.
 from typing import Any, Literal, Optional
 
 # Third Party
-from datasets import Dataset
+import pandas as pd
 from jinja2 import Template, meta
 from pydantic import BaseModel, Field, field_validator
 import yaml
@@ -279,12 +279,22 @@ class PromptBuilderBlock(BaseBlock):
         message_templates = self.prompt_template_config.get_message_templates()
         self.prompt_renderer = PromptRenderer(message_templates)
 
-    def _validate_custom(self, dataset: Dataset) -> None:
+    def _validate_custom(self, dataset: pd.DataFrame) -> None:
         if len(dataset) > 0:
             # Get required variables from all message templates
             required_vars = self.prompt_renderer.get_required_variables()
 
-            sample = dataset[0]
+            # Handle both pandas DataFrame and HuggingFace Dataset
+            if isinstance(dataset, pd.DataFrame):
+                sample = dataset.iloc[0].to_dict()
+            elif hasattr(dataset, "to_pandas"):
+                # HuggingFace Dataset - get first row as dict
+                sample = dataset[0]
+            else:
+                raise ValueError(
+                    f"Expected pandas DataFrame or HuggingFace Dataset, got {type(dataset)}"
+                )
+
             template_vars = self.prompt_renderer.resolve_template_vars(
                 sample, self.input_cols
             )
@@ -344,25 +354,40 @@ class PromptBuilderBlock(BaseBlock):
 
         return sample
 
-    def generate(self, samples: Dataset, **_kwargs: Any) -> Dataset:
-        """Generate formatted output for all samples using dataset map.
+    def generate(self, samples: pd.DataFrame, **_kwargs: Any) -> pd.DataFrame:
+        """Generate formatted output for all samples.
 
         Parameters
         ----------
-        samples : Dataset
+        samples : pd.DataFrame
             Input dataset containing samples to be formatted.
         **kwargs : Dict[str, Any]
             Additional keyword arguments (unused in this block).
 
         Returns
         -------
-        Dataset
+        pd.DataFrame
             Dataset with the formatted output added to the specified column.
         """
         logger.debug(f"Formatting prompts for {len(samples)} samples")
 
-        # Use dataset map for efficient processing
-        formatted_dataset = samples.map(self._generate)
+        # Handle both pandas DataFrame and HuggingFace Dataset
+        if isinstance(samples, pd.DataFrame):
+            # Convert DataFrame to list of dicts, process each, and convert back
+            samples_list = samples.to_dict('records')
+            formatted_samples = [self._generate(sample) for sample in samples_list]
+            formatted_dataset = pd.DataFrame(formatted_samples)
+        elif hasattr(samples, "to_pandas"):
+            # HuggingFace Dataset - process each row and convert back
+            samples_list = [samples[i] for i in range(len(samples))]
+            formatted_samples = [self._generate(sample) for sample in samples_list]
+            # Convert back to HuggingFace Dataset
+            from datasets import Dataset
+            formatted_dataset = Dataset.from_list(formatted_samples)
+        else:
+            raise ValueError(
+                f"Expected pandas DataFrame or HuggingFace Dataset, got {type(samples)}"
+            )
 
         logger.debug(f"Successfully formatted {len(formatted_dataset)} samples")
         return formatted_dataset

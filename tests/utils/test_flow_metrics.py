@@ -1,7 +1,7 @@
 # Standard
 from unittest.mock import MagicMock, patch
 
-from datasets import Dataset
+import pandas as pd
 
 # Third Party
 # First Party
@@ -36,7 +36,7 @@ class TestAggregateBlockMetrics:
         assert len(result) == 1
         assert result[0]["block_name"] == "test_block"
         assert result[0]["execution_time"] == 1.5
-        assert result[0]["added_cols"] == ["col1"]
+        assert sorted(result[0]["added_cols"]) == ["col1"]
 
     def test_aggregate_multiple_runs_same_block(self):
         """Test aggregating multiple runs of the same block (chunked execution)."""
@@ -124,7 +124,7 @@ class TestDisplayMetricsSummary:
             }
         ]
 
-        dataset = Dataset.from_dict({"col1": list(range(10))})
+        dataset = pd.DataFrame({"col1": list(range(10))})
         display_metrics_summary(metrics, "Test Flow", dataset)
 
         # Verify console.print was called
@@ -174,7 +174,7 @@ class TestDisplayMetricsSummary:
             }
         ]
 
-        dataset = Dataset.from_dict({"col1": list(range(10)), "col2": list(range(10))})
+        dataset = pd.DataFrame({"col1": list(range(10)), "col2": list(range(10))})
         display_metrics_summary(metrics, "Test Flow", dataset)
 
         # Verify console.print was called
@@ -211,7 +211,7 @@ class TestDisplayMetricsSummary:
         ]
 
         # Partial completion - dataset exists but some blocks failed
-        dataset = Dataset.from_dict({"col1": list(range(10))})
+        dataset = pd.DataFrame({"col1": list(range(10))})
         display_metrics_summary(metrics, "Test Flow", dataset)
 
         # Verify console.print was called

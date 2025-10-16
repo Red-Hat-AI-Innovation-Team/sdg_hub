@@ -38,7 +38,17 @@ def validate_no_duplicates(dataset: pd.DataFrame) -> None:
     if len(dataset) == 0:
         return
 
-    df = dataset
+    # Ensure we're working with a pandas DataFrame
+    if not isinstance(dataset, pd.DataFrame):
+        # If it's a HuggingFace Dataset, convert to pandas
+        if hasattr(dataset, "to_pandas"):
+            df = dataset.to_pandas()
+        else:
+            raise ValueError(
+                f"Expected pandas DataFrame or HuggingFace Dataset, got {type(dataset)}"
+            )
+    else:
+        df = dataset
 
     def is_hashable(x):
         try:

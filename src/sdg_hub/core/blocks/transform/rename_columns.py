@@ -68,12 +68,22 @@ class RenameColumnsBlock(BaseBlock):
         Raises
         ------
         ValueError
-            If attempting to rename to a column name that already exists.
+            If attempting to rename to a column name that already exists,
+            or if the original column names don't exist in the dataset.
         """
+        # Check that all original column names exist in the dataset
+        existing_cols = set(samples.columns.tolist())
+        original_cols = set(self.input_cols.keys())
+
+        missing_cols = original_cols - existing_cols
+        if missing_cols:
+            raise ValueError(
+                f"Original column names {sorted(missing_cols)} not in the dataset"
+            )
+
         # Check for column name collisions
         # Strict validation: no target column name can be an existing column name
         # This prevents chained/circular renames which can be confusing
-        existing_cols = set(samples.columns.tolist())
         target_cols = set(self.input_cols.values())
 
         collision = target_cols & existing_cols

@@ -6,7 +6,7 @@ from typing import Any, Optional
 import asyncio
 
 # Third Party
-from datasets import Dataset
+import pandas as pd
 from litellm import acompletion, completion
 from pydantic import ConfigDict, Field, field_validator
 import litellm
@@ -167,12 +167,12 @@ class LLMChatBlock(BaseBlock):
                 },
             )
 
-    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         """Generate responses from the LLM.
 
         Parameters
         ----------
-        samples : Dataset
+        samples : pd.DataFrame
             Input dataset containing the messages column.
         **kwargs : Any
             Runtime parameters that override initialization defaults.
@@ -180,7 +180,7 @@ class LLMChatBlock(BaseBlock):
 
         Returns
         -------
-        Dataset
+        pd.DataFrame
             Dataset with responses added to the output column.
 
         Raises
@@ -201,8 +201,16 @@ class LLMChatBlock(BaseBlock):
         # Build completion kwargs from ALL fields + runtime overrides
         completion_kwargs = self._build_completion_kwargs(**kwargs)
 
-        # Extract messages
-        messages_list = samples[self.input_cols[0]]
+        # Extract messages - handle both pandas DataFrame and HuggingFace Dataset
+        if isinstance(samples, pd.DataFrame):
+            messages_list = samples[self.input_cols[0]].tolist()
+        elif hasattr(samples, "to_pandas"):
+            # HuggingFace Dataset - extract column as list
+            messages_list = samples[self.input_cols[0]]
+        else:
+            raise ValueError(
+                f"Expected pandas DataFrame or HuggingFace Dataset, got {type(samples)}"
+            )
 
         # Log generation start
         logger.info(
@@ -268,8 +276,21 @@ class LLMChatBlock(BaseBlock):
             },
         )
 
-        # Add responses as new column
-        return samples.add_column(self.output_cols[0], responses)
+        # Add responses as new column - handle both pandas DataFrame and HuggingFace Dataset
+        if isinstance(samples, pd.DataFrame):
+            result = samples.copy()
+            result[self.output_cols[0]] = responses
+            return result
+        elif hasattr(samples, "to_pandas"):
+            # HuggingFace Dataset - convert to pandas, add column, and convert back
+            df = samples.to_pandas()
+            df[self.output_cols[0]] = responses
+            from datasets import Dataset
+            return Dataset.from_pandas(df)
+        else:
+            raise ValueError(
+                f"Expected pandas DataFrame or HuggingFace Dataset, got {type(samples)}"
+            )
 
     def _build_completion_kwargs(self, **overrides) -> dict[str, Any]:
         """Build kwargs for LiteLLM completion call.
@@ -513,12 +534,12 @@ class LLMChatBlock(BaseBlock):
             )
             raise
 
-    def _validate_custom(self, dataset: Dataset) -> None:
+    def _validate_custom(self, dataset: pd.DataFrame) -> None:
         """Custom validation for LLMChatBlock message format.
 
         Parameters
         ----------
-        dataset : Dataset
+        dataset : pd.DataFrame
             The dataset to validate.
 
         Raises
@@ -527,10 +548,10 @@ class LLMChatBlock(BaseBlock):
             If message format validation fails.
         """
 
-        def validate_sample(sample_with_index):
+        def validate_sample(idx_and_row):
             """Validate a single sample's message format."""
-            idx, sample = sample_with_index
-            messages = sample[self.input_cols[0]]
+            idx, row = idx_and_row
+            messages = row[self.input_cols[0]]
 
             # Validate messages is a list
             if not isinstance(messages, list):
@@ -570,8 +591,16 @@ class LLMChatBlock(BaseBlock):
 
             return True
 
-        # Validate all samples
-        indexed_samples = [(i, sample) for i, sample in enumerate(dataset)]
+        # Validate all samples - handle both pandas DataFrame and HuggingFace Dataset
+        if isinstance(dataset, pd.DataFrame):
+            indexed_samples = [(i, row) for i, row in dataset.iterrows()]
+        elif hasattr(dataset, "to_pandas"):
+            # HuggingFace Dataset - convert each row to a dict-like object
+            indexed_samples = [(i, dataset[i]) for i in range(len(dataset))]
+        else:
+            raise ValueError(
+                f"Expected pandas DataFrame or HuggingFace Dataset, got {type(dataset)}"
+            )
         list(map(validate_sample, indexed_samples))
 
     def __repr__(self) -> str:

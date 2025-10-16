@@ -9,7 +9,7 @@ LLM generation and parsing workflow with automatic retry on parsing failures.
 from typing import Any, Optional
 
 # Third Party
-from datasets import Dataset
+import pandas as pd
 from pydantic import ConfigDict, Field, field_validator
 
 # Local
@@ -400,7 +400,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         ):
             setattr(self.llm_chat, name, value)
 
-    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         """Generate responses with parsing retry logic.
 
         For each input sample, this method:
@@ -412,14 +412,14 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
 
         Parameters
         ----------
-        samples : Dataset
+        samples : pd.DataFrame
             Input dataset containing the messages column.
         **kwargs : Any
             Additional keyword arguments passed to internal blocks.
 
         Returns
         -------
-        Dataset
+        pd.DataFrame
             Dataset with parsed results from successful generations.
 
         Raises
@@ -449,7 +449,8 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
         all_results = []
 
         # Process each sample independently with retry logic
-        for sample_idx, sample in enumerate(samples):
+        for sample_idx, (_, row) in enumerate(samples.iterrows()):
+            sample = row.to_dict()
             # Determine target count for this sample (number of completions requested)
             target = kwargs.get("n", getattr(self, "n", None)) or 1
 
@@ -474,7 +475,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
 
                     try:
                         # Generate LLM responses for this sample
-                        temp_dataset = Dataset.from_list([sample])
+                        temp_dataset = pd.DataFrame([sample])
                         llm_result = self.llm_chat.generate(temp_dataset, **kwargs)
                         llm_parser_result = self.llm_parser.generate(
                             llm_result, **kwargs
@@ -488,7 +489,8 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
                         # Count successful parses and accumulate results
                         new_parsed_count = len(parsed_result)
                         total_parsed_count += new_parsed_count
-                        sample_results.extend(parsed_result)
+                        # Convert DataFrame rows to dicts for accumulation
+                        sample_results.extend(parsed_result.to_dict('records'))
 
                         logger.debug(
                             f"Attempt {attempt + 1} for sample {sample_idx}: {new_parsed_count} successful parses "
@@ -540,14 +542,14 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
 
                     try:
                         # Generate LLM responses for this sample
-                        temp_dataset = Dataset.from_list([sample])
+                        temp_dataset = pd.DataFrame([sample])
                         llm_result = self.llm_chat.generate(temp_dataset, **kwargs)
                         llm_parser_result = self.llm_parser.generate(
                             llm_result, **kwargs
                         )
                         # Get the raw responses (should be a list when n > 1)
                         raw_response_col = f"{self.llm_parser.field_prefix if self.llm_parser.field_prefix!='' else self.llm_parser.block_name}_content"
-                        raw_responses = llm_parser_result[0][raw_response_col]
+                        raw_responses = llm_parser_result.iloc[0][raw_response_col]
                         if not isinstance(raw_responses, list):
                             raw_responses = [raw_responses]
 
@@ -559,7 +561,7 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
 
                             # Create temporary dataset with single response for parsing
                             temp_parse_data = [{**sample, raw_response_col: response}]
-                            temp_parse_dataset = Dataset.from_list(temp_parse_data)
+                            temp_parse_dataset = pd.DataFrame(temp_parse_data)
 
                             # Force expand_lists=True temporarily to get individual parsed items
                             original_expand_lists = self.llm_parser.expand_lists
@@ -580,7 +582,8 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
 
                             # If parsing was successful, accumulate the results
                             if len(parsed_result) > 0:
-                                for parsed_row in parsed_result:
+                                # Convert DataFrame rows to dicts for iteration
+                                for parsed_row in parsed_result.to_dict('records'):
                                     if total_parsed_count >= target:
                                         break
 
@@ -683,9 +686,9 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
             },
         )
 
-        return Dataset.from_list(all_results)
+        return pd.DataFrame(all_results)
 
-    def _validate_custom(self, dataset: Dataset) -> None:
+    def _validate_custom(self, dataset: pd.DataFrame) -> None:
         """Custom validation for LLMChatWithParsingRetryBlock.
 
         This method validates the entire chain of internal blocks by simulating
@@ -698,10 +701,10 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
             )
 
         input_col = self.input_cols[0]
-        if input_col not in dataset.column_names:
+        if input_col not in dataset.columns.tolist():
             raise ValueError(
                 f"Required input column '{input_col}' not found in dataset. "
-                f"Available columns: {dataset.column_names}"
+                f"Available columns: {dataset.columns.tolist()}"
             )
 
         # Validate parsing configuration
@@ -729,11 +732,11 @@ class LLMChatWithParsingRetryBlock(BaseBlock):
 
             # Create temporary dataset with expected LLM output for parser validation
             temp_data = []
-            for sample in dataset:
-                temp_sample = dict(sample)
+            for _, row in dataset.iterrows():
+                temp_sample = row.to_dict()
                 temp_sample[f"{self.block_name}_raw_response"] = "test output"
                 temp_data.append(temp_sample)
-            temp_dataset = Dataset.from_list(temp_data)
+            temp_dataset = pd.DataFrame(temp_data)
 
             logger.debug("Validating internal text parser block")
             self.text_parser._validate_custom(temp_dataset)

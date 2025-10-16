@@ -121,7 +121,13 @@ class BaseBlock(BaseModel, ABC):
             if isinstance(self.input_cols, dict)
             else self.input_cols
         )
-        available_columns = df.columns.tolist()
+        # Get column names - handle both pandas DataFrame and HuggingFace Dataset
+        if isinstance(df, pd.DataFrame):
+            available_columns = df.columns.tolist()
+        elif hasattr(df, "column_names"):
+            available_columns = df.column_names
+        else:
+            available_columns = []
         missing_columns = [
             col for col in columns_to_check if col not in available_columns
         ]
@@ -152,7 +158,13 @@ class BaseBlock(BaseModel, ABC):
             if isinstance(self.output_cols, dict)
             else self.output_cols
         )
-        available_columns = df.columns.tolist()
+        # Get column names - handle both pandas DataFrame and HuggingFace Dataset
+        if isinstance(df, pd.DataFrame):
+            available_columns = df.columns.tolist()
+        elif hasattr(df, "column_names"):
+            available_columns = df.column_names
+        else:
+            available_columns = []
         collisions = [col for col in columns_to_check if col in available_columns]
         if collisions:
             raise OutputColumnCollisionError(
@@ -188,7 +200,13 @@ class BaseBlock(BaseModel, ABC):
     def _log_input_data(self, df: pd.DataFrame) -> None:
         """Print a summary of the input DataFrame with Rich formatting."""
         row_count = len(df)
-        columns = df.columns.tolist()
+        # Get column names - handle both pandas DataFrame and HuggingFace Dataset
+        if isinstance(df, pd.DataFrame):
+            columns = df.columns.tolist()
+        elif hasattr(df, "column_names"):
+            columns = df.column_names
+        else:
+            columns = []
         content = Text()
         content.append("\U0001f4ca Processing Input Data\n", style="bold blue")
         content.append(f"Block Type: {self.__class__.__name__}\n", style="cyan")
@@ -212,10 +230,21 @@ class BaseBlock(BaseModel, ABC):
     def _log_output_data(self, input_df: pd.DataFrame, output_df: pd.DataFrame) -> None:
         """Print a Rich panel summarizing output DataFrame differences."""
         in_rows, out_rows = len(input_df), len(output_df)
-        in_cols, out_cols = (
-            set(input_df.columns.tolist()),
-            set(output_df.columns.tolist()),
-        )
+        # Get column names - handle both pandas DataFrame and HuggingFace Dataset
+        if isinstance(input_df, pd.DataFrame):
+            in_cols = set(input_df.columns.tolist())
+        elif hasattr(input_df, "column_names"):
+            in_cols = set(input_df.column_names)
+        else:
+            in_cols = set()
+
+        if isinstance(output_df, pd.DataFrame):
+            out_cols = set(output_df.columns.tolist())
+        elif hasattr(output_df, "column_names"):
+            out_cols = set(output_df.column_names)
+        else:
+            out_cols = set()
+
         added_cols, removed_cols = out_cols - in_cols, in_cols - out_cols
         content = Text()
         content.append("\u2705 Processing Complete\n", style="bold green")

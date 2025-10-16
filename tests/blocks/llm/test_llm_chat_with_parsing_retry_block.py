@@ -5,7 +5,8 @@
 from unittest.mock import MagicMock, patch
 
 # Third Party
-from datasets import Dataset
+import pandas as pd
+import numpy as np
 
 # First Party
 from sdg_hub.core.blocks.llm import LLMChatWithParsingRetryBlock
@@ -124,7 +125,7 @@ def sample_messages():
 @pytest.fixture
 def sample_dataset(sample_messages):
     """Create a sample dataset with messages."""
-    return Dataset.from_dict({"messages": sample_messages})
+    return pd.DataFrame({"messages": sample_messages})
 
 
 class TestLLMChatWithParsingRetryBlockInitialization:
@@ -267,7 +268,7 @@ class TestLLMChatWithParsingRetryBlockInitialization:
             # No model specified
         )
 
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {"messages": [[{"role": "user", "content": "test"}]]}
         )
 
@@ -297,8 +298,8 @@ class TestLLMChatWithParsingRetryBlockSuccessfulGeneration:
 
         # Should succeed on first attempt
         assert len(result) == 2  # Two input samples
-        assert all("answer" in row for row in result)
-        assert all(row["answer"] == "Test response" for row in result)
+        assert "answer" in result.columns.tolist()
+        assert (result["answer"] == "Test response").all()
 
         # LLM should be called once per sample (no retries needed)
         assert mock_litellm_completion.call_count == 2
@@ -323,7 +324,7 @@ class TestLLMChatWithParsingRetryBlockSuccessfulGeneration:
         # Should generate 3 responses per input sample = 6 total
         assert len(result) == 6
         expected_responses = ["Response 1", "Response 2", "Response 3"] * 2
-        actual_responses = [row["answer"] for row in result]
+        actual_responses = result["answer"].tolist()
         assert actual_responses == expected_responses
 
     def test_successful_generation_multiple_output_columns(
@@ -347,9 +348,8 @@ class TestLLMChatWithParsingRetryBlockSuccessfulGeneration:
         result = block.generate(sample_dataset)
 
         assert len(result) == 2
-        for row in result:
-            assert row["explanation"] == "This is an explanation"
-            assert row["answer"] == "42"
+        assert (result["explanation"] == "This is an explanation").all()
+        assert (result["answer"] == "42").all()
 
     def test_successful_generation_after_retry(self, sample_dataset):
         """Test successful generation after initial parsing failures."""
@@ -382,7 +382,7 @@ class TestLLMChatWithParsingRetryBlockSuccessfulGeneration:
 
             # Should succeed after retry
             assert len(result) == 2
-            assert all(row["answer"] == "Good response" for row in result)
+            assert (result["answer"] == "Good response").all()
 
             # Should have called LLM twice per sample (1 retry each)
             assert mock_completion.call_count == 4
@@ -418,7 +418,7 @@ class TestLLMChatWithParsingRetryBlockSuccessfulGeneration:
             # Should accumulate 2 responses per sample = 4 total
             assert len(result) == 4
             expected_answers = ["First good", "Second good"] * 2
-            actual_answers = [row["answer"] for row in result]
+            actual_answers = result["answer"].tolist()
             assert actual_answers == expected_answers
 
     def test_excess_results_trimming(self, sample_dataset):
@@ -451,7 +451,7 @@ class TestLLMChatWithParsingRetryBlockSuccessfulGeneration:
             # Should trim to exactly 2 responses per sample = 4 total
             assert len(result) == 4
             expected_answers = ["Response 1", "Response 2"] * 2
-            actual_answers = [row["answer"] for row in result]
+            actual_answers = result["answer"].tolist()
             assert actual_answers == expected_answers
 
 
@@ -473,7 +473,7 @@ class TestLLMChatWithParsingRetryBlockMaxRetriesExceeded:
         )
 
         # Create single sample dataset to test specific error message
-        single_dataset = Dataset.from_dict(
+        single_dataset = pd.DataFrame(
             {"messages": [sample_dataset["messages"][0]]}
         )
 
@@ -508,7 +508,7 @@ class TestLLMChatWithParsingRetryBlockMaxRetriesExceeded:
             )
 
             # Test with single sample for clearer error checking
-            single_dataset = Dataset.from_dict(
+            single_dataset = pd.DataFrame(
                 {"messages": [sample_dataset["messages"][0]]}
             )
 
@@ -535,7 +535,7 @@ class TestLLMChatWithParsingRetryBlockMaxRetriesExceeded:
             parsing_max_retries=3,
         )
 
-        single_dataset = Dataset.from_dict(
+        single_dataset = pd.DataFrame(
             {"messages": [sample_dataset["messages"][0]]}
         )
 
@@ -576,6 +576,7 @@ class TestLLMChatWithParsingRetryBlockMaxRetriesExceeded:
 
             # Should successfully get 2 responses per sample = 4 total
             assert len(result) == 4
+            assert "answer" in result.columns.tolist()
             # Should have called LLM twice per sample to get 2 responses each
             assert mock_completion.call_count == 4
 
@@ -594,7 +595,7 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
             end_tags=["</answer>"],
         )
 
-        empty_dataset = Dataset.from_dict({"messages": []})
+        empty_dataset = pd.DataFrame({"messages": []})
         result = block.generate(empty_dataset)
 
         assert len(result) == 0
@@ -622,7 +623,7 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
                 parsing_max_retries=3,
             )
 
-            single_dataset = Dataset.from_dict(
+            single_dataset = pd.DataFrame(
                 {"messages": [sample_dataset["messages"][0]]}
             )
 
@@ -659,7 +660,7 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
 
             # Should get 1 successful response per sample = 2 total
             assert len(result) == 2
-            assert all(row["answer"] == "Success" for row in result)
+            assert (result["answer"] == "Success").all()
 
     def test_internal_block_validation(self, mock_litellm_completion):
         """Test validation of internal blocks."""
@@ -673,7 +674,7 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
         )
 
         # Valid dataset should pass validation
-        valid_dataset = Dataset.from_dict(
+        valid_dataset = pd.DataFrame(
             {"messages": [[{"role": "user", "content": "test"}]]}
         )
 
@@ -681,7 +682,7 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
         block._validate_custom(valid_dataset)
 
         # Invalid dataset should fail validation
-        invalid_dataset = Dataset.from_dict({"wrong_column": ["test"]})
+        invalid_dataset = pd.DataFrame({"wrong_column": ["test"]})
 
         with pytest.raises(ValueError, match="Required input column"):
             block._validate_custom(invalid_dataset)
@@ -761,7 +762,7 @@ class TestLLMChatWithParsingRetryBlockEdgeCases:
         result = block.generate(sample_dataset)
 
         assert len(result) == 2
-        assert all(row["result"] == "42" for row in result)
+        assert (result["result"] == "42").all()
 
     def test_async_mode_configuration(self, mock_litellm_completion):
         """Test async mode configuration passed to internal blocks."""
@@ -817,8 +818,9 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
 
         # Should return 2 rows (one per input sample) with lists as values
         assert len(result) == 2
-        for row in result:
-            assert "answer" in row
+        assert "answer" in result.columns.tolist()
+        for i in range(len(result)):
+            row = result.iloc[i]
             assert isinstance(row["answer"], list)
             assert len(row["answer"]) == 3  # All 3 responses parsed successfully
             assert row["answer"] == ["Response 1", "Response 2", "Response 3"]
@@ -859,7 +861,8 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
 
             # Should return 2 rows with accumulated successful parses as lists
             assert len(result) == 2
-            for row in result:
+            for i in range(len(result)):
+                row = result.iloc[i]
                 assert isinstance(row["answer"], list)
                 assert len(row["answer"]) == 2
                 assert row["answer"] == ["First good", "Second good"]
@@ -889,7 +892,7 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
                 parsing_max_retries=2,
             )
 
-            single_dataset = Dataset.from_dict(
+            single_dataset = pd.DataFrame(
                 {"messages": [sample_dataset["messages"][0]]}
             )
 
@@ -934,7 +937,7 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
                 n=2,
             )
 
-            single_dataset = Dataset.from_dict(
+            single_dataset = pd.DataFrame(
                 {"messages": [sample_dataset["messages"][0]]}
             )
 
@@ -944,13 +947,13 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
 
             # expand_lists=False: 1 row with list values
             assert len(result_false) == 1
-            assert isinstance(result_false[0]["answer"], list)
-            assert result_false[0]["answer"] == ["Response 1", "Response 2"]
+            assert isinstance(result_false.iloc[0]["answer"], list)
+            assert result_false.iloc[0]["answer"] == ["Response 1", "Response 2"]
 
             # expand_lists=True: 2 rows with individual values
             assert len(result_true) == 2
-            assert result_true[0]["answer"] == "Response 1"
-            assert result_true[1]["answer"] == "Response 2"
+            assert result_true.iloc[0]["answer"] == "Response 1"
+            assert result_true.iloc[1]["answer"] == "Response 2"
 
     def test_expand_lists_flag_restored_on_exception(self, sample_dataset):
         """Test that expand_lists flag is properly restored even when parsing throws an exception."""
@@ -986,7 +989,7 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
             with patch.object(
                 block.text_parser, "generate", side_effect=mock_generate_with_exception
             ):
-                single_dataset = Dataset.from_dict(
+                single_dataset = pd.DataFrame(
                     {"messages": [sample_dataset["messages"][0]]}
                 )
 
@@ -1023,7 +1026,7 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
                 parsing_max_retries=3,
             )
 
-            single_dataset = Dataset.from_dict(
+            single_dataset = pd.DataFrame(
                 {"messages": [sample_dataset["messages"][0]]}
             )
 
@@ -1031,7 +1034,7 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
 
             # Should have 1 row with lists containing only the 2 complete parses
             assert len(result) == 1
-            row = result[0]
+            row = result.iloc[0]
 
             # Both lists should have exactly 2 items (only complete parses counted)
             assert len(row["explanation"]) == 2
@@ -1057,7 +1060,7 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
             )
 
             # Create dataset with various column types that should be preserved
-            test_dataset = Dataset.from_dict(
+            test_dataset = pd.DataFrame(
                 {
                     "messages": [[{"role": "user", "content": "test"}]],
                     "context_id": [123],  # integer
@@ -1083,7 +1086,7 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
 
             # Should have 1 row (expand_lists=False)
             assert len(result_false) == 1
-            row = result_false[0]
+            row = result_false.iloc[0]
 
             # New parsed output column should be a list
             assert isinstance(row["answer"], list)
@@ -1091,11 +1094,11 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
 
             # All original columns should be preserved with original types
             assert row["context_id"] == 123
-            assert isinstance(row["context_id"], int)
+            assert isinstance(row["context_id"], (int, np.integer))  # Accept numpy int types
             assert row["user_name"] == "alice"
             assert isinstance(row["user_name"], str)
-            assert row["is_premium"] is True
-            assert isinstance(row["is_premium"], bool)
+            assert row["is_premium"] == True  # Use == instead of is for numpy bool compatibility
+            assert isinstance(row["is_premium"], (bool, np.bool_))  # Accept numpy bool types
             assert row["metadata"] == {"key": "value"}
             assert isinstance(row["metadata"], dict)
             assert row["messages"] == [{"role": "user", "content": "test"}]
@@ -1120,7 +1123,8 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
             # Should have 2 rows (expand_lists=True)
             assert len(result_true) == 2
 
-            for i, row in enumerate(result_true):
+            for i in range(len(result_true)):
+                row = result_true.iloc[i]
                 # New parsed output column should be individual strings
                 expected_answer = f"Response {i + 1}"
                 assert row["answer"] == expected_answer
@@ -1128,11 +1132,11 @@ class TestLLMChatWithParsingRetryBlockExpandListsFalse:
 
                 # All original columns should be preserved with original types
                 assert row["context_id"] == 123
-                assert isinstance(row["context_id"], int)
+                assert isinstance(row["context_id"], (int, np.integer))  # Accept numpy int types
                 assert row["user_name"] == "alice"
                 assert isinstance(row["user_name"], str)
-                assert row["is_premium"] is True
-                assert isinstance(row["is_premium"], bool)
+                assert row["is_premium"] == True  # Use == instead of is for numpy bool compatibility
+                assert isinstance(row["is_premium"], (bool, np.bool_))  # Accept numpy bool types
                 assert row["metadata"] == {"key": "value"}
                 assert isinstance(row["metadata"], dict)
                 assert row["messages"] == [{"role": "user", "content": "test"}]
@@ -1170,13 +1174,10 @@ class TestLLMChatWithParsingRetryBlockIntegration:
 
         # Verify complete pipeline works
         assert len(result) == 2
-        for row in result:
-            assert (
-                row["explanation"] == "This is a detailed explanation of the problem."
-            )
-            assert row["answer"] == "The final answer is 42."
-            # Original message data should be preserved
-            assert "messages" in row
+        assert (result["explanation"] == "This is a detailed explanation of the problem.").all()
+        assert (result["answer"] == "The final answer is 42.").all()
+        # Original message data should be preserved
+        assert "messages" in result.columns.tolist()
 
         # Verify LLM was called with correct parameters
         call_kwargs = mock_litellm_completion.call_args[1]
@@ -1203,9 +1204,7 @@ class TestLLMChatWithParsingRetryBlockIntegration:
 
         assert len(result) == 2
         # The cleanup should remove <br> and </br> tags from regex parsing
-        assert all(
-            row["clean_answer"] == "This has line breaks to clean" for row in result
-        )
+        assert (result["clean_answer"] == "This has line breaks to clean").all()
 
     def test_error_propagation_from_internal_blocks(self, sample_dataset):
         """Test that errors from internal blocks are properly propagated."""
@@ -1228,7 +1227,7 @@ class TestLLMChatWithParsingRetryBlockIntegration:
                 end_tags=["</answer>"],
             )
 
-            single_dataset = Dataset.from_dict(
+            single_dataset = pd.DataFrame(
                 {"messages": [sample_dataset["messages"][0]]}
             )
 

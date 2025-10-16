@@ -175,21 +175,16 @@ class ColumnValueFilterBlock(BaseBlock):
 
         # Convert dtype if specified
         if self._convert_dtype_func:
-            try:
-                result[self.column_name] = result[self.column_name].apply(
-                    lambda x: self._convert_dtype_func(x) if pd.notna(x) else None
-                )
-            except Exception as e:
-                logger.error(f"Error converting dtype: {e}, setting invalid values to None")
-                result[self.column_name] = result[self.column_name].apply(
-                    lambda x: (
-                        self._convert_dtype_func(x)
-                        if pd.notna(x)
-                        else None
-                        if isinstance(x, (int, float, str))
-                        else None
-                    )
-                )
+            def safe_convert(x):
+                """Safely convert value, returning None on error."""
+                if pd.isna(x):
+                    return None
+                try:
+                    return self._convert_dtype_func(x)
+                except (ValueError, TypeError):
+                    return None
+
+            result[self.column_name] = result[self.column_name].apply(safe_convert)
 
         # Filter out None values
         result = result[result[self.column_name].notna()]

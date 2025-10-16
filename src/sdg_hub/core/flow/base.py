@@ -486,7 +486,7 @@ class Flow(BaseModel):
                 )
 
                 # Combine with previously completed samples if any
-                if checkpointer and completed_dataset:
+                if checkpointer and completed_dataset is not None and not completed_dataset.empty:
                     final_dataset = safe_concatenate_with_validation(
                         [completed_dataset, final_dataset],
                         "completed checkpoint data with newly processed data",
@@ -504,7 +504,7 @@ class Flow(BaseModel):
                     checkpointer.save_final_checkpoint()
 
                     # Combine with previously completed samples if any
-                    if completed_dataset:
+                    if completed_dataset is not None and not completed_dataset.empty:
                         final_dataset = safe_concatenate_with_validation(
                             [completed_dataset, final_dataset],
                             "completed checkpoint data with newly processed data",
@@ -613,7 +613,13 @@ class Flow(BaseModel):
             # Capture metrics before execution
             start_time = time.perf_counter()
             input_rows = len(current_dataset)
-            input_cols = set(current_dataset.columns.tolist())
+            # Get column names - handle both pandas DataFrame and HuggingFace Dataset
+            if isinstance(current_dataset, pd.DataFrame):
+                input_cols = set(current_dataset.columns.tolist())
+            elif hasattr(current_dataset, "column_names"):
+                input_cols = set(current_dataset.column_names)
+            else:
+                input_cols = set()
 
             try:
                 # Execute block with validation and logging
@@ -650,7 +656,13 @@ class Flow(BaseModel):
                 # Capture metrics after successful execution
                 execution_time = time.perf_counter() - start_time
                 output_rows = len(current_dataset)
-                output_cols = set(current_dataset.columns.tolist())
+                # Get column names - handle both pandas DataFrame and HuggingFace Dataset
+                if isinstance(current_dataset, pd.DataFrame):
+                    output_cols = set(current_dataset.columns.tolist())
+                elif hasattr(current_dataset, "column_names"):
+                    output_cols = set(current_dataset.column_names)
+                else:
+                    output_cols = set()
                 added_cols = output_cols - input_cols
                 removed_cols = input_cols - output_cols
 
@@ -668,10 +680,18 @@ class Flow(BaseModel):
                     }
                 )
 
+                # Get number of columns - handle both pandas DataFrame and HuggingFace Dataset
+                if isinstance(current_dataset, pd.DataFrame):
+                    num_cols = len(current_dataset.columns)
+                elif hasattr(current_dataset, "column_names"):
+                    num_cols = len(current_dataset.column_names)
+                else:
+                    num_cols = 0
+
                 exec_logger.info(
                     f"Block '{block.block_name}' completed successfully: "
                     f"{len(current_dataset)} samples, "
-                    f"{len(current_dataset.columns)} columns"
+                    f"{num_cols} columns"
                 )
 
             except Exception as exc:
@@ -988,9 +1008,19 @@ class Flow(BaseModel):
             errors.append("Dataset is empty")
 
         if self.metadata.dataset_requirements:
+            # Get column names - handle both pandas DataFrame and HuggingFace Dataset
+            if isinstance(dataset, pd.DataFrame):
+                columns = dataset.columns.tolist()
+            elif hasattr(dataset, "column_names"):  # HuggingFace Dataset
+                columns = dataset.column_names
+            else:
+                raise ValueError(
+                    f"Expected pandas DataFrame or HuggingFace Dataset, got {type(dataset)}"
+                )
+
             errors.extend(
                 self.metadata.dataset_requirements.validate_dataset(
-                    dataset.columns.tolist(), len(dataset)
+                    columns, len(dataset)
                 )
             )
 

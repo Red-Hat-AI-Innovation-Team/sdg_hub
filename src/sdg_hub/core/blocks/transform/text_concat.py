@@ -83,6 +83,11 @@ class TextConcatBlock(BaseBlock):
 
         output_col = self.output_cols[0]
 
+        # Validate that all input columns exist in the dataset
+        for col in self.input_cols:
+            if col not in samples.columns:
+                raise ValueError(f"Input column '{col}' not found in sample")
+
         # Create a copy to avoid modifying the input
         result = samples.copy()
 

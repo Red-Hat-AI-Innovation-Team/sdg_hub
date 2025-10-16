@@ -12,7 +12,7 @@ import json
 import re
 
 # Third Party
-from datasets import Dataset, load_dataset
+import pandas as pd
 from pydantic import Field, field_validator, model_validator
 
 # Local
@@ -122,7 +122,7 @@ class TextParserBlock(BaseBlock):
 
         return self
 
-    def _validate_custom(self, dataset: Dataset) -> None:
+    def _validate_custom(self, dataset: pd.DataFrame) -> None:
         """Validate TextParserBlock specific requirements.
 
         Parameters
@@ -316,60 +316,13 @@ class TextParserBlock(BaseBlock):
             )
             return []
 
-    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         logger.debug(f"Parsing outputs for {len(samples)} samples")
         if len(samples) == 0:
             logger.warning("No samples to parse, returning empty dataset")
-            return Dataset.from_list([])
+            return pd.DataFrame()
 
-        tmp_jsonl_path = kwargs.get("_flow_tmp_jsonl_path")
-        cleanup_locally = False
-
-        if tmp_jsonl_path is None:
-            tmp_jsonl_path = str(
-                create_temp_file(
-                    prefix=f"{self.block_name}_text_parser", suffix=".jsonl"
-                )
-            )
-            cleanup_locally = True
-
-        rows_written = 0
-        batch = []
-        with open(tmp_jsonl_path, "w") as f:
-            for sample in samples:
-                out = self._generate(sample)
-                for row in out:
-                    batch.append(json.dumps(row) + "\n")
-                    rows_written += 1
-                    if len(batch) >= 5:
-                        f.writelines(batch)
-                        batch.clear()
-            if batch:
-                f.writelines(batch)
-
-        if rows_written == 0:
-            if cleanup_locally:
-                cleanup_path(tmp_jsonl_path)
-            return Dataset.from_list([])
-
-        hf_cache_dir = None
-        try:
-            hf_cache_dir = create_temp_dir(
-                prefix=f"{self.block_name}_text_parser_hf_cache"
-            )
-            ret = load_dataset(
-                "json",
-                data_files=tmp_jsonl_path,
-                split="train",
-                keep_in_memory=False,
-                cache_dir=str(hf_cache_dir),
-            )
-            finalize(ret, cleanup_path, hf_cache_dir)
-            return ret
-        except Exception:
-            if hf_cache_dir is not None:
-                cleanup_path(hf_cache_dir)
-            raise
-        finally:
-            if cleanup_locally:
-                cleanup_path(tmp_jsonl_path)
+        new_data = []
+        for _, row in samples.iterrows():
+            new_data.extend(self._generate(row.to_dict()))
+        return pd.DataFrame(new_data)

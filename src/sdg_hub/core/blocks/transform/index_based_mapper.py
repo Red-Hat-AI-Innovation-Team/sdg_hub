@@ -208,12 +208,18 @@ class IndexBasedMapperBlock(BaseBlock):
         # Create a copy to avoid modifying the input
         result = samples.copy()
 
-        # Apply the mapping for each choice column and output column pair
-        for choice_col, output_col in self.choice_to_output_map.items():
-            # Map the choice values to source columns, then get values from those columns
-            result[output_col] = result.apply(
-                lambda row: row[self.choice_map[row[choice_col]]], axis=1
-            )
+        # Handle empty DataFrame case
+        if len(result) == 0:
+            # Add empty output columns
+            for output_col in self.output_cols:
+                result[output_col] = []
+        else:
+            # Apply the mapping for each choice column and output column pair
+            for choice_col, output_col in self.choice_to_output_map.items():
+                # Map the choice values to source columns, then get values from those columns
+                result[output_col] = result.apply(
+                    lambda row: row[self.choice_map[row[choice_col]]], axis=1
+                )
 
         # Log completion
         logger.info(
