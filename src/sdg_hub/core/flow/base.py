@@ -516,18 +516,17 @@ class Flow(BaseModel):
                         chunk_dataset, runtime_params, flow_logger, max_concurrency
                     )
 
-                    # Save checkpoint - _sdg_input_index is already in the processed_chunk
-                    checkpointer.add_completed_samples(processed_chunk)
-                    checkpointer._save_checkpoint()
+                    # Save checkpoint immediately without accumulating in memory
+                    checkpointer.save_chunk_immediately(processed_chunk)
 
                     # Explicitly free processed chunk to reduce memory footprint
                     del processed_chunk
 
-                # Save final checkpoint for any remaining samples
-                checkpointer.save_final_checkpoint()
+                # All chunks processed and saved (including last partial chunk)
+                # No pending samples remain
 
             else:
-                # Process entire dataset at once
+                # Process entire dataset at once (no chunking)
                 # Add input index tracking column that flows through the pipeline
                 dataset = dataset.add_column("_sdg_input_index", remaining_indices)
 
@@ -535,9 +534,8 @@ class Flow(BaseModel):
                     dataset, runtime_params, flow_logger, max_concurrency
                 )
 
-                # Save final checkpoint - _sdg_input_index is already in the processed_dataset
-                checkpointer.add_completed_samples(processed_dataset)
-                checkpointer.save_final_checkpoint()
+                # Save checkpoint immediately (no accumulation)
+                checkpointer.save_chunk_immediately(processed_dataset)
 
                 # Explicitly free processed dataset
                 del processed_dataset

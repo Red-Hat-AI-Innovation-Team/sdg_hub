@@ -1070,9 +1070,7 @@ class TestFlow:
                 "_sdg_input_index": [0, 1],  # These correspond to first 2 input samples
             }
         )
-        checkpointer.add_completed_samples(completed_data)
-        # Explicitly save checkpoint due to new explicit-save behavior
-        checkpointer._save_checkpoint()
+        checkpointer.save_chunk_immediately(completed_data)
 
         # Now run flow with larger input dataset
         full_dataset = Dataset.from_dict(
@@ -1117,9 +1115,7 @@ class TestFlow:
                 "_sdg_input_index": [0, 1],  # These correspond to all input samples
             }
         )
-        checkpointer.add_completed_samples(completed_data)
-        # Explicitly save checkpoint due to new explicit-save behavior
-        checkpointer._save_checkpoint()
+        checkpointer.save_chunk_immediately(completed_data)
 
         # Run flow with same input dataset
         input_dataset = Dataset.from_dict({"input": ["test1", "test2"]})

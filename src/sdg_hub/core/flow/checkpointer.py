@@ -81,9 +81,6 @@ class FlowCheckpointer:
         # Internal state
         self._samples_processed = 0
         self._checkpoint_counter = 0
-        # Changed from List[Dict[str, Any]] to List[Dataset] for memory efficiency
-        # Datasets use Arrow format which is much more memory-efficient than Python dicts
-        self._pending_samples: List[Dataset] = []
         self._remaining_input_indices: List[
             int
         ] = []  # Indices of remaining samples to process
@@ -184,45 +181,19 @@ class FlowCheckpointer:
             self._remaining_input_indices = list(range(len(input_dataset)))
             return input_dataset, None
 
-    def add_completed_samples(self, samples: Dataset) -> None:
-        """Add samples that have completed the entire flow.
+    def save_chunk_immediately(self, samples: Dataset) -> None:
+        """Save a chunk of samples directly to file without accumulating in memory.
+
+        This is the most memory-efficient approach: stream directly from
+        Arrow-backed Dataset to JSONL file without any intermediate storage.
 
         Parameters
         ----------
         samples : Dataset
-            Samples that have completed processing through all blocks.
-            Must contain '_sdg_input_index' column that was added before processing
-            and flowed through the pipeline naturally.
+            Samples to save immediately.
+            Must contain '_sdg_input_index' column for checkpoint tracking.
         """
         if not self.is_enabled:
-            return
-
-        # Store Dataset reference (Arrow-backed, memory efficient)
-        # OLD BEHAVIOR (memory inefficient):
-        #   for sample in samples:
-        #       self._pending_samples.append(dict(sample))  # Converts all to dicts!
-        # NEW BEHAVIOR: Keep Dataset as-is, only convert to dict when writing to file
-        self._pending_samples.append(samples)
-        self._samples_processed += len(samples)
-
-    def save_final_checkpoint(self) -> None:
-        """Save any remaining pending samples as final checkpoint."""
-        if not self.is_enabled:
-            return
-
-        if self._pending_samples:
-            sample_count = sum(len(ds) for ds in self._pending_samples)
-            self._save_checkpoint()
-            logger.info(f"Saved final checkpoint with {sample_count} samples")
-
-    def _save_checkpoint(self) -> None:
-        """Save current pending samples to a checkpoint file.
-
-        Memory optimization: Streams data from Arrow-backed Dataset to file,
-        converting to dict only during write. This avoids pre-materializing
-        all samples as Python dicts in memory.
-        """
-        if not self._pending_samples:
             return
 
         self._checkpoint_counter += 1
@@ -231,24 +202,19 @@ class FlowCheckpointer:
         )
 
         # Stream samples directly from Dataset to file
-        # Convert to dict only when writing (not stored in memory)
+        # Convert to dict ONLY during file write (minimal memory footprint)
         with open(checkpoint_file, "w", encoding="utf-8") as f:
-            for dataset in self._pending_samples:
-                for sample in dataset:
-                    json.dump(dict(sample), f)
-                    f.write("\n")
+            for sample in samples:
+                json.dump(dict(sample), f)
+                f.write("\n")
 
-        # Update metadata
+        self._samples_processed += len(samples)
         self._save_metadata()
 
-        sample_count = sum(len(ds) for ds in self._pending_samples)
         logger.info(
             f"Saved checkpoint {self._checkpoint_counter} with "
-            f"{sample_count} samples to {checkpoint_file}"
+            f"{len(samples)} samples to {checkpoint_file}"
         )
-
-        # Clear pending samples
-        self._pending_samples.clear()
 
     def _save_metadata(self) -> None:
         """Save flow execution metadata."""
@@ -567,7 +533,6 @@ class FlowCheckpointer:
             "flow_id": self.flow_id,
             "samples_processed": self._samples_processed,
             "checkpoint_counter": self._checkpoint_counter,
-            "pending_samples": len(self._pending_samples),
             "is_enabled": self.is_enabled,
         }
 
