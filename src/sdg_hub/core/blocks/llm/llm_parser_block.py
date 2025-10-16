@@ -7,6 +7,7 @@ This module provides the LLMParserBlock for extracting specific fields
 
 # Standard
 from typing import Any
+from weakref import finalize
 import json
 
 # Third Party
@@ -15,7 +16,7 @@ from pydantic import Field, model_validator
 
 # Local
 from ...utils.logger_config import setup_logger
-from ...utils.temp_manager import cleanup_path, create_temp_file
+from ...utils.temp_manager import cleanup_path, create_temp_dir, create_temp_file
 from ..base import BaseBlock
 from ..registry import BlockRegistry
 
@@ -342,11 +343,24 @@ class LLMParserBlock(BaseBlock):
                 cleanup_path(tmp_jsonl_path)
             return Dataset.from_list([])
 
+        hf_cache_dir = None
         try:
-            ret = load_dataset(
-                "json", data_files=tmp_jsonl_path, split="train", keep_in_memory=False
+            hf_cache_dir = create_temp_dir(
+                prefix=f"{self.block_name}_llm_parser_hf_cache"
             )
+            ret = load_dataset(
+                "json",
+                data_files=tmp_jsonl_path,
+                split="train",
+                keep_in_memory=False,
+                cache_dir=str(hf_cache_dir),
+            )
+            finalize(ret, cleanup_path, hf_cache_dir)
             return ret
+        except Exception:
+            if hf_cache_dir is not None:
+                cleanup_path(hf_cache_dir)
+            raise
         finally:
             if cleanup_locally:
                 cleanup_path(tmp_jsonl_path)
