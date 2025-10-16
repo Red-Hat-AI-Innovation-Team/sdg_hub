@@ -1,8 +1,6 @@
 # Standard
 from unittest.mock import MagicMock, patch
 
-from datasets import Dataset
-
 # Third Party
 # First Party
 from sdg_hub.core.utils.flow_metrics import (
@@ -124,8 +122,7 @@ class TestDisplayMetricsSummary:
             }
         ]
 
-        dataset = Dataset.from_dict({"col1": list(range(10))})
-        display_metrics_summary(metrics, "Test Flow", dataset)
+        display_metrics_summary(metrics, "Test Flow")
 
         # Verify console.print was called
         assert mock_console_instance.print.call_count >= 2
@@ -150,7 +147,7 @@ class TestDisplayMetricsSummary:
             }
         ]
 
-        display_metrics_summary(metrics, "Test Flow", None)
+        display_metrics_summary(metrics, "Test Flow")
 
         # Verify console.print was called
         assert mock_console_instance.print.call_count >= 2
@@ -174,8 +171,7 @@ class TestDisplayMetricsSummary:
             }
         ]
 
-        dataset = Dataset.from_dict({"col1": list(range(10)), "col2": list(range(10))})
-        display_metrics_summary(metrics, "Test Flow", dataset)
+        display_metrics_summary(metrics, "Test Flow")
 
         # Verify console.print was called
         assert mock_console_instance.print.call_count >= 2
@@ -211,8 +207,7 @@ class TestDisplayMetricsSummary:
         ]
 
         # Partial completion - dataset exists but some blocks failed
-        dataset = Dataset.from_dict({"col1": list(range(10))})
-        display_metrics_summary(metrics, "Test Flow", dataset)
+        display_metrics_summary(metrics, "Test Flow")
 
         # Verify console.print was called
         assert mock_console_instance.print.call_count >= 2

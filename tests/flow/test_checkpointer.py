@@ -133,8 +133,13 @@ class TestFlowCheckpointer:
             checkpoint_dir=self.temp_dir, save_freq=2, flow_id=self.flow_id
         )
 
+        # IMPORTANT: Must include _sdg_input_index for checkpoint resumption to work
         completed_data = Dataset.from_dict(
-            {"input": ["test1", "test2"], "output": ["result1", "result2"]}
+            {
+                "input": ["test1", "test2"],
+                "output": ["result1", "result2"],
+                "_sdg_input_index": [0, 1],  # First 2 input samples completed
+            }
         )
         checkpointer1.add_completed_samples(completed_data)
         checkpointer1._save_checkpoint()
@@ -153,8 +158,9 @@ class TestFlowCheckpointer:
 
         remaining, completed = checkpointer2.load_existing_progress(input_dataset)
 
-        # Should find that test1 and test2 are completed
-        assert len(completed) == 2
+        # completed is now None (memory optimization - don't load completed data)
+        # We can verify completion by checking remaining samples
+        assert completed is None  # Memory optimization: we don't return completed data
         assert len(remaining) == 2
         assert remaining["input"] == ["test3", "test4"]
 
@@ -165,8 +171,13 @@ class TestFlowCheckpointer:
             checkpoint_dir=self.temp_dir, save_freq=2, flow_id=self.flow_id
         )
 
+        # IMPORTANT: Must include _sdg_input_index for checkpoint resumption to work
         completed_data = Dataset.from_dict(
-            {"input": ["test1", "test2"], "output": ["result1", "result2"]}
+            {
+                "input": ["test1", "test2"],
+                "output": ["result1", "result2"],
+                "_sdg_input_index": [0, 1],  # All input samples completed
+            }
         )
         checkpointer1.add_completed_samples(completed_data)
         checkpointer1._save_checkpoint()
@@ -185,7 +196,8 @@ class TestFlowCheckpointer:
         remaining, completed = checkpointer2.load_existing_progress(input_dataset)
 
         assert len(remaining) == 0
-        assert len(completed) == 2
+        # completed is now None (memory optimization - we don't return completed data)
+        assert completed is None
 
     def test_find_remaining_samples_no_common_columns(self):
         """Test finding remaining samples when no common columns exist."""

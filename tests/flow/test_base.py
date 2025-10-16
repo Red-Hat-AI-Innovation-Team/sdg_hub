@@ -197,24 +197,24 @@ class TestFlow:
             )
             assert flow.metadata.recommended_models.compatible == ["microsoft/phi-4"]
 
-    def test_generate_empty_flow(self):
+    def test_generate_empty_flow(self, tmp_path):
         """Test generating with empty flow."""
         flow = Flow(blocks=[], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test"]})
 
         with pytest.raises(FlowValidationError) as exc_info:
-            flow.generate(dataset)
+            flow.generate(dataset, checkpoint_dir=str(tmp_path / "checkpoints"))
 
         assert "empty flow" in str(exc_info.value)
 
-    def test_generate_empty_dataset(self):
+    def test_generate_empty_dataset(self, tmp_path):
         """Test generating with empty dataset."""
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         empty_dataset = Dataset.from_dict({"input": []})
 
         with pytest.raises(EmptyDatasetError) as exc_info:
-            flow.generate(empty_dataset)
+            flow.generate(empty_dataset, checkpoint_dir=str(tmp_path / "checkpoints"))
 
         assert "empty" in str(exc_info.value)
 
@@ -1016,8 +1016,8 @@ class TestFlow:
         checkpoint_files = list(checkpoint_dir.glob("checkpoint_*.jsonl"))
         assert len(checkpoint_files) == 1
 
-        # Should have metadata file
-        metadata_file = checkpoint_dir / "flow_metadata.json"
+        # Should have metadata file (hidden file now)
+        metadata_file = checkpoint_dir / ".flow_metadata.json"
         assert metadata_file.exists()
 
     def test_generate_with_checkpointing_and_save_freq(self):
@@ -1062,8 +1062,13 @@ class TestFlow:
         )
 
         # Simulate some completed samples
+        # IMPORTANT: Must include _sdg_input_index for checkpoint resumption to work
         completed_data = Dataset.from_dict(
-            {"input": ["test1", "test2"], "output": ["existing1", "existing2"]}
+            {
+                "input": ["test1", "test2"],
+                "output": ["existing1", "existing2"],
+                "_sdg_input_index": [0, 1],  # These correspond to first 2 input samples
+            }
         )
         checkpointer.add_completed_samples(completed_data)
         # Explicitly save checkpoint due to new explicit-save behavior
@@ -1104,8 +1109,13 @@ class TestFlow:
             flow_id=flow.metadata.id,
         )
 
+        # IMPORTANT: Must include _sdg_input_index for checkpoint resumption to work
         completed_data = Dataset.from_dict(
-            {"input": ["test1", "test2"], "output": ["existing1", "existing2"]}
+            {
+                "input": ["test1", "test2"],
+                "output": ["existing1", "existing2"],
+                "_sdg_input_index": [0, 1],  # These correspond to all input samples
+            }
         )
         checkpointer.add_completed_samples(completed_data)
         # Explicitly save checkpoint due to new explicit-save behavior

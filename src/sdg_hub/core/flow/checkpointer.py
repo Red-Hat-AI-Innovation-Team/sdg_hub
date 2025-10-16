@@ -142,29 +142,39 @@ class FlowCheckpointer:
                 self._remaining_input_indices = list(range(len(input_dataset)))
                 return input_dataset, None
 
-            # Load all completed samples from checkpoints
-            completed_dataset = self.load_all_completed_samples()
-            if completed_dataset is None or len(completed_dataset) == 0:
+            # Load ONLY the _sdg_input_index values from checkpoints (memory efficient!)
+            # This avoids materializing all completed samples into memory
+            completed_input_indices = self._load_completed_input_indices()
+            if not completed_input_indices:
                 logger.info("No completed samples found in checkpoints")
                 # No checkpoints, all samples need processing
                 self._remaining_input_indices = list(range(len(input_dataset)))
                 return input_dataset, None
 
             # Find samples that still need processing using input index tracking
-            remaining_dataset, remaining_indices = (
-                self._find_remaining_samples_by_index(input_dataset, completed_dataset)
+            remaining_indices = self._find_remaining_indices(
+                input_dataset, completed_input_indices
             )
 
-            self._samples_processed = len(completed_dataset)
+            # Select only the remaining samples from input dataset
+            if not remaining_indices:
+                # All samples completed
+                remaining_dataset = input_dataset.select([])
+            else:
+                remaining_dataset = input_dataset.select(remaining_indices)
+
+            self._samples_processed = len(completed_input_indices)
             self._checkpoint_counter = metadata.get("checkpoint_counter", 0)
             self._remaining_input_indices = remaining_indices  # Store for later use
 
             logger.info(
-                f"Loaded {len(completed_dataset)} completed samples, "
+                f"Loaded {len(completed_input_indices)} completed sample indices, "
                 f"{len(remaining_dataset)} samples remaining"
             )
 
-            return remaining_dataset, completed_dataset
+            # Return (remaining_dataset, None) - we don't return completed_dataset anymore
+            # since it's not needed and would waste memory
+            return remaining_dataset, None
 
         except Exception as exc:
             logger.warning(f"Failed to load checkpoints: {exc}. Starting from scratch.")
@@ -292,6 +302,84 @@ class FlowCheckpointer:
             return None
 
         return safe_concatenate_with_validation(datasets, "checkpoint files")
+
+    def _load_completed_input_indices(self) -> set[int]:
+        """Load only the _sdg_input_index values from checkpoint files (memory efficient).
+
+        Uses streaming to avoid loading entire checkpoint files into memory.
+
+        Returns
+        -------
+        set[int]
+            Set of unique input indices that have been completed.
+        """
+        from datasets import load_dataset
+
+        checkpoint_dir = Path(self.checkpoint_dir)
+        checkpoint_files = sorted(checkpoint_dir.glob("checkpoint_*.jsonl"))
+
+        if not checkpoint_files:
+            return set()
+
+        completed_indices = set()
+
+        # Use streaming to load only the _sdg_input_index column
+        for checkpoint_file in checkpoint_files:
+            try:
+                # Stream the checkpoint file and select only _sdg_input_index column
+                ds_stream = load_dataset(
+                    "json",
+                    data_files=str(checkpoint_file),
+                    split="train",
+                    streaming=True,
+                )
+                ds_indices = ds_stream.select_columns(["_sdg_input_index"])
+
+                # Extract the index values
+                for row in ds_indices:
+                    completed_indices.add(row["_sdg_input_index"])
+
+                logger.debug(
+                    f"Loaded indices from {checkpoint_file.name}: "
+                    f"{len(completed_indices)} unique so far"
+                )
+
+            except Exception as exc:
+                logger.warning(f"Failed to load indices from {checkpoint_file}: {exc}")
+
+        logger.info(
+            f"Loaded {len(completed_indices)} unique completed input indices from "
+            f"{len(checkpoint_files)} checkpoint file(s)"
+        )
+
+        return completed_indices
+
+    def _find_remaining_indices(
+        self, input_dataset: Dataset, completed_indices: set[int]
+    ) -> list[int]:
+        """Find input sample indices that still need processing.
+
+        Parameters
+        ----------
+        input_dataset : Dataset
+            Original input dataset.
+        completed_indices : set[int]
+            Set of input indices that have been completed.
+
+        Returns
+        -------
+        list[int]
+            Sorted list of indices that still need processing.
+        """
+        total_input_indices = set(range(len(input_dataset)))
+        remaining_indices = sorted(total_input_indices - completed_indices)
+
+        logger.info(
+            f"Input samples processed: {len(completed_indices)}/{len(input_dataset)}"
+        )
+        logger.info(f"Input samples remaining: {len(remaining_indices)}")
+
+        return remaining_indices
 
     def _find_remaining_samples_by_index(
         self, input_dataset: Dataset, completed_dataset: Dataset
