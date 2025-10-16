@@ -284,16 +284,8 @@ class PromptBuilderBlock(BaseBlock):
             # Get required variables from all message templates
             required_vars = self.prompt_renderer.get_required_variables()
 
-            # Handle both pandas DataFrame and HuggingFace Dataset
-            if isinstance(dataset, pd.DataFrame):
-                sample = dataset.iloc[0].to_dict()
-            elif hasattr(dataset, "to_pandas"):
-                # HuggingFace Dataset - get first row as dict
-                sample = dataset[0]
-            else:
-                raise ValueError(
-                    f"Expected pandas DataFrame or HuggingFace Dataset, got {type(dataset)}"
-                )
+            # Get first row as dict
+            sample = dataset.iloc[0].to_dict()
 
             template_vars = self.prompt_renderer.resolve_template_vars(
                 sample, self.input_cols
@@ -371,23 +363,10 @@ class PromptBuilderBlock(BaseBlock):
         """
         logger.debug(f"Formatting prompts for {len(samples)} samples")
 
-        # Handle both pandas DataFrame and HuggingFace Dataset
-        if isinstance(samples, pd.DataFrame):
-            # Convert DataFrame to list of dicts, process each, and convert back
-            samples_list = samples.to_dict('records')
-            formatted_samples = [self._generate(sample) for sample in samples_list]
-            formatted_dataset = pd.DataFrame(formatted_samples)
-        elif hasattr(samples, "to_pandas"):
-            # HuggingFace Dataset - process each row and convert back
-            samples_list = [samples[i] for i in range(len(samples))]
-            formatted_samples = [self._generate(sample) for sample in samples_list]
-            # Convert back to HuggingFace Dataset
-            from datasets import Dataset
-            formatted_dataset = Dataset.from_list(formatted_samples)
-        else:
-            raise ValueError(
-                f"Expected pandas DataFrame or HuggingFace Dataset, got {type(samples)}"
-            )
+        # Convert DataFrame to list of dicts, process each, and convert back
+        samples_list = samples.to_dict('records')
+        formatted_samples = [self._generate(sample) for sample in samples_list]
+        formatted_dataset = pd.DataFrame(formatted_samples)
 
         logger.debug(f"Successfully formatted {len(formatted_dataset)} samples")
         return formatted_dataset

@@ -75,34 +75,14 @@ class DuplicateColumnsBlock(BaseBlock):
         pd.DataFrame
             Dataset with additional duplicated columns.
         """
-        # Handle both pandas DataFrame and HuggingFace Dataset
-        if isinstance(samples, pd.DataFrame):
-            # Create a copy to avoid modifying the original
-            result = samples.copy()
+        # Create a copy to avoid modifying the original
+        result = samples.copy()
 
-            # Duplicate each column as specified in the mapping
-            for source_col, target_col in self.input_cols.items():
-                if source_col not in result.columns.tolist():
-                    raise ValueError(f"Source column '{source_col}' not found in dataset")
+        # Duplicate each column as specified in the mapping
+        for source_col, target_col in self.input_cols.items():
+            if source_col not in result.columns.tolist():
+                raise ValueError(f"Source column '{source_col}' not found in dataset")
 
-                result[target_col] = result[source_col]
+            result[target_col] = result[source_col]
 
-            return result
-        elif hasattr(samples, "to_pandas"):
-            # HuggingFace Dataset - convert to pandas, duplicate, and convert back
-            df = samples.to_pandas()
-
-            # Duplicate each column as specified in the mapping
-            for source_col, target_col in self.input_cols.items():
-                if source_col not in df.columns.tolist():
-                    raise ValueError(f"Source column '{source_col}' not found in dataset")
-
-                df[target_col] = df[source_col]
-
-            # Convert back to HuggingFace Dataset
-            from datasets import Dataset
-            return Dataset.from_pandas(df)
-        else:
-            raise ValueError(
-                f"Expected pandas DataFrame or HuggingFace Dataset, got {type(samples)}"
-            )
+        return result

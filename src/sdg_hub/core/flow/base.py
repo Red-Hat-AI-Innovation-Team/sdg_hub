@@ -613,13 +613,7 @@ class Flow(BaseModel):
             # Capture metrics before execution
             start_time = time.perf_counter()
             input_rows = len(current_dataset)
-            # Get column names - handle both pandas DataFrame and HuggingFace Dataset
-            if isinstance(current_dataset, pd.DataFrame):
-                input_cols = set(current_dataset.columns.tolist())
-            elif hasattr(current_dataset, "column_names"):
-                input_cols = set(current_dataset.column_names)
-            else:
-                input_cols = set()
+            input_cols = set(current_dataset.columns.tolist())
 
             try:
                 # Execute block with validation and logging
@@ -656,13 +650,7 @@ class Flow(BaseModel):
                 # Capture metrics after successful execution
                 execution_time = time.perf_counter() - start_time
                 output_rows = len(current_dataset)
-                # Get column names - handle both pandas DataFrame and HuggingFace Dataset
-                if isinstance(current_dataset, pd.DataFrame):
-                    output_cols = set(current_dataset.columns.tolist())
-                elif hasattr(current_dataset, "column_names"):
-                    output_cols = set(current_dataset.column_names)
-                else:
-                    output_cols = set()
+                output_cols = set(current_dataset.columns.tolist())
                 added_cols = output_cols - input_cols
                 removed_cols = input_cols - output_cols
 
@@ -680,13 +668,8 @@ class Flow(BaseModel):
                     }
                 )
 
-                # Get number of columns - handle both pandas DataFrame and HuggingFace Dataset
-                if isinstance(current_dataset, pd.DataFrame):
-                    num_cols = len(current_dataset.columns)
-                elif hasattr(current_dataset, "column_names"):
-                    num_cols = len(current_dataset.column_names)
-                else:
-                    num_cols = 0
+                # Get number of columns
+                num_cols = len(current_dataset.columns)
 
                 exec_logger.info(
                     f"Block '{block.block_name}' completed successfully: "
@@ -1008,15 +991,8 @@ class Flow(BaseModel):
             errors.append("Dataset is empty")
 
         if self.metadata.dataset_requirements:
-            # Get column names - handle both pandas DataFrame and HuggingFace Dataset
-            if isinstance(dataset, pd.DataFrame):
-                columns = dataset.columns.tolist()
-            elif hasattr(dataset, "column_names"):  # HuggingFace Dataset
-                columns = dataset.column_names
-            else:
-                raise ValueError(
-                    f"Expected pandas DataFrame or HuggingFace Dataset, got {type(dataset)}"
-                )
+            # Get column names
+            columns = dataset.columns.tolist()
 
             errors.extend(
                 self.metadata.dataset_requirements.validate_dataset(
