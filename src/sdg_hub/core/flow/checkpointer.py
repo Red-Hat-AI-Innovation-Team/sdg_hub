@@ -163,9 +163,11 @@ class FlowCheckpointer:
             self.checkpoint_dir, f"checkpoint_{self._checkpoint_counter:04d}.jsonl"
         )
 
-        # Convert pending samples to dataset and save
-        checkpoint_dataset = Dataset.from_list(self._pending_samples)
-        checkpoint_dataset.to_json(checkpoint_file, orient="records", lines=True)
+        # Stream samples directly to JSON file (avoids intermediate Dataset object)
+        with open(checkpoint_file, "w", encoding="utf-8") as f:
+            for sample in self._pending_samples:
+                json.dump(sample, f)
+                f.write("\n")
 
         # Update metadata
         self._save_metadata()
