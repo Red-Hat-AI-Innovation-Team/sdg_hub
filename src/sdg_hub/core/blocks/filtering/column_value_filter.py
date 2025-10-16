@@ -10,7 +10,7 @@ from typing import Any, Optional, Union
 import operator
 
 # Third Party
-from datasets import Dataset
+import pandas as pd
 from pydantic import Field, field_validator
 
 # Local
@@ -158,32 +158,50 @@ class ColumnValueFilterBlock(BaseBlock):
             sample[self.column_name] = None
         return sample
 
-    def generate(self, samples: Dataset, **_kwargs: Any) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **_kwargs: Any) -> pd.DataFrame:
         """Generate filtered dataset based on specified conditions.
 
         Parameters
         ----------
-        samples : Dataset
+        samples : pd.DataFrame
             The input dataset to filter.
 
         Returns
         -------
-        Dataset
+        pd.DataFrame
             The filtered dataset.
         """
+        result = samples.copy()
+
+        # Convert dtype if specified
         if self._convert_dtype_func:
-            samples = samples.map(self._convert_dtype)
+            try:
+                result[self.column_name] = result[self.column_name].apply(
+                    lambda x: self._convert_dtype_func(x) if pd.notna(x) else None
+                )
+            except Exception as e:
+                logger.error(f"Error converting dtype: {e}, setting invalid values to None")
+                result[self.column_name] = result[self.column_name].apply(
+                    lambda x: (
+                        self._convert_dtype_func(x)
+                        if pd.notna(x)
+                        else None
+                        if isinstance(x, (int, float, str))
+                        else None
+                    )
+                )
 
-        samples = samples.filter(
-            lambda x: x[self.column_name] is not None,
-        )
+        # Filter out None values
+        result = result[result[self.column_name].notna()]
 
-        # Apply filter operation
-        samples = samples.filter(
+        # Apply filter operation using boolean indexing
+        # Create a mask that checks if any filter value matches
+        mask = result[self.column_name].apply(
             lambda x: any(
-                self._operation_func(x[self.column_name], value)
-                for value in self.filter_value
+                self._operation_func(x, value) for value in self.filter_value
             )
         )
 
-        return samples
+        result = result[mask]
+
+        return result
