@@ -334,12 +334,18 @@ class TextParserBlock(BaseBlock):
             cleanup_locally = True
 
         rows_written = 0
+        batch = []
         with open(tmp_jsonl_path, "w") as f:
             for sample in samples:
                 out = self._generate(sample)
                 for row in out:
-                    f.write(json.dumps(row) + "\n")
+                    batch.append(json.dumps(row) + "\n")
                     rows_written += 1
+                    if len(batch) >= 5:
+                        f.writelines(batch)
+                        batch.clear()
+            if batch:
+                f.writelines(batch)
 
         if rows_written == 0:
             if cleanup_locally:
