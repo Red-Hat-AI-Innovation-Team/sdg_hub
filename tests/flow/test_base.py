@@ -218,7 +218,7 @@ class TestFlow:
 
         assert "empty" in str(exc_info.value)
 
-    def test_generate_with_dataset_requirements(self):
+    def test_generate_with_dataset_requirements(self, tmp_path):
         """Test generating with dataset requirements."""
         requirements = DatasetRequirements(required_columns=["input"], min_samples=2)
         metadata = FlowMetadata(name="Test Flow", dataset_requirements=requirements)
@@ -233,23 +233,24 @@ class TestFlow:
         # Invalid dataset - missing column
         invalid_dataset = Dataset.from_dict({"wrong_col": ["test1", "test2"]})
         with pytest.raises(FlowValidationError) as exc_info:
-            flow.generate(invalid_dataset)
+            flow.generate(invalid_dataset, checkpoint_dir=str(tmp_path / "checkpoints"))
 
         assert "validation failed" in str(exc_info.value)
 
-    def test_generate_success(self):
+    def test_generate_success(self, tmp_path):
         """Test successful generation."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test1", "test2"]})
 
-        result = flow.generate(dataset)
+        result = flow.generate(dataset, checkpoint_dir=str(tmp_path / "checkpoints"))
+        result = Dataset.from_list(list(result))
 
         assert len(result) == 2
         assert "output" in result.column_names
         assert result["output"] == ["test_block_output_0", "test_block_output_1"]
 
-    def test_generate_with_runtime_params(self):
+    def test_generate_with_runtime_params(self, tmp_path):
         """Test generation with runtime parameters."""
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
@@ -259,7 +260,12 @@ class TestFlow:
 
         # Runtime parameters are passed to the block but we can't easily test them
         # in this mock setup. The test just verifies the flow runs without error.
-        result = flow.generate(dataset, runtime_params=runtime_params)
+        result = flow.generate(
+            dataset,
+            runtime_params=runtime_params,
+            checkpoint_dir=str(tmp_path / "checkpoints"),
+        )
+        result = Dataset.from_list(list(result))
 
         assert len(result) == 1
         assert "output" in result.column_names
@@ -803,7 +809,7 @@ class TestFlow:
         assert flow.blocks[0].max_tokens == 1024
         assert flow.blocks[0].custom_param == "custom_value"
 
-    def test_generate_requires_model_config_for_llm_flows(self):
+    def test_generate_requires_model_config_for_llm_flows(self, tmp_path):
         """Test that generate() requires set_model_config() for flows with LLM blocks."""
         llm_block = self.create_mock_llm_block(
             "llm_block", model=None
@@ -815,13 +821,13 @@ class TestFlow:
 
         # Should fail because model config not set
         with pytest.raises(FlowValidationError) as exc_info:
-            flow.generate(dataset)
+            flow.generate(dataset, checkpoint_dir=str(tmp_path / "checkpoints"))
 
         assert "Model configuration required before generate()" in str(exc_info.value)
         assert "llm_block" in str(exc_info.value)
         assert "Call flow.set_model_config() first" in str(exc_info.value)
 
-    def test_generate_allows_execution_after_model_config(self):
+    def test_generate_allows_execution_after_model_config(self, tmp_path):
         """Test that generate() works after set_model_config() is called."""
         llm_block = self.create_mock_llm_block("llm_block", model=None)
         llm_block.model = None
@@ -835,20 +841,24 @@ class TestFlow:
         )
 
         # Now generate should work
-        result = flow.generate(dataset)
+        result = flow.generate(dataset, checkpoint_dir=str(tmp_path / "checkpoints"))
+        result = Dataset.from_list(list(result))
         assert len(result) == 1
 
-    def test_generate_works_for_non_llm_flows(self):
+    def test_generate_works_for_non_llm_flows(self, tmp_path):
         """Test that generate() works without model config for flows without LLM blocks."""
         regular_block = self.create_mock_block("regular_block")
         flow = Flow(blocks=[regular_block], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test"]})
 
         # Should work without set_model_config() because no LLM blocks
-        result = flow.generate(dataset)
+        result = flow.generate(dataset, checkpoint_dir=str(tmp_path / "checkpoints"))
+        result = Dataset.from_list(list(result))
         assert len(result) == 1
 
-    def test_generate_requires_model_config_even_for_llm_blocks_with_attributes(self):
+    def test_generate_requires_model_config_even_for_llm_blocks_with_attributes(
+        self, tmp_path
+    ):
         """Test that generate() requires set_model_config() even if blocks have LLM attributes."""
         # Create an LLM block that has model attributes but no values
         llm_block = self.create_mock_llm_block(
@@ -863,7 +873,7 @@ class TestFlow:
 
         # Should fail because model config not set (new approach)
         with pytest.raises(FlowValidationError) as exc_info:
-            flow.generate(dataset)
+            flow.generate(dataset, checkpoint_dir=str(tmp_path / "checkpoints"))
 
         assert "Model configuration required before generate()" in str(exc_info.value)
 
@@ -871,7 +881,8 @@ class TestFlow:
         flow.set_model_config(
             model="test-model", api_base="http://localhost:8000/v1", api_key="EMPTY"
         )
-        result = flow.generate(dataset)
+        result = flow.generate(dataset, checkpoint_dir=str(tmp_path / "checkpoints"))
+        result = Dataset.from_list(list(result))
         assert len(result) == 1
 
     def test_is_model_config_required(self):
@@ -973,14 +984,15 @@ class TestFlow:
         assert recommendations["compatible"] == []
         assert recommendations["experimental"] == []
 
-    def test_generate_with_checkpointing_disabled(self):
+    def test_generate_with_checkpointing_disabled(self, tmp_path):
         """Test generation without checkpointing."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test1", "test2"]})
 
-        # Should work the same as before when no checkpoint_dir provided
-        result = flow.generate(dataset)
+        # checkpoint_dir is now required
+        result = flow.generate(dataset, checkpoint_dir=str(tmp_path / "checkpoints"))
+        result = Dataset.from_list(list(result))
 
         assert len(result) == 2
         assert "output" in result.column_names
@@ -994,6 +1006,7 @@ class TestFlow:
         checkpoint_dir = Path(self.temp_dir) / "checkpoints"
 
         result = flow.generate(dataset, checkpoint_dir=str(checkpoint_dir))
+        result = Dataset.from_list(list(result))
 
         assert len(result) == 2
         assert "output" in result.column_names
@@ -1021,6 +1034,7 @@ class TestFlow:
         result = flow.generate(
             dataset, checkpoint_dir=str(checkpoint_dir), save_freq=save_freq
         )
+        result = Dataset.from_list(list(result))
 
         assert len(result) == 5
         assert "output" in result.column_names
@@ -1061,6 +1075,7 @@ class TestFlow:
         )
 
         result = flow.generate(full_dataset, checkpoint_dir=str(checkpoint_dir))
+        result = Dataset.from_list(list(result))
 
         # Should have 4 samples total: 2 existing + 2 newly processed
         assert len(result) == 4
@@ -1100,6 +1115,7 @@ class TestFlow:
         input_dataset = Dataset.from_dict({"input": ["test1", "test2"]})
 
         result = flow.generate(input_dataset, checkpoint_dir=str(checkpoint_dir))
+        result = Dataset.from_list(list(result))
 
         # Should just return existing results without processing
         assert len(result) == 2
@@ -1120,6 +1136,7 @@ class TestFlow:
             checkpoint_dir=str(checkpoint_dir),
             save_freq=1,
         )
+        result = Dataset.from_list(list(result))
 
         assert len(result) == 2
         assert "output" in result.column_names
@@ -1141,6 +1158,7 @@ class TestFlow:
         checkpoint_dir = Path(self.temp_dir) / "multi_block_checkpoints"
 
         result = flow.generate(dataset, checkpoint_dir=str(checkpoint_dir), save_freq=1)
+        result = Dataset.from_list(list(result))
 
         # Should have processed through both blocks
         assert len(result) == 2
@@ -1158,7 +1176,7 @@ class TestFlow:
             checkpoint_data = json.loads(f.readline())
             assert "final" in checkpoint_data
 
-    def test_generate_warns_without_checkpointing_large_dataset(self, caplog):
+    def test_generate_warns_without_checkpointing_large_dataset(self, caplog, tmp_path):
         """Test warning is logged when processing large dataset with checkpointing disabled."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
@@ -1166,16 +1184,16 @@ class TestFlow:
         # Create dataset with >50 samples
         dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(60)]})
 
+        # checkpoint_dir is now required, so we just use it normally
         # Ensure warnings are captured
         with caplog.at_level(logging.WARNING):
-            result = flow.generate(dataset, checkpoint_dir=None)  # Explicitly disable
+            result = flow.generate(
+                dataset, checkpoint_dir=str(tmp_path / "checkpoints")
+            )
+            result = Dataset.from_list(list(result))
 
         assert len(result) == 60
         assert "output" in result.column_names
-
-        # Check that warning was logged
-        assert any("explicitly disabled" in record.message for record in caplog.records)
-        assert any("checkpoint_dir=None" in record.message for record in caplog.records)
 
     def test_generate_no_warning_with_checkpointing(self, caplog):
         """Test no warning is logged when checkpointing is enabled."""
@@ -1189,6 +1207,7 @@ class TestFlow:
         # Ensure warnings are captured
         with caplog.at_level(logging.WARNING):
             result = flow.generate(dataset, checkpoint_dir=str(checkpoint_dir))
+            result = Dataset.from_list(list(result))
 
         assert len(result) == 60
 
@@ -1198,7 +1217,7 @@ class TestFlow:
             for record in caplog.records
         )
 
-    def test_generate_no_warning_small_dataset(self, caplog):
+    def test_generate_no_warning_small_dataset(self, caplog, tmp_path):
         """Test no warning is logged for small datasets (<=50 samples) even with checkpointing disabled."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
@@ -1206,9 +1225,13 @@ class TestFlow:
         # Create dataset with exactly 50 samples (threshold)
         dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(50)]})
 
+        # checkpoint_dir is now required
         # Ensure warnings are captured
         with caplog.at_level(logging.WARNING):
-            result = flow.generate(dataset, checkpoint_dir=None)  # Explicitly disable
+            result = flow.generate(
+                dataset, checkpoint_dir=str(tmp_path / "checkpoints")
+            )
+            result = Dataset.from_list(list(result))
 
         assert len(result) == 50
 
@@ -1232,6 +1255,7 @@ class TestFlow:
         result = flow.generate(
             dataset, checkpoint_dir=str(checkpoint_dir), save_freq=save_freq
         )
+        result = Dataset.from_list(list(result))
 
         # Test 1: Correct number of samples (no duplication, no data loss)
         assert len(result) == 150, f"Expected 150 samples, got {len(result)}"
@@ -1276,6 +1300,7 @@ class TestFlow:
         result1 = flow.generate(
             dataset1, checkpoint_dir=str(checkpoint_dir), save_freq=save_freq
         )
+        result1 = Dataset.from_list(list(result1))
 
         assert len(result1) == 100
         checkpoint_files_after_first = list(checkpoint_dir.glob("checkpoint_*.jsonl"))
@@ -1287,6 +1312,7 @@ class TestFlow:
         result2 = flow.generate(
             dataset2, checkpoint_dir=str(checkpoint_dir), save_freq=save_freq
         )
+        result2 = Dataset.from_list(list(result2))
 
         # Test 1: Total samples = 150 (100 from checkpoint + 50 new)
         assert len(result2) == 150, f"Expected 150 samples, got {len(result2)}"
@@ -1317,6 +1343,7 @@ class TestFlow:
         result_unchunked = flow1.generate(
             dataset1, checkpoint_dir=str(checkpoint_dir1), save_freq=None
         )
+        result_unchunked = Dataset.from_list(list(result_unchunked))
 
         # Run 2: With chunking (save_freq=25, will create 3 chunks: 25+25+25)
         flow2 = Flow(blocks=[block], metadata=self.test_metadata)
@@ -1325,6 +1352,7 @@ class TestFlow:
         result_chunked = flow2.generate(
             dataset2, checkpoint_dir=str(checkpoint_dir2), save_freq=25
         )
+        result_chunked = Dataset.from_list(list(result_chunked))
 
         # Both should have same number of samples
         assert len(result_unchunked) == len(result_chunked) == 75
@@ -1340,33 +1368,28 @@ class TestFlow:
         # but the structure should be the same
         assert len(result_unchunked["output"]) == len(result_chunked["output"])
 
-    def test_generate_checkpointing_enabled_by_default(self):
+    def test_generate_checkpointing_enabled_by_default(self, tmp_path):
         """Test that checkpointing is enabled by default."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test1", "test2"]})
 
-        # Generate without specifying checkpoint_dir (should use default)
-        result = flow.generate(dataset)
+        # checkpoint_dir is now required
+        result = flow.generate(dataset, checkpoint_dir=str(tmp_path / "checkpoints"))
+        result = Dataset.from_list(list(result))
 
         assert len(result) == 2
         assert "output" in result.column_names
 
-        # Default checkpoint directory should be created
-        default_checkpoint_dir = Path(".sdg_hub_checkpoints")
-        assert default_checkpoint_dir.exists()
+        # Checkpoint directory should be created
+        checkpoint_dir = tmp_path / "checkpoints"
+        assert checkpoint_dir.exists()
 
         # Should have checkpoint files
-        checkpoint_files = list(default_checkpoint_dir.glob("checkpoint_*.jsonl"))
+        checkpoint_files = list(checkpoint_dir.glob("checkpoint_*.jsonl"))
         assert len(checkpoint_files) > 0
 
-        # Cleanup
-        # Standard
-        import shutil
-
-        shutil.rmtree(default_checkpoint_dir)
-
-    def test_generate_with_log_dir(self):
+    def test_generate_with_log_dir(self, tmp_path):
         """Test generation with log_dir parameter for dual logging."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
@@ -1376,7 +1399,12 @@ class TestFlow:
 
         # Ensure INFO level logging for this test regardless of LOG_LEVEL env var
         with patch.dict("os.environ", {"LOG_LEVEL": "INFO"}):
-            result = flow.generate(dataset, log_dir=str(log_dir))
+            result = flow.generate(
+                dataset,
+                checkpoint_dir=str(tmp_path / "checkpoints"),
+                log_dir=str(log_dir),
+            )
+            result = Dataset.from_list(list(result))
 
         assert len(result) == 2
         assert "output" in result.column_names
@@ -1400,19 +1428,20 @@ class TestFlow:
         assert "test_flow_" in log_file.name
         assert log_file.name.endswith(".log")
 
-    def test_generate_without_log_dir(self):
+    def test_generate_without_log_dir(self, tmp_path):
         """Test generation without log_dir parameter (original behavior)."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = Dataset.from_dict({"input": ["test1", "test2"]})
 
         # Should work without log_dir (backward compatibility)
-        result = flow.generate(dataset)
+        result = flow.generate(dataset, checkpoint_dir=str(tmp_path / "checkpoints"))
+        result = Dataset.from_list(list(result))
 
         assert len(result) == 2
         assert "output" in result.column_names
 
-    def test_generate_with_log_dir_creates_directory(self):
+    def test_generate_with_log_dir_creates_directory(self, tmp_path):
         """Test that log_dir is created if it doesn't exist."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
@@ -1422,7 +1451,10 @@ class TestFlow:
         log_dir = Path(self.temp_dir) / "nested" / "log" / "directory"
         assert not log_dir.exists()
 
-        result = flow.generate(dataset, log_dir=str(log_dir))
+        result = flow.generate(
+            dataset, checkpoint_dir=str(tmp_path / "checkpoints"), log_dir=str(log_dir)
+        )
+        result = Dataset.from_list(list(result))
 
         assert len(result) == 1
         # Directory should be created
@@ -1446,6 +1478,7 @@ class TestFlow:
             checkpoint_dir=str(checkpoint_dir),
             save_freq=1,
         )
+        result = Dataset.from_list(list(result))
 
         assert len(result) == 2
 
@@ -1513,7 +1546,7 @@ class TestFlow:
             mock_list_blocks.assert_called_once_with()
             mock_get.assert_called_once_with("nonexistent_block")
 
-    def test_generate_with_max_concurrency_limit(self):
+    def test_generate_with_max_concurrency_limit(self, tmp_path):
         """Test that max_concurrency limits concurrent requests."""
         # Standard
         from unittest.mock import patch
@@ -1557,11 +1590,14 @@ class TestFlow:
             "sdg_hub.core.blocks.llm.llm_chat_block.acompletion",
             side_effect=mock_acompletion,
         ):
-            flow.generate(dataset, max_concurrency=3)
+            result = flow.generate(
+                dataset, checkpoint_dir=str(tmp_path / "checkpoints"), max_concurrency=3
+            )
+            result = Dataset.from_list(list(result))
 
         assert max_concurrent[0] <= 3
 
-    def test_generate_without_concurrency_limit(self):
+    def test_generate_without_concurrency_limit(self, tmp_path):
         """Test that without max_concurrency, all requests run concurrently."""
         # Standard
         import asyncio
@@ -1613,11 +1649,14 @@ class TestFlow:
             "sdg_hub.core.blocks.llm.llm_chat_block.acompletion",
             side_effect=mock_acompletion,
         ):
-            flow.generate(dataset)  # No max_concurrency limit
+            result = flow.generate(
+                dataset, checkpoint_dir=str(tmp_path / "checkpoints")
+            )  # No max_concurrency limit
+            result = Dataset.from_list(list(result))
 
         assert max_concurrent[0] == 5  # All 5 should run concurrently
 
-    def test_generate_max_concurrency_validation(self):
+    def test_generate_max_concurrency_validation(self, tmp_path):
         """Test that max_concurrency parameter validation works correctly."""
         # Third Party
         from datasets import Dataset
@@ -1632,16 +1671,26 @@ class TestFlow:
 
         # Test invalid type
         with pytest.raises(FlowValidationError, match="max_concurrency must be an int"):
-            flow.generate(dataset, max_concurrency=3.5)
+            flow.generate(
+                dataset,
+                checkpoint_dir=str(tmp_path / "checkpoints"),
+                max_concurrency=3.5,
+            )
 
         # Test zero value
         with pytest.raises(
             FlowValidationError, match="max_concurrency must be greater than 0"
         ):
-            flow.generate(dataset, max_concurrency=0)
+            flow.generate(
+                dataset, checkpoint_dir=str(tmp_path / "checkpoints"), max_concurrency=0
+            )
 
         # Test negative value
         with pytest.raises(
             FlowValidationError, match="max_concurrency must be greater than 0"
         ):
-            flow.generate(dataset, max_concurrency=-1)
+            flow.generate(
+                dataset,
+                checkpoint_dir=str(tmp_path / "checkpoints"),
+                max_concurrency=-1,
+            )

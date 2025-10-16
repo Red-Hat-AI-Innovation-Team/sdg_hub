@@ -9,7 +9,7 @@ import time
 import uuid
 
 # Third Party
-from datasets import Dataset
+from datasets import Dataset, IterableDataset
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -28,7 +28,7 @@ import yaml
 # Local
 from ..blocks.base import BaseBlock
 from ..blocks.registry import BlockRegistry
-from ..utils.datautils import safe_concatenate_with_validation, validate_no_duplicates
+from ..utils.datautils import validate_no_duplicates
 from ..utils.error_handling import EmptyDatasetError, FlowValidationError
 from ..utils.flow_metrics import (
     display_metrics_summary,
@@ -288,13 +288,17 @@ class Flow(BaseModel):
     def generate(
         self,
         dataset: Dataset,
+        checkpoint_dir: str,
         runtime_params: Optional[dict[str, dict[str, Any]]] = None,
-        checkpoint_dir: str = ".sdg_hub_checkpoints",
         save_freq: Optional[int] = None,
         log_dir: Optional[str] = None,
         max_concurrency: Optional[int] = None,
-    ) -> Dataset:
+    ) -> IterableDataset:
         """Execute the flow blocks in sequence to generate data.
+
+        All results are saved to checkpoint files in checkpoint_dir and an IterableDataset
+        is returned that lazily loads from these files. This minimizes memory usage by
+        avoiding loading all results into memory at once.
 
         Note: For flows with LLM blocks, set_model_config() must be called first
         to configure model settings before calling generate().
@@ -303,18 +307,19 @@ class Flow(BaseModel):
         ----------
         dataset : Dataset
             Input dataset to process.
+        checkpoint_dir : str
+            Directory to save/load checkpoints. Required parameter.
+            All processed results are saved here as JSONL checkpoint files.
         runtime_params : Optional[Dict[str, Dict[str, Any]]], optional
             Runtime parameters organized by block name. Format:
             {
                 "block_name": {"param1": value1, "param2": value2},
                 "other_block": {"param3": value3}
             }
-        checkpoint_dir : str, optional
-            Directory to save/load checkpoints. Defaults to '.sdg_hub_checkpoints'.
-            Set to None to disable checkpointing.
         save_freq : Optional[int], optional
             Number of completed samples after which to save a checkpoint.
-            If None (default), only saves final results when checkpointing is enabled.
+            If None (default), processes entire dataset and saves at the end.
+            For large datasets (>8 samples), consider setting save_freq for memory efficiency.
         log_dir : Optional[str], optional
             Directory to save execution logs. If provided, logs will be written to both
             console and a log file in this directory. Maintains backward compatibility
@@ -325,8 +330,9 @@ class Flow(BaseModel):
 
         Returns
         -------
-        Dataset
-            Processed dataset after all blocks have been executed.
+        IterableDataset
+            Lazy iterator over processed results loaded from checkpoint files.
+            Can be iterated directly or materialized with list() or converted to Dataset.
 
         Raises
         ------
@@ -334,6 +340,32 @@ class Flow(BaseModel):
             If input dataset is empty or any block produces an empty dataset.
         FlowValidationError
             If flow validation fails or if model configuration is required but not set.
+
+        Examples
+        --------
+        >>> # Basic usage with iteration
+        >>> flow = Flow.from_yaml("path/to/flow.yaml")
+        >>> flow.set_model_config(model="gpt-4", api_key="...")
+        >>> result = flow.generate(dataset, checkpoint_dir="./checkpoints")
+        >>> for sample in result:
+        ...     print(sample)
+
+        >>> # Memory-efficient processing with save_freq
+        >>> result = flow.generate(
+        ...     dataset,
+        ...     checkpoint_dir="./checkpoints",
+        ...     save_freq=100  # Save every 100 samples
+        ... )
+
+        >>> # Materialize all results if needed
+        >>> all_results = list(result)
+        >>> # Or convert to regular Dataset
+        >>> from datasets import Dataset
+        >>> final_dataset = Dataset.from_generator(lambda: iter(result))
+
+        >>> # Load results from checkpoint files later
+        >>> from datasets import load_dataset
+        >>> loaded = load_dataset("json", data_files="./checkpoints/checkpoint_*.jsonl")
         """
         # Validate save_freq parameter early to prevent range() errors
         if save_freq is not None and save_freq <= 0:
@@ -401,47 +433,51 @@ class Flow(BaseModel):
         if max_concurrency is not None:
             logger.info(f"Using max_concurrency={max_concurrency} for LLM requests")
 
-        # Warn if processing large dataset without checkpointing
-        if checkpoint_dir is None and len(dataset) > 50:
-            logger.warning(
-                f"Processing {len(dataset)} samples with checkpointing explicitly disabled (checkpoint_dir=None). "
-                f"This may lead to memory issues with large datasets. "
-                f"Consider enabling checkpointing with default settings or custom directory."
+        # Initialize checkpointer (always enabled now since checkpoint_dir is required)
+        checkpointer = FlowCheckpointer(
+            checkpoint_dir=checkpoint_dir,
+            save_freq=save_freq,
+            flow_id=self.metadata.id,
+        )
+
+        # Load existing progress
+        remaining_dataset, _ = checkpointer.load_existing_progress(dataset)
+
+        # Get remaining input indices from checkpointer
+        # The checkpointer stores these internally after loading progress
+        remaining_indices = getattr(
+            checkpointer,
+            "_remaining_input_indices",
+            list(range(len(remaining_dataset))),
+        )
+
+        if len(remaining_dataset) == 0:
+            flow_logger.info(
+                "All samples already completed, returning existing results"
             )
+            if log_dir is not None and flow_logger is not logger:
+                for h in list(getattr(flow_logger, "handlers", [])):
+                    try:
+                        h.flush()
+                        h.close()
+                    except Exception:
+                        pass
+                    finally:
+                        flow_logger.removeHandler(h)
 
-        # Initialize checkpointer if enabled
-        checkpointer = None
-        completed_dataset = None
-        if checkpoint_dir:
-            checkpointer = FlowCheckpointer(
-                checkpoint_dir=checkpoint_dir,
-                save_freq=save_freq,
-                flow_id=self.metadata.id,
+            # Return IterableDataset from checkpoint files
+            return self._create_iterable_dataset_from_checkpoints(checkpoint_dir)
+
+        dataset = remaining_dataset
+        flow_logger.info(f"Resuming with {len(dataset)} remaining samples")
+
+        # Warn if processing large dataset without save_freq for memory efficiency
+        if save_freq is None and len(dataset) > 8:
+            flow_logger.warning(
+                f"Processing {len(dataset)} samples without save_freq. "
+                f"For better memory efficiency with large datasets, consider setting save_freq "
+                f"(e.g., save_freq=100) to save checkpoints incrementally."
             )
-
-            # Load existing progress
-            remaining_dataset, completed_dataset = checkpointer.load_existing_progress(
-                dataset
-            )
-
-            if len(remaining_dataset) == 0:
-                flow_logger.info(
-                    "All samples already completed, returning existing results"
-                )
-                if log_dir is not None and flow_logger is not logger:
-                    for h in list(getattr(flow_logger, "handlers", [])):
-                        try:
-                            h.flush()
-                            h.close()
-                        except Exception:
-                            pass
-                        finally:
-                            flow_logger.removeHandler(h)
-
-                return completed_dataset
-
-            dataset = remaining_dataset
-            flow_logger.info(f"Resuming with {len(dataset)} remaining samples")
 
         flow_logger.info(
             f"Starting flow '{self.metadata.name}' v{self.metadata.version} "
@@ -454,27 +490,33 @@ class Flow(BaseModel):
         run_start = time.perf_counter()
 
         # Execute flow with metrics capture, ensuring metrics are always displayed/saved
-        final_dataset = None
         execution_successful = False
 
         try:
-            # Process dataset in chunks if checkpointing with save_freq
-            if checkpointer and save_freq:
+            # Process dataset in chunks if save_freq is set
+            if save_freq:
                 # Process in chunks of save_freq
                 for i in range(0, len(dataset), save_freq):
                     chunk_end = min(i + save_freq, len(dataset))
                     chunk_dataset = dataset.select(range(i, chunk_end))
+
+                    # Add input index tracking column that flows through the pipeline
+                    chunk_input_indices = remaining_indices[i:chunk_end]
+                    chunk_dataset = chunk_dataset.add_column(
+                        "_sdg_input_index", chunk_input_indices
+                    )
 
                     flow_logger.info(
                         f"Processing chunk {i // save_freq + 1}: samples {i} to {chunk_end - 1}"
                     )
 
                     # Execute all blocks on this chunk
+                    # The _sdg_input_index column will flow through naturally
                     processed_chunk = self._execute_blocks_on_dataset(
                         chunk_dataset, runtime_params, flow_logger, max_concurrency
                     )
 
-                    # Save checkpoint after chunk completion
+                    # Save checkpoint - _sdg_input_index is already in the processed_chunk
                     checkpointer.add_completed_samples(processed_chunk)
                     checkpointer._save_checkpoint()
 
@@ -484,36 +526,27 @@ class Flow(BaseModel):
                 # Save final checkpoint for any remaining samples
                 checkpointer.save_final_checkpoint()
 
-                # Load all processed chunks from checkpoint files
-                # Note: When using save_freq, all samples (both from previous runs and current run)
-                # are saved to checkpoint files. load_all_completed_samples() loads ALL checkpoints, including current chunk.
-                final_dataset = checkpointer.load_all_completed_samples()
-
             else:
                 # Process entire dataset at once
-                final_dataset = self._execute_blocks_on_dataset(
+                # Add input index tracking column that flows through the pipeline
+                dataset = dataset.add_column("_sdg_input_index", remaining_indices)
+
+                processed_dataset = self._execute_blocks_on_dataset(
                     dataset, runtime_params, flow_logger, max_concurrency
                 )
 
-                # Save final checkpoint if checkpointing enabled
-                if checkpointer:
-                    checkpointer.add_completed_samples(final_dataset)
-                    checkpointer.save_final_checkpoint()
+                # Save final checkpoint - _sdg_input_index is already in the processed_dataset
+                checkpointer.add_completed_samples(processed_dataset)
+                checkpointer.save_final_checkpoint()
 
-                    # Combine with previously completed samples if any
-                    if completed_dataset:
-                        final_dataset = safe_concatenate_with_validation(
-                            [completed_dataset, final_dataset],
-                            "completed checkpoint data with newly processed data",
-                        )
+                # Explicitly free processed dataset
+                del processed_dataset
 
             execution_successful = True
 
         finally:
             # Always display metrics and save JSON, even if execution failed
-            display_metrics_summary(
-                self._block_metrics, self.metadata.name, final_dataset
-            )
+            display_metrics_summary(self._block_metrics, self.metadata.name)
 
             # Save metrics to JSON if log_dir is provided
             if log_dir is not None:
@@ -534,12 +567,15 @@ class Flow(BaseModel):
                     flow_logger,
                 )
 
-        # Keep a basic log entry for file logs (only if execution was successful)
-        if execution_successful and final_dataset is not None:
+        # Log completion summary
+        if execution_successful:
+            # Count checkpoint files to report
+            checkpoint_count = len(
+                list(Path(checkpoint_dir).glob("checkpoint_*.jsonl"))
+            )
             flow_logger.info(
-                f"Flow '{self.metadata.name}' completed successfully: "
-                f"{len(final_dataset)} final samples, "
-                f"{len(final_dataset.column_names)} final columns"
+                f"Flow '{self.metadata.name}' completed successfully. "
+                f"Results saved to {checkpoint_count} checkpoint file(s) in {checkpoint_dir}/"
             )
 
         # Close file handlers if we opened a flow-specific logger
@@ -553,7 +589,8 @@ class Flow(BaseModel):
                 finally:
                     flow_logger.removeHandler(h)
 
-        return final_dataset
+        # Return IterableDataset from checkpoint files
+        return self._create_iterable_dataset_from_checkpoints(checkpoint_dir)
 
     def _execute_blocks_on_dataset(
         self,
@@ -673,6 +710,39 @@ class Flow(BaseModel):
         if runtime_params is None:
             return {}
         return runtime_params.get(block.block_name, {})
+
+    def _create_iterable_dataset_from_checkpoints(
+        self, checkpoint_dir: str
+    ) -> IterableDataset:
+        """Create an IterableDataset that lazily loads from checkpoint files.
+
+        Checkpoint files are loaded in sorted order to preserve dataset ordering.
+
+        Parameters
+        ----------
+        checkpoint_dir : str
+            Directory containing checkpoint JSONL files.
+
+        Returns
+        -------
+        IterableDataset
+            Lazy iterator over checkpoint files using HuggingFace's streaming mode.
+        """
+        from datasets import load_dataset
+
+        # Get checkpoint files and sort them to preserve order
+        checkpoint_files = sorted(Path(checkpoint_dir).glob("checkpoint_*.jsonl"))
+        checkpoint_paths = [str(f) for f in checkpoint_files]
+
+        # Use HuggingFace's load_dataset with streaming for lazy loading
+        # Files are processed in the order provided, preserving dataset order
+        iterable_dataset = load_dataset(
+            "json",
+            data_files=checkpoint_paths,
+            split="train",
+            streaming=True,
+        )
+        return iterable_dataset
 
     def set_model_config(
         self,

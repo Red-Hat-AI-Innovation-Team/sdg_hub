@@ -9,7 +9,6 @@ import json
 import time
 
 # Third Party
-from datasets import Dataset
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -71,9 +70,11 @@ def aggregate_block_metrics(entries: list[dict[str, Any]]) -> list[dict[str, Any
 def display_metrics_summary(
     block_metrics: list[dict[str, Any]],
     flow_name: str,
-    final_dataset: Optional[Dataset] = None,
 ) -> None:
     """Display a rich table summarizing block execution metrics.
+
+    Final row and column counts are calculated from block metrics without
+    materializing the dataset, ensuring memory efficiency.
 
     Parameters
     ----------
@@ -81,8 +82,6 @@ def display_metrics_summary(
         Raw block metrics from flow execution.
     flow_name : str
         Name of the flow for display title.
-    final_dataset : Optional[Dataset], optional
-        Final dataset from flow execution. None if flow failed.
     """
     if not block_metrics:
         return
@@ -146,15 +145,35 @@ def display_metrics_summary(
 
     # Add summary row
     table.add_section()
-    final_row_count = len(final_dataset) if final_dataset else 0
-    final_col_count = len(final_dataset.column_names) if final_dataset else 0
+
+    # Calculate final row and column counts from block metrics
+    # Find the last successful block's output_rows
+    final_row_count = 0
+    for metrics in reversed(block_metrics):
+        if metrics["status"] == "success":
+            final_row_count = metrics["output_rows"]
+            break
+
+    # Calculate net column changes across all successful blocks
+    all_added_cols = set()
+    all_removed_cols = set()
+    for metrics in block_metrics:
+        if metrics["status"] == "success":
+            all_added_cols.update(metrics["added_cols"])
+            all_removed_cols.update(metrics["removed_cols"])
+
+    # Net new columns added during flow execution
+    net_new_cols = len(all_added_cols - all_removed_cols)
+
+    row_display = f"[bold]{final_row_count:,} final[/bold]"
+    col_display = f"[bold]+{net_new_cols} net[/bold]"
 
     table.add_row(
         "[bold]TOTAL[/bold]",
         f"[bold]{len(block_metrics)} blocks[/bold]",
         f"[bold]{total_time:.2f}s[/bold]",
-        f"[bold]{final_row_count:,} final[/bold]",
-        f"[bold]{final_col_count} final[/bold]",
+        row_display,
+        col_display,
         f"[bold][green]{successful_blocks}/{len(block_metrics)}[/green][/bold]",
     )
 
@@ -163,20 +182,20 @@ def display_metrics_summary(
 
     # Determine panel title and border color based on execution status
     failed_blocks = len(block_metrics) - successful_blocks
-    if final_dataset is None:
-        # Flow failed completely
+    if failed_blocks == 0:
+        # All blocks succeeded
+        title = f"[bold bright_white]{flow_name}[/bold bright_white] - [green]Complete[/green]"
+        border_style = "bright_green"
+    elif failed_blocks < len(block_metrics):
+        # Some blocks failed but flow completed
+        title = f"[bold bright_white]{flow_name}[/bold bright_white] - [yellow]Partial[/yellow]"
+        border_style = "bright_yellow"
+    else:
+        # All blocks failed
         title = (
             f"[bold bright_white]{flow_name}[/bold bright_white] - [red]Failed[/red]"
         )
         border_style = "bright_red"
-    elif failed_blocks == 0:
-        # All blocks succeeded
-        title = f"[bold bright_white]{flow_name}[/bold bright_white] - [green]Complete[/green]"
-        border_style = "bright_green"
-    else:
-        # Some blocks failed but flow completed
-        title = f"[bold bright_white]{flow_name}[/bold bright_white] - [yellow]Partial[/yellow]"
-        border_style = "bright_yellow"
 
     console.print(
         Panel(

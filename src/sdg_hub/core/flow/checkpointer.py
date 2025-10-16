@@ -10,12 +10,43 @@ import uuid
 
 # Third Party
 from datasets import Dataset
+import numpy as np
 
 # Local
 from ..utils.datautils import safe_concatenate_with_validation
 from ..utils.logger_config import setup_logger
 
 logger = setup_logger(__name__)
+
+
+def _make_hashable(x):
+    """Convert any value to a hashable representation.
+
+    This is the same logic used in validate_no_duplicates() to handle
+    numpy arrays, dicts, lists, etc. when comparing dataset rows.
+    """
+    try:
+        hash(x)
+        return x
+    except TypeError:
+        pass
+
+    if isinstance(x, np.ndarray):
+        if x.ndim == 0:
+            return _make_hashable(x.item())
+        return tuple(_make_hashable(i) for i in x)
+    if isinstance(x, dict):
+        return tuple(
+            sorted(
+                ((k, _make_hashable(v)) for k, v in x.items()),
+                key=lambda kv: repr(kv[0]),
+            )
+        )
+    if isinstance(x, (set, frozenset)):
+        return frozenset(_make_hashable(i) for i in x)
+    if hasattr(x, "__iter__"):
+        return tuple(_make_hashable(i) for i in x)
+    return repr(x)
 
 
 class FlowCheckpointer:
@@ -51,6 +82,9 @@ class FlowCheckpointer:
         self._samples_processed = 0
         self._checkpoint_counter = 0
         self._pending_samples: List[Dict[str, Any]] = []
+        self._remaining_input_indices: List[
+            int
+        ] = []  # Indices of remaining samples to process
 
         # Ensure checkpoint directory exists
         if self.checkpoint_dir:
@@ -64,7 +98,7 @@ class FlowCheckpointer:
     @property
     def metadata_path(self) -> str:
         """Path to the flow metadata file."""
-        return os.path.join(self.checkpoint_dir, "flow_metadata.json")
+        return os.path.join(self.checkpoint_dir, ".flow_metadata.json")
 
     def load_existing_progress(
         self, input_dataset: Dataset
@@ -83,6 +117,8 @@ class FlowCheckpointer:
             If no checkpoints exist, returns (input_dataset, None)
         """
         if not self.is_enabled:
+            # No checkpoints, all samples need processing
+            self._remaining_input_indices = list(range(len(input_dataset)))
             return input_dataset, None
 
         try:
@@ -90,6 +126,8 @@ class FlowCheckpointer:
             metadata = self._load_metadata()
             if not metadata:
                 logger.info(f"No existing checkpoints found in {self.checkpoint_dir}")
+                # No checkpoints, all samples need processing
+                self._remaining_input_indices = list(range(len(input_dataset)))
                 return input_dataset, None
 
             # Validate flow identity to prevent mixing checkpoints from different flows
@@ -100,21 +138,26 @@ class FlowCheckpointer:
                     f"but current flow ID is '{self.flow_id}'. Starting fresh to avoid "
                     f"mixing incompatible checkpoint data."
                 )
+                # Starting fresh, all samples need processing
+                self._remaining_input_indices = list(range(len(input_dataset)))
                 return input_dataset, None
 
             # Load all completed samples from checkpoints
             completed_dataset = self.load_all_completed_samples()
             if completed_dataset is None or len(completed_dataset) == 0:
                 logger.info("No completed samples found in checkpoints")
+                # No checkpoints, all samples need processing
+                self._remaining_input_indices = list(range(len(input_dataset)))
                 return input_dataset, None
 
-            # Find samples that still need processing
-            remaining_dataset = self._find_remaining_samples(
-                input_dataset, completed_dataset
+            # Find samples that still need processing using input index tracking
+            remaining_dataset, remaining_indices = (
+                self._find_remaining_samples_by_index(input_dataset, completed_dataset)
             )
 
             self._samples_processed = len(completed_dataset)
             self._checkpoint_counter = metadata.get("checkpoint_counter", 0)
+            self._remaining_input_indices = remaining_indices  # Store for later use
 
             logger.info(
                 f"Loaded {len(completed_dataset)} completed samples, "
@@ -125,6 +168,8 @@ class FlowCheckpointer:
 
         except Exception as exc:
             logger.warning(f"Failed to load checkpoints: {exc}. Starting from scratch.")
+            # Failed to load, all samples need processing
+            self._remaining_input_indices = list(range(len(input_dataset)))
             return input_dataset, None
 
     def add_completed_samples(self, samples: Dataset) -> None:
@@ -134,13 +179,16 @@ class FlowCheckpointer:
         ----------
         samples : Dataset
             Samples that have completed processing through all blocks.
+            Must contain '_sdg_input_index' column that was added before processing
+            and flowed through the pipeline naturally.
         """
         if not self.is_enabled:
             return
 
-        # Add to pending samples
+        # The samples already have _sdg_input_index column from flow processing
+        # Just convert to dict and save
         for sample in samples:
-            self._pending_samples.append(sample)
+            self._pending_samples.append(dict(sample))
             self._samples_processed += 1
 
     def save_final_checkpoint(self) -> None:
@@ -245,6 +293,59 @@ class FlowCheckpointer:
 
         return safe_concatenate_with_validation(datasets, "checkpoint files")
 
+    def _find_remaining_samples_by_index(
+        self, input_dataset: Dataset, completed_dataset: Dataset
+    ) -> tuple[Dataset, list[int]]:
+        """Find input samples that haven't been processed using input index tracking.
+
+        Uses the _sdg_input_index column in completed samples to determine which
+        input rows have been processed. This works correctly even when the flow
+        amplifies data (1 input → many outputs) or modifies columns.
+
+        Parameters
+        ----------
+        input_dataset : Dataset
+            Original input dataset.
+        completed_dataset : Dataset
+            Dataset of completed samples from checkpoints.
+
+        Returns
+        -------
+        tuple[Dataset, list[int]]
+            (remaining_dataset, remaining_indices) - The dataset of remaining samples
+            and their original indices in the input dataset.
+        """
+        # Check if completed dataset has input index tracking
+        if "_sdg_input_index" not in completed_dataset.column_names:
+            logger.warning(
+                "Checkpoints don't have _sdg_input_index column. "
+                "Falling back to column-based comparison (may not work correctly "
+                "if flow modifies input columns or amplifies data)."
+            )
+            remaining = self._find_remaining_samples(input_dataset, completed_dataset)
+            # Without index tracking, assume sequential indices for remaining samples
+            indices = list(range(len(remaining)))
+            return remaining, indices
+
+        # Get unique input indices that have been processed
+        completed_indices = set(completed_dataset["_sdg_input_index"])
+        logger.info(
+            f"Found {len(completed_indices)} unique input indices in checkpoints: {sorted(completed_indices)}"
+        )
+
+        # Find remaining input indices
+        total_input_indices = set(range(len(input_dataset)))
+        remaining_indices = sorted(total_input_indices - completed_indices)
+
+        logger.info(f"Input samples processed: {sorted(completed_indices)}")
+        logger.info(f"Input samples remaining: {remaining_indices}")
+
+        if not remaining_indices:
+            # All samples completed
+            return input_dataset.select([]), []
+
+        return input_dataset.select(remaining_indices), remaining_indices
+
     def _find_remaining_samples(
         self, input_dataset: Dataset, completed_dataset: Dataset
     ) -> Dataset:
@@ -270,6 +371,14 @@ class FlowCheckpointer:
         completed_columns = set(completed_dataset.column_names)
         common_columns = list(input_columns & completed_columns)
 
+        logger.info(f"Checkpoint comparison - Input columns: {sorted(input_columns)}")
+        logger.info(
+            f"Checkpoint comparison - Completed columns: {sorted(completed_columns)[:10]}..."
+        )  # First 10 to avoid clutter
+        logger.info(
+            f"Checkpoint comparison - Using {len(common_columns)} common columns: {sorted(common_columns)}"
+        )
+
         if not common_columns:
             logger.warning(
                 "No common columns found between input and completed datasets. "
@@ -281,14 +390,61 @@ class FlowCheckpointer:
         input_df = input_dataset.select_columns(common_columns).to_pandas()
         completed_df = completed_dataset.select_columns(common_columns).to_pandas()
 
+        # Convert all cells to hashable representations (handles numpy arrays, lists, dicts, etc.)
+        # This uses the same logic as validate_no_duplicates() to ensure robust comparison
+        if hasattr(input_df, "map"):
+            input_df_hashable = input_df.map(_make_hashable)
+            completed_df_hashable = completed_df.map(_make_hashable)
+        else:
+            input_df_hashable = input_df.applymap(_make_hashable)
+            completed_df_hashable = completed_df.applymap(_make_hashable)
+
         # Find rows that haven't been completed
         # Use tuple representation for comparison
-        input_tuples = set(input_df.apply(tuple, axis=1))
-        completed_tuples = set(completed_df.apply(tuple, axis=1))
+        input_tuples = set(input_df_hashable.apply(tuple, axis=1))
+        completed_tuples = set(completed_df_hashable.apply(tuple, axis=1))
         remaining_tuples = input_tuples - completed_tuples
 
+        logger.info(
+            f"Checkpoint comparison - Input samples (unique): {len(input_tuples)}"
+        )
+        logger.info(
+            f"Checkpoint comparison - Completed samples (unique): {len(completed_tuples)}"
+        )
+        logger.info(
+            f"Checkpoint comparison - Samples matched: {len(input_tuples & completed_tuples)}"
+        )
+        logger.info(
+            f"Checkpoint comparison - Remaining samples: {len(remaining_tuples)}"
+        )
+
+        # Debug: Show sample data to understand mismatch
+        if len(remaining_tuples) > 0 and len(remaining_tuples) == len(input_tuples):
+            logger.warning("No input samples matched with completed checkpoints!")
+            logger.info("Sample input data (first row, ALL common columns):")
+            for col in common_columns:
+                val = input_df.iloc[0][col]
+                logger.info(f"  {col}: {type(val).__name__} = {repr(val)[:150]}")
+            logger.info("Sample completed data (first row, ALL common columns):")
+            for col in common_columns:
+                val = completed_df.iloc[0][col]
+                logger.info(f"  {col}: {type(val).__name__} = {repr(val)[:150]}")
+
+            # Show hashable representations for comparison
+            logger.info("Hashable comparison (first row):")
+            input_hash = tuple(input_df_hashable.iloc[0])
+            completed_hash = tuple(completed_df_hashable.iloc[0])
+            logger.info(
+                f"  Input hashable (len={len(input_hash)}): {str(input_hash)[:200]}"
+            )
+            logger.info(
+                f"  Completed hashable (len={len(completed_hash)}): {str(completed_hash)[:200]}"
+            )
+            logger.info(f"  Are they equal? {input_hash == completed_hash}")
+
         # Filter input dataset to only remaining samples
-        remaining_mask = input_df.apply(tuple, axis=1).isin(remaining_tuples)
+        # Use the hashable version for comparison but return indices from original dataset
+        remaining_mask = input_df_hashable.apply(tuple, axis=1).isin(remaining_tuples)
         remaining_indices = input_df[remaining_mask].index.tolist()
 
         if not remaining_indices:

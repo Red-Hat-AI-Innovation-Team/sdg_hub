@@ -113,7 +113,12 @@ class TestFlowIntegration:
             # Execute full flow
             runtime_params = {"chat_block": {"temperature": 0.5}}
 
-            result = flow.generate(dataset, runtime_params=runtime_params)
+            result = flow.generate(
+                dataset,
+                checkpoint_dir=str(temp_dir / "checkpoints"),
+                runtime_params=runtime_params,
+            )
+            result = Dataset.from_list(list(result))
 
             # Verify results
             assert len(result) == 3
@@ -491,7 +496,9 @@ class TestFlowIntegration:
 
         # Should fail on generate
         with pytest.raises(Exception):
-            empty_flow.generate(dataset)
+            empty_flow.generate(
+                dataset, checkpoint_dir=str(temp_dir / "empty_checkpoints")
+            )
 
         # Should fail on dry_run
         with pytest.raises(Exception):
