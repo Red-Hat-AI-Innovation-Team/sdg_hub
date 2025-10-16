@@ -626,6 +626,12 @@ class Flow(BaseModel):
                         f"Block '{block.block_name}' produced empty dataset"
                     )
 
+                # Here, we write and reload dataset object from and to disk.
+                # This is done because HF Datasets library creates a ton of intermediate
+                # objects, and holds on to them even after the objects have fulfilled
+                # their purpose. To get flush these objects, HF recommends to implement
+                # this `save_to_disk` and `load_from_disk` hack.
+                # https://github.com/huggingface/datasets/blob/main/src/datasets/arrow_dataset.py#L1029
                 previous_temp_path = current_dataset_temp_path
                 dataset_temp_dir = create_temp_dir(prefix=f"flow_{block.block_name}")
                 current_dataset.save_to_disk(str(dataset_temp_dir))
