@@ -143,10 +143,6 @@ class FlowCheckpointer:
             self._pending_samples.append(sample)
             self._samples_processed += 1
 
-            # Check if we should save a checkpoint
-            if self.save_freq and len(self._pending_samples) >= self.save_freq:
-                self._save_checkpoint()
-
     def save_final_checkpoint(self) -> None:
         """Save any remaining pending samples as final checkpoint."""
         if not self.is_enabled:

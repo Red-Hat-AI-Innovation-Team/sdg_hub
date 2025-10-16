@@ -476,6 +476,7 @@ class Flow(BaseModel):
 
                     # Save checkpoint after chunk completion
                     checkpointer.add_completed_samples(processed_chunk)
+                    checkpointer._save_checkpoint()
 
                     # Explicitly free processed chunk to reduce memory footprint
                     del processed_chunk

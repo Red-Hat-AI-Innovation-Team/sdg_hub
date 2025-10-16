@@ -80,6 +80,8 @@ class TestFlowCheckpointer:
         )
 
         checkpointer.add_completed_samples(dataset)
+        # Explicitly save checkpoint due to new explicit-save behavior
+        checkpointer._save_checkpoint()
 
         # Should have saved a checkpoint
         checkpoint_files = list(Path(self.temp_dir).glob("checkpoint_*.jsonl"))
@@ -94,7 +96,7 @@ class TestFlowCheckpointer:
         assert progress["checkpoint_counter"] == 1
 
     def test_save_checkpoint_with_save_freq(self):
-        """Test checkpoint saving with save frequency."""
+        """Test explicit checkpoint saving (save_freq no longer triggers auto-save)."""
         checkpointer = FlowCheckpointer(
             checkpoint_dir=self.temp_dir, save_freq=3, flow_id=self.flow_id
         )
@@ -105,30 +107,24 @@ class TestFlowCheckpointer:
         sample3 = Dataset.from_dict({"input": ["test3"], "output": ["result3"]})
         sample4 = Dataset.from_dict({"input": ["test4"], "output": ["result4"]})
 
-        # Add first sample - no checkpoint yet
+        # Add first chunk and save explicitly
         checkpointer.add_completed_samples(sample1)
-        checkpoint_files = list(Path(self.temp_dir).glob("checkpoint_*.jsonl"))
-        assert len(checkpoint_files) == 0
-
-        # Add second sample - no checkpoint yet
         checkpointer.add_completed_samples(sample2)
-        checkpoint_files = list(Path(self.temp_dir).glob("checkpoint_*.jsonl"))
-        assert len(checkpoint_files) == 0
-
-        # Add third sample - should trigger checkpoint
         checkpointer.add_completed_samples(sample3)
+        checkpointer._save_checkpoint()
         checkpoint_files = list(Path(self.temp_dir).glob("checkpoint_*.jsonl"))
         assert len(checkpoint_files) == 1
 
-        # Add fourth sample - should not trigger checkpoint yet
+        # Add second chunk and save explicitly
         checkpointer.add_completed_samples(sample4)
+        checkpointer._save_checkpoint()
         checkpoint_files = list(Path(self.temp_dir).glob("checkpoint_*.jsonl"))
-        assert len(checkpoint_files) == 1  # Still only one
+        assert len(checkpoint_files) == 2
 
-        # Save final checkpoint
-        checkpointer.save_final_checkpoint()
-        checkpoint_files = list(Path(self.temp_dir).glob("checkpoint_*.jsonl"))
-        assert len(checkpoint_files) == 2  # Now two checkpoints
+        # Verify checkpoint contents
+        loaded = checkpointer.load_all_completed_samples()
+        assert len(loaded) == 4
+        assert loaded["input"] == ["test1", "test2", "test3", "test4"]
 
     def test_load_existing_checkpoints(self):
         """Test loading existing checkpoints and finding remaining work."""
@@ -141,6 +137,7 @@ class TestFlowCheckpointer:
             {"input": ["test1", "test2"], "output": ["result1", "result2"]}
         )
         checkpointer1.add_completed_samples(completed_data)
+        checkpointer1._save_checkpoint()
 
         # Now create a new checkpointer and test loading
         checkpointer2 = FlowCheckpointer(
@@ -172,6 +169,7 @@ class TestFlowCheckpointer:
             {"input": ["test1", "test2"], "output": ["result1", "result2"]}
         )
         checkpointer1.add_completed_samples(completed_data)
+        checkpointer1._save_checkpoint()
 
         # Input dataset with only the same samples
         input_dataset = Dataset.from_dict(
@@ -229,6 +227,7 @@ class TestFlowCheckpointer:
             }
         )
         checkpointer.add_completed_samples(dataset)
+        checkpointer._save_checkpoint()
 
         # Check metadata content
         with open(checkpointer.metadata_path, "r") as f:
@@ -250,6 +249,7 @@ class TestFlowCheckpointer:
             {"input": ["test1", "test2"], "output": ["result1", "result2"]}
         )
         checkpointer.add_completed_samples(dataset)
+        checkpointer._save_checkpoint()
 
         # Verify files exist
         checkpoint_files = list(Path(self.temp_dir).glob("checkpoint_*.jsonl"))
@@ -295,7 +295,9 @@ class TestFlowCheckpointer:
         )
 
         checkpointer.add_completed_samples(checkpoint1_data)
+        checkpointer._save_checkpoint()
         checkpointer.add_completed_samples(checkpoint2_data)
+        checkpointer._save_checkpoint()
 
         # Load all completed samples
         completed = checkpointer.load_all_completed_samples()
@@ -317,6 +319,7 @@ class TestFlowCheckpointer:
         # Test 2: Add some samples and verify they can be loaded
         data1 = Dataset.from_dict({"input": ["a", "b"], "output": ["x", "y"]})
         checkpointer.add_completed_samples(data1)
+        checkpointer._save_checkpoint()
 
         result = checkpointer.load_all_completed_samples()
         assert result is not None
@@ -327,6 +330,7 @@ class TestFlowCheckpointer:
         # Test 3: Add more samples and verify all are loaded
         data2 = Dataset.from_dict({"input": ["c", "d"], "output": ["z", "w"]})
         checkpointer.add_completed_samples(data2)
+        checkpointer._save_checkpoint()
 
         result = checkpointer.load_all_completed_samples()
         assert result is not None

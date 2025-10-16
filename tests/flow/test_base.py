@@ -1052,6 +1052,8 @@ class TestFlow:
             {"input": ["test1", "test2"], "output": ["existing1", "existing2"]}
         )
         checkpointer.add_completed_samples(completed_data)
+        # Explicitly save checkpoint due to new explicit-save behavior
+        checkpointer._save_checkpoint()
 
         # Now run flow with larger input dataset
         full_dataset = Dataset.from_dict(
@@ -1091,6 +1093,8 @@ class TestFlow:
             {"input": ["test1", "test2"], "output": ["existing1", "existing2"]}
         )
         checkpointer.add_completed_samples(completed_data)
+        # Explicitly save checkpoint due to new explicit-save behavior
+        checkpointer._save_checkpoint()
 
         # Run flow with same input dataset
         input_dataset = Dataset.from_dict({"input": ["test1", "test2"]})
