@@ -1,6 +1,6 @@
 # Third Party
-from datasets import Dataset, concatenate_datasets
 import numpy as np
+import pandas as pd
 
 # Local
 from .error_handling import FlowValidationError
@@ -8,15 +8,15 @@ from .error_handling import FlowValidationError
 
 def safe_concatenate_datasets(datasets: list):
     """Concatenate datasets safely, ignoring any datasets that are None or empty."""
-    filtered_datasets = [ds for ds in datasets if ds is not None and ds.num_rows > 0]
+    filtered_datasets = [ds for ds in datasets if ds is not None and len(ds) > 0]
 
     if not filtered_datasets:
         return None
 
-    return concatenate_datasets(filtered_datasets)
+    return pd.concat(filtered_datasets, ignore_index=True)
 
 
-def validate_no_duplicates(dataset: Dataset) -> None:
+def validate_no_duplicates(dataset: pd.DataFrame) -> None:
     """
     Validate that the input dataset contains only unique rows.
 
@@ -27,7 +27,7 @@ def validate_no_duplicates(dataset: Dataset) -> None:
 
     Parameters
     ----------
-    dataset : Dataset
+    dataset : pd.DataFrame
         Input dataset to validate.
 
     Raises
@@ -38,7 +38,7 @@ def validate_no_duplicates(dataset: Dataset) -> None:
     if len(dataset) == 0:
         return
 
-    df = dataset.to_pandas()
+    df = dataset
 
     def is_hashable(x):
         try:
@@ -89,19 +89,19 @@ def validate_no_duplicates(dataset: Dataset) -> None:
 
 def safe_concatenate_with_validation(
     datasets: list, context: str = "datasets"
-) -> Dataset:
+) -> pd.DataFrame:
     """Safely concatenate datasets with schema validation and clear error messages.
 
     Parameters
     ----------
-    datasets : list[Dataset]
+    datasets : list[pd.DataFrame]
         List of datasets to concatenate
     context : str
         Description of what's being concatenated for error messages
 
     Returns
     -------
-    Dataset
+    pd.DataFrame
         Concatenated dataset
 
     Raises
@@ -119,12 +119,12 @@ def safe_concatenate_with_validation(
         return valid_datasets[0]
 
     try:
-        return concatenate_datasets(valid_datasets)
+        return pd.concat(valid_datasets, ignore_index=True)
     except Exception as e:
         # Schema mismatch or other concatenation error
         schema_info = []
         for i, ds in enumerate(valid_datasets):
-            schema_info.append(f"Dataset {i}: columns={ds.column_names}")
+            schema_info.append(f"Dataset {i}: columns={ds.columns.tolist()}")
 
         schema_details = "\n".join(schema_info)
         raise FlowValidationError(
