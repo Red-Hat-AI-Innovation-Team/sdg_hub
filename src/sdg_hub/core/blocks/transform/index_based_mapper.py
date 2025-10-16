@@ -9,7 +9,7 @@ to another based on a choice column's value.
 from typing import Any
 
 # Third Party
-from datasets import Dataset
+import pandas as pd
 from pydantic import Field, field_validator, model_validator
 
 # Local
@@ -103,12 +103,12 @@ class IndexBasedMapperBlock(BaseBlock):
         # Create mapping from choice_col to output_col for easy access
         self.choice_to_output_map = dict(zip(self.choice_cols, self.output_cols))
 
-    def _validate_custom(self, samples: Dataset) -> None:
+    def _validate_custom(self, samples: pd.DataFrame) -> None:
         """Validate that required columns exist in the dataset.
 
         Parameters
         ----------
-        samples : Dataset
+        samples : pd.DataFrame
             Input dataset to validate.
 
         Raises
@@ -120,29 +120,29 @@ class IndexBasedMapperBlock(BaseBlock):
         """
         # Check that all choice_cols exist
         missing_choice_cols = [
-            col for col in self.choice_cols if col not in samples.column_names
+            col for col in self.choice_cols if col not in samples.columns.tolist()
         ]
         if missing_choice_cols:
             raise MissingColumnError(
                 block_name=self.block_name,
                 missing_columns=missing_choice_cols,
-                available_columns=samples.column_names,
+                available_columns=samples.columns.tolist(),
             )
 
         # Check that all mapped columns exist
         mapped_cols = list(self.choice_map.values())
-        missing_cols = list(set(mapped_cols) - set(samples.column_names))
+        missing_cols = list(set(mapped_cols) - set(samples.columns.tolist()))
         if missing_cols:
             raise MissingColumnError(
                 block_name=self.block_name,
                 missing_columns=missing_cols,
-                available_columns=samples.column_names,
+                available_columns=samples.columns.tolist(),
             )
 
         # Check that all choice values in all choice columns have corresponding mappings
         all_unique_choices = set()
         for choice_col in self.choice_cols:
-            all_unique_choices.update(samples[choice_col])
+            all_unique_choices.update(samples[choice_col].unique())
 
         mapped_choices = set(self.choice_map.keys())
         unmapped_choices = all_unique_choices - mapped_choices
@@ -174,23 +174,23 @@ class IndexBasedMapperBlock(BaseBlock):
             sample[output_col] = sample[source_col]
         return sample
 
-    def generate(self, samples: Dataset, **kwargs) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
         """Generate a new dataset with selected values.
 
         Parameters
         ----------
-        samples : Dataset
+        samples : pd.DataFrame
             Input dataset to process.
 
         Returns
         -------
-        Dataset
+        pd.DataFrame
             Dataset with selected values stored in output column.
         """
         # Log the operation
         all_unique_choices = set()
         for choice_col in self.choice_cols:
-            all_unique_choices.update(samples[choice_col])
+            all_unique_choices.update(samples[choice_col].unique())
         mapped_choices = set(self.choice_map.keys())
 
         logger.info(
@@ -205,8 +205,15 @@ class IndexBasedMapperBlock(BaseBlock):
             },
         )
 
-        # Apply the mapping
-        result = samples.map(self._generate)
+        # Create a copy to avoid modifying the input
+        result = samples.copy()
+
+        # Apply the mapping for each choice column and output column pair
+        for choice_col, output_col in self.choice_to_output_map.items():
+            # Map the choice values to source columns, then get values from those columns
+            result[output_col] = result.apply(
+                lambda row: row[self.choice_map[row[choice_col]]], axis=1
+            )
 
         # Log completion
         logger.info(

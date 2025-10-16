@@ -9,7 +9,7 @@ using a specified separator.
 from typing import Any
 
 # Third Party
-from datasets import Dataset
+import pandas as pd
 from pydantic import Field, field_validator
 
 # Local
@@ -65,17 +65,17 @@ class TextConcatBlock(BaseBlock):
             raise ValueError("TextConcatBlock requires exactly one output column")
         return v
 
-    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         """Generate a dataset with combined columns.
 
         Parameters
         ----------
-        samples : Dataset
+        samples : pd.DataFrame
             Input dataset to process.
 
         Returns
         -------
-        Dataset
+        pd.DataFrame
             Dataset with combined values stored in output column.
         """
         if not self.output_cols:
@@ -83,20 +83,13 @@ class TextConcatBlock(BaseBlock):
 
         output_col = self.output_cols[0]
 
-        def _combine_columns(sample):
-            """Combine values from input columns."""
-            # Check that all input columns exist
-            for col in self.input_cols:
-                if col not in sample:
-                    raise ValueError(f"Input column '{col}' not found in sample")
+        # Create a copy to avoid modifying the input
+        result = samples.copy()
 
-            # Combine values using separator
-            combined_value = self.separator.join(
-                [str(sample[col]) for col in self.input_cols]
-            )
-            sample[output_col] = combined_value
-            return sample
+        # Combine columns using vectorized string operations
+        # Convert all input columns to strings and concatenate with separator
+        result[output_col] = result[self.input_cols].astype(str).agg(
+            self.separator.join, axis=1
+        )
 
-        # Apply the combination to all samples
-        result = samples.map(_combine_columns)
         return result
