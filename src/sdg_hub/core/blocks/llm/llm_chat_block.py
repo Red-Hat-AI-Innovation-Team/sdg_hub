@@ -519,6 +519,8 @@ class LLMChatBlock(BaseBlock):
     def _validate_custom(self, dataset: pd.DataFrame) -> None:
         """Custom validation for LLMChatBlock message format.
 
+        Uses vectorized operations where possible for better performance.
+
         Parameters
         ----------
         dataset : pd.DataFrame
@@ -529,28 +531,32 @@ class LLMChatBlock(BaseBlock):
         BlockValidationError
             If message format validation fails.
         """
+        messages_col = dataset[self.input_cols[0]]
 
-        def validate_sample(idx_and_row):
-            """Validate a single sample's message format."""
-            idx, row = idx_and_row
-            messages = row[self.input_cols[0]]
+        # avoid using pd iterrows() when possible, it is notoriously slow: https://github.com/pandas-dev/pandas/issues/7683
+        # Vectorized check: all values must be lists
+        is_list = messages_col.apply(lambda x: isinstance(x, list))
+        if not is_list.all():
+            invalid_idx = is_list[~is_list].index[0]
+            invalid_value = messages_col.loc[invalid_idx]
+            raise BlockValidationError(
+                f"Messages column '{self.input_cols[0]}' must contain a list, "
+                f"got {type(invalid_value)} in row {invalid_idx}",
+                details=f"Block: {self.block_name}, Row: {invalid_idx}, Value: {invalid_value}",
+            )
 
-            # Validate messages is a list
-            if not isinstance(messages, list):
-                raise BlockValidationError(
-                    f"Messages column '{self.input_cols[0]}' must contain a list, "
-                    f"got {type(messages)} in row {idx}",
-                    details=f"Block: {self.block_name}, Row: {idx}, Value: {messages}",
-                )
+        # Vectorized check: no empty lists
+        is_empty = messages_col.apply(lambda x: len(x) == 0)
+        if is_empty.any():
+            invalid_idx = is_empty[is_empty].index[0]
+            raise BlockValidationError(
+                f"Messages list is empty in row {invalid_idx}",
+                details=f"Block: {self.block_name}, Row: {invalid_idx}",
+            )
 
-            # Validate messages is not empty
-            if not messages:
-                raise BlockValidationError(
-                    f"Messages list is empty in row {idx}",
-                    details=f"Block: {self.block_name}, Row: {idx}",
-                )
-
-            # Validate each message format
+        # Validate nested message structure (requires iteration over messages column only)
+        def validate_message_structure(messages, idx):
+            """Validate structure of messages list."""
             for msg_idx, message in enumerate(messages):
                 if not isinstance(message, dict):
                     raise BlockValidationError(
@@ -558,7 +564,6 @@ class LLMChatBlock(BaseBlock):
                         details=f"Block: {self.block_name}, Row: {idx}, Message: {msg_idx}, Value: {message}",
                     )
 
-                # Validate required fields
                 if "role" not in message or message["role"] is None:
                     raise BlockValidationError(
                         f"Message {msg_idx} in row {idx} missing required 'role' field",
@@ -571,11 +576,9 @@ class LLMChatBlock(BaseBlock):
                         details=f"Block: {self.block_name}, Row: {idx}, Message: {msg_idx}, Available fields: {list(message.keys())}",
                     )
 
-            return True
-
-        # Validate all samples
-        indexed_samples = [(i, row) for i, row in dataset.iterrows()]
-        list(map(validate_sample, indexed_samples))
+        # Iterate only over the messages column (not the entire DataFrame)
+        for idx, messages in messages_col.items():
+            validate_message_structure(messages, idx)
 
     def __repr__(self) -> str:
         """String representation of the block."""
