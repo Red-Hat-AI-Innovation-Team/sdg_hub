@@ -5,8 +5,6 @@
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Union
-from weakref import finalize
-import gc
 import time
 import uuid
 
@@ -40,11 +38,6 @@ from ..utils.flow_metrics import (
 )
 from ..utils.logger_config import setup_logger
 from ..utils.path_resolution import resolve_path
-from ..utils.temp_manager import (
-    cleanup_path,
-    create_temp_dir,
-    create_temp_file,
-)
 from ..utils.time_estimator import estimate_execution_time
 from ..utils.yaml_utils import save_flow_yaml
 from .checkpointer import FlowCheckpointer
@@ -644,7 +637,6 @@ class Flow(BaseModel):
         # Use provided logger or fall back to global logger
         exec_logger = flow_logger if flow_logger is not None else logger
         current_dataset = dataset
-        current_dataset_temp_path: Optional[Path] = None
 
         # Execute blocks in sequence
         for i, block in enumerate(self.blocks):
@@ -655,14 +647,6 @@ class Flow(BaseModel):
 
             # Prepare block execution parameters
             block_kwargs = self._prepare_block_kwargs(block, runtime_params)
-
-            block_temp_jsonl_path: Optional[Path] = None
-            dataset_temp_dir: Optional[Path] = None
-            if getattr(block, "_flow_requires_jsonl_tmp", False):
-                block_temp_jsonl_path = create_temp_file(
-                    prefix=f"{block.block_name}_parser", suffix=".jsonl"
-                )
-                block_kwargs["_flow_tmp_jsonl_path"] = str(block_temp_jsonl_path)
 
             # Add max_concurrency to block kwargs if provided
             if max_concurrency is not None:
@@ -682,28 +666,6 @@ class Flow(BaseModel):
                     raise EmptyDatasetError(
                         f"Block '{block.block_name}' produced empty dataset"
                     )
-
-                # Here, we write and reload dataset object from and to disk.
-                # This is done because HF Datasets library creates a ton of intermediate
-                # objects, and holds on to them even after the objects have fulfilled
-                # their purpose. To get flush these objects, HF recommends to implement
-                # this `save_to_disk` and `load_from_disk` hack.
-                # https://github.com/huggingface/datasets/blob/main/src/datasets/arrow_dataset.py#L1029
-                previous_temp_path = current_dataset_temp_path
-                dataset_temp_dir = create_temp_dir(prefix=f"flow_{block.block_name}")
-                current_dataset.save_to_disk(str(dataset_temp_dir))
-                del current_dataset
-                gc.collect()
-                current_dataset = datasets.load_from_disk(
-                    str(dataset_temp_dir), keep_in_memory=False
-                )
-                finalize(current_dataset, cleanup_path, dataset_temp_dir)
-                current_dataset_temp_path = dataset_temp_dir
-                if previous_temp_path and previous_temp_path != dataset_temp_dir:
-                    cleanup_path(previous_temp_path)
-
-                if block_temp_jsonl_path is not None:
-                    cleanup_path(block_temp_jsonl_path)
 
                 # Capture metrics after successful execution
                 execution_time = time.perf_counter() - start_time
@@ -733,10 +695,6 @@ class Flow(BaseModel):
                 )
 
             except Exception as exc:
-                if block_temp_jsonl_path is not None:
-                    cleanup_path(block_temp_jsonl_path)
-                if dataset_temp_dir is not None:
-                    cleanup_path(dataset_temp_dir)
                 # Capture metrics for failed execution
                 execution_time = time.perf_counter() - start_time
                 self._block_metrics.append(
@@ -759,13 +717,6 @@ class Flow(BaseModel):
                 raise FlowValidationError(
                     f"Block '{block.block_name}' execution failed: {exc}"
                 ) from exc
-
-        if current_dataset_temp_path is not None:
-            final_temp_path = current_dataset_temp_path
-            current_dataset = datasets.load_from_disk(
-                str(final_temp_path), keep_in_memory=True
-            )
-            cleanup_path(final_temp_path)
 
         return current_dataset
 
