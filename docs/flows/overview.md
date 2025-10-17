@@ -116,7 +116,139 @@ metadata:
     max_samples: 10000
 ```
 
-#TODO: Add metadata fields information
+### Metadata Fields Reference
+
+The metadata section supports the following fields for flow configuration:
+
+#### Core Metadata Fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `name` | `string` | Yes | - | Human-readable name of the flow. Must be at least 1 character. |
+| `id` | `string` | No | Auto-generated | Unique identifier for the flow. Auto-generated from name if not provided. Must be lowercase, contain only alphanumeric characters and hyphens, and not start/end with hyphens. |
+| `description` | `string` | No | `""` | Detailed description of what the flow does and its purpose. |
+| `version` | `string` | No | `"1.0.0"` | Semantic version following the format `MAJOR.MINOR.PATCH` (e.g., "1.0.0", "2.1.3-beta"). |
+| `author` | `string` | No | `""` | Name of the flow author or contributor. |
+| `license` | `string` | No | `"Apache-2.0"` | License identifier for the flow (e.g., "Apache-2.0", "MIT", "GPL-3.0"). |
+| `tags` | `List[string]` | No | `[]` | List of tags for categorization and discovery. Tags are automatically converted to lowercase. |
+| `recommended_models` | `RecommendedModels` | No | `None` | Recommended LLM models for optimal flow performance. See below for structure. |
+| `dataset_requirements` | `DatasetRequirements` | No | `None` | Input dataset requirements and validation rules. See below for structure. |
+
+#### RecommendedModels Structure
+
+The `recommended_models` field helps users choose appropriate LLM models for the flow:
+
+```yaml
+recommended_models:
+  default: "meta-llama/Llama-3.3-70B-Instruct"
+  compatible:
+    - "microsoft/phi-4"
+    - "mistralai/Mixtral-8x7B-Instruct-v0.1"
+  experimental:
+    - "google/gemini-pro"
+```
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `default` | `string` | Yes | - | The default model recommended for this flow. This is the primary model users should use. |
+| `compatible` | `List[string]` | No | `[]` | List of models known to work well with this flow. Alternative options with good performance. |
+| `experimental` | `List[string]` | No | `[]` | List of experimental models that may work but haven't been extensively tested with this flow. |
+
+**Model Selection Behavior:**
+
+When the framework needs to select a model, it prioritizes in this order:
+1. `default` model if available
+2. First available model from `compatible` list
+3. First available model from `experimental` list
+
+#### DatasetRequirements Structure
+
+The `dataset_requirements` field validates input datasets and documents expected data format:
+
+```yaml
+dataset_requirements:
+  required_columns:
+    - "document"
+    - "context"
+  optional_columns:
+    - "metadata"
+    - "source"
+  min_samples: 1
+  max_samples: 10000
+  column_types:
+    document: "string"
+    context: "string"
+  description: "Documents with context for Q&A generation"
+```
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `required_columns` | `List[string]` | No | `[]` | Column names that must be present in the input dataset. Flow validation will fail if these are missing. |
+| `optional_columns` | `List[string]` | No | `[]` | Column names that are optional but can enhance flow performance if provided. |
+| `min_samples` | `integer` | No | `1` | Minimum number of samples required in the input dataset. Must be at least 1. |
+| `max_samples` | `integer` | No | `None` | Maximum number of samples to process. Useful for resource management and preventing excessive processing. |
+| `column_types` | `Dict[string, string]` | No | `{}` | Expected data types for specific columns (e.g., "string", "integer", "float"). Used for documentation purposes. |
+| `description` | `string` | No | `""` | Human-readable description of the dataset requirements and expected format. |
+
+**Validation Behavior:**
+
+- The flow will validate the input dataset against `required_columns` before execution
+- Missing required columns will cause the flow to fail with a clear error message
+- Sample count validation ensures the dataset meets `min_samples` and respects `max_samples` if set
+- `max_samples` must be greater than or equal to `min_samples` if both are specified
+
+#### Complete Metadata Example
+
+Here's a comprehensive example using all available metadata fields:
+
+```yaml
+metadata:
+  name: "Advanced Document Q&A Generation"
+  id: "advanced-document-qa-generation"
+  description: |
+    A sophisticated flow that processes documents to generate high-quality
+    question-answer pairs with faithfulness evaluation and quality filtering.
+    Designed for educational content and training data generation.
+  version: "2.1.0"
+  author: "SDG Hub Team"
+  license: "Apache-2.0"
+
+  recommended_models:
+    default: "meta-llama/Llama-3.3-70B-Instruct"
+    compatible:
+      - "microsoft/phi-4"
+      - "mistralai/Mixtral-8x7B-Instruct-v0.1"
+      - "meta-llama/Llama-3.1-70B-Instruct"
+    experimental:
+      - "google/gemini-pro"
+      - "anthropic/claude-3-opus"
+
+  tags:
+    - "question-generation"
+    - "document-processing"
+    - "educational"
+    - "qa-pairs"
+
+  dataset_requirements:
+    required_columns:
+      - "document"
+      - "context"
+    optional_columns:
+      - "domain"
+      - "difficulty_level"
+      - "source_url"
+    min_samples: 10
+    max_samples: 5000
+    column_types:
+      document: "string"
+      context: "string"
+      domain: "string"
+      difficulty_level: "integer"
+    description: |
+      Input dataset should contain documents with contextual information.
+      Each document should be well-formed text suitable for Q&A generation.
+      Optional domain and difficulty_level fields help tailor generation.
+```
 
 ### Blocks Section
 
@@ -571,6 +703,221 @@ Checkpoint directories contain:
 - Remaining samples are identified by comparing input dataset with completed samples using common columns
 - If all samples are completed, Flow skips processing and returns merged results immediately
 - Clean up checkpoint directories manually when no longer needed
+
+## 📊 Flow Metrics and Reporting
+
+SDG Hub automatically tracks and reports detailed execution metrics for every flow run, providing visibility into performance, data transformations, and success/failure status. This built-in monitoring system helps you understand bottlenecks, debug issues, and optimize your pipelines.
+
+### Automatic Metrics Collection
+
+The flow execution system automatically collects comprehensive metrics for each block without any configuration required:
+
+**Collected Metrics:**
+- **Block Identification** - Block name and type for clear tracking
+- **Execution Time** - Precise timing for each block's execution
+- **Row Changes** - Input and output row counts to track data filtering
+- **Column Changes** - Added and removed columns to understand data transformations
+- **Status** - Success or failure status for each block
+- **Error Details** - Full error messages and types when blocks fail
+
+### Rich Console Output
+
+After every flow execution (whether successful or failed), a beautifully formatted summary table is automatically displayed in your terminal using the Rich library:
+
+```python
+from sdg_hub.core.flow import Flow
+from datasets import Dataset
+
+# Load and configure flow
+flow = Flow.from_yaml("path/to/flow.yaml")
+flow.set_model_config(
+    model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
+    api_base="http://localhost:8000/v1"
+)
+
+# Execute flow - metrics displayed automatically at completion
+result = flow.generate(dataset)
+```
+
+**Example Console Output:**
+
+```
+┌─────────────────── Advanced Document Q&A Generation - Complete ───────────────────┐
+│                          Flow Execution Summary                                     │
+│ ┌──────────────────────┬─────────────────┬──────────┬──────────────┬─────────┬──┐│
+│ │ Block Name           │ Type            │ Duration │ Rows         │ Columns │  ││
+│ ├──────────────────────┼─────────────────┼──────────┼──────────────┼─────────┼──┤│
+│ │ backup_document      │ DuplicateCol... │    0.05s │ 100 → 100    │ +1      │ ✓││
+│ │ build_question_...   │ PromptBuilder...│    0.12s │ 100 → 100    │ +1      │ ✓││
+│ │ generate_question    │ LLMChatBlock    │   45.30s │ 100 → 100    │ +1      │ ✓││
+│ │ generate_answer      │ LLMChatBlock    │   78.45s │ 100 → 100    │ +1      │ ✓││
+│ │ eval_faithfulness... │ LLMChatBlock    │   52.20s │ 100 → 100    │ +1      │ ✓││
+│ │ extract_eval_con...  │ LLMParserBlock  │    0.15s │ 100 → 100    │ +2      │ ✓││
+│ │ parse_evaluation     │ TextParserBlock │    0.22s │ 100 → 100    │ +2      │ ✓││
+│ │ filter_faithful      │ ColumnValueF... │    0.08s │ 100 → 87     │ —       │ ✓││
+│ ├──────────────────────┼─────────────────┼──────────┼──────────────┼─────────┼──┤│
+│ │ TOTAL                │ 8 blocks        │  176.57s │ 87 final     │ 9 final │ ✓││
+│ └──────────────────────┴─────────────────┴──────────┴──────────────┴─────────┴──┘│
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Table Columns Explained:**
+
+| Column | Description |
+|--------|-------------|
+| **Block Name** | The unique name of the block as defined in the flow YAML |
+| **Type** | The block class name (e.g., LLMChatBlock, PromptBuilderBlock) |
+| **Duration** | Execution time in seconds for that specific block |
+| **Rows** | Row transformation showing `input_count → output_count` |
+| **Columns** | Column changes: `+N` for added, `-N` for removed, `+N/-M` for both |
+| **Status** | `✓` for success, `✗` for failure |
+
+**Status Indicators:**
+
+The panel border color and title reflect the overall execution status:
+
+- **Green border + "Complete"** - All blocks executed successfully
+- **Red border + "Failed"** - Flow execution failed (exception thrown)
+- **Yellow border + "Partial"** - Some blocks completed but others failed
+
+### JSON Metrics Export
+
+For production workflows, detailed metrics can be automatically saved to JSON files for analysis, monitoring, and debugging:
+
+```python
+# Enable JSON metrics export by providing a log directory
+result = flow.generate(
+    dataset,
+    log_dir="./flow_logs"
+)
+
+# Metrics automatically saved to: ./flow_logs/{flow_name}_{timestamp}_metrics.json
+```
+
+**JSON Structure:**
+
+```json
+{
+  "flow_name": "Advanced Document Q&A Generation",
+  "flow_version": "2.1.0",
+  "execution_timestamp": "20250113_143052",
+  "execution_successful": true,
+  "total_execution_time": 176.57,
+  "total_wall_time": 178.23,
+  "total_blocks": 8,
+  "successful_blocks": 8,
+  "failed_blocks": 0,
+  "block_metrics": [
+    {
+      "block_name": "backup_document",
+      "block_type": "DuplicateColumnsBlock",
+      "execution_time": 0.05,
+      "input_rows": 100,
+      "output_rows": 100,
+      "added_cols": ["original_document"],
+      "removed_cols": [],
+      "status": "success"
+    },
+    {
+      "block_name": "generate_question",
+      "block_type": "LLMChatBlock",
+      "execution_time": 45.30,
+      "input_rows": 100,
+      "output_rows": 100,
+      "added_cols": ["question"],
+      "removed_cols": [],
+      "status": "success"
+    }
+  ]
+}
+```
+
+**JSON Fields Reference:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `flow_name` | string | Human-readable flow name from metadata |
+| `flow_version` | string | Flow version string |
+| `execution_timestamp` | string | Timestamp when execution started (YYYYMMDD_HHMMSS format) |
+| `execution_successful` | boolean | `true` if all blocks succeeded, `false` if any failed |
+| `total_execution_time` | float | Sum of all block execution times in seconds |
+| `total_wall_time` | float | End-to-end wall clock time including overhead |
+| `total_blocks` | integer | Number of blocks in the flow |
+| `successful_blocks` | integer | Count of blocks that executed successfully |
+| `failed_blocks` | integer | Count of blocks that failed |
+| `block_metrics` | array | Detailed metrics for each block (see below) |
+
+**Block Metrics Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `block_name` | string | Unique block identifier |
+| `block_type` | string | Block class name |
+| `execution_time` | float | Block execution duration in seconds |
+| `input_rows` | integer | Number of rows received by the block |
+| `output_rows` | integer | Number of rows produced by the block |
+| `added_cols` | array | List of column names added by this block |
+| `removed_cols` | array | List of column names removed by this block |
+| `status` | string | `"success"` or `"failed"` |
+| `error` | string | Error message (only present if `status` is `"failed"`) |
+| `error_type` | string | Error class name (only present if `status` is `"failed"`) |
+
+### Metrics Aggregation
+
+When using checkpointing with `save_freq`, blocks may execute multiple times on different chunks of data. The metrics system automatically aggregates these executions per block:
+
+- **Execution times** are summed across all chunks
+- **Row counts** are totaled for input and output
+- **Column changes** are merged (duplicates removed)
+- **Status** reflects the worst case (any failure marks the block as failed)
+
+This ensures the metrics summary and JSON export always show a cohesive view of the entire flow execution.
+
+### Use Cases
+
+**Performance Optimization:**
+```python
+# Identify slow blocks for optimization
+result = flow.generate(dataset, log_dir="./optimization_analysis")
+# Review metrics JSON to find blocks with high execution_time
+```
+
+**Data Quality Monitoring:**
+```python
+# Track how filtering affects dataset size
+result = flow.generate(dataset)
+# Check console output for row count changes: "100 → 87" indicates 13 filtered
+```
+
+**Production Monitoring:**
+```python
+# Continuous metrics collection for production pipelines
+for batch in data_batches:
+    result = flow.generate(
+        batch,
+        log_dir=f"./production_metrics/{date}",
+        checkpoint_dir=f"./checkpoints/{batch_id}"
+    )
+# Aggregate metrics JSON files for dashboards and alerting
+```
+
+**Debugging Failed Runs:**
+```python
+# Automatic error capture in metrics
+try:
+    result = flow.generate(dataset, log_dir="./debug_logs")
+except Exception as e:
+    # Metrics JSON contains full error details for failed blocks
+    print(f"Check ./debug_logs for detailed failure metrics")
+```
+
+### Important Notes
+
+- **Always Displayed** - Metrics are shown even if the flow fails, helping debug issues
+- **Zero Configuration** - No setup required, metrics collection is automatic
+- **Minimal Overhead** - Metrics collection adds negligible performance impact
+- **Thread-Safe** - Metrics are properly collected during concurrent block execution
+- **Checkpoint Aware** - Metrics correctly aggregate across checkpointed chunks
 
 ## 🚀 Next Steps
 
