@@ -9,6 +9,7 @@ import asyncio
 from datasets import Dataset
 from litellm import acompletion, completion
 from pydantic import ConfigDict, Field, field_validator
+from tqdm.asyncio import tqdm
 import litellm
 
 from ...utils.error_handling import BlockValidationError
@@ -384,13 +385,14 @@ class LLMChatBlock(BaseBlock):
 
         return responses
 
-    async def _make_acompletion(
+    async def _make_acompletion_with_progress(
         self,
         messages: list[dict[str, Any]],
         completion_kwargs: dict[str, Any],
         semaphore: Optional[asyncio.Semaphore] = None,
+        pbar: Optional[tqdm] = None,
     ) -> list[dict[str, Any]]:
-        """Make a single async completion with optional concurrency control.
+        """Make a single async completion with optional concurrency control and progress tracking.
 
         Parameters
         ----------
@@ -400,25 +402,40 @@ class LLMChatBlock(BaseBlock):
             Kwargs for LiteLLM acompletion.
         semaphore : Optional[asyncio.Semaphore], optional
             Semaphore for concurrency control.
+        pbar : Optional[tqdm], optional
+            Progress bar to update on completion.
 
         Returns
         -------
         list[dict[str, Any]]
             List of response dictionaries.
         """
-        if semaphore:
-            async with semaphore:
+        try:
+            if semaphore:
+                async with semaphore:
+                    response = await acompletion(messages=messages, **completion_kwargs)
+            else:
                 response = await acompletion(messages=messages, **completion_kwargs)
-        else:
-            response = await acompletion(messages=messages, **completion_kwargs)
 
-        # Extract response based on n parameter
-        n_value = completion_kwargs.get("n", 1)
-        if n_value > 1:
-            return [
-                self._message_to_dict(choice.message) for choice in response.choices
-            ]
-        return [self._message_to_dict(response.choices[0].message)]
+            # Extract response based on n parameter
+            n_value = completion_kwargs.get("n", 1)
+            if n_value > 1:
+                result = [
+                    self._message_to_dict(choice.message) for choice in response.choices
+                ]
+            else:
+                result = [self._message_to_dict(response.choices[0].message)]
+
+            # Update progress bar
+            if pbar:
+                pbar.update(1)
+
+            return result
+        except Exception as e:
+            # Update progress bar even on error
+            if pbar:
+                pbar.update(1)
+            raise
 
     async def _generate_async(
         self,
@@ -442,6 +459,13 @@ class LLMChatBlock(BaseBlock):
         list[list[dict[str, Any]]]
             List of response lists, each containing LiteLLM completion response dictionaries.
         """
+
+        # Create progress bar
+        pbar = tqdm(
+            total=len(messages_list),
+            desc=f"{self.block_name} async generation",
+            unit="req",
+        )
 
         try:
             if flow_max_concurrency is not None:
@@ -485,16 +509,23 @@ class LLMChatBlock(BaseBlock):
                         )
                         effective_concurrency = flow_max_concurrency
 
+                # Update progress bar description with concurrency info
+                pbar.set_description(
+                    f"{self.block_name} async generation (concurrency={effective_concurrency})"
+                )
+
                 # Use semaphore for concurrency control
                 semaphore = asyncio.Semaphore(effective_concurrency)
                 tasks = [
-                    self._make_acompletion(messages, completion_kwargs, semaphore)
+                    self._make_acompletion_with_progress(
+                        messages, completion_kwargs, semaphore, pbar
+                    )
                     for messages in messages_list
                 ]
             else:
                 # No concurrency limit
                 tasks = [
-                    self._make_acompletion(messages, completion_kwargs)
+                    self._make_acompletion_with_progress(messages, completion_kwargs, None, pbar)
                     for messages in messages_list
                 ]
 
@@ -512,6 +543,9 @@ class LLMChatBlock(BaseBlock):
                 },
             )
             raise
+        finally:
+            # Ensure progress bar is closed
+            pbar.close()
 
     def _validate_custom(self, dataset: Dataset) -> None:
         """Custom validation for LLMChatBlock message format.
