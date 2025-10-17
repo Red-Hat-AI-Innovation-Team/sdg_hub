@@ -22,6 +22,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
+import datasets
 
 # Third Party
 import pandas as pd
@@ -292,15 +293,62 @@ class Flow(BaseModel):
             return {key: str(yaml_dir / path) for key, path in paths.items()}
         return paths
 
+    @staticmethod
+    def _convert_to_dataframe(
+        dataset: Union[pd.DataFrame, datasets.Dataset],
+    ) -> tuple[pd.DataFrame, bool]:
+        """Convert datasets.Dataset to pd.DataFrame if needed (backwards compatibility).
+
+        Parameters
+        ----------
+        dataset : Union[pd.DataFrame, datasets.Dataset]
+            Input dataset in either format.
+
+        Returns
+        -------
+        tuple[pd.DataFrame, bool]
+            Tuple of (converted DataFrame, was_dataset flag).
+            was_dataset is True if input was a datasets.Dataset, False if it was already a DataFrame.
+        """
+        if isinstance(dataset, datasets.Dataset):
+            logger.info("Converting datasets.Dataset to pd.DataFrame for processing")
+            return dataset.to_pandas(), True
+        return dataset, False
+
+    @staticmethod
+    def _convert_from_dataframe(
+        df: pd.DataFrame, should_convert: bool
+    ) -> Union[pd.DataFrame, datasets.Dataset]:
+        """Convert pd.DataFrame back to datasets.Dataset if needed (backwards compatibility).
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            DataFrame to potentially convert.
+        should_convert : bool
+            If True, convert to datasets.Dataset. If False, return as-is.
+
+        Returns
+        -------
+        Union[pd.DataFrame, datasets.Dataset]
+            Original DataFrame or converted Dataset, matching the input type.
+        """
+        if should_convert:
+            logger.info(
+                "Converting pd.DataFrame back to datasets.Dataset to match input type"
+            )
+            return datasets.Dataset.from_pandas(df)
+        return df
+
     def generate(
         self,
-        dataset: pd.DataFrame,
+        dataset: Union[pd.DataFrame, datasets.Dataset],
         runtime_params: Optional[dict[str, dict[str, Any]]] = None,
         checkpoint_dir: Optional[str] = None,
         save_freq: Optional[int] = None,
         log_dir: Optional[str] = None,
         max_concurrency: Optional[int] = None,
-    ) -> pd.DataFrame:
+    ) -> Union[pd.DataFrame, datasets.Dataset]:
         """Execute the flow blocks in sequence to generate data.
 
         Note: For flows with LLM blocks, set_model_config() must be called first
@@ -308,8 +356,9 @@ class Flow(BaseModel):
 
         Parameters
         ----------
-        dataset : pd.DataFrame
-            Input dataset to process.
+        dataset : Union[pd.DataFrame, datasets.Dataset]
+            Input dataset to process. Can be either pandas DataFrame or HuggingFace Dataset
+            (will be automatically converted to DataFrame for backwards compatibility).
         runtime_params : Optional[Dict[str, Dict[str, Any]]], optional
             Runtime parameters organized by block name. Format:
             {
@@ -331,8 +380,9 @@ class Flow(BaseModel):
 
         Returns
         -------
-        pd.DataFrame
+        Union[pd.DataFrame, datasets.Dataset]
             Processed dataset after all blocks have been executed.
+            Return type matches the input type (DataFrame in -> DataFrame out, Dataset in -> Dataset out).
 
         Raises
         ------
@@ -341,6 +391,9 @@ class Flow(BaseModel):
         FlowValidationError
             If flow validation fails or if model configuration is required but not set.
         """
+        # Convert to DataFrame if needed (backwards compatibility)
+        dataset, was_dataset = self._convert_to_dataframe(dataset)
+
         # Validate save_freq parameter early to prevent range() errors
         if save_freq is not None and save_freq <= 0:
             raise FlowValidationError(
@@ -436,7 +489,7 @@ class Flow(BaseModel):
                         finally:
                             flow_logger.removeHandler(h)
 
-                return completed_dataset
+                return self._convert_from_dataframe(completed_dataset, was_dataset)
 
             dataset = remaining_dataset
             flow_logger.info(f"Resuming with {len(dataset)} remaining samples")
@@ -561,7 +614,7 @@ class Flow(BaseModel):
                 finally:
                     flow_logger.removeHandler(h)
 
-        return final_dataset
+        return self._convert_from_dataframe(final_dataset, was_dataset)
 
     def _execute_blocks_on_dataset(
         self,
@@ -985,8 +1038,25 @@ class Flow(BaseModel):
             "experimental": self.metadata.recommended_models.experimental,
         }
 
-    def validate_dataset(self, dataset: pd.DataFrame) -> list[str]:
-        """Validate dataset against flow requirements."""
+    def validate_dataset(
+        self, dataset: Union[pd.DataFrame, datasets.Dataset]
+    ) -> list[str]:
+        """Validate dataset against flow requirements.
+
+        Parameters
+        ----------
+        dataset : Union[pd.DataFrame, datasets.Dataset]
+            Dataset to validate. Can be either pandas DataFrame or HuggingFace Dataset
+            (will be automatically converted to DataFrame for backwards compatibility).
+
+        Returns
+        -------
+        list[str]
+            List of validation error messages (empty if valid).
+        """
+        # Convert to DataFrame if needed (backwards compatibility)
+        dataset, _ = self._convert_to_dataframe(dataset)
+
         errors = []
 
         if len(dataset) == 0:
@@ -1006,7 +1076,7 @@ class Flow(BaseModel):
 
     def dry_run(
         self,
-        dataset: pd.DataFrame,
+        dataset: Union[pd.DataFrame, datasets.Dataset],
         sample_size: int = 2,
         runtime_params: Optional[dict[str, dict[str, Any]]] = None,
         max_concurrency: Optional[int] = None,
@@ -1016,8 +1086,9 @@ class Flow(BaseModel):
 
         Parameters
         ----------
-        dataset : pd.DataFrame
-            Input dataset to test with.
+        dataset : Union[pd.DataFrame, datasets.Dataset]
+            Input dataset to test with. Can be either pandas DataFrame or HuggingFace Dataset
+            (will be automatically converted to DataFrame for backwards compatibility).
         sample_size : int, default=2
             Number of samples to use for dry run testing.
         runtime_params : Optional[Dict[str, Dict[str, Any]]], optional
@@ -1042,6 +1113,9 @@ class Flow(BaseModel):
         FlowValidationError
             If any block fails during dry run execution.
         """
+        # Convert to DataFrame if needed (backwards compatibility)
+        dataset, _ = self._convert_to_dataframe(dataset)
+
         # Validate preconditions
         if not self.blocks:
             raise FlowValidationError("Cannot dry run empty flow")
