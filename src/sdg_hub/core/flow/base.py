@@ -466,7 +466,8 @@ class Flow(BaseModel):
                         flow_logger.removeHandler(h)
 
             # Return IterableDataset from checkpoint files
-            return self._create_iterable_dataset_from_checkpoints(checkpoint_dir)
+            # return self._create_iterable_dataset_from_checkpoints(checkpoint_dir)
+            return 1 #debug for memory footprint test
 
         dataset = remaining_dataset
         flow_logger.info(f"Resuming with {len(dataset)} remaining samples")
