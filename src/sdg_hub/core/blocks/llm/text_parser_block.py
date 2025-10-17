@@ -323,7 +323,9 @@ class TextParserBlock(BaseBlock):
             logger.warning("No samples to parse, returning empty dataset")
             return pd.DataFrame()
 
-        new_data = []
-        for _, row in samples.iterrows():
-            new_data.extend(self._generate(row.to_dict()))
+        # Convert DataFrame to list of dicts to avoid iterrows and improve performance
+        samples_list = samples.to_dict("records")
+        new_data: list[dict] = []
+        for sample in samples_list:
+            new_data.extend(self._generate(sample))
         return pd.DataFrame(new_data)
