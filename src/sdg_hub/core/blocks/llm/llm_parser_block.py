@@ -7,8 +7,6 @@ This module provides the LLMParserBlock for extracting specific fields
 
 # Standard
 from typing import Any
-from weakref import finalize
-import json
 
 from pydantic import Field, model_validator
 
@@ -320,7 +318,7 @@ class LLMParserBlock(BaseBlock):
             return pd.DataFrame()
 
         new_data = []
-        samples = samples.to_dict("records") #Avoid Iterrows() when possible
+        samples = samples.to_dict("records")  # Avoid Iterrows() when possible
 
         for sample in samples:
             new_data.extend(self._generate(sample))

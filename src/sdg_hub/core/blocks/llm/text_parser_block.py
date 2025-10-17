@@ -7,8 +7,6 @@ start/end tags, custom regex patterns, and cleanup operations.
 
 # Standard
 from typing import Any, Optional
-from weakref import finalize
-import json
 import re
 
 from pydantic import Field, field_validator, model_validator
