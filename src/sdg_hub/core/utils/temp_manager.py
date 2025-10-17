@@ -34,9 +34,7 @@ def create_temp_dir(prefix: str = "tmp", suffix: str = "") -> Path:
 def create_temp_file(prefix: str = "tmp", suffix: str = "") -> Path:
     """Create a unique temporary file."""
     root = _get_temp_root()
-    fd, name = tempfile.mkstemp(
-        prefix=_format_prefix(prefix), suffix=suffix, dir=root
-    )
+    fd, name = tempfile.mkstemp(prefix=_format_prefix(prefix), suffix=suffix, dir=root)
     os.close(fd)
     return Path(name)
 
