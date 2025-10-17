@@ -3,20 +3,17 @@
 # Standard
 
 # Third Party
-import pandas as pd
-
 # First Party
 from sdg_hub.core.blocks import ColumnValueFilterBlock
 from sdg_hub.core.utils.error_handling import EmptyDatasetError, MissingColumnError
+import pandas as pd
 import pytest
 
 
 @pytest.fixture
 def sample_dataset():
     """Create a sample dataset for testing."""
-    return pd.DataFrame(
-        {"age": ["25", "30", "35", "forty", "45"]}
-    )
+    return pd.DataFrame({"age": ["25", "30", "35", "forty", "45"]})
 
 
 @pytest.fixture

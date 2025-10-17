@@ -8,9 +8,10 @@ by melting specified columns into rows.
 # Standard
 from typing import Any
 
+from pydantic import field_validator
+
 # Third Party
 import pandas as pd
-from pydantic import field_validator
 
 # Local
 from ...utils.error_handling import MissingColumnError

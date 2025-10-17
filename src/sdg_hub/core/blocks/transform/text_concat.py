@@ -8,9 +8,10 @@ using a specified separator.
 # Standard
 from typing import Any
 
+from pydantic import Field, field_validator
+
 # Third Party
 import pandas as pd
-from pydantic import Field, field_validator
 
 # Local
 from ...utils.logger_config import setup_logger
@@ -93,8 +94,8 @@ class TextConcatBlock(BaseBlock):
 
         # Combine columns using vectorized string operations
         # Convert all input columns to strings and concatenate with separator
-        result[output_col] = result[self.input_cols].astype(str).agg(
-            self.separator.join, axis=1
+        result[output_col] = (
+            result[self.input_cols].astype(str).agg(self.separator.join, axis=1)
         )
 
         return result

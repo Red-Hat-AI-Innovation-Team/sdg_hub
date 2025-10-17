@@ -1,12 +1,12 @@
 # Standard
 import os
 
-# Third Party
-import pandas as pd
-
 # First Party
 from sdg_hub.core.blocks.llm import PromptBuilderBlock
 from sdg_hub.core.blocks.llm.prompt_builder_block import ChatMessage
+
+# Third Party
+import pandas as pd
 import pytest
 
 # Get the absolute paths to test config files

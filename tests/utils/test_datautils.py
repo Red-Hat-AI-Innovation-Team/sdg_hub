@@ -1,8 +1,6 @@
 # Standard Library
 from unittest.mock import patch
 
-import pandas as pd
-
 # First Party
 from sdg_hub.core.utils.datautils import (
     safe_concatenate_datasets,
@@ -13,6 +11,7 @@ from sdg_hub.core.utils.error_handling import FlowValidationError
 
 # Third Party
 import numpy as np
+import pandas as pd
 import pytest
 
 
@@ -35,9 +34,7 @@ def test_validate_no_duplicates_with_duplicate_data():
 
 def test_validate_no_duplicates_with_multiple_duplicates():
     """Test correct duplicate count with multiple duplicate rows."""
-    dataset = pd.DataFrame(
-        {"col1": [1, 1, 2, 2, 3], "col2": ["a", "a", "b", "b", "c"]}
-    )
+    dataset = pd.DataFrame({"col1": [1, 1, 2, 2, 3], "col2": ["a", "a", "b", "b", "c"]})
 
     with pytest.raises(FlowValidationError, match="contains 2 duplicate rows"):
         validate_no_duplicates(dataset)
@@ -417,9 +414,7 @@ def test_validate_no_duplicates_repr_fallback():
     test_make_hashable_logic()
 
     # Also run normal validation on a simple dataset
-    dataset = pd.DataFrame(
-        {"col": ["a", "a", "b"]}
-    )  # Simple dataset with duplicates
+    dataset = pd.DataFrame({"col": ["a", "a", "b"]})  # Simple dataset with duplicates
     with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
         validate_no_duplicates(dataset)
 

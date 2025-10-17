@@ -1,11 +1,10 @@
 """Tests for the UniformColumnValueSetter block."""
 
 # Third Party
-import pandas as pd
-
 # First Party
 from sdg_hub.core.blocks.transform import UniformColumnValueSetter
 from sdg_hub.core.utils.error_handling import EmptyDatasetError, MissingColumnError
+import pandas as pd
 import pytest
 
 

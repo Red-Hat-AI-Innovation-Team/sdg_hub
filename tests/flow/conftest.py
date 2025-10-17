@@ -6,12 +6,12 @@ from pathlib import Path
 from unittest.mock import Mock
 import tempfile
 
-# Third Party
-import pandas as pd
-
 # First Party
 from sdg_hub import BaseBlock, FlowMetadata
 from sdg_hub.core.flow.metadata import ModelCompatibility, ModelOption
+
+# Third Party
+import pandas as pd
 import pytest
 import yaml
 

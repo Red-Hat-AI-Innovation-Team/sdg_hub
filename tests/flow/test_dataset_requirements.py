@@ -5,12 +5,12 @@
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-# Third Party
-import pandas as pd
-
 # First Party
 from sdg_hub import Flow
 from sdg_hub.core.flow.metadata import DatasetRequirements
+
+# Third Party
+import pandas as pd
 import pytest
 import yaml
 
@@ -221,7 +221,9 @@ class TestDatasetRequirements:
         schema_dataset = flow.get_dataset_schema()
 
         # Check type mappings to pandas dtypes
-        assert schema_dataset["text_col"].dtype == "object"  # pandas uses object for strings
+        assert (
+            schema_dataset["text_col"].dtype == "object"
+        )  # pandas uses object for strings
         assert schema_dataset["int_col"].dtype == "Int64"  # nullable integer
         assert schema_dataset["float_col"].dtype == "float64"
         assert schema_dataset["bool_col"].dtype == "boolean"  # nullable boolean
@@ -285,15 +287,15 @@ class TestDatasetRequirements:
         schema_dataset = flow.get_dataset_schema()
 
         # Check alternative type mappings to pandas dtypes
-        assert schema_dataset["str_col"].dtype == "object"  # pandas uses object for strings
+        assert (
+            schema_dataset["str_col"].dtype == "object"
+        )  # pandas uses object for strings
         assert schema_dataset["text_col"].dtype == "object"
         assert schema_dataset["int_col"].dtype == "Int64"  # nullable integer
         assert schema_dataset["number_col"].dtype == "float64"
         assert schema_dataset["bool_col"].dtype == "boolean"  # nullable boolean
 
-    def test_dataset_schema_compatibility_with_pandas(
-        self, flow_with_requirements
-    ):
+    def test_dataset_schema_compatibility_with_pandas(self, flow_with_requirements):
         """Test that the schema dataset can be used with pandas DataFrames."""
         schema_dataset = flow_with_requirements.get_dataset_schema()
 
@@ -303,14 +305,15 @@ class TestDatasetRequirements:
         }
 
         populated_dataset = pd.concat(
-            [schema_dataset, pd.DataFrame(sample_data)],
-            ignore_index=True
+            [schema_dataset, pd.DataFrame(sample_data)], ignore_index=True
         )
 
         # Verify dataset was created successfully
         assert isinstance(populated_dataset, pd.DataFrame)
         assert len(populated_dataset) == 1
-        assert set(populated_dataset.columns.tolist()) == set(schema_dataset.columns.tolist())
+        assert set(populated_dataset.columns.tolist()) == set(
+            schema_dataset.columns.tolist()
+        )
 
         # Verify dtypes match (pandas coerces to object when concatenating with empty dataframe)
         for col_name in schema_dataset.columns.tolist():
@@ -380,7 +383,9 @@ class TestDatasetRequirements:
         user_dataset = pd.DataFrame(correct_data)
 
         # Schema validation should pass - check columns match
-        assert set(user_dataset.columns.tolist()) == set(schema_dataset.columns.tolist())
+        assert set(user_dataset.columns.tolist()) == set(
+            schema_dataset.columns.tolist()
+        )
 
         # Create a user dataset with incorrect schema
         incorrect_data = {
@@ -390,7 +395,9 @@ class TestDatasetRequirements:
         incorrect_dataset = pd.DataFrame(incorrect_data)
 
         # Schema validation should fail - columns don't match
-        assert set(incorrect_dataset.columns.tolist()) != set(schema_dataset.columns.tolist())
+        assert set(incorrect_dataset.columns.tolist()) != set(
+            schema_dataset.columns.tolist()
+        )
 
     def test_add_data_to_schema_dataset(self, flow_with_requirements):
         """Test adding data to the schema dataset."""

@@ -9,12 +9,13 @@ with unified constructor patterns, column handling, and common functionality.
 from abc import ABC, abstractmethod
 from typing import Any, Optional, Union
 
-# Third Party
-import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
+
+# Third Party
+import pandas as pd
 
 # Local
 from ..utils.error_handling import (

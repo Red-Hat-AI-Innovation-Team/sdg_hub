@@ -5,11 +5,10 @@ including column melting, value mapping, and edge case handling.
 """
 
 # Third Party
-import pandas as pd
-
 # First Party
 from sdg_hub.core.blocks.transform import MeltColumnsBlock
 from sdg_hub.core.utils.error_handling import MissingColumnError
+import pandas as pd
 import pytest
 
 
@@ -172,7 +171,10 @@ def test_flatten_columns_with_different_lengths():
     # Dataset creation will fail due to different lengths
     with pytest.raises(Exception) as exc_info:
         pd.DataFrame(data)
-    assert "expected length" in str(exc_info.value).lower() or "same length" in str(exc_info.value).lower()
+    assert (
+        "expected length" in str(exc_info.value).lower()
+        or "same length" in str(exc_info.value).lower()
+    )
 
 
 def test_flatten_columns_verify_column_names():

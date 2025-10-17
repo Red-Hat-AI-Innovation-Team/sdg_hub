@@ -19,7 +19,7 @@ import pytest
 @pytest.mark.integration
 @pytest.mark.skipif(
     not os.environ.get("OPENAI_API_KEY"),
-    reason="Requires OPENAI_API_KEY environment variable for LLM API calls"
+    reason="Requires OPENAI_API_KEY environment variable for LLM API calls",
 )
 def test_notebook_execution_and_output_validity(
     test_env_setup, tmp_path, notebook_path
@@ -117,7 +117,9 @@ def test_notebook_execution_and_output_validity(
         # Verify file can be loaded as a dataset
         dataset = pd.read_json(str(output_file), lines=True)
         assert len(dataset) > 0, f"Dataset is empty: {output_file}"
-        assert len(dataset.columns.tolist()) > 0, f"Dataset has no columns: {output_file}"
+        assert (
+            len(dataset.columns.tolist()) > 0
+        ), f"Dataset has no columns: {output_file}"
 
         # Calculate statistics
         summary_type = output_file.parent.name

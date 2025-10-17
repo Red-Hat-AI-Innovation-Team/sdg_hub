@@ -10,8 +10,6 @@ import gc
 import time
 import uuid
 
-# Third Party
-import pandas as pd
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -24,6 +22,9 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
+
+# Third Party
+import pandas as pd
 import yaml
 
 # Local
@@ -486,7 +487,11 @@ class Flow(BaseModel):
                 )
 
                 # Combine with previously completed samples if any
-                if checkpointer and completed_dataset is not None and not completed_dataset.empty:
+                if (
+                    checkpointer
+                    and completed_dataset is not None
+                    and not completed_dataset.empty
+                ):
                     final_dataset = safe_concatenate_with_validation(
                         [completed_dataset, final_dataset],
                         "completed checkpoint data with newly processed data",
@@ -1384,7 +1389,9 @@ class Flow(BaseModel):
             schema[col_name] = self._map_column_type_to_dtype(col_type)
 
         # Create empty dataframe with the correct dtypes
-        empty_data = {col_name: pd.Series([], dtype=dtype) for col_name, dtype in schema.items()}
+        empty_data = {
+            col_name: pd.Series([], dtype=dtype) for col_name, dtype in schema.items()
+        }
 
         return pd.DataFrame(empty_data)
 

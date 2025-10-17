@@ -1,10 +1,9 @@
 """Tests for the RenameColumnsBlock."""
 
 # Third Party
-import pandas as pd
-
 # First Party
 from sdg_hub.core.blocks.transform.rename_columns import RenameColumnsBlock
+import pandas as pd
 import pytest
 
 

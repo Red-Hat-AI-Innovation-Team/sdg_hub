@@ -1,11 +1,11 @@
 # Standard
 from unittest.mock import patch
 
-# Third Party
-import pandas as pd
-
 # First Party
 from sdg_hub.core.blocks.llm import TextParserBlock
+
+# Third Party
+import pandas as pd
 import pytest
 
 
@@ -874,7 +874,10 @@ def test_generate_with_list_input_parsing_failures():
 
         # Should process only the 2 parseable responses
         assert len(result) == 1
-        assert result.iloc[0]["output"] == ["Parseable response 1", "Parseable response 2"]
+        assert result.iloc[0]["output"] == [
+            "Parseable response 1",
+            "Parseable response 2",
+        ]
 
         # Should log warnings for parsing failures
         warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]

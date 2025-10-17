@@ -4,12 +4,12 @@
 # Standard
 from unittest.mock import MagicMock, patch
 
-# Third Party
-import pandas as pd
-
 # First Party
 from sdg_hub.core.blocks.llm import LLMChatBlock
 from sdg_hub.core.utils.error_handling import BlockValidationError
+
+# Third Party
+import pandas as pd
 import pytest
 
 
@@ -362,9 +362,7 @@ class TestLLMChatBlock:
         block._validate_custom(valid_dataset)
 
         # Invalid dataset - messages not a list
-        invalid_dataset = pd.DataFrame(
-            {"messages": ["not a list", "also not a list"]}
-        )
+        invalid_dataset = pd.DataFrame({"messages": ["not a list", "also not a list"]})
 
         with pytest.raises(BlockValidationError, match="must contain a list"):
             block._validate_custom(invalid_dataset)

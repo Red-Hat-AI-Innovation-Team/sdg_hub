@@ -2,10 +2,9 @@
 """Tests for LLMParserBlock."""
 
 # Third Party
-import pandas as pd
-
 # First Party
 from sdg_hub.core.blocks.llm import LLMParserBlock
+import pandas as pd
 import pytest
 
 

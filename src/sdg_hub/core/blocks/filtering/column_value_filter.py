@@ -9,9 +9,10 @@ using various operations with optional data type conversion.
 from typing import Any, Optional, Union
 import operator
 
+from pydantic import Field, field_validator
+
 # Third Party
 import pandas as pd
-from pydantic import Field, field_validator
 
 # Local
 from ...utils.logger_config import setup_logger
@@ -175,6 +176,7 @@ class ColumnValueFilterBlock(BaseBlock):
 
         # Convert dtype if specified
         if self._convert_dtype_func:
+
             def safe_convert(x):
                 """Safely convert value, returning None on error."""
                 if pd.isna(x):
@@ -192,9 +194,7 @@ class ColumnValueFilterBlock(BaseBlock):
         # Apply filter operation using boolean indexing
         # Create a mask that checks if any filter value matches
         mask = result[self.column_name].apply(
-            lambda x: any(
-                self._operation_func(x, value) for value in self.filter_value
-            )
+            lambda x: any(self._operation_func(x, value) for value in self.filter_value)
         )
 
         result = result[mask]

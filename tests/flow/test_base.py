@@ -241,7 +241,10 @@ class TestFlow:
 
         assert len(result) == 2
         assert "output" in result.columns.tolist()
-        assert result["output"].tolist() == ["test_block_output_0", "test_block_output_1"]
+        assert result["output"].tolist() == [
+            "test_block_output_0",
+            "test_block_output_1",
+        ]
 
     def test_generate_with_runtime_params(self):
         """Test generation with runtime parameters."""
@@ -276,9 +279,7 @@ class TestFlow:
         flow = Flow(blocks=[], metadata=metadata)
 
         # Valid dataset
-        valid_dataset = pd.DataFrame(
-            {"input": ["test"] * 5, "label": ["label"] * 5}
-        )
+        valid_dataset = pd.DataFrame({"input": ["test"] * 5, "label": ["label"] * 5})
         errors = flow.validate_dataset(valid_dataset)
         assert errors == []
 
@@ -1005,9 +1006,7 @@ class TestFlow:
         """Test generation with checkpointing and save frequency."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = pd.DataFrame(
-            {"input": ["test1", "test2", "test3", "test4", "test5"]}
-        )
+        dataset = pd.DataFrame({"input": ["test1", "test2", "test3", "test4", "test5"]})
 
         checkpoint_dir = Path(self.temp_dir) / "checkpoints_freq"
         save_freq = 2
@@ -1048,9 +1047,7 @@ class TestFlow:
         checkpointer.add_completed_samples(completed_data)
 
         # Now run flow with larger input dataset
-        full_dataset = pd.DataFrame(
-            {"input": ["test1", "test2", "test3", "test4"]}
-        )
+        full_dataset = pd.DataFrame({"input": ["test1", "test2", "test3", "test4"]})
 
         result = flow.generate(full_dataset, checkpoint_dir=str(checkpoint_dir))
 
@@ -1407,9 +1404,7 @@ class TestFlow:
         # First Party
         from sdg_hub.core.utils.error_handling import FlowValidationError
 
-        dataset = pd.DataFrame(
-            {"messages": [[{"role": "user", "content": "test"}]]}
-        )
+        dataset = pd.DataFrame({"messages": [[{"role": "user", "content": "test"}]]})
         flow = Flow(blocks=[], metadata=self.test_metadata)
 
         # Test invalid type

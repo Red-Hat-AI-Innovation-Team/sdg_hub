@@ -5,11 +5,11 @@
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-# Third Party
-import pandas as pd
-
 # First Party
 from sdg_hub import Flow, FlowMetadata, FlowRegistry
+
+# Third Party
+import pandas as pd
 import pytest
 import yaml
 
@@ -387,9 +387,7 @@ class TestFlowIntegration:
             assert any("Missing required columns" in error for error in errors)
 
             # Invalid dataset - too few samples
-            small_dataset = pd.DataFrame(
-                {"input": ["input1"], "context": ["context1"]}
-            )
+            small_dataset = pd.DataFrame({"input": ["input1"], "context": ["context1"]})
             errors = flow.validate_dataset(small_dataset)
             assert len(errors) > 0
             assert any("minimum required: 2" in error for error in errors)

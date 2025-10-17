@@ -10,9 +10,10 @@ from typing import Any
 from weakref import finalize
 import json
 
+from pydantic import Field, model_validator
+
 # Third Party
 import pandas as pd
-from pydantic import Field, model_validator
 
 # Local
 from ...utils.logger_config import setup_logger

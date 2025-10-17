@@ -9,9 +9,10 @@ containing a structured JSON object with specified field names.
 from typing import Any, Dict
 import json
 
+from pydantic import Field, field_validator
+
 # Third Party
 import pandas as pd
-from pydantic import Field, field_validator
 
 # Local
 from ...utils.logger_config import setup_logger

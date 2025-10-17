@@ -1,10 +1,9 @@
 """Tests for TextConcatBlock."""
 
 # Third Party
-import pandas as pd
-
 # First Party
 from sdg_hub.core.blocks.transform import TextConcatBlock
+import pandas as pd
 import pytest
 
 

@@ -8,10 +8,11 @@ mode, min, max, mean, or median.
 # Standard
 from typing import Any, Literal
 
-# Third Party
-import pandas as pd
 from pydantic import field_validator
 import numpy as np
+
+# Third Party
+import pandas as pd
 
 # Local
 from ...utils.logger_config import setup_logger

@@ -8,10 +8,11 @@ including conversion to OpenAI Messages format and template rendering.
 # Standard
 from typing import Any, Literal, Optional
 
-# Third Party
-import pandas as pd
 from jinja2 import Template, meta
 from pydantic import BaseModel, Field, field_validator
+
+# Third Party
+import pandas as pd
 import yaml
 
 # Local
@@ -364,7 +365,7 @@ class PromptBuilderBlock(BaseBlock):
         logger.debug(f"Formatting prompts for {len(samples)} samples")
 
         # Convert DataFrame to list of dicts, process each, and convert back
-        samples_list = samples.to_dict('records')
+        samples_list = samples.to_dict("records")
         formatted_samples = [self._generate(sample) for sample in samples_list]
         formatted_dataset = pd.DataFrame(formatted_samples)
 

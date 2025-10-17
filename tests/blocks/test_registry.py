@@ -4,12 +4,12 @@
 # Standard
 from unittest.mock import patch
 
-# Third Party
-import pandas as pd
-
 # First Party
 from sdg_hub import BaseBlock, BlockRegistry
 from sdg_hub.core.blocks.registry import BlockMetadata
+
+# Third Party
+import pandas as pd
 import pytest
 
 

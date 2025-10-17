@@ -229,9 +229,7 @@ class FlowCheckpointer:
                 df = pd.read_json(file_path, lines=True)
                 if len(df) > 0:
                     dataframes.append(df)
-                    logger.debug(
-                        f"Loaded checkpoint: {file_path} ({len(df)} samples)"
-                    )
+                    logger.debug(f"Loaded checkpoint: {file_path} ({len(df)} samples)")
             except Exception as exc:
                 logger.warning(f"Failed to load checkpoint {file_path}: {exc}")
 

@@ -1,11 +1,10 @@
 """Tests for the IndexBasedMapperBlock class."""
 
 # Third Party
-import pandas as pd
-
 # First Party
 from sdg_hub.core.blocks.transform import IndexBasedMapperBlock
 from sdg_hub.core.utils.error_handling import MissingColumnError
+import pandas as pd
 import pytest
 
 
@@ -272,17 +271,29 @@ def test_index_based_mapper_complex_scenario():
     result = block.generate(dataset)
 
     # Check results
-    assert result.iloc[0]["judge_1_selection"] == "Model A says X"  # judge_1_choice=model_a
-    assert result.iloc[0]["judge_2_selection"] == "Model C says X"  # judge_2_choice=model_c
+    assert (
+        result.iloc[0]["judge_1_selection"] == "Model A says X"
+    )  # judge_1_choice=model_a
+    assert (
+        result.iloc[0]["judge_2_selection"] == "Model C says X"
+    )  # judge_2_choice=model_c
     assert result.iloc[0]["judge_3_selection"] == "Human says X"  # judge_3_choice=human
 
-    assert result.iloc[1]["judge_1_selection"] == "Model B says Y"  # judge_1_choice=model_b
+    assert (
+        result.iloc[1]["judge_1_selection"] == "Model B says Y"
+    )  # judge_1_choice=model_b
     assert result.iloc[1]["judge_2_selection"] == "Human says Y"  # judge_2_choice=human
-    assert result.iloc[1]["judge_3_selection"] == "Model C says Y"  # judge_3_choice=model_c
+    assert (
+        result.iloc[1]["judge_3_selection"] == "Model C says Y"
+    )  # judge_3_choice=model_c
 
     assert result.iloc[2]["judge_1_selection"] == "Human says Z"  # judge_1_choice=human
-    assert result.iloc[2]["judge_2_selection"] == "Model A says Z"  # judge_2_choice=model_a
-    assert result.iloc[2]["judge_3_selection"] == "Model B says Z"  # judge_3_choice=model_b
+    assert (
+        result.iloc[2]["judge_2_selection"] == "Model A says Z"
+    )  # judge_2_choice=model_a
+    assert (
+        result.iloc[2]["judge_3_selection"] == "Model B says Z"
+    )  # judge_3_choice=model_b
 
 
 def test_index_based_mapper_choice_to_output_mapping():

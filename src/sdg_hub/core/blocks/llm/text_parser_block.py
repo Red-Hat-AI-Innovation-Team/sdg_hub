@@ -11,9 +11,10 @@ from weakref import finalize
 import json
 import re
 
+from pydantic import Field, field_validator, model_validator
+
 # Third Party
 import pandas as pd
-from pydantic import Field, field_validator, model_validator
 
 # Local
 from ...utils.logger_config import setup_logger

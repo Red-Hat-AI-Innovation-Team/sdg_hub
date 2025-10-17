@@ -1,8 +1,6 @@
 # Standard
 from unittest.mock import MagicMock, patch
 
-import pandas as pd
-
 # Third Party
 # First Party
 from sdg_hub.core.utils.flow_metrics import (
@@ -11,6 +9,7 @@ from sdg_hub.core.utils.flow_metrics import (
     display_time_estimation_summary,
     save_metrics_to_json,
 )
+import pandas as pd
 
 
 class TestAggregateBlockMetrics:

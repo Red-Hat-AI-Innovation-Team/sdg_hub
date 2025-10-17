@@ -8,11 +8,12 @@ from typing import Any, Optional
 import json
 import time
 
-# Third Party
-import pandas as pd
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+
+# Third Party
+import pandas as pd
 
 
 def aggregate_block_metrics(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
