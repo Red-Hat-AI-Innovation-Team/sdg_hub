@@ -618,7 +618,7 @@ class Flow(BaseModel):
             # Capture metrics before execution
             start_time = time.perf_counter()
             input_rows = len(current_dataset)
-            input_cols = set(current_dataset.columns.tolist())
+            input_cols = set(current_dataset.columns)
 
             try:
                 # Execute block with validation and logging
@@ -655,7 +655,7 @@ class Flow(BaseModel):
                 # Capture metrics after successful execution
                 execution_time = time.perf_counter() - start_time
                 output_rows = len(current_dataset)
-                output_cols = set(current_dataset.columns.tolist())
+                output_cols = set(current_dataset.columns)
                 added_cols = output_cols - input_cols
                 removed_cols = input_cols - output_cols
 
@@ -673,13 +673,10 @@ class Flow(BaseModel):
                     }
                 )
 
-                # Get number of columns
-                num_cols = len(current_dataset.columns)
-
                 exec_logger.info(
                     f"Block '{block.block_name}' completed successfully: "
                     f"{len(current_dataset)} samples, "
-                    f"{num_cols} columns"
+                    f"{len(current_dataset.columns)} columns"
                 )
 
             except Exception as exc:
