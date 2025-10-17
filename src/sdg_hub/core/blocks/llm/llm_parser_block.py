@@ -321,6 +321,9 @@ class LLMParserBlock(BaseBlock):
             return pd.DataFrame()
 
         new_data = []
-        for _, row in samples.iterrows():
-            new_data.extend(self._generate(row.to_dict()))
+        samples = samples.to_dict("records") #Avoid Iterrows() when possible
+
+        for sample in samples:
+            new_data.extend(self._generate(sample))
+
         return pd.DataFrame(new_data)
