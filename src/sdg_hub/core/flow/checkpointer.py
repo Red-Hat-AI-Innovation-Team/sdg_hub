@@ -9,7 +9,7 @@ import os
 import uuid
 
 # Third Party
-from datasets import Dataset
+import pandas as pd
 
 # Local
 from ..utils.datautils import safe_concatenate_with_validation
@@ -67,18 +67,18 @@ class FlowCheckpointer:
         return os.path.join(self.checkpoint_dir, "flow_metadata.json")
 
     def load_existing_progress(
-        self, input_dataset: Dataset
-    ) -> Tuple[Dataset, Optional[Dataset]]:
+        self, input_dataset: pd.DataFrame
+    ) -> Tuple[pd.DataFrame, Optional[pd.DataFrame]]:
         """Load existing checkpoint data and determine remaining work.
 
         Parameters
         ----------
-        input_dataset : Dataset
+        input_dataset : pd.DataFrame
             Original input dataset for the flow.
 
         Returns
         -------
-        Tuple[Dataset, Optional[Dataset]]
+        Tuple[pd.DataFrame, Optional[pd.DataFrame]]
             (remaining_samples_to_process, completed_samples_dataset)
             If no checkpoints exist, returns (input_dataset, None)
         """
@@ -127,20 +127,20 @@ class FlowCheckpointer:
             logger.warning(f"Failed to load checkpoints: {exc}. Starting from scratch.")
             return input_dataset, None
 
-    def add_completed_samples(self, samples: Dataset) -> None:
+    def add_completed_samples(self, samples: pd.DataFrame) -> None:
         """Add samples that have completed the entire flow.
 
         Parameters
         ----------
-        samples : Dataset
+        samples : pd.DataFrame
             Samples that have completed processing through all blocks.
         """
         if not self.is_enabled:
             return
 
         # Add to pending samples
-        for sample in samples:
-            self._pending_samples.append(sample)
+        for _, sample in samples.iterrows():
+            self._pending_samples.append(sample.to_dict())
             self._samples_processed += 1
 
             # Check if we should save a checkpoint
@@ -167,9 +167,9 @@ class FlowCheckpointer:
             self.checkpoint_dir, f"checkpoint_{self._checkpoint_counter:04d}.jsonl"
         )
 
-        # Convert pending samples to dataset and save
-        checkpoint_dataset = Dataset.from_list(self._pending_samples)
-        checkpoint_dataset.to_json(checkpoint_file, orient="records", lines=True)
+        # Convert pending samples to dataframe and save
+        checkpoint_df = pd.DataFrame(self._pending_samples)
+        checkpoint_df.to_json(checkpoint_file, orient="records", lines=True)
 
         # Update metadata
         self._save_metadata()
@@ -207,7 +207,7 @@ class FlowCheckpointer:
             logger.warning(f"Failed to load metadata: {exc}")
             return None
 
-    def _load_completed_samples(self) -> Optional[Dataset]:
+    def _load_completed_samples(self) -> Optional[pd.DataFrame]:
         """Load all completed samples from checkpoint files."""
         checkpoint_files = []
         checkpoint_dir = Path(self.checkpoint_dir)
@@ -222,27 +222,25 @@ class FlowCheckpointer:
         # Sort checkpoint files by number
         checkpoint_files.sort()
 
-        # Load and concatenate all checkpoint datasets
-        datasets = []
+        # Load and concatenate all checkpoint dataframes
+        dataframes = []
         for file_path in checkpoint_files:
             try:
-                dataset = Dataset.from_json(file_path)
-                if len(dataset) > 0:
-                    datasets.append(dataset)
-                    logger.debug(
-                        f"Loaded checkpoint: {file_path} ({len(dataset)} samples)"
-                    )
+                df = pd.read_json(file_path, lines=True)
+                if len(df) > 0:
+                    dataframes.append(df)
+                    logger.debug(f"Loaded checkpoint: {file_path} ({len(df)} samples)")
             except Exception as exc:
                 logger.warning(f"Failed to load checkpoint {file_path}: {exc}")
 
-        if not datasets:
+        if not dataframes:
             return None
 
-        return safe_concatenate_with_validation(datasets, "checkpoint files")
+        return safe_concatenate_with_validation(dataframes, "checkpoint files")
 
     def _find_remaining_samples(
-        self, input_dataset: Dataset, completed_dataset: Dataset
-    ) -> Dataset:
+        self, input_dataset: pd.DataFrame, completed_dataset: pd.DataFrame
+    ) -> pd.DataFrame:
         """Find samples from input_dataset that are not in completed_dataset.
 
         Note: Assumes input_dataset contains unique samples. For datasets with
@@ -250,19 +248,19 @@ class FlowCheckpointer:
 
         Parameters
         ----------
-        input_dataset : Dataset
+        input_dataset : pd.DataFrame
             Original input dataset (assumed to contain unique samples).
-        completed_dataset : Dataset
+        completed_dataset : pd.DataFrame
             Dataset of completed samples.
 
         Returns
         -------
-        Dataset
+        pd.DataFrame
             Samples that still need processing.
         """
         # Get common columns for comparison
-        input_columns = set(input_dataset.column_names)
-        completed_columns = set(completed_dataset.column_names)
+        input_columns = set(input_dataset.columns.tolist())
+        completed_columns = set(completed_dataset.columns.tolist())
         common_columns = list(input_columns & completed_columns)
 
         if not common_columns:
@@ -272,9 +270,9 @@ class FlowCheckpointer:
             )
             return input_dataset
 
-        # Convert to pandas for easier comparison
-        input_df = input_dataset.select_columns(common_columns).to_pandas()
-        completed_df = completed_dataset.select_columns(common_columns).to_pandas()
+        # Select only common columns for comparison
+        input_df = input_dataset[common_columns]
+        completed_df = completed_dataset[common_columns]
 
         # Find rows that haven't been completed
         # Use tuple representation for comparison
@@ -287,10 +285,10 @@ class FlowCheckpointer:
         remaining_indices = input_df[remaining_mask].index.tolist()
 
         if not remaining_indices:
-            # Return empty dataset with same structure
-            return input_dataset.select([])
+            # Return empty dataframe with same structure
+            return input_dataset.iloc[0:0]
 
-        return input_dataset.select(remaining_indices)
+        return input_dataset.iloc[remaining_indices]
 
     def get_progress_info(self) -> Dict[str, Any]:
         """Get information about current progress.

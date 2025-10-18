@@ -22,6 +22,7 @@ import yaml
 from sdg_hub.core.utils.datautils import safe_concatenate_datasets
 import sdg_hub
 
+
 def setup_logger(name):
     # Set up the logger
     log_level = os.getenv("LOG_LEVEL", "INFO")
@@ -34,49 +35,59 @@ def setup_logger(name):
     logger = logging.getLogger(name)
     return logger
 
+
 logger = setup_logger(__name__)
 _DEFAULT_CHUNK_OVERLAP = 100
 
 
 def get_summarization_instructions():
-    return {'summary_detailed': ['Provide me with a comprehensive summary of the given document.',
-  'Prepare a detailed breakdown of the contents of the document for me.',
-  'Summarize the document thoroughly, covering all important points.',
-  'Create a detailed executive summary of the provided document.',
-  "Compose a comprehensive overview of the document's content.",
-  'Deliver a detailed synopsis of the material presented in the document.',
-  "Furnish me with a detailed analysis of the document's key points.",
-  'Generate a thorough summary of the main ideas in the document.',
-  'Offer a detailed digest of the information contained in the document.',
-  "Supply me with a comprehensive rundown of the document's contents."],
- 'summary_extractive': ['Provide me with a summary of the document using extractive methods.',
-  'Create an extractive summary for the given document.',
-  'Generate an extractive summary from the document that was given to you.',
-  'Summarize the document using extractive techniques.',
-  'Create a summary of the provided document using extractive methods.',
-  'Generate an extractive summary for the document provided.',
-  'Using extractive techniques, summarize the given document.',
-  'Create a summary of the document using extractive summarization.',
-  'Generate an extractive summary of the document that was provided.',
-  'Summarize the provided document using extractive summarization techniques.'],
- 'summary_atomic_facts': ['Identify and list all atomic facts from the document.',
-  'Extract all key facts from the given document.',
-  'List all the important facts from the provided document.',
-  'Highlight all the atomic facts present in the document.',
-  'Identify and enumerate all key facts from the given text.',
-  'List out all the critical information from the document.',
-  'Highlight all the essential facts from the provided text.',
-  'Identify and summarize all the important details from the document.',
-  'Extract all the atomic facts from the given document.',
-  'List all the key takeaways from the provided text.']}
+    return {
+        "summary_detailed": [
+            "Provide me with a comprehensive summary of the given document.",
+            "Prepare a detailed breakdown of the contents of the document for me.",
+            "Summarize the document thoroughly, covering all important points.",
+            "Create a detailed executive summary of the provided document.",
+            "Compose a comprehensive overview of the document's content.",
+            "Deliver a detailed synopsis of the material presented in the document.",
+            "Furnish me with a detailed analysis of the document's key points.",
+            "Generate a thorough summary of the main ideas in the document.",
+            "Offer a detailed digest of the information contained in the document.",
+            "Supply me with a comprehensive rundown of the document's contents.",
+        ],
+        "summary_extractive": [
+            "Provide me with a summary of the document using extractive methods.",
+            "Create an extractive summary for the given document.",
+            "Generate an extractive summary from the document that was given to you.",
+            "Summarize the document using extractive techniques.",
+            "Create a summary of the provided document using extractive methods.",
+            "Generate an extractive summary for the document provided.",
+            "Using extractive techniques, summarize the given document.",
+            "Create a summary of the document using extractive summarization.",
+            "Generate an extractive summary of the document that was provided.",
+            "Summarize the provided document using extractive summarization techniques.",
+        ],
+        "summary_atomic_facts": [
+            "Identify and list all atomic facts from the document.",
+            "Extract all key facts from the given document.",
+            "List all the important facts from the provided document.",
+            "Highlight all the atomic facts present in the document.",
+            "Identify and enumerate all key facts from the given text.",
+            "List out all the critical information from the document.",
+            "Highlight all the essential facts from the provided text.",
+            "Identify and summarize all the important details from the document.",
+            "Extract all the atomic facts from the given document.",
+            "List all the key takeaways from the provided text.",
+        ],
+    }
+
 
 def create_summarization_task_dataset(generated_dataset: Dataset):
     """
     Create summarization dataset from non-base documents using predefined instructions.
-    
+
     Args:
         generated_dataset (Dataset): Input dataset containing documents and metadata
-        
+
     Returns:
         Dataset: Auxiliary dataset with chat messages, or None if requirements not met
     """
@@ -109,7 +120,9 @@ def create_summarization_task_dataset(generated_dataset: Dataset):
     )
 
     def __create_auxiliary_ds(rec):
-        instruction = random.choice((get_summarization_instructions())[rec["dataset_type"]])
+        instruction = random.choice(
+            (get_summarization_instructions())[rec["dataset_type"]]
+        )
         messages = [
             {"role": "user", "content": f"{rec['context']}\n\n{instruction}"},
             {"role": "assistant", "content": rec["response"]},
@@ -132,15 +145,15 @@ def create_summarization_task_dataset(generated_dataset: Dataset):
 
 def _conv_pretrain(rec):
     """
-    Convert messages to pretraining format using unmask flag. 
-    
+    Convert messages to pretraining format using unmask flag.
+
     Args:
         rec (dict): Record containing messages
-        
+
     Returns:
         dict: Modified record
     """
-    return {'unmask': True}
+    return {"unmask": True}
 
 
 def mask_qa_per_doc(ds: Dataset, keep_no_qa_per_doc: int = None) -> Dataset:
@@ -196,14 +209,14 @@ def generate_knowledge_qa_dataset(
 ):
     """
     Generate a knowledge QA dataset from the input dataset by transforming document/question/response pairs into a chat format.
-    
+
     Args:
         generated_dataset (Dataset): Input dataset containing documents, questions and responses
         keep_context_separate (bool): If True, keeps context separate from the messages. If False, includes context in user message
         keep_document_outline (bool): If True, includes document outline in user message when context is not separate
         filter_non_pre_training (bool): Filters out rows where unmask is False. Used with keep_no_qa_per_doc option
         keep_no_qa_per_doc (int): Number of QA entries per document to mark as unmask (pre-training)
-        
+
     Returns:
         Dataset: Transformed dataset with chat messages format
     """
@@ -328,21 +341,21 @@ def build_raft_dataset(ds: Dataset, p, num_doc_in_context=4):
 
 
 def create_knowledge_regular_ds(generated_dataset: Dataset):
-    """  
-    Create a knowledge dataset for the Skills Phase of knowledge tuning.  
-    
-    This function generates QA datasets with RAFT-style context separation  
-    and optionally includes auxiliary datasets for enhanced training.  
-    
-    Parameters  
-    ----------  
-    generated_dataset : Dataset  
-        The input dataset containing generated knowledge content  
-        
-    Returns  
-    -------  
-    Dataset  
-        Processed dataset ready for skills phase training 
+    """
+    Create a knowledge dataset for the Skills Phase of knowledge tuning.
+
+    This function generates QA datasets with RAFT-style context separation
+    and optionally includes auxiliary datasets for enhanced training.
+
+    Parameters
+    ----------
+    generated_dataset : Dataset
+        The input dataset containing generated knowledge content
+
+    Returns
+    -------
+    Dataset
+        Processed dataset ready for skills phase training
     """
     knowledge_ds = generate_knowledge_qa_dataset(
         generated_dataset, keep_context_separate=True
@@ -351,35 +364,42 @@ def create_knowledge_regular_ds(generated_dataset: Dataset):
 
     summarization_task_dataset = create_summarization_task_dataset(generated_dataset)
     if summarization_task_dataset is not None:
-        knowledge_ds = safe_concatenate_datasets([knowledge_ds, summarization_task_dataset])
+        knowledge_ds = safe_concatenate_datasets(
+            [knowledge_ds, summarization_task_dataset]
+        )
     return knowledge_ds
 
 
-def create_knowledge_pretraining_ds(generated_dataset: Dataset, add_auxiliary_dataset: bool = True):
+def create_knowledge_pretraining_ds(
+    generated_dataset: Dataset, add_auxiliary_dataset: bool = True
+):
     # Phase 0.7 (Knowledge Phase)
-    """  
-    Create a knowledge dataset for the Knowledge Phase of knowledge tuning.  
-    
-    This function generates QA datasets for pretraining-style knowledge tuning  
-    with optional auxiliary dataset inclusion.  
-    
-    Parameters  
-    ----------  
-    generated_dataset (Dataset): The dataset containing generated knowledge data.  
-    add_auxiliary_dataset (bool): Whether to include an auxiliary dataset.  
-    
-    Returns  
-    -------  
-    Dataset: The generated knowledge dataset.  
+    """
+    Create a knowledge dataset for the Knowledge Phase of knowledge tuning.
+
+    This function generates QA datasets for pretraining-style knowledge tuning
+    with optional auxiliary dataset inclusion.
+
+    Parameters
+    ----------
+    generated_dataset (Dataset): The dataset containing generated knowledge data.
+    add_auxiliary_dataset (bool): Whether to include an auxiliary dataset.
+
+    Returns
+    -------
+    Dataset: The generated knowledge dataset.
     """
     knowledge_ds = generate_knowledge_qa_dataset(
-        generated_dataset, keep_context_separate=False)
+        generated_dataset, keep_context_separate=False
+    )
     knowledge_ds = knowledge_ds.map(_conv_pretrain)
 
     summarization_task_dataset = create_summarization_task_dataset(generated_dataset)
     if summarization_task_dataset is not None and add_auxiliary_dataset:
         summarization_task_dataset = summarization_task_dataset.map(_conv_pretrain)
-        knowledge_ds = safe_concatenate_datasets([knowledge_ds, summarization_task_dataset])
+        knowledge_ds = safe_concatenate_datasets(
+            [knowledge_ds, summarization_task_dataset]
+        )
     return knowledge_ds
 
 

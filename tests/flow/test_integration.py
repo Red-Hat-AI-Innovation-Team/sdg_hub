@@ -5,11 +5,11 @@
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-# Third Party
-from datasets import Dataset
-
 # First Party
 from sdg_hub import Flow, FlowMetadata, FlowRegistry
+
+# Third Party
+import pandas as pd
 import pytest
 import yaml
 
@@ -92,7 +92,7 @@ class TestFlowIntegration:
             assert flow.blocks[1].block_name == "processor"
 
             # Create test dataset
-            dataset = Dataset.from_dict(
+            dataset = pd.DataFrame(
                 {"input": ["Hello world", "How are you?", "Test input"]}
             )
 
@@ -117,7 +117,7 @@ class TestFlowIntegration:
 
             # Verify results
             assert len(result) == 3
-            assert "processed_response" in result.column_names
+            assert "processed_response" in result.columns.tolist()
             assert all(result["processed_response"])
 
     def test_flow_registry_discovery_and_loading(self, temp_dir):
@@ -366,7 +366,7 @@ class TestFlowIntegration:
 
             # Test dataset validation
             # Valid dataset
-            valid_dataset = Dataset.from_dict(
+            valid_dataset = pd.DataFrame(
                 {
                     "input": ["input1", "input2", "input3"],
                     "context": ["context1", "context2", "context3"],
@@ -376,7 +376,7 @@ class TestFlowIntegration:
             assert errors == []
 
             # Invalid dataset - missing required column
-            invalid_dataset = Dataset.from_dict(
+            invalid_dataset = pd.DataFrame(
                 {
                     "input": ["input1", "input2"]
                     # Missing context column
@@ -387,9 +387,7 @@ class TestFlowIntegration:
             assert any("Missing required columns" in error for error in errors)
 
             # Invalid dataset - too few samples
-            small_dataset = Dataset.from_dict(
-                {"input": ["input1"], "context": ["context1"]}
-            )
+            small_dataset = pd.DataFrame({"input": ["input1"], "context": ["context1"]})
             errors = flow.validate_dataset(small_dataset)
             assert len(errors) > 0
             assert any("minimum required: 2" in error for error in errors)
@@ -487,7 +485,7 @@ class TestFlowIntegration:
 
         # Test with empty flow
         empty_flow = Flow(blocks=[], metadata=FlowMetadata(name="Empty Flow"))
-        dataset = Dataset.from_dict({"input": ["test"]})
+        dataset = pd.DataFrame({"input": ["test"]})
 
         # Should fail on generate
         with pytest.raises(Exception):

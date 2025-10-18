@@ -8,10 +8,11 @@ mode, min, max, mean, or median.
 # Standard
 from typing import Any, Literal
 
-# Third Party
-from datasets import Dataset
 from pydantic import field_validator
 import numpy as np
+
+# Third Party
+import pandas as pd
 
 # Local
 from ...utils.logger_config import setup_logger
@@ -66,8 +67,8 @@ class UniformColumnValueSetter(BaseBlock):
         self.output_cols = []
         self.col_name = self.input_cols[0]
 
-    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
-        df = samples.to_pandas()
+    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
+        df = samples.copy()
 
         if df.empty:
             raise ValueError("Cannot compute reduction for empty dataset")
@@ -98,4 +99,4 @@ class UniformColumnValueSetter(BaseBlock):
         )
 
         df[self.col_name] = value
-        return Dataset.from_pandas(df)
+        return df

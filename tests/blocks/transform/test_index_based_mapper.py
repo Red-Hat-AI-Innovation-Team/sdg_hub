@@ -1,18 +1,17 @@
 """Tests for the IndexBasedMapperBlock class."""
 
 # Third Party
-from datasets import Dataset
-
 # First Party
 from sdg_hub.core.blocks.transform import IndexBasedMapperBlock
 from sdg_hub.core.utils.error_handling import MissingColumnError
+import pandas as pd
 import pytest
 
 
 @pytest.fixture
 def sample_dataset():
     """Create a sample dataset for testing with multiple response and verdict columns."""
-    return Dataset.from_dict(
+    return pd.DataFrame(
         {
             "response_1": ["Response A1", "Response B1", "Response C1", "Response D1"],
             "response_2": ["Response A2", "Response B2", "Response C2", "Response D2"],
@@ -47,33 +46,33 @@ def test_index_based_mapper_basic(sample_dataset, choice_map):
     result = block.generate(sample_dataset)
 
     # Check that the selection worked correctly
-    assert "selected_1" in result.column_names
-    assert "selected_2" in result.column_names
+    assert "selected_1" in result.columns.tolist()
+    assert "selected_2" in result.columns.tolist()
 
     # Row 0: verdict_1=Assistant A -> response_1, verdict_2=Assistant B -> response_2
-    assert result[0]["selected_1"] == "Response A1"
-    assert result[0]["selected_2"] == "Response A2"
+    assert result.iloc[0]["selected_1"] == "Response A1"
+    assert result.iloc[0]["selected_2"] == "Response A2"
 
     # Row 1: verdict_1=Assistant B -> response_2, verdict_2=Assistant C -> response_3
-    assert result[1]["selected_1"] == "Response B2"
-    assert result[1]["selected_2"] == "Response B3"
+    assert result.iloc[1]["selected_1"] == "Response B2"
+    assert result.iloc[1]["selected_2"] == "Response B3"
 
     # Row 2: verdict_1=Assistant C -> response_3, verdict_2=Assistant A -> response_1
-    assert result[2]["selected_1"] == "Response C3"
-    assert result[2]["selected_2"] == "Response C1"
+    assert result.iloc[2]["selected_1"] == "Response C3"
+    assert result.iloc[2]["selected_2"] == "Response C1"
 
     # Check that original columns are preserved
-    assert "response_1" in result.column_names
-    assert "response_2" in result.column_names
-    assert "response_3" in result.column_names
-    assert "verdict_1" in result.column_names
-    assert "verdict_2" in result.column_names
-    assert "other_col" in result.column_names
+    assert "response_1" in result.columns.tolist()
+    assert "response_2" in result.columns.tolist()
+    assert "response_3" in result.columns.tolist()
+    assert "verdict_1" in result.columns.tolist()
+    assert "verdict_2" in result.columns.tolist()
+    assert "other_col" in result.columns.tolist()
 
 
 def test_index_based_mapper_single_choice_col(choice_map):
     """Test IndexBasedMapperBlock with single choice column (backward compatibility)."""
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "response_1": ["Response A", "Response B", "Response C"],
             "response_2": ["Response A2", "Response B2", "Response C2"],
@@ -92,16 +91,16 @@ def test_index_based_mapper_single_choice_col(choice_map):
 
     result = block.generate(dataset)
 
-    assert "selected_response" in result.column_names
-    assert result[0]["selected_response"] == "Response A"
-    assert result[1]["selected_response"] == "Response B2"
-    assert result[2]["selected_response"] == "Response C3"
+    assert "selected_response" in result.columns.tolist()
+    assert result.iloc[0]["selected_response"] == "Response A"
+    assert result.iloc[1]["selected_response"] == "Response B2"
+    assert result.iloc[2]["selected_response"] == "Response C3"
 
 
 def test_index_based_mapper_invalid_choice():
     """Test IndexBasedMapperBlock with invalid choice values."""
     # Create dataset with invalid choice
-    invalid_dataset = Dataset.from_dict(
+    invalid_dataset = pd.DataFrame(
         {
             "response_1": ["Response A"],
             "response_2": ["Response B"],
@@ -132,7 +131,7 @@ def test_index_based_mapper_empty_dataset(choice_map):
         choice_cols=["verdict_1", "verdict_2"],
     )
 
-    empty_dataset = Dataset.from_dict(
+    empty_dataset = pd.DataFrame(
         {
             "response_1": [],
             "response_2": [],
@@ -148,7 +147,7 @@ def test_index_based_mapper_empty_dataset(choice_map):
 
 def test_index_based_mapper_missing_choice_columns():
     """Test IndexBasedMapperBlock with missing choice columns."""
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "response_1": ["Response A"],
             "response_2": ["Response B"],
@@ -171,7 +170,7 @@ def test_index_based_mapper_missing_choice_columns():
 
 def test_index_based_mapper_missing_mapped_columns():
     """Test IndexBasedMapperBlock with missing mapped columns."""
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "response_1": ["Response A"],
             "verdict_1": ["Assistant A"],
@@ -234,7 +233,7 @@ def test_index_based_mapper_validation_errors():
 
 def test_index_based_mapper_complex_scenario():
     """Test IndexBasedMapperBlock with complex multi-column scenario."""
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "model_a_response": ["Model A says X", "Model A says Y", "Model A says Z"],
             "model_b_response": ["Model B says X", "Model B says Y", "Model B says Z"],
@@ -272,17 +271,29 @@ def test_index_based_mapper_complex_scenario():
     result = block.generate(dataset)
 
     # Check results
-    assert result[0]["judge_1_selection"] == "Model A says X"  # judge_1_choice=model_a
-    assert result[0]["judge_2_selection"] == "Model C says X"  # judge_2_choice=model_c
-    assert result[0]["judge_3_selection"] == "Human says X"  # judge_3_choice=human
+    assert (
+        result.iloc[0]["judge_1_selection"] == "Model A says X"
+    )  # judge_1_choice=model_a
+    assert (
+        result.iloc[0]["judge_2_selection"] == "Model C says X"
+    )  # judge_2_choice=model_c
+    assert result.iloc[0]["judge_3_selection"] == "Human says X"  # judge_3_choice=human
 
-    assert result[1]["judge_1_selection"] == "Model B says Y"  # judge_1_choice=model_b
-    assert result[1]["judge_2_selection"] == "Human says Y"  # judge_2_choice=human
-    assert result[1]["judge_3_selection"] == "Model C says Y"  # judge_3_choice=model_c
+    assert (
+        result.iloc[1]["judge_1_selection"] == "Model B says Y"
+    )  # judge_1_choice=model_b
+    assert result.iloc[1]["judge_2_selection"] == "Human says Y"  # judge_2_choice=human
+    assert (
+        result.iloc[1]["judge_3_selection"] == "Model C says Y"
+    )  # judge_3_choice=model_c
 
-    assert result[2]["judge_1_selection"] == "Human says Z"  # judge_1_choice=human
-    assert result[2]["judge_2_selection"] == "Model A says Z"  # judge_2_choice=model_a
-    assert result[2]["judge_3_selection"] == "Model B says Z"  # judge_3_choice=model_b
+    assert result.iloc[2]["judge_1_selection"] == "Human says Z"  # judge_1_choice=human
+    assert (
+        result.iloc[2]["judge_2_selection"] == "Model A says Z"
+    )  # judge_2_choice=model_a
+    assert (
+        result.iloc[2]["judge_3_selection"] == "Model B says Z"
+    )  # judge_3_choice=model_b
 
 
 def test_index_based_mapper_choice_to_output_mapping():

@@ -6,7 +6,7 @@
 import tempfile
 
 # Third Party
-from datasets import Dataset
+import pandas as pd
 import pytest
 
 # First Party
@@ -68,7 +68,7 @@ class TestTimeEstimation:
         """Test dry_run without enable_time_estimation flag."""
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
+        dataset = pd.DataFrame({"input": [f"test{i}" for i in range(10)]})
 
         result = flow.dry_run(dataset, sample_size=2)
 
@@ -81,7 +81,7 @@ class TestTimeEstimation:
         """Test dry_run with enable_time_estimation for synchronous blocks."""
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
+        dataset = pd.DataFrame({"input": [f"test{i}" for i in range(10)]})
 
         # Time estimation is displayed in table but not returned in results
         result = flow.dry_run(dataset, sample_size=2, enable_time_estimation=True)
@@ -95,7 +95,7 @@ class TestTimeEstimation:
         async_block = self.create_mock_llm_block("async_block", async_mode=True)
         flow = Flow(blocks=[async_block], metadata=self.test_metadata)
         flow._model_config_set = True
-        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
+        dataset = pd.DataFrame({"input": [f"test{i}" for i in range(10)]})
 
         # Time estimation is displayed in table but not returned in results
         result = flow.dry_run(
@@ -111,7 +111,7 @@ class TestTimeEstimation:
         async_block = self.create_mock_llm_block("async_block", async_mode=True)
         flow = Flow(blocks=[async_block], metadata=self.test_metadata)
         flow._model_config_set = True
-        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
+        dataset = pd.DataFrame({"input": [f"test{i}" for i in range(10)]})
 
         # Both should complete successfully (estimation displayed but not returned)
         result_low = flow.dry_run(
@@ -129,7 +129,7 @@ class TestTimeEstimation:
         async_block = self.create_mock_llm_block("async_block", async_mode=True)
         flow = Flow(blocks=[async_block], metadata=self.test_metadata)
         flow._model_config_set = True
-        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
+        dataset = pd.DataFrame({"input": [f"test{i}" for i in range(10)]})
 
         result = flow.dry_run(
             dataset, sample_size=1, enable_time_estimation=True, max_concurrency=100
@@ -143,7 +143,7 @@ class TestTimeEstimation:
         async_block = self.create_mock_llm_block("async_block", async_mode=True)
         flow = Flow(blocks=[async_block], metadata=self.test_metadata)
         flow._model_config_set = True
-        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(10)]})
+        dataset = pd.DataFrame({"input": [f"test{i}" for i in range(10)]})
 
         result = flow.dry_run(
             dataset, sample_size=3, enable_time_estimation=True, max_concurrency=100
@@ -157,7 +157,7 @@ class TestTimeEstimation:
         async_block = self.create_mock_llm_block("async_block", async_mode=True)
         flow = Flow(blocks=[async_block], metadata=self.test_metadata)
         flow._model_config_set = True
-        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(20)]})
+        dataset = pd.DataFrame({"input": [f"test{i}" for i in range(20)]})
 
         result = flow.dry_run(
             dataset, sample_size=1, enable_time_estimation=True, max_concurrency=100
@@ -171,7 +171,7 @@ class TestTimeEstimation:
         async_block = self.create_mock_llm_block("async_block", async_mode=True)
         flow = Flow(blocks=[async_block], metadata=self.test_metadata)
         flow._model_config_set = True
-        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(20)]})
+        dataset = pd.DataFrame({"input": [f"test{i}" for i in range(20)]})
 
         result = flow.dry_run(
             dataset, sample_size=5, enable_time_estimation=True, max_concurrency=100
@@ -185,7 +185,7 @@ class TestTimeEstimation:
         async_block = self.create_mock_llm_block("async_block", async_mode=True)
         flow = Flow(blocks=[async_block], metadata=self.test_metadata)
         flow._model_config_set = True
-        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(20)]})
+        dataset = pd.DataFrame({"input": [f"test{i}" for i in range(20)]})
 
         result = flow.dry_run(
             dataset, sample_size=3, enable_time_estimation=True, max_concurrency=100
@@ -199,7 +199,7 @@ class TestTimeEstimation:
         async_block = self.create_mock_llm_block("async_block", async_mode=True)
         flow = Flow(blocks=[async_block], metadata=self.test_metadata)
         flow._model_config_set = True
-        dataset = Dataset.from_dict({"input": [f"test{i}" for i in range(20)]})
+        dataset = pd.DataFrame({"input": [f"test{i}" for i in range(20)]})
 
         result = flow.dry_run(
             dataset, sample_size=10, enable_time_estimation=True, max_concurrency=100

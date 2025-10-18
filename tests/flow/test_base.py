@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 import tempfile
 
 # Third Party
-from datasets import Dataset
+import pandas as pd
 from pydantic import ValidationError
 import pytest
 import yaml
@@ -194,7 +194,7 @@ class TestFlow:
     def test_generate_empty_flow(self):
         """Test generating with empty flow."""
         flow = Flow(blocks=[], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test"]})
+        dataset = pd.DataFrame({"input": ["test"]})
 
         with pytest.raises(FlowValidationError) as exc_info:
             flow.generate(dataset)
@@ -205,7 +205,7 @@ class TestFlow:
         """Test generating with empty dataset."""
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        empty_dataset = Dataset.from_dict({"input": []})
+        empty_dataset = pd.DataFrame({"input": []})
 
         with pytest.raises(EmptyDatasetError) as exc_info:
             flow.generate(empty_dataset)
@@ -221,11 +221,11 @@ class TestFlow:
         flow = Flow(blocks=[block], metadata=metadata)
 
         # Valid dataset
-        Dataset.from_dict({"input": ["test1", "test2"]})
+        pd.DataFrame({"input": ["test1", "test2"]})
         # This would work if we had real blocks
 
         # Invalid dataset - missing column
-        invalid_dataset = Dataset.from_dict({"wrong_col": ["test1", "test2"]})
+        invalid_dataset = pd.DataFrame({"wrong_col": ["test1", "test2"]})
         with pytest.raises(FlowValidationError) as exc_info:
             flow.generate(invalid_dataset)
 
@@ -235,19 +235,22 @@ class TestFlow:
         """Test successful generation."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+        dataset = pd.DataFrame({"input": ["test1", "test2"]})
 
         result = flow.generate(dataset)
 
         assert len(result) == 2
-        assert "output" in result.column_names
-        assert result["output"] == ["test_block_output_0", "test_block_output_1"]
+        assert "output" in result.columns.tolist()
+        assert result["output"].tolist() == [
+            "test_block_output_0",
+            "test_block_output_1",
+        ]
 
     def test_generate_with_runtime_params(self):
         """Test generation with runtime parameters."""
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test"]})
+        dataset = pd.DataFrame({"input": ["test"]})
 
         runtime_params = {"test_block": {"temperature": 0.5, "max_tokens": 100}}
 
@@ -256,12 +259,12 @@ class TestFlow:
         result = flow.generate(dataset, runtime_params=runtime_params)
 
         assert len(result) == 1
-        assert "output" in result.column_names
+        assert "output" in result.columns.tolist()
 
     def test_validate_dataset_empty(self):
         """Test dataset validation with empty dataset."""
         flow = Flow(blocks=[], metadata=self.test_metadata)
-        empty_dataset = Dataset.from_dict({"input": []})
+        empty_dataset = pd.DataFrame({"input": []})
 
         errors = flow.validate_dataset(empty_dataset)
         assert len(errors) == 1
@@ -276,14 +279,12 @@ class TestFlow:
         flow = Flow(blocks=[], metadata=metadata)
 
         # Valid dataset
-        valid_dataset = Dataset.from_dict(
-            {"input": ["test"] * 5, "label": ["label"] * 5}
-        )
+        valid_dataset = pd.DataFrame({"input": ["test"] * 5, "label": ["label"] * 5})
         errors = flow.validate_dataset(valid_dataset)
         assert errors == []
 
         # Invalid dataset
-        invalid_dataset = Dataset.from_dict(
+        invalid_dataset = pd.DataFrame(
             {
                 "input": ["test"] * 3,  # Too few samples
                 # Missing label column
@@ -295,7 +296,7 @@ class TestFlow:
     def test_dry_run_empty_flow(self):
         """Test dry run with empty flow."""
         flow = Flow(blocks=[], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test"]})
+        dataset = pd.DataFrame({"input": ["test"]})
 
         with pytest.raises(FlowValidationError) as exc_info:
             flow.dry_run(dataset)
@@ -306,7 +307,7 @@ class TestFlow:
         """Test dry run with empty dataset."""
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        empty_dataset = Dataset.from_dict({"input": []})
+        empty_dataset = pd.DataFrame({"input": []})
 
         with pytest.raises(EmptyDatasetError):
             flow.dry_run(empty_dataset)
@@ -315,7 +316,7 @@ class TestFlow:
         """Test successful dry run."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test1", "test2", "test3"]})
+        dataset = pd.DataFrame({"input": ["test1", "test2", "test3"]})
 
         result = flow.dry_run(dataset, sample_size=2)
 
@@ -332,7 +333,7 @@ class TestFlow:
         """Test dry run with sample size larger than dataset."""
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+        dataset = pd.DataFrame({"input": ["test1", "test2"]})
 
         result = flow.dry_run(dataset, sample_size=5)
 
@@ -343,7 +344,7 @@ class TestFlow:
         """Test dry run with runtime parameters."""
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test"]})
+        dataset = pd.DataFrame({"input": ["test"]})
 
         runtime_params = {"test_block": {"temperature": 0.3}}
 
@@ -356,7 +357,7 @@ class TestFlow:
         block = self.create_mock_llm_block("llm_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         flow._model_config_set = True
-        dataset = Dataset.from_dict({"input": ["test"]})
+        dataset = pd.DataFrame({"input": ["test"]})
 
         # Test with max_concurrency
         result = flow.dry_run(dataset, sample_size=1, max_concurrency=50)
@@ -377,7 +378,7 @@ class TestFlow:
         """Test dry_run validates max_concurrency parameter."""
         block = self.create_mock_block("test_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test"]})
+        dataset = pd.DataFrame({"input": ["test"]})
 
         # Test with zero value
         with pytest.raises(FlowValidationError) as exc_info:
@@ -407,7 +408,7 @@ class TestFlow:
 
         failing_block = FailingBlock(block_name="failing_block")
         flow = Flow(blocks=[failing_block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+        dataset = pd.DataFrame({"input": ["test1", "test2"]})
 
         # Should raise FlowValidationError wrapping the original exception
         with pytest.raises(FlowValidationError) as exc_info:
@@ -805,7 +806,7 @@ class TestFlow:
         llm_block.model = None  # Ensure no model set
 
         flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test"]})
+        dataset = pd.DataFrame({"input": ["test"]})
 
         # Should fail because model config not set
         with pytest.raises(FlowValidationError) as exc_info:
@@ -821,7 +822,7 @@ class TestFlow:
         llm_block.model = None
 
         flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test"]})
+        dataset = pd.DataFrame({"input": ["test"]})
 
         # Configure model first
         flow.set_model_config(
@@ -836,7 +837,7 @@ class TestFlow:
         """Test that generate() works without model config for flows without LLM blocks."""
         regular_block = self.create_mock_block("regular_block")
         flow = Flow(blocks=[regular_block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test"]})
+        dataset = pd.DataFrame({"input": ["test"]})
 
         # Should work without set_model_config() because no LLM blocks
         result = flow.generate(dataset)
@@ -853,7 +854,7 @@ class TestFlow:
         llm_block.api_key = None
 
         flow = Flow(blocks=[llm_block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test"]})
+        dataset = pd.DataFrame({"input": ["test"]})
 
         # Should fail because model config not set (new approach)
         with pytest.raises(FlowValidationError) as exc_info:
@@ -971,26 +972,26 @@ class TestFlow:
         """Test generation without checkpointing."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+        dataset = pd.DataFrame({"input": ["test1", "test2"]})
 
         # Should work the same as before when no checkpoint_dir provided
         result = flow.generate(dataset)
 
         assert len(result) == 2
-        assert "output" in result.column_names
+        assert "output" in result.columns.tolist()
 
     def test_generate_with_checkpointing_no_existing_data(self):
         """Test generation with checkpointing when no existing checkpoints."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+        dataset = pd.DataFrame({"input": ["test1", "test2"]})
 
         checkpoint_dir = Path(self.temp_dir) / "checkpoints"
 
         result = flow.generate(dataset, checkpoint_dir=str(checkpoint_dir))
 
         assert len(result) == 2
-        assert "output" in result.column_names
+        assert "output" in result.columns.tolist()
 
         # Should have created checkpoint files
         assert checkpoint_dir.exists()
@@ -1005,9 +1006,7 @@ class TestFlow:
         """Test generation with checkpointing and save frequency."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict(
-            {"input": ["test1", "test2", "test3", "test4", "test5"]}
-        )
+        dataset = pd.DataFrame({"input": ["test1", "test2", "test3", "test4", "test5"]})
 
         checkpoint_dir = Path(self.temp_dir) / "checkpoints_freq"
         save_freq = 2
@@ -1017,7 +1016,7 @@ class TestFlow:
         )
 
         assert len(result) == 5
-        assert "output" in result.column_names
+        assert "output" in result.columns.tolist()
 
         # Should have created multiple checkpoint files (3 chunks: 2+2+1)
         checkpoint_files = list(checkpoint_dir.glob("checkpoint_*.jsonl"))
@@ -1042,15 +1041,13 @@ class TestFlow:
         )
 
         # Simulate some completed samples
-        completed_data = Dataset.from_dict(
+        completed_data = pd.DataFrame(
             {"input": ["test1", "test2"], "output": ["existing1", "existing2"]}
         )
         checkpointer.add_completed_samples(completed_data)
 
         # Now run flow with larger input dataset
-        full_dataset = Dataset.from_dict(
-            {"input": ["test1", "test2", "test3", "test4"]}
-        )
+        full_dataset = pd.DataFrame({"input": ["test1", "test2", "test3", "test4"]})
 
         result = flow.generate(full_dataset, checkpoint_dir=str(checkpoint_dir))
 
@@ -1058,10 +1055,10 @@ class TestFlow:
         assert len(result) == 4
 
         # Should include both existing and new outputs
-        assert "existing1" in result["output"]
-        assert "existing2" in result["output"]
-        assert "test_block_output_0" in result["output"]  # New outputs
-        assert "test_block_output_1" in result["output"]
+        assert "existing1" in result["output"].tolist()
+        assert "existing2" in result["output"].tolist()
+        assert "test_block_output_0" in result["output"].tolist()  # New outputs
+        assert "test_block_output_1" in result["output"].tolist()
 
     def test_generate_all_samples_already_completed(self):
         """Test generation when all samples are already completed."""
@@ -1081,25 +1078,25 @@ class TestFlow:
             flow_id=flow.metadata.id,
         )
 
-        completed_data = Dataset.from_dict(
+        completed_data = pd.DataFrame(
             {"input": ["test1", "test2"], "output": ["existing1", "existing2"]}
         )
         checkpointer.add_completed_samples(completed_data)
 
         # Run flow with same input dataset
-        input_dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+        input_dataset = pd.DataFrame({"input": ["test1", "test2"]})
 
         result = flow.generate(input_dataset, checkpoint_dir=str(checkpoint_dir))
 
         # Should just return existing results without processing
         assert len(result) == 2
-        assert result["output"] == ["existing1", "existing2"]
+        assert result["output"].tolist() == ["existing1", "existing2"]
 
     def test_generate_with_runtime_params_and_checkpointing(self):
         """Test generation with both runtime params and checkpointing."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+        dataset = pd.DataFrame({"input": ["test1", "test2"]})
 
         checkpoint_dir = Path(self.temp_dir) / "checkpoints_with_params"
         runtime_params = {"test_block": {"temperature": 0.7, "max_tokens": 150}}
@@ -1112,7 +1109,7 @@ class TestFlow:
         )
 
         assert len(result) == 2
-        assert "output" in result.column_names
+        assert "output" in result.columns.tolist()
 
         # Checkpointing should still work with runtime params
         checkpoint_files = list(checkpoint_dir.glob("checkpoint_*.jsonl"))
@@ -1126,7 +1123,7 @@ class TestFlow:
         )
 
         flow = Flow(blocks=[block1, block2], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+        dataset = pd.DataFrame({"input": ["test1", "test2"]})
 
         checkpoint_dir = Path(self.temp_dir) / "multi_block_checkpoints"
 
@@ -1134,7 +1131,7 @@ class TestFlow:
 
         # Should have processed through both blocks
         assert len(result) == 2
-        assert "final" in result.column_names
+        assert "final" in result.columns.tolist()
 
         # Should save final results only (after all blocks completed)
         checkpoint_files = list(checkpoint_dir.glob("checkpoint_*.jsonl"))
@@ -1152,7 +1149,7 @@ class TestFlow:
         """Test generation with log_dir parameter for dual logging."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+        dataset = pd.DataFrame({"input": ["test1", "test2"]})
 
         log_dir = Path(self.temp_dir) / "test_logs"
 
@@ -1161,7 +1158,7 @@ class TestFlow:
             result = flow.generate(dataset, log_dir=str(log_dir))
 
         assert len(result) == 2
-        assert "output" in result.column_names
+        assert "output" in result.columns.tolist()
 
         # Should have created log directory and log file
         assert log_dir.exists()
@@ -1186,19 +1183,19 @@ class TestFlow:
         """Test generation without log_dir parameter (original behavior)."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+        dataset = pd.DataFrame({"input": ["test1", "test2"]})
 
         # Should work without log_dir (backward compatibility)
         result = flow.generate(dataset)
 
         assert len(result) == 2
-        assert "output" in result.column_names
+        assert "output" in result.columns.tolist()
 
     def test_generate_with_log_dir_creates_directory(self):
         """Test that log_dir is created if it doesn't exist."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test1"]})
+        dataset = pd.DataFrame({"input": ["test1"]})
 
         # Use a nested path that doesn't exist
         log_dir = Path(self.temp_dir) / "nested" / "log" / "directory"
@@ -1217,7 +1214,7 @@ class TestFlow:
         """Test generation with both log_dir and checkpointing."""
         block = self.create_mock_block("test_block", output_cols=["output"])
         flow = Flow(blocks=[block], metadata=self.test_metadata)
-        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+        dataset = pd.DataFrame({"input": ["test1", "test2"]})
 
         log_dir = Path(self.temp_dir) / "logs_with_checkpoints"
         checkpoint_dir = Path(self.temp_dir) / "checkpoints_with_logs"
@@ -1321,7 +1318,7 @@ class TestFlow:
         from sdg_hub.core.blocks.llm.llm_chat_block import LLMChatBlock
 
         messages_data = [[{"role": "user", "content": f"test {i}"}] for i in range(10)]
-        dataset = Dataset.from_dict({"messages": messages_data})
+        dataset = pd.DataFrame({"messages": messages_data})
 
         llm_block = LLMChatBlock(
             block_name="llm_block",
@@ -1363,7 +1360,7 @@ class TestFlow:
 
         # Create dataset with messages format (required for LLMChatBlock)
         messages_data = [[{"role": "user", "content": f"test {i}"}] for i in range(5)]
-        dataset = Dataset.from_dict({"messages": messages_data})
+        dataset = pd.DataFrame({"messages": messages_data})
 
         llm_block = LLMChatBlock(
             block_name="llm_block",
@@ -1402,14 +1399,12 @@ class TestFlow:
     def test_generate_max_concurrency_validation(self):
         """Test that max_concurrency parameter validation works correctly."""
         # Third Party
-        from datasets import Dataset
+        import pandas as pd
 
         # First Party
         from sdg_hub.core.utils.error_handling import FlowValidationError
 
-        dataset = Dataset.from_dict(
-            {"messages": [[{"role": "user", "content": "test"}]]}
-        )
+        dataset = pd.DataFrame({"messages": [[{"role": "user", "content": "test"}]]})
         flow = Flow(blocks=[], metadata=self.test_metadata)
 
         # Test invalid type

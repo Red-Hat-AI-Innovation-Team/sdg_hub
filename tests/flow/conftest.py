@@ -6,12 +6,12 @@ from pathlib import Path
 from unittest.mock import Mock
 import tempfile
 
-# Third Party
-from datasets import Dataset
-
 # First Party
 from sdg_hub import BaseBlock, FlowMetadata
 from sdg_hub.core.flow.metadata import ModelCompatibility, ModelOption
+
+# Third Party
+import pandas as pd
 import pytest
 import yaml
 
@@ -52,7 +52,7 @@ def sample_metadata():
 @pytest.fixture
 def sample_dataset():
     """Create a sample dataset for testing."""
-    return Dataset.from_dict(
+    return pd.DataFrame(
         {
             "input": ["test input 1", "test input 2", "test input 3"],
             "label": ["label1", "label2", "label3"],
@@ -63,7 +63,7 @@ def sample_dataset():
 @pytest.fixture
 def empty_dataset():
     """Create an empty dataset for testing."""
-    return Dataset.from_dict({"input": [], "label": []})
+    return pd.DataFrame({"input": [], "label": []})
 
 
 class MockBlock(BaseBlock):
@@ -81,17 +81,20 @@ class MockBlock(BaseBlock):
 
     def __call__(self, dataset, **kwargs):
         """Mock block execution."""
-        data = dataset.to_dict()
+        # Make a copy to avoid modifying the original
+        result = dataset.copy()
+
+        # Add output columns
         if isinstance(self.output_cols, list):
             for col in self.output_cols:
-                data[col] = [
+                result[col] = [
                     f"{self.block_name}_{col}_{i}" for i in range(len(dataset))
                 ]
         else:
-            data[self.output_cols] = [
+            result[self.output_cols] = [
                 f"{self.block_name}_{self.output_cols}_{i}" for i in range(len(dataset))
             ]
-        return Dataset.from_dict(data)
+        return result
 
     def generate(self, dataset, **kwargs):
         """Generate method for BaseBlock compatibility."""

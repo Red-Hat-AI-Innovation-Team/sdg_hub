@@ -5,7 +5,7 @@
 from typing import TYPE_CHECKING, Any
 
 # Third Party
-from datasets import Dataset
+import pandas as pd
 
 if TYPE_CHECKING:
     # Local
@@ -180,14 +180,14 @@ class FlowValidator:
 
         return errors
 
-    def validate_flow_execution(self, flow: "Flow", dataset: Dataset) -> list[str]:
+    def validate_flow_execution(self, flow: "Flow", dataset: pd.DataFrame) -> list[str]:
         """Validate that a flow can be executed with the given dataset.
 
         Parameters
         ----------
         flow : Flow
             The flow to validate.
-        dataset : Dataset
+        dataset : pd.DataFrame
             Dataset to validate against.
 
         Returns
@@ -206,7 +206,7 @@ class FlowValidator:
             return errors
 
         # Track available columns as we progress through blocks
-        current_columns = set(dataset.column_names)
+        current_columns = set(dataset.columns.tolist())
 
         for _i, block in enumerate(flow.blocks):
             block_name = block.block_name

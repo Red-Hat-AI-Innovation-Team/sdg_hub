@@ -8,9 +8,10 @@ This module provides the LLMParserBlock for extracting specific fields
 # Standard
 from typing import Any
 
-# Third Party
-from datasets import Dataset
 from pydantic import Field, model_validator
+
+# Third Party
+import pandas as pd
 
 # Local
 from ...utils.logger_config import setup_logger
@@ -26,6 +27,8 @@ logger = setup_logger(__name__)
     "Extracts specified fields from LLM response objects",
 )
 class LLMParserBlock(BaseBlock):
+    _flow_requires_jsonl_tmp: bool = True
+
     """Block for extracting fields from LLM response objects.
 
     This block extracts specified fields from chat completion response objects.
@@ -102,12 +105,12 @@ class LLMParserBlock(BaseBlock):
 
         return self
 
-    def _validate_custom(self, dataset: Dataset) -> None:
+    def _validate_custom(self, dataset: pd.DataFrame) -> None:
         """Validate LLMParserBlock specific requirements.
 
         Parameters
         ----------
-        dataset : Dataset
+        dataset : pd.DataFrame
             The dataset to validate.
 
         Raises
@@ -308,13 +311,16 @@ class LLMParserBlock(BaseBlock):
         extracted = self._extract_fields_from_response(raw_output)
         return [{**sample, **extracted}]
 
-    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         logger.debug(f"Extracting fields from {len(samples)} samples")
         if len(samples) == 0:
             logger.warning("No samples to process, returning empty dataset")
-            return Dataset.from_list([])
+            return pd.DataFrame()
 
         new_data = []
+        samples = samples.to_dict("records")  # Avoid Iterrows() when possible
+
         for sample in samples:
             new_data.extend(self._generate(sample))
-        return Dataset.from_list(new_data)
+
+        return pd.DataFrame(new_data)

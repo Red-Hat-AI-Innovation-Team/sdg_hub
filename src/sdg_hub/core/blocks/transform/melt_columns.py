@@ -8,9 +8,10 @@ by melting specified columns into rows.
 # Standard
 from typing import Any
 
-# Third Party
-from datasets import Dataset
 from pydantic import field_validator
+
+# Third Party
+import pandas as pd
 
 # Local
 from ...utils.error_handling import MissingColumnError
@@ -79,12 +80,12 @@ class MeltColumnsBlock(BaseBlock):
             self.input_cols if isinstance(self.input_cols, list) else [self.input_cols]
         )
 
-    def _validate_custom(self, samples: Dataset) -> None:
+    def _validate_custom(self, samples: pd.DataFrame) -> None:
         """Validate that required columns exist in the dataset.
 
         Parameters
         ----------
-        samples : Dataset
+        samples : pd.DataFrame
             Input dataset to validate.
 
         Raises
@@ -93,34 +94,34 @@ class MeltColumnsBlock(BaseBlock):
             If required columns are missing from the dataset.
         """
         # Check that all var_cols exist in the dataset
-        missing_cols = list(set(self.var_cols) - set(samples.column_names))
+        missing_cols = list(set(self.var_cols) - set(samples.columns.tolist()))
         if missing_cols:
             raise MissingColumnError(
                 block_name=self.block_name,
                 missing_columns=missing_cols,
-                available_columns=samples.column_names,
+                available_columns=samples.columns.tolist(),
             )
 
-    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         """Generate a flattened dataset in long format.
 
         Parameters
         ----------
-        samples : Dataset
+        samples : pd.DataFrame
             Input dataset to flatten.
 
         Returns
         -------
-        Dataset
+        pd.DataFrame
             Flattened dataset in long format with new variable and value columns.
         """
         # Use the original simple logic - just adapted to use derived attributes
-        df = samples.to_pandas()
-        id_cols = [col for col in samples.column_names if col not in self.var_cols]
+        df = samples
+        id_cols = [col for col in samples.columns.tolist() if col not in self.var_cols]
         flatten_df = df.melt(
             id_vars=id_cols,
             value_vars=self.var_cols,
             value_name=self.value_name,
             var_name=self.var_name,
         )
-        return Dataset.from_pandas(flatten_df)
+        return flatten_df

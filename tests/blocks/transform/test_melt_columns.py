@@ -5,11 +5,10 @@ including column melting, value mapping, and edge case handling.
 """
 
 # Third Party
-from datasets import Dataset
-
 # First Party
 from sdg_hub.core.blocks.transform import MeltColumnsBlock
 from sdg_hub.core.utils.error_handling import MissingColumnError
+import pandas as pd
 import pytest
 
 
@@ -22,7 +21,7 @@ def test_flatten_columns_basic():
         "summary_extractive": ["extractive1", "extractive2"],
         "other_col": ["other1", "other2"],
     }
-    dataset = Dataset.from_dict(data)
+    dataset = pd.DataFrame(data)
 
     # Initialize block
     block = MeltColumnsBlock(
@@ -36,23 +35,22 @@ def test_flatten_columns_basic():
 
     # Verify results
     assert len(result) == 4  # 2 rows * 2 columns to flatten
-    assert "id" in result.column_names
-    assert "other_col" in result.column_names
-    assert "summary" in result.column_names
-    assert "dataset_type" in result.column_names
+    assert "id" in result.columns.tolist()
+    assert "other_col" in result.columns.tolist()
+    assert "summary" in result.columns.tolist()
+    assert "dataset_type" in result.columns.tolist()
 
     # Check specific values
-    result_dict = result.to_dict()
-    assert "detailed1" in result_dict["summary"]
-    assert "extractive1" in result_dict["summary"]
-    assert "summary_detailed" in result_dict["dataset_type"]
-    assert "summary_extractive" in result_dict["dataset_type"]
+    assert "detailed1" in result["summary"].tolist()
+    assert "extractive1" in result["summary"].tolist()
+    assert "summary_detailed" in result["dataset_type"].tolist()
+    assert "summary_extractive" in result["dataset_type"].tolist()
 
 
 def test_flatten_columns_with_empty_dataset():
     """Test flattening with an empty dataset."""
     data = {"id": [], "summary_detailed": [], "summary_extractive": [], "other_col": []}
-    dataset = Dataset.from_dict(data)
+    dataset = pd.DataFrame(data)
 
     block = MeltColumnsBlock(
         block_name="test_flatten_empty",
@@ -63,7 +61,7 @@ def test_flatten_columns_with_empty_dataset():
     result = block.generate(dataset)
     assert len(result) == 0
     assert all(
-        col in result.column_names
+        col in result.columns.tolist()
         for col in ["id", "other_col", "summary", "dataset_type"]
     )
 
@@ -76,7 +74,7 @@ def test_flatten_columns_with_missing_values():
         "summary_extractive": ["extractive1", "extractive2", None],
         "other_col": ["other1", "other2", "other3"],
     }
-    dataset = Dataset.from_dict(data)
+    dataset = pd.DataFrame(data)
 
     block = MeltColumnsBlock(
         block_name="test_flatten_missing",
@@ -86,7 +84,7 @@ def test_flatten_columns_with_missing_values():
 
     result = block.generate(dataset)
     assert len(result) == 6  # 3 rows * 2 columns to flatten
-    assert None in result["summary"]
+    assert None in result["summary"].tolist()
 
 
 def test_flatten_columns_with_all_columns():
@@ -98,7 +96,7 @@ def test_flatten_columns_with_all_columns():
         "summary_atomic_facts": ["atomic1", "atomic2"],
         "base_document": ["base1", "base2"],
     }
-    dataset = Dataset.from_dict(data)
+    dataset = pd.DataFrame(data)
 
     block = MeltColumnsBlock(
         block_name="test_flatten_all",
@@ -113,16 +111,16 @@ def test_flatten_columns_with_all_columns():
 
     result = block.generate(dataset)
     assert len(result) == 8  # 2 rows * 4 columns to flatten
-    assert len(result.column_names) == 3  # id, dataset_type, and summary columns
-    assert "id" in result.column_names
-    assert "summary" in result.column_names
-    assert "dataset_type" in result.column_names
+    assert len(result.columns.tolist()) == 3  # id, dataset_type, and summary columns
+    assert "id" in result.columns.tolist()
+    assert "summary" in result.columns.tolist()
+    assert "dataset_type" in result.columns.tolist()
 
 
 def test_flatten_columns_with_invalid_input():
     """Test flattening with invalid input data."""
     data = {"id": [1, 2], "summary_detailed": ["detailed1", "detailed2"]}
-    dataset = Dataset.from_dict(data)
+    dataset = pd.DataFrame(data)
 
     # Test with non-existent column
     block = MeltColumnsBlock(
@@ -144,7 +142,7 @@ def test_flatten_columns_with_empty_columns():
         "summary_extractive": ["extractive1", "extractive2"],
         "other_col": ["other1", "other2"],
     }
-    dataset = Dataset.from_dict(data)
+    dataset = pd.DataFrame(data)
 
     block = MeltColumnsBlock(
         block_name="test_flatten_empty_cols",
@@ -153,12 +151,11 @@ def test_flatten_columns_with_empty_columns():
     )
 
     result = block.generate(dataset)
-    result_dict = result.to_dict()
 
     # Verify that None values are preserved
-    assert None in result_dict["summary"]
+    assert None in result["summary"].tolist()
     # Verify that the column with None values still appears in dataset_type
-    assert "summary_detailed" in result_dict["dataset_type"]
+    assert "summary_detailed" in result["dataset_type"].tolist()
 
 
 def test_flatten_columns_with_different_lengths():
@@ -173,8 +170,11 @@ def test_flatten_columns_with_different_lengths():
 
     # Dataset creation will fail due to different lengths
     with pytest.raises(Exception) as exc_info:
-        Dataset.from_dict(data)
-    assert "expected length" in str(exc_info.value)
+        pd.DataFrame(data)
+    assert (
+        "expected length" in str(exc_info.value).lower()
+        or "same length" in str(exc_info.value).lower()
+    )
 
 
 def test_flatten_columns_verify_column_names():
@@ -184,7 +184,7 @@ def test_flatten_columns_verify_column_names():
         "summary_detailed": ["detailed1"],
         "summary_extractive": ["extractive1"],
     }
-    dataset = Dataset.from_dict(data)
+    dataset = pd.DataFrame(data)
 
     # Test with custom names
     custom_value_name = "custom_value"
@@ -202,17 +202,16 @@ def test_flatten_columns_verify_column_names():
     result = block.generate(dataset)
 
     # Verify custom column names are used
-    assert custom_value_name in result.column_names
-    assert custom_var_name in result.column_names
-    assert "summary" not in result.column_names
-    assert "dataset_type" not in result.column_names
+    assert custom_value_name in result.columns.tolist()
+    assert custom_var_name in result.columns.tolist()
+    assert "summary" not in result.columns.tolist()
+    assert "dataset_type" not in result.columns.tolist()
 
     # Verify content is correctly mapped to custom names
-    result_dict = result.to_dict()
-    assert "detailed1" in result_dict[custom_value_name]
-    assert "extractive1" in result_dict[custom_value_name]
-    assert "summary_detailed" in result_dict[custom_var_name]
-    assert "summary_extractive" in result_dict[custom_var_name]
+    assert "detailed1" in result[custom_value_name].tolist()
+    assert "extractive1" in result[custom_value_name].tolist()
+    assert "summary_detailed" in result[custom_var_name].tolist()
+    assert "summary_extractive" in result[custom_var_name].tolist()
 
 
 def test_flatten_columns_validation_errors():
@@ -254,7 +253,7 @@ def test_flatten_columns_with_input_output_cols():
         "summary_extractive": ["extractive1", "extractive2"],
         "other_col": ["other1", "other2"],
     }
-    dataset = Dataset.from_dict(data)
+    dataset = pd.DataFrame(data)
 
     # Test with explicit input_cols and output_cols
     block = MeltColumnsBlock(
@@ -267,7 +266,7 @@ def test_flatten_columns_with_input_output_cols():
 
     # Verify results
     assert len(result) == 4  # 2 rows * 2 columns to flatten
-    assert "id" in result.column_names
-    assert "other_col" in result.column_names
-    assert "summary" in result.column_names
-    assert "dataset_type" in result.column_names
+    assert "id" in result.columns.tolist()
+    assert "other_col" in result.columns.tolist()
+    assert "summary" in result.columns.tolist()
+    assert "dataset_type" in result.columns.tolist()

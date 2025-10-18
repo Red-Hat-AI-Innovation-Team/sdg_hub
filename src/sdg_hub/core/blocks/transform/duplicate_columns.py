@@ -8,9 +8,10 @@ according to a mapping specification.
 # Standard
 from typing import Any
 
-# Third Party
-from datasets import Dataset
 from pydantic import field_validator
+
+# Third Party
+import pandas as pd
 
 # Local
 from ...utils.logger_config import setup_logger
@@ -62,27 +63,27 @@ class DuplicateColumnsBlock(BaseBlock):
         if self.output_cols is None:
             self.output_cols = list(self.input_cols.values())
 
-    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         """Generate a dataset with duplicated columns.
 
         Parameters
         ----------
-        samples : Dataset
+        samples : pd.DataFrame
             Input dataset to duplicate columns from.
 
         Returns
         -------
-        Dataset
+        pd.DataFrame
             Dataset with additional duplicated columns.
         """
         # Create a copy to avoid modifying the original
-        result = samples
+        result = samples.copy()
 
         # Duplicate each column as specified in the mapping
         for source_col, target_col in self.input_cols.items():
-            if source_col not in result.column_names:
+            if source_col not in result.columns.tolist():
                 raise ValueError(f"Source column '{source_col}' not found in dataset")
 
-            result = result.add_column(target_col, result[source_col])
+            result[target_col] = result[source_col]
 
         return result

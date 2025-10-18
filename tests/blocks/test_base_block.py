@@ -3,9 +3,6 @@
 # Standard
 from unittest.mock import patch
 
-# Third Party
-from datasets import Dataset
-
 # First Party
 from sdg_hub import BaseBlock
 from sdg_hub.core.utils.error_handling import (
@@ -15,6 +12,9 @@ from sdg_hub.core.utils.error_handling import (
     OutputColumnCollisionError,
 )
 from sdg_hub.core.utils.logger_config import setup_logger
+
+# Third Party
+import pandas as pd
 import pytest
 
 logger = setup_logger(__name__)
@@ -29,18 +29,18 @@ class DummyBlock(BaseBlock):
         self.generate_args = None
         self.generate_kwargs = None
 
-    def generate(self, samples: Dataset, **kwargs) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
         """Simple test implementation that adds a 'test_output' column."""
         self.generate_called = True
         self.generate_args = samples
         self.generate_kwargs = kwargs
 
         # Add a simple test column
-        def add_test_column(sample):
-            sample["test_output"] = f"processed_{sample.get('input', 'unknown')}"
-            return sample
-
-        return samples.map(add_test_column)
+        result = samples.copy()
+        result["test_output"] = result["input"].apply(
+            lambda x: f"processed_{x}" if pd.notna(x) else "processed_unknown"
+        )
+        return result
 
 
 class TestBaseBlockInitialization:
@@ -182,7 +182,7 @@ class TestValidation:
                 {"input": "test1", "category": "A"},
                 {"input": "test2", "category": "B"},
             ]
-        return Dataset.from_list(data)
+        return pd.DataFrame(data)
 
     def test_validate_columns_success(self):
         """Test successful column validation."""
@@ -234,21 +234,21 @@ class TestValidation:
         assert exc_info.value.missing_columns == ["missing_col"]
         assert set(exc_info.value.available_columns) == {"input", "category"}
 
-    def test_validate_dataset_not_empty_success(self):
+    def test_validate_dataframe_not_empty_success(self):
         """Test successful empty dataset validation."""
         dataset = self.create_test_dataset()
         block = DummyBlock(block_name="test_block")
 
         # Should not raise any exception
-        block._validate_dataset_not_empty(dataset)
+        block._validate_dataframe_not_empty(dataset)
 
-    def test_validate_dataset_not_empty_failure(self):
+    def test_validate_dataframe_not_empty_failure(self):
         """Test empty dataset validation failure."""
-        empty_dataset = Dataset.from_list([])
+        empty_dataset = pd.DataFrame([])
         block = DummyBlock(block_name="test_block")
 
         with pytest.raises(EmptyDatasetError) as exc_info:
-            block._validate_dataset_not_empty(empty_dataset)
+            block._validate_dataframe_not_empty(empty_dataset)
 
         assert exc_info.value.block_name == "test_block"
 
@@ -307,15 +307,15 @@ class TestValidation:
         )
 
         # Should not raise any exception
-        block._validate_dataset(dataset)
+        block._validate_dataframe(dataset)
 
     def test_validate_dataset_fails_on_empty(self):
         """Test comprehensive validation fails on empty dataset."""
-        empty_dataset = Dataset.from_list([])
+        empty_dataset = pd.DataFrame([])
         block = DummyBlock(block_name="test_block")
 
         with pytest.raises(EmptyDatasetError):
-            block._validate_dataset(empty_dataset)
+            block._validate_dataframe(empty_dataset)
 
     def test_validate_dataset_fails_on_missing_columns(self):
         """Test comprehensive validation fails on missing columns."""
@@ -323,7 +323,7 @@ class TestValidation:
         block = DummyBlock(block_name="test_block", input_cols=["missing_col"])
 
         with pytest.raises(MissingColumnError):
-            block._validate_dataset(dataset)
+            block._validate_dataframe(dataset)
 
     def test_validate_dataset_fails_on_column_collision(self):
         """Test comprehensive validation fails on column collision."""
@@ -331,7 +331,7 @@ class TestValidation:
         block = DummyBlock(block_name="test_block", output_cols=["input"])
 
         with pytest.raises(OutputColumnCollisionError):
-            block._validate_dataset(dataset)
+            block._validate_dataframe(dataset)
 
 
 class TestLogging:
@@ -344,7 +344,7 @@ class TestLogging:
                 {"input": "test1", "category": "A"},
                 {"input": "test2", "category": "B"},
             ]
-        return Dataset.from_list(data)
+        return pd.DataFrame(data)
 
     @patch("sdg_hub.core.blocks.base.console")
     def test_log_input_data(self, mock_console):
@@ -378,7 +378,7 @@ class TestLogging:
             {"input": "test2", "category": "B", "new_col": "value2"},
             {"input": "test3", "category": "C", "new_col": "value3"},  # Added row
         ]
-        output_dataset = Dataset.from_list(output_data)
+        output_dataset = pd.DataFrame(output_data)
 
         block = DummyBlock(block_name="test_block")
         block._log_output_data(input_dataset, output_dataset)
@@ -405,7 +405,7 @@ class TestCallMethod:
                 {"input": "test1", "category": "A"},
                 {"input": "test2", "category": "B"},
             ]
-        return Dataset.from_list(data)
+        return pd.DataFrame(data)
 
     @patch("sdg_hub.core.blocks.base.console")
     def test_call_success(self, mock_console):
@@ -423,8 +423,8 @@ class TestCallMethod:
         assert block.generate_called
 
         # Verify result has new column
-        assert "test_output" in result.column_names
-        assert result[0]["test_output"] == "processed_test1"
+        assert "test_output" in result.columns.tolist()
+        assert result.iloc[0]["test_output"] == "processed_test1"
 
         # Verify logging was called (input and output panels)
         assert mock_console.print.call_count == 2
@@ -438,15 +438,15 @@ class TestCallMethod:
         class OverrideTestBlock(DummyBlock):
             custom_field: str = "original_value"
 
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 # Access the field to verify override worked
-                def add_test_column(sample):
-                    sample["test_output"] = (
-                        f"processed_{sample.get('input', 'unknown')}_{self.custom_field}"
-                    )
-                    return sample
-
-                return samples.map(add_test_column)
+                result = samples.copy()
+                result["test_output"] = result["input"].apply(
+                    lambda x: f"processed_{x}_{self.custom_field}"
+                    if pd.notna(x)
+                    else f"processed_unknown_{self.custom_field}"
+                )
+                return result
 
         block = OverrideTestBlock(
             block_name="test_block",
@@ -458,7 +458,7 @@ class TestCallMethod:
         result = block(dataset, custom_field="overridden_value")
 
         # Verify the field was overridden during execution
-        assert result[0]["test_output"] == "processed_test1_overridden_value"
+        assert result.iloc[0]["test_output"] == "processed_test1_overridden_value"
 
         # Verify original value was restored after execution
         assert block.custom_field == "original_value"
@@ -490,8 +490,8 @@ class TestCallMethod:
         assert block.generate_called
 
         # Verify result has new column
-        assert "test_output" in result.column_names
-        assert result[0]["test_output"] == "processed_test1"
+        assert "test_output" in result.columns.tolist()
+        assert result.iloc[0]["test_output"] == "processed_test1"
 
         # Verify logging was called (input and output panels)
         assert mock_console.print.call_count == 2
@@ -525,7 +525,7 @@ class TestCallMethod:
         class FailingBlock(DummyBlock):
             custom_field: str = "original"
 
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 raise RuntimeError("Generation failed")
 
         block = FailingBlock(
@@ -550,12 +550,10 @@ class TestCallMethod:
             field2: int = 42
             field3: bool = True
 
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
-                def add_test_column(sample):
-                    sample["test_output"] = f"{self.field1}_{self.field2}_{self.field3}"
-                    return sample
-
-                return samples.map(add_test_column)
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
+                result = samples.copy()
+                result["test_output"] = f"{self.field1}_{self.field2}_{self.field3}"
+                return result
 
         block = MultiFieldBlock(
             block_name="test_block",
@@ -567,7 +565,7 @@ class TestCallMethod:
         result = block(dataset, field1="new1", field2=99, field3=False)
 
         # Verify all fields were overridden
-        assert result[0]["test_output"] == "new1_99_False"
+        assert result.iloc[0]["test_output"] == "new1_99_False"
 
         # Verify all original values were restored
         assert block.field1 == "original1"
@@ -592,7 +590,7 @@ class TestCallMethod:
         result = block(dataset)
 
         # Should work normally
-        assert "test_output" in result.column_names
+        assert "test_output" in result.columns.tolist()
         assert block.custom_field == "original"  # Unchanged
 
     def test_call_kwargs_with_inherited_fields(self):
@@ -605,12 +603,10 @@ class TestCallMethod:
         class ChildBlock(ParentBlock):
             child_field: str = "child_value"
 
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
-                def add_test_column(sample):
-                    sample["test_output"] = f"{self.parent_field}_{self.child_field}"
-                    return sample
-
-                return samples.map(add_test_column)
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
+                result = samples.copy()
+                result["test_output"] = f"{self.parent_field}_{self.child_field}"
+                return result
 
         block = ChildBlock(
             block_name="test_block",
@@ -620,7 +616,7 @@ class TestCallMethod:
 
         # Test overriding both parent and child fields
         result = block(dataset, parent_field="new_parent", child_field="new_child")
-        assert result[0]["test_output"] == "new_parent_new_child"
+        assert result.iloc[0]["test_output"] == "new_parent_new_child"
 
         # Verify restoration
         assert block.parent_field == "parent_value"
@@ -644,7 +640,7 @@ class TestCallMethod:
     @patch("sdg_hub.core.blocks.base.console")
     def test_call_empty_dataset(self, mock_console):
         """Test __call__ with empty dataset."""
-        empty_dataset = Dataset.from_list([])
+        empty_dataset = pd.DataFrame([])
         block = DummyBlock(block_name="test_block")
 
         with pytest.raises(EmptyDatasetError):
@@ -914,7 +910,7 @@ class TestCustomValidation:
                 {"input": "test1", "category": "A"},
                 {"input": "test2", "category": "B"},
             ]
-        return Dataset.from_list(data)
+        return pd.DataFrame(data)
 
     def test_custom_validation_hook_called(self):
         """Test that custom validation hook is called during __call__."""
@@ -958,7 +954,7 @@ class TestCustomValidation:
 
     def test_custom_validation_order(self):
         """Test that custom validation happens after standard validation."""
-        empty_dataset = Dataset.from_list([])
+        empty_dataset = pd.DataFrame([])
 
         class TestBlockValidationOrder(DummyBlock):
             def __init__(self, **kwargs):
@@ -989,10 +985,10 @@ class TestCustomValidation:
         class TestBlockWithDatasetValidation(DummyBlock):
             def _validate_custom(self, dataset):
                 # Check that all 'special' values are 'good'
-                for i, sample in enumerate(dataset):
-                    if sample["special"] != "good":
+                for i, row in dataset.iterrows():
+                    if row["special"] != "good":
                         raise BlockValidationError(
-                            f"Invalid special value in row {i}: {sample['special']}"
+                            f"Invalid special value in row {i}: {row['special']}"
                         )
 
         block = TestBlockWithDatasetValidation(
@@ -1133,17 +1129,17 @@ class TestEdgeCases:
         """Test handling of large datasets."""
         # Create a larger dataset
         large_data = [{"input": f"test_{i}", "category": "A"} for i in range(1000)]
-        dataset = Dataset.from_list(large_data)
+        dataset = pd.DataFrame(large_data)
 
         block = DummyBlock(block_name="test_block", input_cols=["input", "category"])
 
         # Should handle large datasets without issues
-        block._validate_dataset(dataset)
+        block._validate_dataframe(dataset)
 
     def test_unicode_column_names(self):
         """Test handling of unicode column names."""
         data = [{"测试": "value", "カテゴリ": "A"}]
-        dataset = Dataset.from_list(data)
+        dataset = pd.DataFrame(data)
 
         block = DummyBlock(block_name="test_block", input_cols=["测试", "カテゴリ"])
 
@@ -1163,7 +1159,7 @@ class TestEdgeCases:
         """Test logging with datasets that have many columns."""
         # Create dataset with many columns
         data = [{f"col_{i}": f"value_{i}" for i in range(50)}]
-        dataset = Dataset.from_list(data)
+        dataset = pd.DataFrame(data)
 
         block = DummyBlock(block_name="test_block")
 

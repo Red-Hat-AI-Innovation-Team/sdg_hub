@@ -6,11 +6,11 @@ from pathlib import Path
 import json
 import tempfile
 
-# Third Party
-from datasets import Dataset
-
 # First Party
 from sdg_hub.core.flow.checkpointer import FlowCheckpointer
+
+# Third Party
+import pandas as pd
 
 
 class TestFlowCheckpointer:
@@ -36,9 +36,9 @@ class TestFlowCheckpointer:
         assert checkpointer.checkpoint_dir is None
 
         # Should be no-ops
-        dataset = Dataset.from_dict({"input": ["test"]})
+        dataset = pd.DataFrame({"input": ["test"]})
         remaining, completed = checkpointer.load_existing_progress(dataset)
-        assert remaining == dataset
+        assert remaining.equals(dataset)
         assert completed is None
 
         checkpointer.add_completed_samples(dataset)
@@ -62,10 +62,10 @@ class TestFlowCheckpointer:
             checkpoint_dir=self.temp_dir, flow_id=self.flow_id
         )
 
-        dataset = Dataset.from_dict({"input": ["test1", "test2"]})
+        dataset = pd.DataFrame({"input": ["test1", "test2"]})
         remaining, completed = checkpointer.load_existing_progress(dataset)
 
-        assert remaining == dataset
+        assert remaining.equals(dataset)
         assert completed is None
 
     def test_save_and_load_single_checkpoint(self):
@@ -75,7 +75,7 @@ class TestFlowCheckpointer:
         )
 
         # Add some completed samples
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {"input": ["test1", "test2"], "output": ["result1", "result2"]}
         )
 
@@ -100,10 +100,10 @@ class TestFlowCheckpointer:
         )
 
         # Add samples one by one
-        sample1 = Dataset.from_dict({"input": ["test1"], "output": ["result1"]})
-        sample2 = Dataset.from_dict({"input": ["test2"], "output": ["result2"]})
-        sample3 = Dataset.from_dict({"input": ["test3"], "output": ["result3"]})
-        sample4 = Dataset.from_dict({"input": ["test4"], "output": ["result4"]})
+        sample1 = pd.DataFrame({"input": ["test1"], "output": ["result1"]})
+        sample2 = pd.DataFrame({"input": ["test2"], "output": ["result2"]})
+        sample3 = pd.DataFrame({"input": ["test3"], "output": ["result3"]})
+        sample4 = pd.DataFrame({"input": ["test4"], "output": ["result4"]})
 
         # Add first sample - no checkpoint yet
         checkpointer.add_completed_samples(sample1)
@@ -137,7 +137,7 @@ class TestFlowCheckpointer:
             checkpoint_dir=self.temp_dir, save_freq=2, flow_id=self.flow_id
         )
 
-        completed_data = Dataset.from_dict(
+        completed_data = pd.DataFrame(
             {"input": ["test1", "test2"], "output": ["result1", "result2"]}
         )
         checkpointer1.add_completed_samples(completed_data)
@@ -148,7 +148,7 @@ class TestFlowCheckpointer:
         )
 
         # Input dataset with some new samples
-        input_dataset = Dataset.from_dict(
+        input_dataset = pd.DataFrame(
             {
                 "input": ["test1", "test2", "test3", "test4"],
             }
@@ -159,7 +159,7 @@ class TestFlowCheckpointer:
         # Should find that test1 and test2 are completed
         assert len(completed) == 2
         assert len(remaining) == 2
-        assert remaining["input"] == ["test3", "test4"]
+        assert remaining["input"].tolist() == ["test3", "test4"]
 
     def test_load_all_samples_completed(self):
         """Test loading when all samples are already completed."""
@@ -168,13 +168,13 @@ class TestFlowCheckpointer:
             checkpoint_dir=self.temp_dir, save_freq=2, flow_id=self.flow_id
         )
 
-        completed_data = Dataset.from_dict(
+        completed_data = pd.DataFrame(
             {"input": ["test1", "test2"], "output": ["result1", "result2"]}
         )
         checkpointer1.add_completed_samples(completed_data)
 
         # Input dataset with only the same samples
-        input_dataset = Dataset.from_dict(
+        input_dataset = pd.DataFrame(
             {
                 "input": ["test1", "test2"],
             }
@@ -195,13 +195,13 @@ class TestFlowCheckpointer:
             checkpoint_dir=self.temp_dir, flow_id=self.flow_id
         )
 
-        input_dataset = Dataset.from_dict(
+        input_dataset = pd.DataFrame(
             {
                 "input": ["test1", "test2"],
             }
         )
 
-        completed_dataset = Dataset.from_dict(
+        completed_dataset = pd.DataFrame(
             {
                 "output": ["result1", "result2"],
             }
@@ -213,7 +213,7 @@ class TestFlowCheckpointer:
 
         # Should return entire input dataset when no common columns
         assert len(remaining) == len(input_dataset)
-        assert remaining["input"] == input_dataset["input"]
+        assert remaining["input"].equals(input_dataset["input"])
 
     def test_metadata_persistence(self):
         """Test metadata saving and loading."""
@@ -222,7 +222,7 @@ class TestFlowCheckpointer:
         )
 
         # Add some samples to trigger metadata save
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {
                 "input": ["test1", "test2", "test3", "test4", "test5"],
                 "output": ["result1", "result2", "result3", "result4", "result5"],
@@ -246,7 +246,7 @@ class TestFlowCheckpointer:
         )
 
         # Create some checkpoints
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {"input": ["test1", "test2"], "output": ["result1", "result2"]}
         )
         checkpointer.add_completed_samples(dataset)
@@ -287,10 +287,10 @@ class TestFlowCheckpointer:
         )
 
         # Create multiple checkpoints manually
-        checkpoint1_data = Dataset.from_dict(
+        checkpoint1_data = pd.DataFrame(
             {"input": ["test1", "test2"], "output": ["result1", "result2"]}
         )
-        checkpoint2_data = Dataset.from_dict(
+        checkpoint2_data = pd.DataFrame(
             {"input": ["test3", "test4"], "output": ["result3", "result4"]}
         )
 
@@ -314,7 +314,7 @@ class TestFlowCheckpointer:
         )
 
         # Create a good checkpoint first
-        good_data = Dataset.from_dict({"input": ["test1"], "output": ["result1"]})
+        good_data = pd.DataFrame({"input": ["test1"], "output": ["result1"]})
         checkpointer.add_completed_samples(good_data)
 
         # Create a corrupted checkpoint file manually
@@ -328,4 +328,4 @@ class TestFlowCheckpointer:
         # Should get the good data (may be None if all checkpoints failed to load)
         if completed is not None:
             assert len(completed) >= 1
-            assert "test1" in completed["input"]
+            assert "test1" in completed["input"].tolist()

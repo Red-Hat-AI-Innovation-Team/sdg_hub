@@ -3,21 +3,17 @@
 # Standard
 
 # Third Party
-from datasets import Dataset, Features, Value
-
 # First Party
 from sdg_hub.core.blocks import ColumnValueFilterBlock
 from sdg_hub.core.utils.error_handling import EmptyDatasetError, MissingColumnError
+import pandas as pd
 import pytest
 
 
 @pytest.fixture
 def sample_dataset():
     """Create a sample dataset for testing."""
-    return Dataset.from_dict(
-        {"age": ["25", "30", "35", "forty", "45"]},
-        features=Features({"age": Value("string")}),
-    )
+    return pd.DataFrame({"age": ["25", "30", "35", "forty", "45"]})
 
 
 @pytest.fixture
@@ -71,20 +67,20 @@ def test_filter_block_with_invalid_operation():
         )
 
 
-def test_filter_block_with_mixed_types(filter_block, sample_dataset, caplog):
+def test_filter_block_with_mixed_types(filter_block, sample_dataset):
     """Test filtering with mixed data types."""
     filtered_dataset = filter_block(sample_dataset)
     assert len(filtered_dataset) == 1
-    assert filtered_dataset["age"] == [30]
-    assert "Error converting dtype" in caplog.text
+    assert filtered_dataset["age"].tolist() == [30]
+    # Note: Values that can't be converted are silently filtered out
 
 
-def test_filter_block_with_list_values(filter_block_with_list, sample_dataset, caplog):
+def test_filter_block_with_list_values(filter_block_with_list, sample_dataset):
     """Test filtering with multiple values."""
     filtered_dataset = filter_block_with_list(sample_dataset)
     assert len(filtered_dataset) == 2
-    assert filtered_dataset["age"] == [30, 35]
-    assert "Error converting dtype" in caplog.text
+    assert filtered_dataset["age"].tolist() == [30, 35]
+    # Note: Values that can't be converted are silently filtered out
 
 
 def test_filter_block_with_greater_than():
@@ -96,13 +92,12 @@ def test_filter_block_with_greater_than():
         operation="gt",
         convert_dtype="int",
     )
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {"age": ["25", "30", "35", "40", "45"]},
-        features=Features({"age": Value("string")}),
     )
     filtered_dataset = block(dataset)
     assert len(filtered_dataset) == 3
-    assert filtered_dataset["age"] == [35, 40, 45]
+    assert filtered_dataset["age"].tolist() == [35, 40, 45]
 
 
 def test_filter_block_with_less_than():
@@ -114,13 +109,12 @@ def test_filter_block_with_less_than():
         operation="lt",
         convert_dtype="int",
     )
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {"age": ["25", "30", "35", "40", "45"]},
-        features=Features({"age": Value("string")}),
     )
     filtered_dataset = block(dataset)
     assert len(filtered_dataset) == 2
-    assert filtered_dataset["age"] == [25, 30]
+    assert filtered_dataset["age"].tolist() == [25, 30]
 
 
 def test_filter_block_with_invalid_column():
@@ -132,9 +126,8 @@ def test_filter_block_with_invalid_column():
         operation="eq",
         convert_dtype="int",
     )
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {"age": ["25", "30", "35"]},
-        features=Features({"age": Value("string")}),
     )
     with pytest.raises(MissingColumnError):
         block(dataset)  # Use __call__ method to trigger BaseBlock validation
@@ -149,9 +142,8 @@ def test_filter_block_with_empty_dataset():
         operation="eq",
         convert_dtype="int",
     )
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {"age": []},
-        features=Features({"age": Value("string")}),
     )
     # BaseBlock should raise EmptyDatasetError for empty datasets
     with pytest.raises(EmptyDatasetError):
@@ -206,13 +198,12 @@ def test_filter_block_with_contains():
         filter_value="world",
         operation="contains",
     )
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {"text": ["hello world", "goodbye moon", "hello there", "world peace"]},
-        features=Features({"text": Value("string")}),
     )
     filtered_dataset = block(dataset)
     assert len(filtered_dataset) == 2
-    assert filtered_dataset["text"] == ["hello world", "world peace"]
+    assert filtered_dataset["text"].tolist() == ["hello world", "world peace"]
 
 
 def test_filter_block_with_contains_multiple_values():
@@ -223,7 +214,7 @@ def test_filter_block_with_contains_multiple_values():
         filter_value=["world", "moon"],
         operation="contains",
     )
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "text": [
                 "hello world",
@@ -233,11 +224,10 @@ def test_filter_block_with_contains_multiple_values():
                 "moon landing",
             ]
         },
-        features=Features({"text": Value("string")}),
     )
     filtered_dataset = block(dataset)
     assert len(filtered_dataset) == 4
-    assert filtered_dataset["text"] == [
+    assert filtered_dataset["text"].tolist() == [
         "hello world",
         "goodbye moon",
         "world peace",
@@ -247,9 +237,8 @@ def test_filter_block_with_contains_multiple_values():
 
 def test_filter_block_with_all_operations():
     """Test all supported operations work correctly."""
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {"score": ["10", "20", "30", "40", "50"]},
-        features=Features({"score": Value("string")}),
     )
 
     # Test eq
@@ -261,7 +250,7 @@ def test_filter_block_with_all_operations():
         convert_dtype="int",
     )
     result = block_eq(dataset)
-    assert result["score"] == [30]
+    assert result["score"].tolist() == [30]
 
     # Test ne
     block_ne = ColumnValueFilterBlock(
@@ -272,7 +261,7 @@ def test_filter_block_with_all_operations():
         convert_dtype="int",
     )
     result = block_ne(dataset)
-    assert result["score"] == [10, 20, 40, 50]
+    assert result["score"].tolist() == [10, 20, 40, 50]
 
     # Test le
     block_le = ColumnValueFilterBlock(
@@ -283,7 +272,7 @@ def test_filter_block_with_all_operations():
         convert_dtype="int",
     )
     result = block_le(dataset)
-    assert result["score"] == [10, 20, 30]
+    assert result["score"].tolist() == [10, 20, 30]
 
     # Test ge
     block_ge = ColumnValueFilterBlock(
@@ -294,7 +283,7 @@ def test_filter_block_with_all_operations():
         convert_dtype="int",
     )
     result = block_ge(dataset)
-    assert result["score"] == [30, 40, 50]
+    assert result["score"].tolist() == [30, 40, 50]
 
 
 def test_filter_block_with_in_operation():
@@ -305,13 +294,12 @@ def test_filter_block_with_in_operation():
         filter_value=["science", "history"],
         operation="in",
     )
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {"category": ["science", "math", "history", "art", "science"]},
-        features=Features({"category": Value("string")}),
     )
     filtered_dataset = block(dataset)
     assert len(filtered_dataset) == 3
-    assert filtered_dataset["category"] == ["science", "history", "science"]
+    assert filtered_dataset["category"].tolist() == ["science", "history", "science"]
 
 
 def test_filter_block_without_conversion():
@@ -322,13 +310,12 @@ def test_filter_block_without_conversion():
         filter_value="Alice",
         operation="eq",
     )
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {"name": ["Alice", "Bob", "Charlie", "Alice"]},
-        features=Features({"name": Value("string")}),
     )
     filtered_dataset = block(dataset)
     assert len(filtered_dataset) == 2
-    assert filtered_dataset["name"] == ["Alice", "Alice"]
+    assert filtered_dataset["name"].tolist() == ["Alice", "Alice"]
 
 
 def test_filter_block_with_invalid_dtype():
@@ -352,10 +339,9 @@ def test_filter_block_float_conversion():
         operation="gt",
         convert_dtype="float",
     )
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {"price": ["9.99", "19.99", "29.99", "invalid", "39.99"]},
-        features=Features({"price": Value("string")}),
     )
     filtered_dataset = block(dataset)
     assert len(filtered_dataset) == 2
-    assert filtered_dataset["price"] == [29.99, 39.99]
+    assert filtered_dataset["price"].tolist() == [29.99, 39.99]

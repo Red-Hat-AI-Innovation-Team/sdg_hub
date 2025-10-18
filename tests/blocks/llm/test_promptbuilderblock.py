@@ -1,12 +1,12 @@
 # Standard
 import os
 
-# Third Party
-from datasets import Dataset
-
 # First Party
 from sdg_hub.core.blocks.llm import PromptBuilderBlock
 from sdg_hub.core.blocks.llm.prompt_builder_block import ChatMessage
+
+# Third Party
+import pandas as pd
 import pytest
 
 # Get the absolute paths to test config files
@@ -302,7 +302,7 @@ class TestPromptBuilderBlock:
             format_as_messages=True,
         )
 
-        dataset = Dataset.from_list(
+        dataset = pd.DataFrame(
             [
                 {"input_text": "Hello", "context": "casual conversation"},
                 {"input_text": "How are you?", "context": "friendly chat"},
@@ -312,10 +312,10 @@ class TestPromptBuilderBlock:
         result = block.generate(dataset)
 
         assert len(result) == 2
-        assert "messages" in result.column_names
+        assert "messages" in result.columns.tolist()
 
         # Check first sample
-        messages = result[0]["messages"]
+        messages = result.iloc[0]["messages"]
         assert len(messages) == 2
         assert messages[0]["role"] == "system"
         assert "casual conversation" in messages[0]["content"]
@@ -332,7 +332,7 @@ class TestPromptBuilderBlock:
             format_as_messages=False,
         )
 
-        dataset = Dataset.from_list(
+        dataset = pd.DataFrame(
             [
                 {"text": "process this"},
                 {"text": "handle that"},
@@ -342,12 +342,12 @@ class TestPromptBuilderBlock:
         result = block.generate(dataset)
 
         assert len(result) == 2
-        assert "formatted_text" in result.column_names
+        assert "formatted_text" in result.columns.tolist()
 
         # Should be plain strings, not message lists
-        assert isinstance(result[0]["formatted_text"], str)
-        assert "process this" in result[0]["formatted_text"]
-        assert "user:" in result[0]["formatted_text"]  # Should include role prefix
+        assert isinstance(result.iloc[0]["formatted_text"], str)
+        assert "process this" in result.iloc[0]["formatted_text"]
+        assert "user:" in result.iloc[0]["formatted_text"]  # Should include role prefix
 
     def test_generate_with_missing_template_vars(self, caplog):
         """Test generate method with missing template variables."""
@@ -358,7 +358,7 @@ class TestPromptBuilderBlock:
             prompt_config_path=TEST_CONFIG_STRICT,
         )
 
-        dataset = Dataset.from_list(
+        dataset = pd.DataFrame(
             [
                 {"other_col": "Hello"},  # missing_col not provided
             ]
@@ -371,11 +371,11 @@ class TestPromptBuilderBlock:
         # This demonstrates that missing columns are logged as warnings
         assert "Dataset column 'missing_col' not found in sample" in caplog.text
         # Check that output contains a message but with empty variable substitutions
-        assert isinstance(result[0]["output"], list)
-        assert len(result[0]["output"]) == 1
-        assert result[0]["output"][0]["role"] == "user"
+        assert isinstance(result.iloc[0]["output"], list)
+        assert len(result.iloc[0]["output"]) == 1
+        assert result.iloc[0]["output"][0]["role"] == "user"
         # Content should contain the template with empty substitutions
-        content = result[0]["output"][0]["content"]
+        content = result.iloc[0]["output"][0]["content"]
         assert "This template requires:" in content
         assert "Must have:" in content
 
@@ -388,7 +388,7 @@ class TestPromptBuilderBlock:
             prompt_config_path=TEST_CONFIG_NO_SYSTEM,
         )
 
-        dataset = Dataset.from_list([{"text": "valid content"}])
+        dataset = pd.DataFrame([{"text": "valid content"}])
 
         # Mock a template that will fail to render
         block.prompt_renderer.message_templates[0].content_template.render = (
@@ -399,7 +399,7 @@ class TestPromptBuilderBlock:
 
         assert len(result) == 1
         # Should have empty output when no messages are generated
-        assert result[0]["output"] == []
+        assert result.iloc[0]["output"] == []
         assert "No valid messages generated" in caplog.text
 
     def test_generate_preserves_original_columns(self):
@@ -411,7 +411,7 @@ class TestPromptBuilderBlock:
             prompt_config_path=TEST_CONFIG_NO_SYSTEM,
         )
 
-        dataset = Dataset.from_list(
+        dataset = pd.DataFrame(
             [
                 {"input_text": "Hello", "id": 1, "metadata": {"key": "value"}},
             ]
@@ -419,10 +419,10 @@ class TestPromptBuilderBlock:
 
         result = block.generate(dataset)
 
-        assert result[0]["input_text"] == "Hello"
-        assert result[0]["id"] == 1
-        assert result[0]["metadata"] == {"key": "value"}
-        assert "messages" in result[0]
+        assert result.iloc[0]["input_text"] == "Hello"
+        assert result.iloc[0]["id"] == 1
+        assert result.iloc[0]["metadata"] == {"key": "value"}
+        assert "messages" in result.iloc[0]
 
     def test_baseblock_integration(self):
         """Test that PromptBuilderBlock properly integrates with BaseBlock."""
@@ -459,7 +459,7 @@ class TestPromptBuilderBlock:
             prompt_config_path=TEST_CONFIG_STRICT,
         )
 
-        dataset = Dataset.from_list([{"wrong_col": "value"}])
+        dataset = pd.DataFrame([{"wrong_col": "value"}])
 
         with pytest.raises(Exception):  # Should raise TemplateValidationError
             block._validate_custom(dataset)
@@ -489,11 +489,11 @@ class TestPromptBuilderBlock:
             prompt_config_path=TEST_CONFIG_NO_SYSTEM,
         )
 
-        dataset = Dataset.from_list([{"text": "Hello world"}])
+        dataset = pd.DataFrame([{"text": "Hello world"}])
         result = block.generate(dataset)
 
         # Check that generated messages are valid ChatMessage objects when serialized
-        messages = result[0]["output"]
+        messages = result.iloc[0]["output"]
         assert len(messages) == 1
         assert messages[0]["role"] == "user"
         assert "Generate a response" in messages[0]["content"]

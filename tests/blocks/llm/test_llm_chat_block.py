@@ -4,12 +4,12 @@
 # Standard
 from unittest.mock import MagicMock, patch
 
-# Third Party
-from datasets import Dataset
-
 # First Party
 from sdg_hub.core.blocks.llm import LLMChatBlock
 from sdg_hub.core.utils.error_handling import BlockValidationError
+
+# Third Party
+import pandas as pd
 import pytest
 
 
@@ -121,7 +121,7 @@ def sample_messages():
 @pytest.fixture
 def sample_dataset(sample_messages):
     """Create a sample dataset with messages."""
-    return Dataset.from_dict({"messages": sample_messages})
+    return pd.DataFrame({"messages": sample_messages})
 
 
 class TestLLMChatBlock:
@@ -213,7 +213,7 @@ class TestLLMChatBlock:
 
         result = block.generate(sample_dataset)
 
-        assert "response" in result.column_names
+        assert "response" in result.columns.tolist()
         assert len(result["response"]) == 2
         assert all(
             len(response) == 1 and response[0]["content"] == "Test response"
@@ -234,7 +234,7 @@ class TestLLMChatBlock:
 
         result = block.generate(sample_dataset)
 
-        assert "response" in result.column_names
+        assert "response" in result.columns.tolist()
         assert len(result["response"]) == 2
         assert all(
             len(response) == 1 and response[0]["content"] == "Test async response"
@@ -282,12 +282,12 @@ class TestLLMChatBlock:
             )
 
             # Create single message dataset for simpler testing
-            single_dataset = Dataset.from_dict(
-                {"messages": [sample_dataset["messages"][0]]}
+            single_dataset = pd.DataFrame(
+                {"messages": [sample_dataset["messages"].iloc[0]]}
             )
             result = block.generate(single_dataset)
 
-            assert "response" in result.column_names
+            assert "response" in result.columns.tolist()
             assert len(result["response"]) == 1
             assert len(result["response"][0]) == 1
             assert result["response"][0][0]["content"] == "Test response"
@@ -316,8 +316,8 @@ class TestLLMChatBlock:
         )
 
         # Create single message dataset for simpler testing
-        single_dataset = Dataset.from_dict(
-            {"messages": [sample_dataset["messages"][0]]}
+        single_dataset = pd.DataFrame(
+            {"messages": [sample_dataset["messages"].iloc[0]]}
         )
         block.generate(single_dataset)
 
@@ -346,7 +346,7 @@ class TestLLMChatBlock:
         )
 
         # Valid dataset
-        valid_dataset = Dataset.from_dict(
+        valid_dataset = pd.DataFrame(
             {
                 "messages": [
                     [{"role": "user", "content": "Hello!"}],
@@ -362,22 +362,20 @@ class TestLLMChatBlock:
         block._validate_custom(valid_dataset)
 
         # Invalid dataset - messages not a list
-        invalid_dataset = Dataset.from_dict(
-            {"messages": ["not a list", "also not a list"]}
-        )
+        invalid_dataset = pd.DataFrame({"messages": ["not a list", "also not a list"]})
 
         with pytest.raises(BlockValidationError, match="must contain a list"):
             block._validate_custom(invalid_dataset)
 
         # Invalid dataset - empty messages
-        empty_dataset = Dataset.from_dict({"messages": [[], []]})
+        empty_dataset = pd.DataFrame({"messages": [[], []]})
 
         with pytest.raises(BlockValidationError, match="Messages list is empty"):
             block._validate_custom(empty_dataset)
 
     def test_empty_dataset(self, mock_litellm_completion):
         """Test handling of empty datasets."""
-        empty_dataset = Dataset.from_dict({"messages": []})
+        empty_dataset = pd.DataFrame({"messages": []})
 
         block = LLMChatBlock(
             block_name="test_empty",
@@ -389,7 +387,7 @@ class TestLLMChatBlock:
 
         result = block.generate(empty_dataset)
 
-        assert "response" in result.column_names
+        assert "response" in result.columns.tolist()
         assert len(result["response"]) == 0
         assert mock_litellm_completion.call_count == 0
 
@@ -451,7 +449,7 @@ class TestErrorHandling:
 
             # Rate limit errors should propagate to caller
             with pytest.raises(RateLimitError):
-                single_dataset = Dataset.from_dict(
+                single_dataset = pd.DataFrame(
                     {"messages": [sample_dataset["messages"][0]]}
                 )
                 block.generate(single_dataset)
@@ -478,7 +476,7 @@ class TestErrorHandling:
 
             # Should fail immediately without retries
             with pytest.raises(AuthenticationError):
-                single_dataset = Dataset.from_dict(
+                single_dataset = pd.DataFrame(
                     {"messages": [sample_dataset["messages"][0]]}
                 )
                 block.generate(single_dataset)
@@ -505,7 +503,7 @@ class TestErrorHandling:
 
             # Should fail immediately without retries
             with pytest.raises(ContextWindowExceededError):
-                single_dataset = Dataset.from_dict(
+                single_dataset = pd.DataFrame(
                     {"messages": [sample_dataset["messages"][0]]}
                 )
                 block.generate(single_dataset)
@@ -545,7 +543,7 @@ class TestLLMChatBlockValidation:
                 ]
             },
         ]
-        dataset = Dataset.from_list(valid_data)
+        dataset = pd.DataFrame(valid_data)
 
         block = LLMChatBlock(
             block_name="test_validation",
@@ -576,7 +574,7 @@ class TestMultipleResponses:
 
         result = block.generate(sample_dataset)
 
-        assert "responses" in result.column_names
+        assert "responses" in result.columns.tolist()
         assert len(result["responses"]) == 2  # Two input samples
 
         # Each response should be a list of 3 dicts
@@ -609,7 +607,7 @@ class TestMultipleResponses:
             # Test with max_concurrency = 8, should be adjusted to 2 (8 // 4)
             result = block.generate(sample_dataset, _flow_max_concurrency=8)
 
-            assert "responses" in result.column_names
+            assert "responses" in result.columns.tolist()
             assert len(result["responses"]) == 2
 
             # Verify debug log was called for concurrency adjustment
@@ -648,7 +646,7 @@ class TestMultipleResponses:
             # Test with max_concurrency = 3, which is less than n=5
             result = block.generate(sample_dataset, _flow_max_concurrency=3)
 
-            assert "responses" in result.column_names
+            assert "responses" in result.columns.tolist()
             assert len(result["responses"]) == 2
 
             # Verify warning log was called
@@ -686,7 +684,7 @@ class TestMultipleResponses:
 
             result = block_n1.generate(sample_dataset, _flow_max_concurrency=8)
 
-            assert "response" in result.column_names
+            assert "response" in result.columns.tolist()
             assert len(result["response"]) == 2
 
             # No adjustment should happen, so no debug log about adjustment
@@ -715,7 +713,7 @@ class TestMultipleResponses:
             # Override n to 3 at runtime with max_concurrency=9
             result = block.generate(sample_dataset, n=3, _flow_max_concurrency=9)
 
-            assert "responses" in result.column_names
+            assert "responses" in result.columns.tolist()
             assert len(result["responses"]) == 2
 
             # Verify debug log shows adjustment based on runtime n=3
@@ -749,7 +747,7 @@ class TestMultipleResponses:
         )
 
         result_n1 = block_n1.generate(sample_dataset)
-        assert "response" in result_n1.column_names
+        assert "response" in result_n1.columns.tolist()
         assert len(result_n1["response"]) == 2
         # Each response should be a list with a single dict
         for response in result_n1["response"]:
@@ -767,7 +765,7 @@ class TestMultipleResponses:
         )
 
         result_none = block_none.generate(sample_dataset)
-        assert "response" in result_none.column_names
+        assert "response" in result_none.columns.tolist()
         assert len(result_none["response"]) == 2
         # Each response should be a list with a single dict
         for response in result_none["response"]:
@@ -791,7 +789,7 @@ class TestMultipleResponses:
         # Override n to 3 at runtime
         result = block.generate(sample_dataset, n=3)
 
-        assert "responses" in result.column_names
+        assert "responses" in result.columns.tolist()
         assert len(result["responses"]) == 2
 
         # Each response should be a list of 3 dicts due to override
@@ -811,7 +809,7 @@ class TestMultipleResponses:
         invalid_data = [
             {"messages": "not a list"},  # Invalid - not a list
         ]
-        dataset = Dataset.from_list(invalid_data)
+        dataset = pd.DataFrame(invalid_data)
 
         block = LLMChatBlock(
             block_name="test_validation",
@@ -829,7 +827,7 @@ class TestMultipleResponses:
             {"messages": [{"role": "user", "content": "Valid message"}]},
             {"messages": []},  # Invalid - empty list
         ]
-        dataset = Dataset.from_list(invalid_data)
+        dataset = pd.DataFrame(invalid_data)
 
         block = LLMChatBlock(
             block_name="test_validation",
@@ -844,7 +842,7 @@ class TestMultipleResponses:
     def test_validation_fails_with_non_dict_message(self):
         """Test validation fails when message is not a dict."""
         # Create dataset with valid structure first, then modify it to test the error
-        Dataset.from_dict(
+        pd.DataFrame(
             {
                 "messages": [
                     [{"role": "user", "content": "Valid message"}],
@@ -919,7 +917,7 @@ class TestMultipleResponses:
             {"messages": [{"role": "user", "content": "Valid message"}]},
             {"messages": [{"content": "Missing role"}]},  # Invalid - no role
         ]
-        dataset = Dataset.from_list(invalid_data)
+        dataset = pd.DataFrame(invalid_data)
 
         block = LLMChatBlock(
             block_name="test_validation",
@@ -937,7 +935,7 @@ class TestMultipleResponses:
             {"messages": [{"role": "user", "content": "Valid message"}]},
             {"messages": [{"role": "user"}]},  # Invalid - no content (will be None)
         ]
-        dataset = Dataset.from_list(invalid_data)
+        dataset = pd.DataFrame(invalid_data)
 
         block = LLMChatBlock(
             block_name="test_validation",
@@ -959,7 +957,7 @@ class TestMultipleResponses:
                 "messages": [{"role": None, "content": "Null role"}]
             },  # Invalid - None role
         ]
-        dataset = Dataset.from_list(invalid_data)
+        dataset = pd.DataFrame(invalid_data)
 
         block = LLMChatBlock(
             block_name="test_validation",
@@ -977,7 +975,7 @@ class TestMultipleResponses:
             {"messages": [{"role": "user", "content": "Valid message"}]},
             {"messages": [{"role": "user", "content": None}]},  # Invalid - None content
         ]
-        dataset = Dataset.from_list(invalid_data)
+        dataset = pd.DataFrame(invalid_data)
 
         block = LLMChatBlock(
             block_name="test_validation",
@@ -1005,7 +1003,7 @@ class TestMultipleResponses:
                 ]
             },
         ]
-        dataset = Dataset.from_list(invalid_data)
+        dataset = pd.DataFrame(invalid_data)
 
         block = LLMChatBlock(
             block_name="test_validation",
@@ -1034,7 +1032,7 @@ class TestMultipleResponses:
         # Add invalid sample at the end
         large_data.append({"messages": [{"role": "user"}]})  # Missing content
 
-        dataset = Dataset.from_list(large_data)
+        dataset = pd.DataFrame(large_data)
 
         block = LLMChatBlock(
             block_name="test_validation",
@@ -1079,7 +1077,7 @@ class TestMultipleResponses:
                 ]
             },
         ]
-        dataset = Dataset.from_list(valid_data)
+        dataset = pd.DataFrame(valid_data)
 
         block = LLMChatBlock(
             block_name="test_validation",

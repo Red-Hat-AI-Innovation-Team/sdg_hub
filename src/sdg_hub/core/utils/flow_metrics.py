@@ -8,11 +8,12 @@ from typing import Any, Optional
 import json
 import time
 
-# Third Party
-from datasets import Dataset
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+
+# Third Party
+import pandas as pd
 
 
 def aggregate_block_metrics(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -71,7 +72,7 @@ def aggregate_block_metrics(entries: list[dict[str, Any]]) -> list[dict[str, Any
 def display_metrics_summary(
     block_metrics: list[dict[str, Any]],
     flow_name: str,
-    final_dataset: Optional[Dataset] = None,
+    final_dataset: Optional[pd.DataFrame] = None,
 ) -> None:
     """Display a rich table summarizing block execution metrics.
 
@@ -81,7 +82,7 @@ def display_metrics_summary(
         Raw block metrics from flow execution.
     flow_name : str
         Name of the flow for display title.
-    final_dataset : Optional[Dataset], optional
+    final_dataset : Optional[pd.DataFrame], optional
         Final dataset from flow execution. None if flow failed.
     """
     if not block_metrics:
@@ -146,8 +147,10 @@ def display_metrics_summary(
 
     # Add summary row
     table.add_section()
-    final_row_count = len(final_dataset) if final_dataset else 0
-    final_col_count = len(final_dataset.column_names) if final_dataset else 0
+    final_row_count = len(final_dataset) if final_dataset is not None else 0
+    final_col_count = (
+        len(final_dataset.columns.tolist()) if final_dataset is not None else 0
+    )
 
     table.add_row(
         "[bold]TOTAL[/bold]",

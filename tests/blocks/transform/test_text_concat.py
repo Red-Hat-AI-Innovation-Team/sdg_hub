@@ -1,17 +1,16 @@
 """Tests for TextConcatBlock."""
 
 # Third Party
-from datasets import Dataset
-
 # First Party
 from sdg_hub.core.blocks.transform import TextConcatBlock
+import pandas as pd
 import pytest
 
 
 @pytest.fixture
 def sample_dataset():
     """Create a sample dataset for testing."""
-    return Dataset.from_dict(
+    return pd.DataFrame(
         {
             "context": ["Context 1", "Context 2", "Context 3"],
             "question": ["Question 1", "Question 2", "Question 3"],
@@ -30,10 +29,10 @@ def test_basic_text_concat(sample_dataset):
 
     result = block.generate(sample_dataset)
 
-    assert "combined" in result.column_names
-    assert result[0]["combined"] == "Context 1\n\nQuestion 1"
-    assert result[1]["combined"] == "Context 2\n\nQuestion 2"
-    assert result[2]["combined"] == "Context 3\n\nQuestion 3"
+    assert "combined" in result.columns.tolist()
+    assert result.iloc[0]["combined"] == "Context 1\n\nQuestion 1"
+    assert result.iloc[1]["combined"] == "Context 2\n\nQuestion 2"
+    assert result.iloc[2]["combined"] == "Context 3\n\nQuestion 3"
 
 
 def test_custom_separator(sample_dataset):
@@ -47,9 +46,9 @@ def test_custom_separator(sample_dataset):
 
     result = block.generate(sample_dataset)
 
-    assert result[0]["combined"] == "Context 1 | Question 1"
-    assert result[1]["combined"] == "Context 2 | Question 2"
-    assert result[2]["combined"] == "Context 3 | Question 3"
+    assert result.iloc[0]["combined"] == "Context 1 | Question 1"
+    assert result.iloc[1]["combined"] == "Context 2 | Question 2"
+    assert result.iloc[2]["combined"] == "Context 3 | Question 3"
 
 
 def test_multiple_columns(sample_dataset):
@@ -62,9 +61,9 @@ def test_multiple_columns(sample_dataset):
 
     result = block.generate(sample_dataset)
 
-    assert result[0]["combined"] == "Context 1\n\nQuestion 1\n\nOther 1"
-    assert result[1]["combined"] == "Context 2\n\nQuestion 2\n\nOther 2"
-    assert result[2]["combined"] == "Context 3\n\nQuestion 3\n\nOther 3"
+    assert result.iloc[0]["combined"] == "Context 1\n\nQuestion 1\n\nOther 1"
+    assert result.iloc[1]["combined"] == "Context 2\n\nQuestion 2\n\nOther 2"
+    assert result.iloc[2]["combined"] == "Context 3\n\nQuestion 3\n\nOther 3"
 
 
 def test_empty_input_cols():
@@ -91,7 +90,7 @@ def test_invalid_output_cols():
 
 def test_missing_columns():
     """Test behavior when specified columns don't exist in dataset."""
-    dataset = Dataset.from_dict({"existing_col": ["Value 1", "Value 2"]})
+    dataset = pd.DataFrame({"existing_col": ["Value 1", "Value 2"]})
 
     block = TextConcatBlock(
         block_name="test_concat",
@@ -107,7 +106,7 @@ def test_missing_columns():
 
 def test_non_string_values():
     """Test concatenating columns with non-string values."""
-    dataset = Dataset.from_dict({"num_col": [1, 2, 3], "bool_col": [True, False, True]})
+    dataset = pd.DataFrame({"num_col": [1, 2, 3], "bool_col": [True, False, True]})
 
     block = TextConcatBlock(
         block_name="test_concat",
@@ -117,6 +116,6 @@ def test_non_string_values():
 
     result = block.generate(dataset)
 
-    assert result[0]["combined"] == "1\n\nTrue"
-    assert result[1]["combined"] == "2\n\nFalse"
-    assert result[2]["combined"] == "3\n\nTrue"
+    assert result.iloc[0]["combined"] == "1\n\nTrue"
+    assert result.iloc[1]["combined"] == "2\n\nFalse"
+    assert result.iloc[2]["combined"] == "3\n\nTrue"

@@ -1,8 +1,6 @@
 # Standard Library
 from unittest.mock import patch
 
-from datasets import Dataset
-
 # First Party
 from sdg_hub.core.utils.datautils import (
     safe_concatenate_datasets,
@@ -13,12 +11,13 @@ from sdg_hub.core.utils.error_handling import FlowValidationError
 
 # Third Party
 import numpy as np
+import pandas as pd
 import pytest
 
 
 def test_validate_no_duplicates_with_unique_data():
     """Test that no exception is raised for datasets with unique rows."""
-    dataset = Dataset.from_dict({"col1": [1, 2, 3], "col2": ["a", "b", "c"]})
+    dataset = pd.DataFrame({"col1": [1, 2, 3], "col2": ["a", "b", "c"]})
 
     # Should not raise any exception and return None
     result = validate_no_duplicates(dataset)
@@ -27,7 +26,7 @@ def test_validate_no_duplicates_with_unique_data():
 
 def test_validate_no_duplicates_with_duplicate_data():
     """Test that FlowValidationError is raised for datasets with duplicate rows."""
-    dataset = Dataset.from_dict({"col1": [1, 2, 2, 3], "col2": ["a", "b", "b", "c"]})
+    dataset = pd.DataFrame({"col1": [1, 2, 2, 3], "col2": ["a", "b", "b", "c"]})
 
     with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
         validate_no_duplicates(dataset)
@@ -35,9 +34,7 @@ def test_validate_no_duplicates_with_duplicate_data():
 
 def test_validate_no_duplicates_with_multiple_duplicates():
     """Test correct duplicate count with multiple duplicate rows."""
-    dataset = Dataset.from_dict(
-        {"col1": [1, 1, 2, 2, 3], "col2": ["a", "a", "b", "b", "c"]}
-    )
+    dataset = pd.DataFrame({"col1": [1, 1, 2, 2, 3], "col2": ["a", "a", "b", "b", "c"]})
 
     with pytest.raises(FlowValidationError, match="contains 2 duplicate rows"):
         validate_no_duplicates(dataset)
@@ -45,7 +42,7 @@ def test_validate_no_duplicates_with_multiple_duplicates():
 
 def test_validate_no_duplicates_empty_dataset():
     """Test that empty datasets pass validation."""
-    dataset = Dataset.from_dict({"col1": [], "col2": []})
+    dataset = pd.DataFrame({"col1": [], "col2": []})
 
     # Should not raise any exception and return None
     result = validate_no_duplicates(dataset)
@@ -56,7 +53,7 @@ def test_validate_no_duplicates_with_numpy_arrays():
     """Test duplicate detection with numpy arrays and scalars."""
     # Create dataset with numpy arrays and scalars that should be considered duplicates
     # when converted to lists/items
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "numpy_array": [np.array([1, 2, 3]), [1, 2, 3], np.array([1, 2, 3])],
             "numpy_scalar": [np.int64(42), 42, np.int64(42)],
@@ -72,7 +69,7 @@ def test_validate_no_duplicates_with_sets():
     """Test duplicate detection with sets (should be deterministic)."""
     # Sets get converted to lists when stored in HuggingFace datasets,
     # so we test with actual duplicate rows containing the same elements
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "set_col": [[1, 2, 3], [1, 2, 3], [4, 5, 6]],  # Two identical lists
             "other": ["a", "a", "b"],  # Two identical values
@@ -90,7 +87,7 @@ def test_validate_no_duplicates_with_string_lists():
     convert list-of-strings columns to numpy arrays, causing TypeError in pandas.duplicated().
     """
     # Create dataset with columns containing lists of strings (the original problematic case)
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "text_chunks": [
                 [
@@ -123,7 +120,7 @@ def test_validate_no_duplicates_with_string_lists():
 def test_validate_no_duplicates_with_dictionaries():
     """Test that dictionaries with different values are not considered duplicates."""
     # Test the edge case where dict keys are same but values differ - should NOT be duplicates, should not RAISE
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "config": [
                 {"model": "gpt-4", "temp": 0.7},
@@ -142,7 +139,7 @@ def test_validate_no_duplicates_with_dictionaries():
 
 def test_validate_no_duplicates_with_duplicate_dictionaries():
     """Test that identical dictionaries are detected as duplicates."""
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "config": [
                 {"model": "gpt-4", "temp": 0.7},
@@ -158,7 +155,7 @@ def test_validate_no_duplicates_with_duplicate_dictionaries():
 
 def test_validate_no_duplicates_with_nested_dictionaries():
     """Test duplicate detection with nested dictionaries."""
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "nested_config": [
                 {"llm": {"model": "gpt-4", "params": {"temp": 0.7}}},
@@ -174,7 +171,7 @@ def test_validate_no_duplicates_with_nested_dictionaries():
 
 def test_validate_no_duplicates_with_zero_dim_numpy_arrays():
     """Test duplicate detection with zero-dimensional numpy arrays."""
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "scalar_arrays": [
                 np.array(42),  # 0-dimensional array
@@ -190,7 +187,7 @@ def test_validate_no_duplicates_with_zero_dim_numpy_arrays():
 
 def test_validate_no_duplicates_with_dict_with_string_keys():
     """Test dictionary handling with string keys only (HF Dataset compatible)."""
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "string_key_dicts": [
                 {"model": "gpt-4", "temp": "0.7", "max_tokens": "100"},
@@ -207,7 +204,7 @@ def test_validate_no_duplicates_with_dict_with_string_keys():
 def test_validate_no_duplicates_with_list_of_tuples():
     """Test duplicate detection with tuples converted to lists (HF Dataset compatible)."""
     # HF Datasets converts tuples to lists, so test with lists
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "tuple_like": [
                 [1, 2, 3],
@@ -223,7 +220,7 @@ def test_validate_no_duplicates_with_list_of_tuples():
 
 def test_validate_no_duplicates_very_nested_structure():
     """Test with deeply nested structures that push the make_hashable function."""
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "deeply_nested": [
                 {"level1": {"level2": {"level3": ["a", "b", "c"]}}},
@@ -239,7 +236,7 @@ def test_validate_no_duplicates_very_nested_structure():
 
 def test_validate_no_duplicates_multidimensional_numpy_arrays():
     """Test duplicate detection with multi-dimensional numpy arrays."""
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "multi_dim_arrays": [
                 np.array([[1, 2], [3, 4]]),  # 2D array
@@ -255,7 +252,7 @@ def test_validate_no_duplicates_multidimensional_numpy_arrays():
 
 def test_validate_no_duplicates_pandas_applymap_fallback():
     """Test the pandas applymap fallback when map() method doesn't exist."""
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "col1": [{"a": 1}, {"a": 1}, {"a": 2}],  # Two duplicates
             "col2": ["x", "x", "y"],  # Also duplicates
@@ -270,20 +267,23 @@ def test_validate_no_duplicates_pandas_applymap_fallback():
 
         def applymap(self, func):
             self.applymap_called = True
-            return self._df.applymap(func)
+            return self._df.map(func)  # Use map instead of applymap (deprecated)
 
         def duplicated(self, keep="first"):
             return self._df.duplicated(keep=keep)
 
         # Don't define map method to force applymap usage
 
-    original_to_pandas = dataset.to_pandas
+    # Directly test with a DataFrame that doesn't have map method
+    # by mocking hasattr to return False for map
+    original_hasattr = hasattr
 
-    def mock_to_pandas():
-        df = original_to_pandas()
-        return MockDataFrame(df)
+    def mock_hasattr(obj, name):
+        if name == "map" and isinstance(obj, pd.DataFrame):
+            return False
+        return original_hasattr(obj, name)
 
-    with patch.object(dataset, "to_pandas", side_effect=mock_to_pandas):
+    with patch("builtins.hasattr", side_effect=mock_hasattr):
         with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
             validate_no_duplicates(dataset)
 
@@ -294,22 +294,18 @@ def test_validate_no_duplicates_with_sets_and_frozensets_via_mock():
     # by creating a minimal test that triggers the set/frozenset handling
 
     # Create a simple dataset first
-    dataset = Dataset.from_dict({"col": [1, 1, 2]})  # Has duplicates
+    dataset = pd.DataFrame({"col": [1, 1, 2]})  # Has duplicates
 
-    def capture_make_hashable_and_inject_sets(df):
-        # Create test data with sets that should be equivalent
-        test_set = {1, 2, 3}
-        test_frozenset = frozenset([1, 2, 3])
+    # Test the make_hashable function logic directly
+    def test_make_hashable_logic():
+        def is_hashable(x):
+            try:
+                hash(x)
+                return True
+            except TypeError:
+                return False
 
-        # Define make_hashable function inline to test set handling
         def make_hashable(x):
-            def is_hashable(x):
-                try:
-                    hash(x)
-                    return True
-                except TypeError:
-                    return False
-
             if is_hashable(x):
                 return x
             if isinstance(x, np.ndarray):
@@ -329,6 +325,10 @@ def test_validate_no_duplicates_with_sets_and_frozensets_via_mock():
                 return tuple(make_hashable(i) for i in x)
             return repr(x)
 
+        # Create test data with sets that should be equivalent
+        test_set = {1, 2, 3}
+        test_frozenset = frozenset([1, 2, 3])
+
         # Apply make_hashable to test data
         result1 = make_hashable(test_set)
         result2 = make_hashable(test_frozenset)
@@ -338,23 +338,12 @@ def test_validate_no_duplicates_with_sets_and_frozensets_via_mock():
             result1 == result2
         ), "Sets and frozensets should be converted to equivalent frozensets"
 
-        # Apply to original dataframe normally
-        if hasattr(df, "map"):
-            return df.map(lambda x: x)  # Don't modify, just return original processing
-        else:
-            return df.applymap(lambda x: x)
+    # Run the logic test
+    test_make_hashable_logic()
 
-    # Patch the dataframe processing to run our set test
-    with patch.object(
-        dataset.to_pandas(),
-        "map",
-        side_effect=lambda func: capture_make_hashable_and_inject_sets(
-            dataset.to_pandas()
-        ),
-    ):
-        # This will run our set test and then continue with normal validation
-        with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
-            validate_no_duplicates(dataset)
+    # Also run normal validation on a simple dataset
+    with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
+        validate_no_duplicates(dataset)
 
 
 def test_validate_no_duplicates_repr_fallback():
@@ -425,16 +414,14 @@ def test_validate_no_duplicates_repr_fallback():
     test_make_hashable_logic()
 
     # Also run normal validation on a simple dataset
-    dataset = Dataset.from_dict(
-        {"col": ["a", "a", "b"]}
-    )  # Simple dataset with duplicates
+    dataset = pd.DataFrame({"col": ["a", "a", "b"]})  # Simple dataset with duplicates
     with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
         validate_no_duplicates(dataset)
 
 
 def test_validate_no_duplicates_complex_numpy_array_nesting():
     """Test complex numpy array nesting that exercises the recursive make_hashable."""
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "complex_arrays": [
                 np.array([np.array([1, 2]), np.array([3, 4])]),  # Array of arrays
@@ -452,7 +439,7 @@ def test_make_hashable_dict_with_heterogeneous_keys():
     """Test make_hashable dict sorting with different string key types using repr()."""
     # HF datasets require string keys, but we can still test the sorting logic
     # by using string keys that would sort differently lexicographically vs by repr()
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "mixed_key_dicts": [
                 {
@@ -488,7 +475,7 @@ def test_make_hashable_custom_iterable():
             raise TypeError("unhashable")
 
     # Test via a dataset that would contain such objects
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "strings": [
                 "custom_iter_1",  # Represent custom iterables as strings
@@ -517,26 +504,26 @@ def test_safe_concatenate_datasets_with_none_values():
 
 def test_safe_concatenate_datasets_with_empty_datasets():
     """Test safe_concatenate_datasets with empty datasets."""
-    empty_dataset = Dataset.from_dict({"col": []})
+    empty_dataset = pd.DataFrame({"col": []})
     result = safe_concatenate_datasets([empty_dataset])
     assert result is None
 
 
 def test_safe_concatenate_datasets_mixed_none_and_empty():
     """Test safe_concatenate_datasets with mix of None and empty datasets."""
-    empty_dataset = Dataset.from_dict({"col": []})
+    empty_dataset = pd.DataFrame({"col": []})
     result = safe_concatenate_datasets([None, empty_dataset, None])
     assert result is None
 
 
 def test_safe_concatenate_datasets_with_valid_datasets():
     """Test safe_concatenate_datasets with valid datasets."""
-    ds1 = Dataset.from_dict({"col": [1, 2]})
-    ds2 = Dataset.from_dict({"col": [3, 4]})
+    ds1 = pd.DataFrame({"col": [1, 2]})
+    ds2 = pd.DataFrame({"col": [3, 4]})
     result = safe_concatenate_datasets([ds1, ds2])
     assert result is not None
-    assert result.num_rows == 4
-    assert result["col"] == [1, 2, 3, 4]
+    assert len(result) == 4
+    assert result["col"].tolist() == [1, 2, 3, 4]
 
 
 # Test coverage for safe_concatenate_with_validation function (lines 113-130)
@@ -548,7 +535,7 @@ def test_safe_concatenate_with_validation_no_valid_datasets():
 
 def test_safe_concatenate_with_validation_single_dataset():
     """Test safe_concatenate_with_validation with single dataset."""
-    ds = Dataset.from_dict({"col": [1, 2]})
+    ds = pd.DataFrame({"col": [1, 2]})
     result = safe_concatenate_with_validation([ds])
     assert result is ds  # Should return the same dataset
 
@@ -556,17 +543,8 @@ def test_safe_concatenate_with_validation_single_dataset():
 def test_safe_concatenate_with_validation_schema_mismatch():
     """Test safe_concatenate_with_validation with schema mismatch."""
     # Create datasets with incompatible types that will cause concatenation to fail
-    ds1 = Dataset.from_dict({"col": [1, 2]})  # integers
-    ds2 = Dataset.from_dict({"col": ["a", "b"]})  # strings
-
-    # HuggingFace datasets typically handles type mismatches, so let's force an error
-    # by using different feature types that can't be reconciled
-    from datasets import Features, Value
-
-    ds1 = Dataset.from_dict({"col": [1, 2]}, features=Features({"col": Value("int64")}))
-    ds2 = Dataset.from_dict(
-        {"col": [1.5, 2.5]}, features=Features({"col": Value("float64")})
-    )
+    ds1 = pd.DataFrame({"col": [1, 2]})  # integers
+    ds2 = pd.DataFrame({"col": ["a", "b"]})  # strings
 
     # This might still work, so let's create a more definitive mismatch
     # by using an approach that will definitely cause concatenation to fail
@@ -574,9 +552,9 @@ def test_safe_concatenate_with_validation_schema_mismatch():
     def mock_concatenate_that_fails(*_args, **_kwargs):
         raise ValueError("Mock schema mismatch error")
 
-    # Patch concatenate_datasets to force an error
+    # Patch pd.concat to force an error
     with patch(
-        "sdg_hub.core.utils.datautils.concatenate_datasets",
+        "sdg_hub.core.utils.datautils.pd.concat",
         side_effect=mock_concatenate_that_fails,
     ):
         with pytest.raises(
@@ -596,7 +574,7 @@ def test_safe_concatenate_with_validation_custom_context():
 # Additional test to cover line 56: 0-dimensional numpy array handling
 def test_validate_no_duplicates_zero_dim_numpy_scalar_conversion():
     """Test that 0-dimensional numpy arrays are converted via .item()."""
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "zero_dim": [
                 np.array(42),  # 0-dimensional array - should call .item()
@@ -613,8 +591,6 @@ def test_validate_no_duplicates_zero_dim_numpy_scalar_conversion():
 # Test to cover lines 66-73: set/frozenset and repr fallback by directly hitting the code
 def test_validate_no_duplicates_with_sets_and_repr_fallback():
     """Test that actually hits lines 66-73 in make_hashable during validation."""
-    # Create a simple dataset first
-    dataset = Dataset.from_dict({"col": [1, 1, 2]})
 
     # Create objects that will trigger the specific code paths
     test_set = {1, 2, 3}
@@ -634,28 +610,23 @@ def test_validate_no_duplicates_with_sets_and_repr_fallback():
 
     test_custom_obj = NonHashableNonIterable(42)
 
-    # Patch the pandas DataFrame to_pandas method to inject our test data
-    def patched_to_pandas():
-        import pandas as pd
+    # Create dataframe with the problematic data types
+    # Pandas DataFrames work directly, no need for to_pandas
+    dataset = pd.DataFrame(
+        {
+            "col1": [
+                test_set,
+                test_set,
+                test_frozenset,
+            ],  # Sets and frozensets (lines 66-68)
+            "col2": [
+                test_custom_obj,
+                test_custom_obj,
+                NonHashableNonIterable(99),
+            ],  # repr fallback (line 73)
+        }
+    )
 
-        # Create dataframe with the problematic data types
-        df = pd.DataFrame(
-            {
-                "col1": [
-                    test_set,
-                    test_set,
-                    test_frozenset,
-                ],  # Sets and frozensets (lines 66-68)
-                "col2": [
-                    test_custom_obj,
-                    test_custom_obj,
-                    NonHashableNonIterable(99),
-                ],  # repr fallback (line 73)
-            }
-        )
-        return df
-
-    # Apply the patch and run validation
-    with patch.object(dataset, "to_pandas", patched_to_pandas):
-        with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
-            validate_no_duplicates(dataset)
+    # Apply validation - should detect duplicates after making hashable
+    with pytest.raises(FlowValidationError, match="contains 1 duplicate rows"):
+        validate_no_duplicates(dataset)

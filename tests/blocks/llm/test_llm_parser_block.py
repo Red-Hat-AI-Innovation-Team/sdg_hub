@@ -2,10 +2,9 @@
 """Tests for LLMParserBlock."""
 
 # Third Party
-from datasets import Dataset
-
 # First Party
 from sdg_hub.core.blocks.llm import LLMParserBlock
+import pandas as pd
 import pytest
 
 
@@ -92,14 +91,14 @@ class TestLLMParserBlockSingleResponse:
             extract_tool_calls=False,
         )
 
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {"llm_response": [{"content": "Hello world"}], "other_col": ["other_value"]}
         )
 
         result = block.generate(dataset)
 
         assert len(result) == 1
-        assert "test_parser_content" in result.column_names
+        assert "test_parser_content" in result.columns.tolist()
         assert result["test_parser_content"][0] == "Hello world"
         assert result["other_col"][0] == "other_value"
 
@@ -113,7 +112,7 @@ class TestLLMParserBlockSingleResponse:
             extract_tool_calls=True,
         )
 
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {
                 "llm_response": [
                     {
@@ -141,12 +140,12 @@ class TestLLMParserBlockSingleResponse:
             field_prefix="llm_",
         )
 
-        dataset = Dataset.from_dict({"llm_response": [{"content": "Hello world"}]})
+        dataset = pd.DataFrame({"llm_response": [{"content": "Hello world"}]})
 
         result = block.generate(dataset)
 
         assert len(result) == 1
-        assert "llm_content" in result.column_names
+        assert "llm_content" in result.columns.tolist()
         assert result["llm_content"][0] == "Hello world"
 
     def test_missing_fields_partial_extraction(self, caplog):
@@ -158,7 +157,7 @@ class TestLLMParserBlockSingleResponse:
             extract_reasoning_content=True,
         )
 
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {
                 "llm_response": [
                     {"content": "Hello world"}
@@ -171,9 +170,9 @@ class TestLLMParserBlockSingleResponse:
         assert len(result) == 1
         assert result["test_parser_content"][0] == "Hello world"
         # Only content field should be present since reasoning_content was missing
-        assert "test_parser_content" in result.column_names
+        assert "test_parser_content" in result.columns.tolist()
         # reasoning_content column should not be created since no valid values were found
-        assert "test_parser_reasoning_content" not in result.column_names
+        assert "test_parser_reasoning_content" not in result.columns.tolist()
 
         # Should log warning about missing field
         assert (
@@ -191,7 +190,7 @@ class TestLLMParserBlockSingleResponse:
             extract_tool_calls=True,
         )
 
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {
                 "llm_response": [
                     {"content": "Hello world"}
@@ -223,7 +222,7 @@ class TestLLMParserBlockListResponsesExpandTrue:
             expand_lists=True,
         )
 
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {
                 "llm_response": [
                     [
@@ -239,12 +238,12 @@ class TestLLMParserBlockListResponsesExpandTrue:
         result = block.generate(dataset)
 
         assert len(result) == 3
-        assert result["test_parser_content"] == [
+        assert result["test_parser_content"].tolist() == [
             "Response 1",
             "Response 2",
             "Response 3",
         ]
-        assert result["other_col"] == [
+        assert result["other_col"].tolist() == [
             "original_value",
             "original_value",
             "original_value",
@@ -259,7 +258,7 @@ class TestLLMParserBlockListResponsesExpandTrue:
             expand_lists=True,
         )
 
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {
                 "llm_response": [
                     [
@@ -275,12 +274,12 @@ class TestLLMParserBlockListResponsesExpandTrue:
         result = block.generate(dataset)
 
         assert len(result) == 3
-        assert result["test_parser_content"] == [
+        assert result["test_parser_content"].tolist() == [
             "Sample 1 Response 1",
             "Sample 1 Response 2",
             "Sample 2 Response 1",
         ]
-        assert result["sample_id"] == [1, 1, 2]
+        assert result["sample_id"].tolist() == [1, 1, 2]
 
     def test_expand_empty_list(self):
         """Test handling empty list responses."""
@@ -291,7 +290,7 @@ class TestLLMParserBlockListResponsesExpandTrue:
             expand_lists=True,
         )
 
-        dataset = Dataset.from_dict({"llm_response": [[]], "other_col": ["value"]})
+        dataset = pd.DataFrame({"llm_response": [[]], "other_col": ["value"]})
 
         result = block.generate(dataset)
 
@@ -308,7 +307,7 @@ class TestLLMParserBlockListResponsesExpandTrue:
 
         # Test with separate datasets since PyArrow doesn't handle mixed types well
         # Test with valid dict and dict missing content field
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {
                 "llm_response": [
                     [
@@ -324,12 +323,10 @@ class TestLLMParserBlockListResponsesExpandTrue:
 
         result = block.generate(dataset)
 
-        # HuggingFace Dataset fills missing keys with None, so middle item gets content=None
-        # which is converted to empty string by the parser
-        assert len(result) == 3
-        assert result["test_parser_content"] == [
+        # The parser skips items without the required field, so only 2 valid items
+        assert len(result) == 2
+        assert result["test_parser_content"].tolist() == [
             "Valid response",
-            "",
             "Another valid response",
         ]
 
@@ -343,7 +340,7 @@ class TestLLMParserBlockListResponsesExpandTrue:
         )
 
         # All items missing the content field
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {"llm_response": [[{"other_field": "value1"}, {"other_field": "value2"}]]}
         )
 
@@ -364,7 +361,7 @@ class TestLLMParserBlockListResponsesExpandFalse:
             expand_lists=False,
         )
 
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {
                 "llm_response": [
                     [
@@ -397,7 +394,7 @@ class TestLLMParserBlockListResponsesExpandFalse:
             expand_lists=False,
         )
 
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {
                 "llm_response": [
                     [
@@ -426,7 +423,7 @@ class TestLLMParserBlockListResponsesExpandFalse:
             expand_lists=False,
         )
 
-        dataset = Dataset.from_dict({"llm_response": [[]], "other_col": ["value"]})
+        dataset = pd.DataFrame({"llm_response": [[]], "other_col": ["value"]})
 
         result = block.generate(dataset)
 
@@ -442,7 +439,7 @@ class TestLLMParserBlockListResponsesExpandFalse:
         )
 
         # All items missing the content field
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {"llm_response": [[{"other_field": "value1"}, {"other_field": "value2"}]]}
         )
 
@@ -461,7 +458,7 @@ class TestLLMParserBlockValidation:
             input_cols="llm_response",
         )
 
-        dataset = Dataset.from_dict({"llm_response": [{"content": "test"}]})
+        dataset = pd.DataFrame({"llm_response": [{"content": "test"}]})
 
         # Should not raise any exception
         block._validate_custom(dataset)
@@ -473,7 +470,7 @@ class TestLLMParserBlockValidation:
             input_cols=["col1", "col2"],
         )
 
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {"col1": [{"content": "test"}], "col2": [{"content": "test2"}]}
         )
 
@@ -489,7 +486,7 @@ class TestLLMParserBlockValidation:
             input_cols=[],
         )
 
-        dataset = Dataset.from_dict({"other_col": ["value"]})
+        dataset = pd.DataFrame({"other_col": ["value"]})
 
         with pytest.raises(ValueError, match="expects at least one input column"):
             block._validate_custom(dataset)
@@ -505,7 +502,7 @@ class TestLLMParserBlockErrorHandling:
             input_cols="llm_response",
         )
 
-        dataset = Dataset.from_dict({"llm_response": ["not_a_dict_or_list"]})
+        dataset = pd.DataFrame({"llm_response": ["not_a_dict_or_list"]})
 
         result = block.generate(dataset)
 
@@ -519,7 +516,7 @@ class TestLLMParserBlockErrorHandling:
             input_cols="llm_response",
         )
 
-        dataset = Dataset.from_dict({"llm_response": []})
+        dataset = pd.DataFrame({"llm_response": []})
 
         result = block.generate(dataset)
 
@@ -534,7 +531,7 @@ class TestLLMParserBlockErrorHandling:
             extract_content=True,
         )
 
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {
                 "llm_response": [{"other_field": "value"}]  # Missing content field
             }
@@ -552,7 +549,7 @@ class TestLLMParserBlockErrorHandling:
             extract_content=True,
         )
 
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {
                 "llm_response": [
                     {"content": None, "role": "assistant"}
@@ -564,7 +561,7 @@ class TestLLMParserBlockErrorHandling:
 
         # Should not raise error and should use empty string
         assert len(result) == 1
-        assert result[0]["test_parser_content"] == ""
+        assert result.iloc[0]["test_parser_content"] == ""
         assert "Content field is None, using empty string instead" in caplog.text
 
     def test_none_reasoning_content_handled_gracefully(self, caplog):
@@ -575,7 +572,7 @@ class TestLLMParserBlockErrorHandling:
             extract_reasoning_content=True,
         )
 
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {
                 "llm_response": [
                     {"reasoning_content": None, "role": "assistant"}
@@ -587,7 +584,7 @@ class TestLLMParserBlockErrorHandling:
 
         # Should not raise error and should use empty string
         assert len(result) == 1
-        assert result[0]["test_parser_reasoning_content"] == ""
+        assert result.iloc[0]["test_parser_reasoning_content"] == ""
         assert (
             "Reasoning content field is None, using empty string instead" in caplog.text
         )
@@ -617,7 +614,7 @@ class TestLLMParserBlockIntegration:
         )
 
         # Simulate LLMChatBlock output with n=3
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {
                 "messages": [["user", "Hello"]],
                 "llm_response": [
@@ -633,9 +630,9 @@ class TestLLMParserBlockIntegration:
         result = block.generate(dataset)
 
         assert len(result) == 3
-        assert all("test_parser_content" in row for row in result)
-        assert all("messages" in row for row in result)
-        assert result["test_parser_content"] == [
+        assert "test_parser_content" in result.columns.tolist()
+        assert "messages" in result.columns.tolist()
+        assert result["test_parser_content"].tolist() == [
             "Hello! How can I help you?",
             "Hi there! What can I do for you?",
             "Hello! How may I assist you today?",
@@ -650,7 +647,7 @@ class TestLLMParserBlockIntegration:
             expand_lists=False,
         )
 
-        dataset = Dataset.from_dict(
+        dataset = pd.DataFrame(
             {
                 "messages": [["user", "Generate 3 responses"]],
                 "llm_response": [

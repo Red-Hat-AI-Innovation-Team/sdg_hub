@@ -9,9 +9,10 @@ start/end tags, custom regex patterns, and cleanup operations.
 from typing import Any, Optional
 import re
 
-# Third Party
-from datasets import Dataset
 from pydantic import Field, field_validator, model_validator
+
+# Third Party
+import pandas as pd
 
 # Local
 from ...utils.logger_config import setup_logger
@@ -27,6 +28,8 @@ logger = setup_logger(__name__)
     "Parses and post-processes text content using tags or regex patterns",
 )
 class TextParserBlock(BaseBlock):
+    _flow_requires_jsonl_tmp: bool = True
+
     """Block for parsing and post-processing text content.
 
     This block handles text parsing using start/end tags, custom regex patterns,
@@ -117,12 +120,12 @@ class TextParserBlock(BaseBlock):
 
         return self
 
-    def _validate_custom(self, dataset: Dataset) -> None:
+    def _validate_custom(self, dataset: pd.DataFrame) -> None:
         """Validate TextParserBlock specific requirements.
 
         Parameters
         ----------
-        dataset : Dataset
+        dataset : pd.DataFrame
             The dataset to validate.
 
         Raises
@@ -311,13 +314,15 @@ class TextParserBlock(BaseBlock):
             )
             return []
 
-    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         logger.debug(f"Parsing outputs for {len(samples)} samples")
         if len(samples) == 0:
             logger.warning("No samples to parse, returning empty dataset")
-            return Dataset.from_list([])
+            return pd.DataFrame()
 
-        new_data = []
-        for sample in samples:
+        # Convert DataFrame to list of dicts to avoid iterrows and improve performance
+        samples_list = samples.to_dict("records")
+        new_data: list[dict] = []
+        for sample in samples_list:
             new_data.extend(self._generate(sample))
-        return Dataset.from_list(new_data)
+        return pd.DataFrame(new_data)

@@ -9,12 +9,13 @@ with unified constructor patterns, column handling, and common functionality.
 from abc import ABC, abstractmethod
 from typing import Any, Optional, Union
 
-# Third Party
-from datasets import Dataset
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
+
+# Third Party
+import pandas as pd
 
 # Local
 from ..utils.error_handling import (
@@ -32,7 +33,7 @@ class BaseBlock(BaseModel, ABC):
     """Base class for all blocks, with standardized patterns and full Pydantic compatibility.
 
     This class defines a unified, configurable base for building composable data processing blocks
-    that operate over HuggingFace Datasets. It supports field-based initialization, validation,
+    that operate over pandas DataFrames. It supports field-based initialization, validation,
     and rich logging for inputs and outputs.
 
     Attributes
@@ -40,9 +41,9 @@ class BaseBlock(BaseModel, ABC):
     block_name : str
         Unique identifier for this block instance.
     input_cols : Union[List[str], Dict[str, Any]]
-        Input columns from the dataset (string, list of strings, or mapping).
+        Input columns from the DataFrame (string, list of strings, or mapping).
     output_cols : Union[List[str], Dict[str, Any]]
-        Output columns to write to the dataset (string, list of strings, or mapping).
+        Output columns to write to the DataFrame (string, list of strings, or mapping).
     """
 
     block_name: str = Field(
@@ -55,7 +56,7 @@ class BaseBlock(BaseModel, ABC):
         None, description="Output columns: str, list, or dict"
     )
 
-    # Allow extra config fields and complex types like Dataset
+    # Allow extra config fields and complex types like DataFrame
     model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
     # Normalize input columns before model construction
@@ -101,13 +102,13 @@ class BaseBlock(BaseModel, ABC):
             return dict(cols)
         raise ValueError(f"Invalid column specification: {cols} (type: {type(cols)})")
 
-    def _validate_columns(self, dataset: Dataset) -> None:
-        """Check that all required input columns are present in the dataset.
+    def _validate_columns(self, df: pd.DataFrame) -> None:
+        """Check that all required input columns are present in the DataFrame.
 
         Parameters
         ----------
-        dataset : Dataset
-            HuggingFace dataset to validate against.
+        df : pd.DataFrame
+            DataFrame to validate against.
 
         Raises
         ------
@@ -121,28 +122,29 @@ class BaseBlock(BaseModel, ABC):
             if isinstance(self.input_cols, dict)
             else self.input_cols
         )
+        available_columns = df.columns.tolist()
         missing_columns = [
-            col for col in columns_to_check if col not in dataset.column_names
+            col for col in columns_to_check if col not in available_columns
         ]
         if missing_columns:
             raise MissingColumnError(
                 block_name=self.block_name,
                 missing_columns=missing_columns,
-                available_columns=dataset.column_names,
+                available_columns=available_columns,
             )
 
-    def _validate_output_columns(self, dataset: Dataset) -> None:
+    def _validate_output_columns(self, df: pd.DataFrame) -> None:
         """Check that the output columns will not overwrite existing ones.
 
         Parameters
         ----------
-        dataset : Dataset
-            HuggingFace dataset to validate.
+        df : pd.DataFrame
+            DataFrame to validate.
 
         Raises
         ------
         OutputColumnCollisionError
-            If output columns already exist in the dataset.
+            If output columns already exist in the DataFrame.
         """
         if not self.output_cols:
             return
@@ -151,42 +153,43 @@ class BaseBlock(BaseModel, ABC):
             if isinstance(self.output_cols, dict)
             else self.output_cols
         )
-        collisions = [col for col in columns_to_check if col in dataset.column_names]
+        available_columns = df.columns.tolist()
+        collisions = [col for col in columns_to_check if col in available_columns]
         if collisions:
             raise OutputColumnCollisionError(
                 block_name=self.block_name,
                 collision_columns=collisions,
-                existing_columns=dataset.column_names,
+                existing_columns=available_columns,
             )
 
-    def _validate_dataset_not_empty(self, dataset: Dataset) -> None:
-        """Raise an error if the dataset is empty.
+    def _validate_dataframe_not_empty(self, df: pd.DataFrame) -> None:
+        """Raise an error if the DataFrame is empty.
 
         Parameters
         ----------
-        dataset : Dataset
+        df : pd.DataFrame
 
         Raises
         ------
         EmptyDatasetError
         """
-        if len(dataset) == 0:
+        if len(df) == 0:
             raise EmptyDatasetError(block_name=self.block_name)
 
-    def _validate_dataset(self, dataset: Dataset) -> None:
-        """Perform all default dataset validations."""
-        self._validate_dataset_not_empty(dataset)
-        self._validate_columns(dataset)
-        self._validate_output_columns(dataset)
+    def _validate_dataframe(self, df: pd.DataFrame) -> None:
+        """Perform all default DataFrame validations."""
+        self._validate_dataframe_not_empty(df)
+        self._validate_columns(df)
+        self._validate_output_columns(df)
 
-    def _validate_custom(self, dataset: Dataset) -> None:
+    def _validate_custom(self, df: pd.DataFrame) -> None:
         """Hook for subclasses to add extra validation logic."""
         pass
 
-    def _log_input_data(self, dataset: Dataset) -> None:
-        """Print a summary of the input dataset with Rich formatting."""
-        row_count = len(dataset)
-        columns = dataset.column_names
+    def _log_input_data(self, df: pd.DataFrame) -> None:
+        """Print a summary of the input DataFrame with Rich formatting."""
+        row_count = len(df)
+        columns = df.columns.tolist()
         content = Text()
         content.append("\U0001f4ca Processing Input Data\n", style="bold blue")
         content.append(f"Block Type: {self.__class__.__name__}\n", style="cyan")
@@ -207,13 +210,12 @@ class BaseBlock(BaseModel, ABC):
             Panel(content, title=f"[bold]{self.block_name}[/bold]", border_style="blue")
         )
 
-    def _log_output_data(self, input_dataset: Dataset, output_dataset: Dataset) -> None:
-        """Print a Rich panel summarizing output dataset differences."""
-        in_rows, out_rows = len(input_dataset), len(output_dataset)
-        in_cols, out_cols = (
-            set(input_dataset.column_names),
-            set(output_dataset.column_names),
-        )
+    def _log_output_data(self, input_df: pd.DataFrame, output_df: pd.DataFrame) -> None:
+        """Print a Rich panel summarizing output DataFrame differences."""
+        in_rows, out_rows = len(input_df), len(output_df)
+        in_cols = set(input_df.columns.tolist())
+        out_cols = set(output_df.columns.tolist())
+
         added_cols, removed_cols = out_cols - in_cols, in_cols - out_cols
         content = Text()
         content.append("\u2705 Processing Complete\n", style="bold green")
@@ -239,35 +241,35 @@ class BaseBlock(BaseModel, ABC):
         )
 
     @abstractmethod
-    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         """Subclass method to implement data generation logic.
 
         Parameters
         ----------
-        samples : Dataset
-            Input dataset to process.
+        samples : pd.DataFrame
+            Input DataFrame to process.
 
         Returns
         -------
-        Dataset
-            Transformed dataset with new columns or values.
+        pd.DataFrame
+            Transformed DataFrame with new columns or values.
         """
         pass
 
-    def __call__(self, samples: Dataset, **kwargs: Any) -> Dataset:
-        """Run the block on a dataset with full validation and logging.
+    def __call__(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
+        """Run the block on a DataFrame with full validation and logging.
 
         Parameters
         ----------
-        samples : Dataset
-            Input dataset.
+        samples : pd.DataFrame
+            Input DataFrame.
         **kwargs : Any
             Runtime parameters to override block configuration
 
         Returns
         -------
-        Dataset
-            Output dataset after block processing.
+        pd.DataFrame
+            Output DataFrame after block processing.
         """
         # Handle runtime kwargs overrides
         if kwargs:
@@ -310,12 +312,12 @@ class BaseBlock(BaseModel, ABC):
 
             try:
                 self._log_input_data(samples)
-                self._validate_dataset(samples)
+                self._validate_dataframe(samples)
                 self._validate_custom(samples)
                 # Pass ALL kwargs to generate (including flow params)
-                output_dataset = self.generate(samples, **kwargs)
-                self._log_output_data(samples, output_dataset)
-                return output_dataset
+                output_df = self.generate(samples, **kwargs)
+                self._log_output_data(samples, output_df)
+                return output_df
             finally:
                 # Always restore original values for block fields
                 for key, value in original_values.items():
@@ -323,11 +325,11 @@ class BaseBlock(BaseModel, ABC):
         else:
             # Normal execution without overrides
             self._log_input_data(samples)
-            self._validate_dataset(samples)
+            self._validate_dataframe(samples)
             self._validate_custom(samples)
-            output_dataset = self.generate(samples)
-            self._log_output_data(samples, output_dataset)
-            return output_dataset
+            output_df = self.generate(samples)
+            self._log_output_data(samples, output_df)
+            return output_df
 
     def __repr__(self) -> str:
         """Compact string representation."""

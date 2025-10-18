@@ -8,9 +8,10 @@ to a mapping specification.
 # Standard
 from typing import Any
 
-# Third Party
-from datasets import Dataset
 from pydantic import field_validator
+
+# Third Party
+import pandas as pd
 
 # Local
 from ...utils.logger_config import setup_logger
@@ -52,28 +53,38 @@ class RenameColumnsBlock(BaseBlock):
             )
         return v
 
-    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         """Generate a dataset with renamed columns.
 
         Parameters
         ----------
-        samples : Dataset
+        samples : pd.DataFrame
             Input dataset to rename columns in.
 
         Returns
         -------
-        Dataset
+        pd.DataFrame
             Dataset with renamed columns.
 
         Raises
         ------
         ValueError
-            If attempting to rename to a column name that already exists.
+            If attempting to rename to a column name that already exists,
+            or if the original column names don't exist in the dataset.
         """
+        # Check that all original column names exist in the dataset
+        existing_cols = set(samples.columns.tolist())
+        original_cols = set(self.input_cols.keys())
+
+        missing_cols = original_cols - existing_cols
+        if missing_cols:
+            raise ValueError(
+                f"Original column names {sorted(missing_cols)} not in the dataset"
+            )
+
         # Check for column name collisions
         # Strict validation: no target column name can be an existing column name
         # This prevents chained/circular renames which can be confusing
-        existing_cols = set(samples.column_names)
         target_cols = set(self.input_cols.values())
 
         collision = target_cols & existing_cols
@@ -84,5 +95,5 @@ class RenameColumnsBlock(BaseBlock):
                 "Chained renames are not supported."
             )
 
-        # Rename columns using HuggingFace datasets method
-        return samples.rename_columns(self.input_cols)
+        # Rename columns using pandas method
+        return samples.rename(columns=self.input_cols)

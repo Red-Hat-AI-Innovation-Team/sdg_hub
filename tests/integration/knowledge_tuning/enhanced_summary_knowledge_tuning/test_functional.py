@@ -12,11 +12,15 @@ Simple test that:
 import os
 import subprocess
 
-from datasets import Dataset
+import pandas as pd
 import pytest
 
 
 @pytest.mark.integration
+@pytest.mark.skipif(
+    not os.environ.get("OPENAI_API_KEY"),
+    reason="Requires OPENAI_API_KEY environment variable for LLM API calls",
+)
 def test_notebook_execution_and_output_validity(
     test_env_setup, tmp_path, notebook_path
 ):
@@ -24,6 +28,7 @@ def test_notebook_execution_and_output_validity(
     Test that output datasets are created and can be loaded.
 
     This test runs after the notebook execution and verifies outputs.
+    Requires OPENAI_API_KEY environment variable to be set.
     """
     output_folder = tmp_path / "output_data"
     output_folder.mkdir(parents=True, exist_ok=True)
@@ -110,9 +115,11 @@ def test_notebook_execution_and_output_validity(
         assert output_file.exists(), f"Output file not found: {output_file}"
 
         # Verify file can be loaded as a dataset
-        dataset = Dataset.from_json(str(output_file))
+        dataset = pd.read_json(str(output_file), lines=True)
         assert len(dataset) > 0, f"Dataset is empty: {output_file}"
-        assert len(dataset.column_names) > 0, f"Dataset has no columns: {output_file}"
+        assert (
+            len(dataset.columns.tolist()) > 0
+        ), f"Dataset has no columns: {output_file}"
 
         # Calculate statistics
         summary_type = output_file.parent.name
@@ -121,7 +128,7 @@ def test_notebook_execution_and_output_validity(
         # Count unique raw documents and generated summaries/key facts
         unique_raw_docs = (
             len(set(dataset["raw_document"]))
-            if "raw_document" in dataset.column_names
+            if "raw_document" in dataset.columns.tolist()
             else 0
         )
 
@@ -129,13 +136,13 @@ def test_notebook_execution_and_output_validity(
         if summary_type == "key_facts_to_qa":
             unique_summaries = (
                 len(set(dataset["key_fact"]))
-                if "key_fact" in dataset.column_names
+                if "key_fact" in dataset.columns.tolist()
                 else 0
             )
         else:
             unique_summaries = (
                 len(set(dataset["document"]))
-                if "document" in dataset.column_names
+                if "document" in dataset.columns.tolist()
                 else 0
             )
 

@@ -5,11 +5,12 @@
 from typing import Any, Optional
 import asyncio
 
-# Third Party
-from datasets import Dataset
 from litellm import acompletion, completion
 from pydantic import ConfigDict, Field, field_validator
 import litellm
+
+# Third Party
+import pandas as pd
 
 from ...utils.error_handling import BlockValidationError
 from ...utils.logger_config import setup_logger
@@ -167,12 +168,12 @@ class LLMChatBlock(BaseBlock):
                 },
             )
 
-    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         """Generate responses from the LLM.
 
         Parameters
         ----------
-        samples : Dataset
+        samples : pd.DataFrame
             Input dataset containing the messages column.
         **kwargs : Any
             Runtime parameters that override initialization defaults.
@@ -180,7 +181,7 @@ class LLMChatBlock(BaseBlock):
 
         Returns
         -------
-        Dataset
+        pd.DataFrame
             Dataset with responses added to the output column.
 
         Raises
@@ -201,8 +202,8 @@ class LLMChatBlock(BaseBlock):
         # Build completion kwargs from ALL fields + runtime overrides
         completion_kwargs = self._build_completion_kwargs(**kwargs)
 
-        # Extract messages
-        messages_list = samples[self.input_cols[0]]
+        # Extract messages from pandas DataFrame
+        messages_list = samples[self.input_cols[0]].tolist()
 
         # Log generation start
         logger.info(
@@ -269,7 +270,9 @@ class LLMChatBlock(BaseBlock):
         )
 
         # Add responses as new column
-        return samples.add_column(self.output_cols[0], responses)
+        result = samples.copy()
+        result[self.output_cols[0]] = responses
+        return result
 
     def _build_completion_kwargs(self, **overrides) -> dict[str, Any]:
         """Build kwargs for LiteLLM completion call.
@@ -513,12 +516,14 @@ class LLMChatBlock(BaseBlock):
             )
             raise
 
-    def _validate_custom(self, dataset: Dataset) -> None:
+    def _validate_custom(self, dataset: pd.DataFrame) -> None:
         """Custom validation for LLMChatBlock message format.
+
+        Uses vectorized operations where possible for better performance.
 
         Parameters
         ----------
-        dataset : Dataset
+        dataset : pd.DataFrame
             The dataset to validate.
 
         Raises
@@ -526,28 +531,32 @@ class LLMChatBlock(BaseBlock):
         BlockValidationError
             If message format validation fails.
         """
+        messages_col = dataset[self.input_cols[0]]
 
-        def validate_sample(sample_with_index):
-            """Validate a single sample's message format."""
-            idx, sample = sample_with_index
-            messages = sample[self.input_cols[0]]
+        # avoid using pd iterrows() when possible, it is notoriously slow: https://github.com/pandas-dev/pandas/issues/7683
+        # Vectorized check: all values must be lists
+        is_list = messages_col.apply(lambda x: isinstance(x, list))
+        if not is_list.all():
+            invalid_idx = is_list[~is_list].index[0]
+            invalid_value = messages_col.loc[invalid_idx]
+            raise BlockValidationError(
+                f"Messages column '{self.input_cols[0]}' must contain a list, "
+                f"got {type(invalid_value)} in row {invalid_idx}",
+                details=f"Block: {self.block_name}, Row: {invalid_idx}, Value: {invalid_value}",
+            )
 
-            # Validate messages is a list
-            if not isinstance(messages, list):
-                raise BlockValidationError(
-                    f"Messages column '{self.input_cols[0]}' must contain a list, "
-                    f"got {type(messages)} in row {idx}",
-                    details=f"Block: {self.block_name}, Row: {idx}, Value: {messages}",
-                )
+        # Vectorized check: no empty lists
+        is_empty = messages_col.apply(lambda x: len(x) == 0)
+        if is_empty.any():
+            invalid_idx = is_empty[is_empty].index[0]
+            raise BlockValidationError(
+                f"Messages list is empty in row {invalid_idx}",
+                details=f"Block: {self.block_name}, Row: {invalid_idx}",
+            )
 
-            # Validate messages is not empty
-            if not messages:
-                raise BlockValidationError(
-                    f"Messages list is empty in row {idx}",
-                    details=f"Block: {self.block_name}, Row: {idx}",
-                )
-
-            # Validate each message format
+        # Validate nested message structure (requires iteration over messages column only)
+        def validate_message_structure(messages, idx):
+            """Validate structure of messages list."""
             for msg_idx, message in enumerate(messages):
                 if not isinstance(message, dict):
                     raise BlockValidationError(
@@ -555,7 +564,6 @@ class LLMChatBlock(BaseBlock):
                         details=f"Block: {self.block_name}, Row: {idx}, Message: {msg_idx}, Value: {message}",
                     )
 
-                # Validate required fields
                 if "role" not in message or message["role"] is None:
                     raise BlockValidationError(
                         f"Message {msg_idx} in row {idx} missing required 'role' field",
@@ -568,11 +576,9 @@ class LLMChatBlock(BaseBlock):
                         details=f"Block: {self.block_name}, Row: {idx}, Message: {msg_idx}, Available fields: {list(message.keys())}",
                     )
 
-            return True
-
-        # Validate all samples
-        indexed_samples = [(i, sample) for i, sample in enumerate(dataset)]
-        list(map(validate_sample, indexed_samples))
+        # Iterate only over the messages column (not the entire DataFrame)
+        for idx, messages in messages_col.items():
+            validate_message_structure(messages, idx)
 
     def __repr__(self) -> str:
         """String representation of the block."""

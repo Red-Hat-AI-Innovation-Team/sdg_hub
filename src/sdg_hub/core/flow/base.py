@@ -8,8 +8,6 @@ from typing import Any, Optional, Union
 import time
 import uuid
 
-# Third Party
-from datasets import Dataset
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -23,6 +21,9 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
 import datasets
+
+# Third Party
+import pandas as pd
 import yaml
 
 # Local
@@ -285,15 +286,62 @@ class Flow(BaseModel):
             return {key: str(yaml_dir / path) for key, path in paths.items()}
         return paths
 
+    @staticmethod
+    def _convert_to_dataframe(
+        dataset: Union[pd.DataFrame, datasets.Dataset],
+    ) -> tuple[pd.DataFrame, bool]:
+        """Convert datasets.Dataset to pd.DataFrame if needed (backwards compatibility).
+
+        Parameters
+        ----------
+        dataset : Union[pd.DataFrame, datasets.Dataset]
+            Input dataset in either format.
+
+        Returns
+        -------
+        tuple[pd.DataFrame, bool]
+            Tuple of (converted DataFrame, was_dataset flag).
+            was_dataset is True if input was a datasets.Dataset, False if it was already a DataFrame.
+        """
+        if isinstance(dataset, datasets.Dataset):
+            logger.info("Converting datasets.Dataset to pd.DataFrame for processing")
+            return dataset.to_pandas(), True
+        return dataset, False
+
+    @staticmethod
+    def _convert_from_dataframe(
+        df: pd.DataFrame, should_convert: bool
+    ) -> Union[pd.DataFrame, datasets.Dataset]:
+        """Convert pd.DataFrame back to datasets.Dataset if needed (backwards compatibility).
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            DataFrame to potentially convert.
+        should_convert : bool
+            If True, convert to datasets.Dataset. If False, return as-is.
+
+        Returns
+        -------
+        Union[pd.DataFrame, datasets.Dataset]
+            Original DataFrame or converted Dataset, matching the input type.
+        """
+        if should_convert:
+            logger.info(
+                "Converting pd.DataFrame back to datasets.Dataset to match input type"
+            )
+            return datasets.Dataset.from_pandas(df)
+        return df
+
     def generate(
         self,
-        dataset: Dataset,
+        dataset: Union[pd.DataFrame, datasets.Dataset],
         runtime_params: Optional[dict[str, dict[str, Any]]] = None,
         checkpoint_dir: Optional[str] = None,
         save_freq: Optional[int] = None,
         log_dir: Optional[str] = None,
         max_concurrency: Optional[int] = None,
-    ) -> Dataset:
+    ) -> Union[pd.DataFrame, datasets.Dataset]:
         """Execute the flow blocks in sequence to generate data.
 
         Note: For flows with LLM blocks, set_model_config() must be called first
@@ -301,8 +349,9 @@ class Flow(BaseModel):
 
         Parameters
         ----------
-        dataset : Dataset
-            Input dataset to process.
+        dataset : Union[pd.DataFrame, datasets.Dataset]
+            Input dataset to process. Can be either pandas DataFrame or HuggingFace Dataset
+            (will be automatically converted to DataFrame for backwards compatibility).
         runtime_params : Optional[Dict[str, Dict[str, Any]]], optional
             Runtime parameters organized by block name. Format:
             {
@@ -324,8 +373,9 @@ class Flow(BaseModel):
 
         Returns
         -------
-        Dataset
+        Union[pd.DataFrame, datasets.Dataset]
             Processed dataset after all blocks have been executed.
+            Return type matches the input type (DataFrame in -> DataFrame out, Dataset in -> Dataset out).
 
         Raises
         ------
@@ -334,6 +384,9 @@ class Flow(BaseModel):
         FlowValidationError
             If flow validation fails or if model configuration is required but not set.
         """
+        # Convert to DataFrame if needed (backwards compatibility)
+        dataset, was_dataset = self._convert_to_dataframe(dataset)
+
         # Validate save_freq parameter early to prevent range() errors
         if save_freq is not None and save_freq <= 0:
             raise FlowValidationError(
@@ -429,7 +482,7 @@ class Flow(BaseModel):
                         finally:
                             flow_logger.removeHandler(h)
 
-                return completed_dataset
+                return self._convert_from_dataframe(completed_dataset, was_dataset)
 
             dataset = remaining_dataset
             flow_logger.info(f"Resuming with {len(dataset)} remaining samples")
@@ -456,7 +509,7 @@ class Flow(BaseModel):
                 # Process in chunks of save_freq
                 for i in range(0, len(dataset), save_freq):
                     chunk_end = min(i + save_freq, len(dataset))
-                    chunk_dataset = dataset.select(range(i, chunk_end))
+                    chunk_dataset = dataset.iloc[i:chunk_end]
 
                     flow_logger.info(
                         f"Processing chunk {i // save_freq + 1}: samples {i} to {chunk_end - 1}"
@@ -480,7 +533,11 @@ class Flow(BaseModel):
                 )
 
                 # Combine with previously completed samples if any
-                if checkpointer and completed_dataset:
+                if (
+                    checkpointer
+                    and completed_dataset is not None
+                    and not completed_dataset.empty
+                ):
                     final_dataset = safe_concatenate_with_validation(
                         [completed_dataset, final_dataset],
                         "completed checkpoint data with newly processed data",
@@ -498,7 +555,7 @@ class Flow(BaseModel):
                     checkpointer.save_final_checkpoint()
 
                     # Combine with previously completed samples if any
-                    if completed_dataset:
+                    if completed_dataset is not None and not completed_dataset.empty:
                         final_dataset = safe_concatenate_with_validation(
                             [completed_dataset, final_dataset],
                             "completed checkpoint data with newly processed data",
@@ -536,7 +593,7 @@ class Flow(BaseModel):
             flow_logger.info(
                 f"Flow '{self.metadata.name}' completed successfully: "
                 f"{len(final_dataset)} final samples, "
-                f"{len(final_dataset.column_names)} final columns"
+                f"{len(final_dataset.columns)} final columns"
             )
 
         # Close file handlers if we opened a flow-specific logger
@@ -550,20 +607,20 @@ class Flow(BaseModel):
                 finally:
                     flow_logger.removeHandler(h)
 
-        return final_dataset
+        return self._convert_from_dataframe(final_dataset, was_dataset)
 
     def _execute_blocks_on_dataset(
         self,
-        dataset: Dataset,
+        dataset: pd.DataFrame,
         runtime_params: dict[str, dict[str, Any]],
         flow_logger=None,
         max_concurrency: Optional[int] = None,
-    ) -> Dataset:
+    ) -> pd.DataFrame:
         """Execute all blocks in sequence on the given dataset.
 
         Parameters
         ----------
-        dataset : Dataset
+        dataset : pd.DataFrame
             Dataset to process through all blocks.
         runtime_params : Dict[str, Dict[str, Any]]
             Runtime parameters for block execution.
@@ -574,7 +631,7 @@ class Flow(BaseModel):
 
         Returns
         -------
-        Dataset
+        pd.DataFrame
             Dataset after processing through all blocks.
         """
         # Use provided logger or fall back to global logger
@@ -598,7 +655,7 @@ class Flow(BaseModel):
             # Capture metrics before execution
             start_time = time.perf_counter()
             input_rows = len(current_dataset)
-            input_cols = set(current_dataset.column_names)
+            input_cols = set(current_dataset.columns)
 
             try:
                 # Execute block with validation and logging
@@ -613,7 +670,7 @@ class Flow(BaseModel):
                 # Capture metrics after successful execution
                 execution_time = time.perf_counter() - start_time
                 output_rows = len(current_dataset)
-                output_cols = set(current_dataset.column_names)
+                output_cols = set(current_dataset.columns)
                 added_cols = output_cols - input_cols
                 removed_cols = input_cols - output_cols
 
@@ -634,7 +691,7 @@ class Flow(BaseModel):
                 exec_logger.info(
                     f"Block '{block.block_name}' completed successfully: "
                     f"{len(current_dataset)} samples, "
-                    f"{len(current_dataset.column_names)} columns"
+                    f"{len(current_dataset.columns)} columns"
                 )
 
             except Exception as exc:
@@ -932,17 +989,37 @@ class Flow(BaseModel):
             "experimental": self.metadata.recommended_models.experimental,
         }
 
-    def validate_dataset(self, dataset: Dataset) -> list[str]:
-        """Validate dataset against flow requirements."""
+    def validate_dataset(
+        self, dataset: Union[pd.DataFrame, datasets.Dataset]
+    ) -> list[str]:
+        """Validate dataset against flow requirements.
+
+        Parameters
+        ----------
+        dataset : Union[pd.DataFrame, datasets.Dataset]
+            Dataset to validate. Can be either pandas DataFrame or HuggingFace Dataset
+            (will be automatically converted to DataFrame for backwards compatibility).
+
+        Returns
+        -------
+        list[str]
+            List of validation error messages (empty if valid).
+        """
+        # Convert to DataFrame if needed (backwards compatibility)
+        dataset, _ = self._convert_to_dataframe(dataset)
+
         errors = []
 
         if len(dataset) == 0:
             errors.append("Dataset is empty")
 
         if self.metadata.dataset_requirements:
+            # Get column names
+            columns = dataset.columns.tolist()
+
             errors.extend(
                 self.metadata.dataset_requirements.validate_dataset(
-                    dataset.column_names, len(dataset)
+                    columns, len(dataset)
                 )
             )
 
@@ -950,7 +1027,7 @@ class Flow(BaseModel):
 
     def dry_run(
         self,
-        dataset: Dataset,
+        dataset: Union[pd.DataFrame, datasets.Dataset],
         sample_size: int = 2,
         runtime_params: Optional[dict[str, dict[str, Any]]] = None,
         max_concurrency: Optional[int] = None,
@@ -960,8 +1037,9 @@ class Flow(BaseModel):
 
         Parameters
         ----------
-        dataset : Dataset
-            Input dataset to test with.
+        dataset : Union[pd.DataFrame, datasets.Dataset]
+            Input dataset to test with. Can be either pandas DataFrame or HuggingFace Dataset
+            (will be automatically converted to DataFrame for backwards compatibility).
         sample_size : int, default=2
             Number of samples to use for dry run testing.
         runtime_params : Optional[Dict[str, Dict[str, Any]]], optional
@@ -986,6 +1064,9 @@ class Flow(BaseModel):
         FlowValidationError
             If any block fails during dry run execution.
         """
+        # Convert to DataFrame if needed (backwards compatibility)
+        dataset, _ = self._convert_to_dataframe(dataset)
+
         # Validate preconditions
         if not self.blocks:
             raise FlowValidationError("Cannot dry run empty flow")
@@ -1017,7 +1098,7 @@ class Flow(BaseModel):
         )
 
         # Create subset dataset
-        sample_dataset = dataset.select(range(actual_sample_size))
+        sample_dataset = dataset.iloc[:actual_sample_size]
 
         # Initialize dry run results
         dry_run_results = {
@@ -1026,7 +1107,7 @@ class Flow(BaseModel):
             "sample_size": actual_sample_size,
             "original_dataset_size": len(dataset),
             "max_concurrency": max_concurrency,
-            "input_columns": dataset.column_names,
+            "input_columns": dataset.columns.tolist(),
             "blocks_executed": [],
             "final_dataset": None,
             "execution_successful": True,
@@ -1070,7 +1151,7 @@ class Flow(BaseModel):
                     "execution_time_seconds": block_execution_time,
                     "input_rows": input_rows,
                     "output_rows": len(current_dataset),
-                    "output_columns": current_dataset.column_names,
+                    "output_columns": current_dataset.columns.tolist(),
                     "parameters_used": block_kwargs,
                 }
 
@@ -1079,14 +1160,14 @@ class Flow(BaseModel):
                 logger.info(
                     f"Dry run block '{block.block_name}' completed: "
                     f"{len(current_dataset)} samples, "
-                    f"{len(current_dataset.column_names)} columns, "
+                    f"{len(current_dataset.columns)} columns, "
                     f"{block_execution_time:.2f}s"
                 )
 
             # Store final results
             dry_run_results["final_dataset"] = {
                 "rows": len(current_dataset),
-                "columns": current_dataset.column_names,
+                "columns": current_dataset.columns.tolist(),
                 "sample_data": current_dataset.to_dict()
                 if len(current_dataset) > 0
                 else {},
@@ -1121,7 +1202,7 @@ class Flow(BaseModel):
     def _estimate_total_time(
         self,
         first_run_results: dict[str, Any],
-        dataset: Dataset,
+        dataset: pd.DataFrame,
         runtime_params: Optional[dict[str, dict[str, Any]]],
         max_concurrency: Optional[int],
     ) -> dict[str, Any]:
@@ -1134,7 +1215,7 @@ class Flow(BaseModel):
         ----------
         first_run_results : dict
             Results from the first dry run.
-        dataset : Dataset
+        dataset : pd.DataFrame
             Full dataset for estimation.
         runtime_params : Optional[dict]
             Runtime parameters.
@@ -1283,13 +1364,13 @@ class Flow(BaseModel):
         """
         return self.metadata.dataset_requirements
 
-    def get_dataset_schema(self) -> Dataset:
+    def get_dataset_schema(self) -> pd.DataFrame:
         """Get an empty dataset with the correct schema for this flow.
 
         Returns
         -------
-        Dataset
-            Empty HuggingFace Dataset with the correct schema/features for this flow.
+        pd.DataFrame
+            Empty DataFrame with the correct schema/features for this flow.
             Users can add data to this dataset or use it to validate their own dataset schema.
 
         Examples
@@ -1305,50 +1386,51 @@ class Flow(BaseModel):
         ... })
         >>>
         >>> # Or validate your existing dataset schema
-        >>> my_dataset = Dataset.from_dict(my_data)
-        >>> if my_dataset.features == schema_dataset.features:
+        >>> my_dataset = pd.DataFrame(my_data)
+        >>> if my_dataset.dtypes.equals(schema_dataset.dtypes):
         ...     print("Schema matches!")
         """
 
         requirements = self.get_dataset_requirements()
 
         if requirements is None:
-            # Return empty dataset with no schema requirements
-            return Dataset.from_dict({})
+            # Return empty dataframe with no schema requirements
+            return pd.DataFrame({})
 
-        # Build schema features
-        schema_features = {}
+        # Build schema with column names and dtypes
+        schema = {}
 
         # Process required columns
         for col_name in requirements.required_columns:
             col_type = requirements.column_types.get(col_name, "string")
-            schema_features[col_name] = self._map_column_type_to_feature(col_type)
+            schema[col_name] = self._map_column_type_to_dtype(col_type)
 
         # Process optional columns
         for col_name in requirements.optional_columns:
             col_type = requirements.column_types.get(col_name, "string")
-            schema_features[col_name] = self._map_column_type_to_feature(col_type)
+            schema[col_name] = self._map_column_type_to_dtype(col_type)
 
-        # Create empty dataset with the correct features
-        features = datasets.Features(schema_features)
-        empty_data = {col_name: [] for col_name in schema_features.keys()}
+        # Create empty dataframe with the correct dtypes
+        empty_data = {
+            col_name: pd.Series([], dtype=dtype) for col_name, dtype in schema.items()
+        }
 
-        return Dataset.from_dict(empty_data, features=features)
+        return pd.DataFrame(empty_data)
 
-    def _map_column_type_to_feature(self, col_type: str):
-        """Map column type string to HuggingFace feature type."""
-        # Map common type names to HuggingFace types
+    def _map_column_type_to_dtype(self, col_type: str):
+        """Map column type string to pandas dtype."""
+        # Map common type names to pandas dtypes
         if col_type in ["str", "string", "text"]:
-            return datasets.Value("string")
+            return "object"  # pandas uses 'object' for strings
         elif col_type in ["int", "integer"]:
-            return datasets.Value("int64")
+            return "Int64"  # nullable integer
         elif col_type in ["float", "number"]:
-            return datasets.Value("float64")
+            return "float64"
         elif col_type in ["bool", "boolean"]:
-            return datasets.Value("bool")
+            return "boolean"  # nullable boolean
         else:
-            # Default to string for unknown types
-            return datasets.Value("string")
+            # Default to object (string) for unknown types
+            return "object"
 
     def print_info(self) -> None:
         """

@@ -9,9 +9,10 @@ containing a structured JSON object with specified field names.
 from typing import Any, Dict
 import json
 
-# Third Party
-from datasets import Dataset
 from pydantic import Field, field_validator
+
+# Third Party
+import pandas as pd
 
 # Local
 from ...utils.logger_config import setup_logger
@@ -90,17 +91,17 @@ class JSONStructureBlock(BaseBlock):
 
         raise ValueError("input_cols must be a list of column names")
 
-    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         """Generate a dataset with JSON structured output.
 
         Parameters
         ----------
-        samples : Dataset
+        samples : pd.DataFrame
             Input dataset to process.
 
         Returns
         -------
-        Dataset
+        pd.DataFrame
             Dataset with JSON structured output in the specified column.
         """
         if not self.output_cols:
@@ -109,17 +110,17 @@ class JSONStructureBlock(BaseBlock):
         output_col = self.output_cols[0]
         field_mapping = self._get_field_mapping()
 
-        def _create_json_structure(sample):
+        def _create_json_structure(row):
             """Create JSON structure from input columns."""
             json_obj = {}
 
             # Build the JSON object using the field mapping
             for json_field, col_name in field_mapping.items():
-                if col_name not in sample:
-                    logger.warning(f"Input column '{col_name}' not found in sample")
+                if col_name not in row.index:
+                    logger.warning(f"Input column '{col_name}' not found in row")
                     json_obj[json_field] = None
                 else:
-                    value = sample[col_name]
+                    value = row[col_name]
                     if self.ensure_json_serializable:
                         value = self._make_json_serializable(value)
                     json_obj[json_field] = value
@@ -130,13 +131,15 @@ class JSONStructureBlock(BaseBlock):
                     json_string = json.dumps(json_obj, indent=2, ensure_ascii=False)
                 else:
                     json_string = json.dumps(json_obj, ensure_ascii=False)
-                sample[output_col] = json_string
+                return json_string
             except (TypeError, ValueError) as e:
                 logger.error(f"Failed to serialize JSON object: {e}")
-                sample[output_col] = "{}"
+                return "{}"
 
-            return sample
+        # Create a copy to avoid modifying the input
+        result = samples.copy()
 
         # Apply the JSON structuring to all samples
-        result = samples.map(_create_json_structure)
+        result[output_col] = result.apply(_create_json_structure, axis=1)
+
         return result

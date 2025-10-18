@@ -1,10 +1,9 @@
 """Tests for the RenameColumnsBlock."""
 
 # Third Party
-from datasets import Dataset
-
 # First Party
 from sdg_hub.core.blocks.transform.rename_columns import RenameColumnsBlock
+import pandas as pd
 import pytest
 
 
@@ -16,7 +15,7 @@ def test_rename_columns_basic():
         "summary": ["sum1", "sum2"],
         "other": ["other1", "other2"],
     }
-    dataset = Dataset.from_dict(data)
+    dataset = pd.DataFrame(data)
 
     # Initialize the block with column mapping (no chained renames)
     block = RenameColumnsBlock(
@@ -28,22 +27,22 @@ def test_rename_columns_basic():
     result = block.generate(dataset)
 
     # Verify the results
-    assert "raw_document" in result.column_names
-    assert "summary_text" in result.column_names
-    assert "other" in result.column_names
-    assert "document" not in result.column_names
-    assert "summary" not in result.column_names
+    assert "raw_document" in result.columns.tolist()
+    assert "summary_text" in result.columns.tolist()
+    assert "other" in result.columns.tolist()
+    assert "document" not in result.columns.tolist()
+    assert "summary" not in result.columns.tolist()
 
     # Check values are preserved
-    assert result["raw_document"] == ["doc1", "doc2"]
-    assert result["summary_text"] == ["sum1", "sum2"]
-    assert result["other"] == ["other1", "other2"]
+    assert result["raw_document"].tolist() == ["doc1", "doc2"]
+    assert result["summary_text"].tolist() == ["sum1", "sum2"]
+    assert result["other"].tolist() == ["other1", "other2"]
 
 
 def test_rename_columns_nonexistent_column():
     """Test behavior when trying to rename a non-existent column."""
     data = {"col1": [1, 2]}
-    dataset = Dataset.from_dict(data)
+    dataset = pd.DataFrame(data)
 
     block = RenameColumnsBlock(
         block_name="test_nonexistent", input_cols={"nonexistent": "new_col"}
@@ -51,7 +50,7 @@ def test_rename_columns_nonexistent_column():
 
     # Should raise ValueError when trying to rename non-existent column
     with pytest.raises(
-        ValueError, match="Original column names {'nonexistent'} not in the dataset"
+        ValueError, match=r"Original column names \['nonexistent'\] not in the dataset"
     ):
         block.generate(dataset)
 
@@ -59,7 +58,7 @@ def test_rename_columns_nonexistent_column():
 def test_rename_columns_overwrite():
     """Test that renaming to an existing column name raises an error."""
     data = {"col1": [1, 2], "col2": [3, 4]}
-    dataset = Dataset.from_dict(data)
+    dataset = pd.DataFrame(data)
 
     block = RenameColumnsBlock(block_name="test_overwrite", input_cols={"col1": "col2"})
 
@@ -73,7 +72,7 @@ def test_rename_columns_overwrite():
 def test_rename_columns_preserve_data():
     """Test that data values are preserved after renaming."""
     data = {"old_name": ["value1", "value2", "value3"], "other_col": [1, 2, 3]}
-    dataset = Dataset.from_dict(data)
+    dataset = pd.DataFrame(data)
 
     block = RenameColumnsBlock(
         block_name="test_preserve", input_cols={"old_name": "new_name"}
@@ -82,5 +81,5 @@ def test_rename_columns_preserve_data():
     result = block.generate(dataset)
 
     # Check that values are preserved
-    assert result["new_name"] == dataset["old_name"]
-    assert result["other_col"] == dataset["other_col"]
+    assert result["new_name"].equals(dataset["old_name"])
+    assert result["other_col"].equals(dataset["other_col"])

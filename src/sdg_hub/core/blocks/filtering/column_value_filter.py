@@ -9,9 +9,10 @@ using various operations with optional data type conversion.
 from typing import Any, Optional, Union
 import operator
 
-# Third Party
-from datasets import Dataset
 from pydantic import Field, field_validator
+
+# Third Party
+import pandas as pd
 
 # Local
 from ...utils.logger_config import setup_logger
@@ -158,32 +159,44 @@ class ColumnValueFilterBlock(BaseBlock):
             sample[self.column_name] = None
         return sample
 
-    def generate(self, samples: Dataset, **_kwargs: Any) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **_kwargs: Any) -> pd.DataFrame:
         """Generate filtered dataset based on specified conditions.
 
         Parameters
         ----------
-        samples : Dataset
+        samples : pd.DataFrame
             The input dataset to filter.
 
         Returns
         -------
-        Dataset
+        pd.DataFrame
             The filtered dataset.
         """
+        result = samples.copy()
+
+        # Convert dtype if specified
         if self._convert_dtype_func:
-            samples = samples.map(self._convert_dtype)
 
-        samples = samples.filter(
-            lambda x: x[self.column_name] is not None,
+            def safe_convert(x):
+                """Safely convert value, returning None on error."""
+                if pd.isna(x):
+                    return None
+                try:
+                    return self._convert_dtype_func(x)
+                except (ValueError, TypeError):
+                    return None
+
+            result[self.column_name] = result[self.column_name].apply(safe_convert)
+
+        # Filter out None values
+        result = result[result[self.column_name].notna()]
+
+        # Apply filter operation using boolean indexing
+        # Create a mask that checks if any filter value matches
+        mask = result[self.column_name].apply(
+            lambda x: any(self._operation_func(x, value) for value in self.filter_value)
         )
 
-        # Apply filter operation
-        samples = samples.filter(
-            lambda x: any(
-                self._operation_func(x[self.column_name], value)
-                for value in self.filter_value
-            )
-        )
+        result = result[mask]
 
-        return samples
+        return result

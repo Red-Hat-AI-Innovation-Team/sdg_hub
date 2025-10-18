@@ -4,26 +4,26 @@
 # Standard
 from unittest.mock import patch
 
-# Third Party
-from datasets import Dataset
-
 # First Party
 from sdg_hub import BaseBlock, BlockRegistry
 from sdg_hub.core.blocks.registry import BlockMetadata
+
+# Third Party
+import pandas as pd
 import pytest
 
 
 class MockBlock(BaseBlock):
     """Mock block for testing."""
 
-    def generate(self, samples: Dataset, **kwargs) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
         return samples
 
 
 class OldStyleBlock:
     """Old style block without BaseBlock inheritance."""
 
-    def generate(self, samples: Dataset, **kwargs) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
         return samples
 
 
@@ -92,7 +92,7 @@ class TestBlockRegistry:
 
         @BlockRegistry.register("TestBlock", "test", "A test block")
         class TestBlock(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         # Check metadata is stored
@@ -115,7 +115,7 @@ class TestBlockRegistry:
                 "OldBlock", "test", deprecated=True, replacement="NewBlock"
             )
             class OldBlock(BaseBlock):
-                def generate(self, samples: Dataset, **kwargs) -> Dataset:
+                def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                     return samples
 
             # Check warning was logged
@@ -139,7 +139,7 @@ class TestBlockRegistry:
 
             @BlockRegistry.register("InvalidBlock", "test")
             class InvalidBlock:
-                def generate(self, samples: Dataset, **kwargs) -> Dataset:
+                def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                     return samples
 
     def test_register_missing_generate_method(self):
@@ -166,7 +166,7 @@ class TestBlockRegistry:
 
         @BlockRegistry.register("TestBlock", "test")
         class TestBlock(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         retrieved_class = BlockRegistry._get("TestBlock")
@@ -186,7 +186,7 @@ class TestBlockRegistry:
 
         @BlockRegistry.register("TestBlock", "test")
         class TestBlock(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         with pytest.raises(KeyError) as exc_info:
@@ -203,7 +203,7 @@ class TestBlockRegistry:
                 "OldBlock", "test", deprecated=True, replacement="NewBlock"
             )
             class OldBlock(BaseBlock):
-                def generate(self, samples: Dataset, **kwargs) -> Dataset:
+                def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                     return samples
 
             # Clear previous calls from registration
@@ -223,12 +223,12 @@ class TestBlockRegistry:
 
         @BlockRegistry.register("Block1", "category1")
         class Block1(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         @BlockRegistry.register("Block2", "category2")
         class Block2(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         categories = BlockRegistry.categories()
@@ -239,17 +239,17 @@ class TestBlockRegistry:
 
         @BlockRegistry.register("Block1", "test")
         class Block1(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         @BlockRegistry.register("Block2", "test")
         class Block2(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         @BlockRegistry.register("Block3", "other")
         class Block3(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         test_blocks = BlockRegistry.list_blocks(category="test")
@@ -269,17 +269,17 @@ class TestBlockRegistry:
 
         @BlockRegistry.register("Block1", "category1")
         class Block1(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         @BlockRegistry.register("Block2", "category1")
         class Block2(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         @BlockRegistry.register("Block3", "category2")
         class Block3(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         blocks = BlockRegistry.list_blocks()
@@ -292,17 +292,17 @@ class TestBlockRegistry:
 
         @BlockRegistry.register("Block1", "category1")
         class Block1(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         @BlockRegistry.register("Block2", "category1")
         class Block2(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         @BlockRegistry.register("Block3", "category2")
         class Block3(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         blocks = BlockRegistry.list_blocks(grouped=True)
@@ -315,17 +315,17 @@ class TestBlockRegistry:
 
         @BlockRegistry.register("Block1", "category1")
         class Block1(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         @BlockRegistry.register("Block2", "category1")
         class Block2(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         @BlockRegistry.register("Block3", "category2")
         class Block3(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         # Test specific category
@@ -351,14 +351,14 @@ class TestBlockRegistry:
 
         @BlockRegistry.register("ActiveBlock", "test", "An active block")
         class ActiveBlock(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         @BlockRegistry.register(
             "DeprecatedBlock", "test", "A deprecated block", deprecated=True
         )
         class DeprecatedBlock(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         # Default behavior includes deprecated blocks
@@ -381,19 +381,19 @@ class TestBlockRegistry:
 
         @BlockRegistry.register("ActiveBlock", "test", "An active block")
         class ActiveBlock(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         @BlockRegistry.register(
             "DeprecatedBlock", "test", "A deprecated block", deprecated=True
         )
         class DeprecatedBlock(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         @BlockRegistry.register("OtherBlock", "other", "Another block")
         class OtherBlock(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         # Category with deprecated included (default)
@@ -411,14 +411,14 @@ class TestBlockRegistry:
 
         @BlockRegistry.register("ActiveBlock", "test", "An active block")
         class ActiveBlock(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         @BlockRegistry.register(
             "DeprecatedBlock", "test", "A deprecated block", deprecated=True
         )
         class DeprecatedBlock(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         @BlockRegistry.register(
@@ -428,7 +428,7 @@ class TestBlockRegistry:
             deprecated=True,
         )
         class OnlyDeprecatedBlock(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         # Grouped with deprecated included (default)
@@ -454,7 +454,7 @@ class TestBlockRegistry:
 
         @BlockRegistry.register("TestBlock", "test")
         class TestBlock(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         # The private method should exist but not be part of public API
@@ -481,14 +481,14 @@ class TestBlockRegistry:
 
         @BlockRegistry.register("ActiveBlock", "test", "An active test block")
         class ActiveBlock(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         @BlockRegistry.register(
             "DeprecatedBlock", "test", "A deprecated block", deprecated=True
         )
         class DeprecatedBlock(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         with patch("sdg_hub.core.blocks.registry.console") as mock_console:
@@ -517,7 +517,7 @@ class TestBlockRegistry:
             # Should work with generate method
             @BlockRegistry.register("OldStyleBlock", "test")
             class OldStyleBlock:
-                def generate(self, samples: Dataset, **kwargs) -> Dataset:
+                def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                     return samples
 
             # Should fail without generate method
@@ -532,12 +532,12 @@ class TestBlockRegistry:
 
         @BlockRegistry.register("Block1", "shared_category")
         class Block1(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         @BlockRegistry.register("Block2", "shared_category")
         class Block2(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         # Check both blocks are in the same category
@@ -551,7 +551,7 @@ class TestBlockRegistry:
 
         @BlockRegistry.register("ExistingBlock", "existing_category")
         class ExistingBlock(BaseBlock):
-            def generate(self, samples: Dataset, **kwargs) -> Dataset:
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
         with pytest.raises(KeyError) as exc_info:

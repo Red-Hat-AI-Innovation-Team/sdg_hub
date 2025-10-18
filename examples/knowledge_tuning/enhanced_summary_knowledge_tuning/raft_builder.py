@@ -22,7 +22,7 @@ def chunk_text(text: str, max_tokens: int = 400, overlap: int = 60) -> List[str]
     words = text.split()
     chunks, step = [], max(1, max_tokens - overlap)
     for start in range(0, len(words), step):
-        window = words[start:start + max_tokens]
+        window = words[start : start + max_tokens]
         if not window:
             break
         chunks.append(" ".join(window))
@@ -31,7 +31,7 @@ def chunk_text(text: str, max_tokens: int = 400, overlap: int = 60) -> List[str]
     return chunks
 
 
-_SENT_SPLIT = re.compile(r'(?<=[.!?])\s+')
+_SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
 
 def take_best_sentence(context: str, query: str) -> str:
@@ -41,14 +41,16 @@ def take_best_sentence(context: str, query: str) -> str:
     sents = _SENT_SPLIT.split(context.strip())
     if not sents:
         return context[:400]
-    vect = TfidfVectorizer(ngram_range=(1,2), min_df=1)
+    vect = TfidfVectorizer(ngram_range=(1, 2), min_df=1)
     X = vect.fit_transform(sents + [query])
     sims = cosine_similarity(X[:-1], X[-1])
     idx = int(np.argmax(sims))
     return sents[idx][:400]
 
 
-def default_answer_builder(example: Dict[str, Any], oracle_chunk: str) -> Tuple[str, str]:
+def default_answer_builder(
+    example: Dict[str, Any], oracle_chunk: str
+) -> Tuple[str, str]:
     """
     Build (support_quote, final_answer).
     - Use `messages` if available.
@@ -80,10 +82,10 @@ def default_answer_builder(example: Dict[str, Any], oracle_chunk: str) -> Tuple[
 # ========================
 @dataclass
 class RAFTConfig:
-    k_passages: int = 5              # total retrieved passages
+    k_passages: int = 5  # total retrieved passages
     max_tokens_per_chunk: int = 400
     chunk_overlap: int = 60
-    p_include_oracle: float = 0.9    # probability to include oracle
+    p_include_oracle: float = 0.9  # probability to include oracle
     quote_begin: str = "##begin_quote##"
     quote_end: str = "##end_quote##"
     instruction_template: str = (
@@ -102,10 +104,12 @@ class RAFTConfig:
 def build_raft_samples(
     hf_dataset,
     cfg: RAFTConfig = RAFTConfig(),
-    answer_builder: Callable[[Dict[str, Any], str], Tuple[str, str]] = default_answer_builder,
+    answer_builder: Callable[
+        [Dict[str, Any], str], Tuple[str, str]
+    ] = default_answer_builder,
     text_field: str = "document",
     question_field: str = "question",
-    group_by_doc: Optional[str] = "raw_document"
+    group_by_doc: Optional[str] = "raw_document",
 ) -> List[Dict[str, Any]]:
     """
     Builds RAFT-style training samples from your dataset.
@@ -124,7 +128,11 @@ def build_raft_samples(
     data = tmp
 
     def doc_id_for(ex):
-        return ex.get(group_by_doc) if group_by_doc and ex.get(group_by_doc) else f"doc_{ex['__row_id__']}"
+        return (
+            ex.get(group_by_doc)
+            if group_by_doc and ex.get(group_by_doc)
+            else f"doc_{ex['__row_id__']}"
+        )
 
     for ex in data:
         doc_text = (ex.get(text_field) or "").strip()
@@ -139,7 +147,7 @@ def build_raft_samples(
         return []
 
     # ---- Step 2: Fit TF-IDF retriever ----
-    vect = TfidfVectorizer(ngram_range=(1,2), min_df=1, max_df=0.98)
+    vect = TfidfVectorizer(ngram_range=(1, 2), min_df=1, max_df=0.98)
     X = vect.fit_transform([c["text"] for c in all_chunks])
 
     def retrieve_k(query: str, k: int) -> List[int]:
@@ -186,12 +194,20 @@ def build_raft_samples(
         for gid in chosen:
             c = all_chunks[gid]
             doc_entry = {
-                **({"doc_id": c["doc_id"], "passage_id": c["passage_id"]} if cfg.add_doc_ids else {}),
-                "text": c["text"]
+                **(
+                    {"doc_id": c["doc_id"], "passage_id": c["passage_id"]}
+                    if cfg.add_doc_ids
+                    else {}
+                ),
+                "text": c["text"],
             }
             documents.append(doc_entry)
 
-        oracle_chunk = all_chunks[oracle_gid]["text"] if oracle_gid is not None else documents[0]["text"]
+        oracle_chunk = (
+            all_chunks[oracle_gid]["text"]
+            if oracle_gid is not None
+            else documents[0]["text"]
+        )
         support_quote, final_answer = answer_builder(ex, oracle_chunk)
 
         quote_wrapped = f"{cfg.quote_begin} {support_quote} {cfg.quote_end}"
@@ -206,19 +222,18 @@ def build_raft_samples(
         else:
             oracle_index = 0
 
-        raft_records.append({
-            "question": q,
-            "context": [d["text"] for d in documents],
-            "oracle_context": oracle_chunk if oracle_gid is not None else "",
-            "cot_answer": output,
-            "answer": final_answer,
-            "instruction": cfg.instruction_template,
-            "type": "with_oracle" if oracle_gid is not None else "no_oracle",
-            "meta": {
-                "source_row": ex["__row_id__"],
-                "oracle_index": oracle_index
+        raft_records.append(
+            {
+                "question": q,
+                "context": [d["text"] for d in documents],
+                "oracle_context": oracle_chunk if oracle_gid is not None else "",
+                "cot_answer": output,
+                "answer": final_answer,
+                "instruction": cfg.instruction_template,
+                "type": "with_oracle" if oracle_gid is not None else "no_oracle",
+                "meta": {"source_row": ex["__row_id__"], "oracle_index": oracle_index},
             }
-        })
+        )
 
     return Dataset.from_list(raft_records)
 
@@ -239,14 +254,16 @@ def build_messages(raft_record: Dict[str, Any]):
     """
     # 1. User message: serialize passages + question
     passages = "\n\n".join(
-        [f"[Passage {i+1}] {p}" for i, p in enumerate(raft_record["context"])]
+        [f"[Passage {i + 1}] {p}" for i, p in enumerate(raft_record["context"])]
     )
     user_msg = f"Passages:\n{passages}\n\nQuestion: {raft_record['question']}"
 
     # 2. Assistant message: the gold output
     assistant_msg = raft_record["answer"]
 
-    return {"messages" : [
-        {"role": "user", "content": user_msg},
-        {"role": "assistant", "content": assistant_msg},
-    ]}
+    return {
+        "messages": [
+            {"role": "user", "content": user_msg},
+            {"role": "assistant", "content": assistant_msg},
+        ]
+    }

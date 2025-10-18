@@ -1,11 +1,11 @@
 # Standard
 from unittest.mock import patch
 
-# Third Party
-from datasets import Dataset
-
 # First Party
 from sdg_hub.core.blocks.llm import TextParserBlock
+
+# Third Party
+import pandas as pd
 import pytest
 
 
@@ -163,13 +163,13 @@ def test_generate_basic_functionality(postprocessing_block):
         {"raw_output": "Text <output>Result 1</output> more text"},
         {"raw_output": "Text <output>Result 2</output> more text"},
     ]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     result = postprocessing_block.generate(dataset)
 
     assert len(result) == 2
-    assert result[0]["output"] == "Result 1"
-    assert result[1]["output"] == "Result 2"
+    assert result.iloc[0]["output"] == "Result 1"
+    assert result.iloc[1]["output"] == "Result 2"
 
 
 def test_generate_custom_regex(postprocessing_block_with_custom_parser):
@@ -178,13 +178,13 @@ def test_generate_custom_regex(postprocessing_block_with_custom_parser):
         {"raw_output": "Question: Q1\nAnswer: A1"},
         {"raw_output": "Question: Q2\nAnswer: A2"},
     ]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     result = postprocessing_block_with_custom_parser.generate(dataset)
 
     assert len(result) == 2
-    assert result[0]["output"] == "A1"
-    assert result[1]["output"] == "A2"
+    assert result.iloc[0]["output"] == "A1"
+    assert result.iloc[1]["output"] == "A2"
 
 
 def test_generate_multiple_matches_per_input(postprocessing_block_multi_column):
@@ -199,15 +199,15 @@ def test_generate_multiple_matches_per_input(postprocessing_block_multi_column):
             """
         }
     ]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     result = postprocessing_block_multi_column.generate(dataset)
 
     assert len(result) == 2
-    assert result[0]["title"] == "Title 1"
-    assert result[0]["content"] == "Content 1"
-    assert result[1]["title"] == "Title 2"
-    assert result[1]["content"] == "Content 2"
+    assert result.iloc[0]["title"] == "Title 1"
+    assert result.iloc[0]["content"] == "Content 1"
+    assert result.iloc[1]["title"] == "Title 2"
+    assert result.iloc[1]["content"] == "Content 2"
 
 
 def test_generate_missing_input_column(postprocessing_block):
@@ -216,7 +216,7 @@ def test_generate_missing_input_column(postprocessing_block):
     from sdg_hub.core.utils.error_handling import MissingColumnError
 
     data = [{"other_column": "some text"}]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     # BaseBlock should handle validation and raise MissingColumnError
     with pytest.raises(MissingColumnError):
@@ -225,7 +225,7 @@ def test_generate_missing_input_column(postprocessing_block):
 
 def test_generate_empty_dataset(postprocessing_block):
     """Test generate functionality with empty dataset."""
-    dataset = Dataset.from_list([])
+    dataset = pd.DataFrame([])
 
     result = postprocessing_block.generate(dataset)
 
@@ -241,7 +241,7 @@ def test_generate_all_empty_parsed_outputs(postprocessing_block):
         {"raw_output": "Text without any tags"},
         {"raw_output": "More text without tags"},
     ]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     result = postprocessing_block.generate(dataset)
 
@@ -257,7 +257,7 @@ def test_generate_all_empty_parsed_outputs_custom_parser(
         {"raw_output": "Question: What is the answer?\nNo answer provided"},
         {"raw_output": "Another question without answer"},
     ]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     result = postprocessing_block_with_custom_parser.generate(dataset)
 
@@ -276,7 +276,7 @@ def test_constructor_validation_no_input_cols():
     )
 
     # Create test dataset
-    test_data = Dataset.from_list([{"test": "value"}])
+    test_data = pd.DataFrame([{"test": "value"}])
 
     # Validation should fail during execution
     with pytest.raises(
@@ -574,7 +574,7 @@ def test_validation_no_parsing_method_configured():
             output_cols=["output"],
             # No parsing_pattern, start_tags, or end_tags
         )
-        test_data = Dataset.from_list([{"raw_output": "test"}])
+        test_data = pd.DataFrame([{"raw_output": "test"}])
         block(test_data)
 
 
@@ -590,7 +590,7 @@ def test_validation_mismatched_tag_lengths():
             start_tags=["<start1>", "<start2>"],
             end_tags=["<end1>"],  # Missing second end tag
         )
-        test_data = Dataset.from_list([{"raw_output": "test"}])
+        test_data = pd.DataFrame([{"raw_output": "test"}])
         block(test_data)
 
 
@@ -604,7 +604,7 @@ def test_validation_tag_pairs_output_cols_mismatch():
             start_tags=["<start1>", "<start2>"],  # Only 2 tag pairs
             end_tags=["<end1>", "<end2>"],
         )
-        test_data = Dataset.from_list([{"raw_output": "test"}])
+        test_data = pd.DataFrame([{"raw_output": "test"}])
         block(test_data)
 
 
@@ -619,12 +619,12 @@ def test_validation_regex_only_configuration():
     )
 
     data = [{"raw_output": "Answer: test response"}]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     # Should not raise validation errors
     result = block(dataset)
     assert len(result) == 1
-    assert result[0]["output"] == "test response"
+    assert result.iloc[0]["output"] == "test response"
 
 
 def test_validation_tags_only_configuration():
@@ -639,12 +639,12 @@ def test_validation_tags_only_configuration():
     )
 
     data = [{"raw_output": "<answer>test response</answer>"}]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     # Should not raise validation errors
     result = block(dataset)
     assert len(result) == 1
-    assert result[0]["output"] == "test response"
+    assert result.iloc[0]["output"] == "test response"
 
 
 def test_enhanced_error_handling_invalid_input_data():
@@ -665,7 +665,7 @@ def test_enhanced_error_handling_invalid_input_data():
 
     warning_count = 0
     for data in test_cases:
-        dataset = Dataset.from_list(data)
+        dataset = pd.DataFrame(data)
 
         with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
             result = block.generate(dataset)
@@ -690,7 +690,7 @@ def test_enhanced_logging_for_parsing_failures():
 
     # Test with input that won't match the pattern
     data = [{"raw_output": "No tags in this text"}]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
         block.generate(dataset)
@@ -717,7 +717,7 @@ def test_enhanced_logging_missing_input_column():
     )
 
     data = [{"other_column": "test"}]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     # BaseBlock should validate and raise MissingColumnError
     with pytest.raises(MissingColumnError):
@@ -734,7 +734,7 @@ def test_enhanced_logging_regex_parsing():
     )
 
     data = [{"raw_output": "Answer: test response"}]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
         block.generate(dataset)
@@ -757,7 +757,7 @@ def test_enhanced_logging_tag_parsing():
     )
 
     data = [{"raw_output": "<answer>test response</answer>"}]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
         block.generate(dataset)
@@ -781,12 +781,12 @@ def test_generate_with_string_input():
 
     # String input
     data = [{"raw_output": "<answer>String response</answer>"}]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     result = block.generate(dataset)
 
     assert len(result) == 1
-    assert result[0]["output"] == "String response"
+    assert result.iloc[0]["output"] == "String response"
 
 
 def test_generate_with_empty_string_input():
@@ -801,7 +801,7 @@ def test_generate_with_empty_string_input():
 
     # Empty string should trigger warning and return empty result
     data = [{"raw_output": ""}]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
         result = block.generate(dataset)
@@ -833,13 +833,13 @@ def test_generate_with_list_input_basic():
             ]
         }
     ]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     result = block.generate(dataset)
 
     # Should return single row with all parsed results collected as lists
     assert len(result) == 1
-    assert result[0]["output"] == [
+    assert result.iloc[0]["output"] == [
         "First response",
         "Second response",
         "Third response",
@@ -867,14 +867,17 @@ def test_generate_with_list_input_parsing_failures():
             ]
         }
     ]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
         result = block.generate(dataset)
 
         # Should process only the 2 parseable responses
         assert len(result) == 1
-        assert result[0]["output"] == ["Parseable response 1", "Parseable response 2"]
+        assert result.iloc[0]["output"] == [
+            "Parseable response 1",
+            "Parseable response 2",
+        ]
 
         # Should log warnings for parsing failures
         warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
@@ -899,14 +902,14 @@ def test_generate_with_invalid_list_items():
     # Test with separate datasets since PyArrow doesn't handle mixed types well
     # Test with valid string and empty string
     data = [{"raw_output": ["<answer>Valid</answer>", ""]}]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
         result = block.generate(dataset)
 
         # Should process only the valid string
         assert len(result) == 1
-        assert result[0]["output"] == ["Valid"]
+        assert result.iloc[0]["output"] == ["Valid"]
 
         # Should log warning for empty string
         warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
@@ -924,7 +927,7 @@ def test_generate_with_empty_list_input():
     )
 
     data = [{"raw_output": []}]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
         result = block.generate(dataset)
@@ -948,7 +951,7 @@ def test_generate_with_invalid_input_type():
 
     # Test with dict input (invalid type - should be string or list of strings)
     data = [{"raw_output": {"content": "test"}}]
-    dataset = Dataset.from_list(data)
+    dataset = pd.DataFrame(data)
 
     with patch("sdg_hub.core.blocks.llm.text_parser_block.logger") as mock_logger:
         result = block.generate(dataset)

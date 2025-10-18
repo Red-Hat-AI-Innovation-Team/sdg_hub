@@ -3,18 +3,18 @@
 # Standard
 import json
 
-# Third Party
-from datasets import Dataset
-
 # First Party
 from sdg_hub.core.blocks.transform import JSONStructureBlock
+
+# Third Party
+import pandas as pd
 import pytest
 
 
 @pytest.fixture
 def sample_dataset():
     """Create a sample dataset for testing."""
-    return Dataset.from_dict(
+    return pd.DataFrame(
         {
             "summary": [
                 "This is a short summary",
@@ -40,7 +40,7 @@ def sample_dataset():
 @pytest.fixture
 def simple_dataset():
     """Create a simple dataset for basic testing."""
-    return Dataset.from_dict(
+    return pd.DataFrame(
         {
             "text": ["Sample text 1", "Sample text 2"],
             "score": [85, 92],
@@ -59,16 +59,16 @@ def test_basic_json_structure_with_list_input_cols(sample_dataset):
 
     result = block.generate(sample_dataset)
 
-    assert "structured_output" in result.column_names
+    assert "structured_output" in result.columns.tolist()
 
     # Parse the JSON output for first sample
-    json_data = json.loads(result[0]["structured_output"])
+    json_data = json.loads(result.iloc[0]["structured_output"])
     assert json_data["summary"] == "This is a short summary"
     assert json_data["sentiment"] == "positive"
 
     # Check all samples have valid JSON
     for i in range(len(result)):
-        parsed = json.loads(result[i]["structured_output"])
+        parsed = json.loads(result.iloc[i]["structured_output"])
         assert "summary" in parsed
         assert "sentiment" in parsed
 
@@ -84,7 +84,7 @@ def test_all_column_types(sample_dataset):
     result = block.generate(sample_dataset)
 
     # Parse the JSON output for first sample
-    json_data = json.loads(result[0]["structured_output"])
+    json_data = json.loads(result.iloc[0]["structured_output"])
 
     # Check string
     assert json_data["summary"] == "This is a short summary"
@@ -111,7 +111,7 @@ def test_pretty_print_option(simple_dataset):
 
     result = block.generate(simple_dataset)
 
-    json_output = result[0]["structured_output"]
+    json_output = result.iloc[0]["structured_output"]
 
     # Pretty printed JSON should contain newlines and indentation
     assert "\n" in json_output
@@ -134,7 +134,7 @@ def test_missing_columns_handling(simple_dataset):
     result = block.generate(simple_dataset)
 
     # Should not raise error, but set missing columns to null
-    json_data = json.loads(result[0]["structured_output"])
+    json_data = json.loads(result.iloc[0]["structured_output"])
     assert json_data["text"] == "Sample text 1"
     assert json_data["missing_col"] is None
 
@@ -142,7 +142,7 @@ def test_missing_columns_handling(simple_dataset):
 def test_json_serialization_with_complex_objects():
     """Test JSON serialization with non-serializable objects."""
     # Create dataset with complex objects
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "simple_str": ["text"],
             "simple_list": [["a", "b"]],
@@ -159,7 +159,7 @@ def test_json_serialization_with_complex_objects():
 
     result = block.generate(dataset)
 
-    json_data = json.loads(result[0]["structured_output"])
+    json_data = json.loads(result.iloc[0]["structured_output"])
     assert json_data["simple_str"] == "text"
     assert json_data["simple_list"] == ["a", "b"]
     assert json_data["simple_dict"] == {"key": "value"}
@@ -168,7 +168,7 @@ def test_json_serialization_with_complex_objects():
 
 def test_disable_json_serialization_check():
     """Test disabling JSON serialization checks."""
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "text": ["sample text"],
             "number": [42],
@@ -185,7 +185,7 @@ def test_disable_json_serialization_check():
     result = block.generate(dataset)
 
     # Should still work with basic types
-    json_data = json.loads(result[0]["structured_output"])
+    json_data = json.loads(result.iloc[0]["structured_output"])
     assert json_data["text"] == "sample text"
     assert json_data["number"] == 42
 
@@ -216,7 +216,7 @@ def test_empty_output_cols():
 
 def test_empty_dataset():
     """Test behavior with empty dataset."""
-    empty_dataset = Dataset.from_dict({})
+    empty_dataset = pd.DataFrame({})
 
     block = JSONStructureBlock(
         block_name="test_json",
@@ -253,10 +253,10 @@ def test_large_dataset_performance(sample_dataset):
     """Test performance with larger datasets."""
     # Create a larger dataset by repeating the sample
     large_data = {}
-    for col in sample_dataset.column_names:
+    for col in sample_dataset.columns.tolist():
         large_data[col] = list(sample_dataset[col]) * 100  # 300 samples total
 
-    large_dataset = Dataset.from_dict(large_data)
+    large_dataset = pd.DataFrame(large_data)
 
     block = JSONStructureBlock(
         block_name="test_json",
@@ -268,8 +268,8 @@ def test_large_dataset_performance(sample_dataset):
 
     assert len(result) == 300
     # Spot check a few samples
-    json_data_first = json.loads(result[0]["structured_output"])
-    json_data_last = json.loads(result[-1]["structured_output"])
+    json_data_first = json.loads(result.iloc[0]["structured_output"])
+    json_data_last = json.loads(result.iloc[-1]["structured_output"])
 
     assert "summary" in json_data_first
     assert "sentiment" in json_data_first
@@ -279,7 +279,7 @@ def test_large_dataset_performance(sample_dataset):
 
 def test_unicode_and_special_characters():
     """Test handling of unicode and special characters."""
-    dataset = Dataset.from_dict(
+    dataset = pd.DataFrame(
         {
             "text": ["Hello 世界", "Special chars: !@#$%^&*()"],
             "emoji": ["😀😂🔥", "🚀✨💡"],
@@ -294,10 +294,10 @@ def test_unicode_and_special_characters():
 
     result = block.generate(dataset)
 
-    json_data = json.loads(result[0]["structured_output"])
+    json_data = json.loads(result.iloc[0]["structured_output"])
     assert json_data["text"] == "Hello 世界"
     assert json_data["emoji"] == "😀😂🔥"
 
-    json_data = json.loads(result[1]["structured_output"])
+    json_data = json.loads(result.iloc[1]["structured_output"])
     assert json_data["text"] == "Special chars: !@#$%^&*()"
     assert json_data["emoji"] == "🚀✨💡"
