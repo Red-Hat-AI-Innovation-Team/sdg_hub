@@ -89,6 +89,9 @@ tests/integration/**/converted_scripts/
 tests/integration/**/test_output/
 tests/integration/**/output_data/
 
+# SDG Hub checkpoints
+.sdg_hub_checkpoints/
+
 # IPython
 profile_default/
 ipython_config.py

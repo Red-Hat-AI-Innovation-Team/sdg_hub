@@ -19,14 +19,23 @@ import yaml
 @pytest.fixture
 def temp_dir():
     """Create a temporary directory for tests."""
-    temp_dir = tempfile.mkdtemp()
-    yield temp_dir
-
-    # Cleanup
     # Standard
     import shutil
 
+    # Clean up default checkpoint directory BEFORE test (to avoid pollution from previous tests)
+    default_checkpoint_dir = Path(".sdg_hub_checkpoints")
+    if default_checkpoint_dir.exists():
+        shutil.rmtree(default_checkpoint_dir)
+
+    temp_dir = tempfile.mkdtemp()
+    yield temp_dir
+
+    # Cleanup AFTER test
     shutil.rmtree(temp_dir)
+
+    # Clean up default checkpoint directory again
+    if default_checkpoint_dir.exists():
+        shutil.rmtree(default_checkpoint_dir)
 
 
 @pytest.fixture

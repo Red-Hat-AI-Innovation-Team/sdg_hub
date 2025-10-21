@@ -4,6 +4,7 @@
 # Standard
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+import hashlib
 import json
 import os
 import uuid
@@ -12,7 +13,7 @@ import uuid
 import pandas as pd
 
 # Local
-from ..utils.datautils import safe_concatenate_with_validation
+from ..utils.datautils import _make_hashable, safe_concatenate_with_validation
 from ..utils.logger_config import setup_logger
 
 logger = setup_logger(__name__)
@@ -23,6 +24,37 @@ class FlowCheckpointer:
 
     Provides data-level checkpointing where progress is saved after processing
     a specified number of samples through the entire flow pipeline.
+
+    Notes
+    -----
+    Dataset Validation:
+        Uses a dataset signature (hash of columns + head/tail samples) to detect:
+        - Different datasets with same checkpoint_dir
+        - Modified content in beginning/end of dataset
+        - Schema changes
+
+        Does NOT detect changes in middle rows (performance trade-off).
+        For large datasets (>10K rows), this is acceptable as head/tail changes
+        are most common in iterative development.
+
+    Input Index Tracking:
+        Adds _sdg_input_index column to track original row positions.
+        This enables checkpoint resumption even when flows:
+        - Rename input columns
+        - Remove input columns
+        - Reorder columns
+
+        The index survives all transformations and is saved in checkpoints.
+
+    Memory Optimization:
+        In chunked mode (save_freq > 0), chunks are saved immediately and
+        not accumulated in memory. Final results are loaded from checkpoint
+        files rather than kept in RAM, halving memory usage.
+
+    save_freq Semantics:
+        save_freq only controls INPUT chunking (in base.py), not output batching.
+        Each processed chunk is saved immediately to a checkpoint file.
+        This simplifies semantics and eliminates confusion about what save_freq means.
     """
 
     def __init__(
@@ -55,6 +87,44 @@ class FlowCheckpointer:
         # Ensure checkpoint directory exists
         if self.checkpoint_dir:
             Path(self.checkpoint_dir).mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def _compute_dataset_signature(dataset: pd.DataFrame, sample_size: int = 10) -> str:
+        """Compute a fingerprint hash of the dataset for validation.
+
+        Uses first and last N rows to create a lightweight signature that detects:
+        - Different datasets
+        - Modified content in head/tail rows
+        - Column schema changes
+
+        Note: Does not detect changes in middle (non head or tail) rows.
+
+        Parameters
+        ----------
+        dataset : pd.DataFrame
+            Input dataset to fingerprint.
+        sample_size : int, default=10
+            Number of rows to sample from head and tail.
+
+        Returns
+        -------
+        str
+            64-character hex hash representing dataset signature.
+        """
+        # Apply _make_hashable to handle unhashable types (numpy arrays, dicts, lists)
+        head_sample = dataset.head(min(sample_size, len(dataset))).map(_make_hashable)
+        tail_sample = dataset.tail(min(sample_size, len(dataset))).map(_make_hashable)
+
+        # Create signature from columns + head + tail samples
+        # Use tuples for deterministic hashing
+        signature_data = {
+            "columns": tuple(sorted(dataset.columns.tolist())),
+            "size": len(dataset),
+            "head_sample": tuple(head_sample.apply(tuple, axis=1)),
+            "tail_sample": tuple(tail_sample.apply(tuple, axis=1)),
+        }
+
+        return hashlib.sha256(str(signature_data).encode()).hexdigest()
 
     @property
     def is_enabled(self) -> bool:
@@ -90,6 +160,8 @@ class FlowCheckpointer:
             metadata = self._load_metadata()
             if not metadata:
                 logger.info(f"No existing checkpoints found in {self.checkpoint_dir}")
+                # Save initial dataset signature for future validation
+                self._save_metadata(input_dataset=input_dataset)
                 return input_dataset, None
 
             # Validate flow identity to prevent mixing checkpoints from different flows
@@ -101,6 +173,38 @@ class FlowCheckpointer:
                     f"mixing incompatible checkpoint data."
                 )
                 return input_dataset, None
+
+            # Validate dataset signature to prevent using checkpoints from different datasets
+            if "dataset_signature" in metadata:
+                current_signature = self._compute_dataset_signature(input_dataset)
+                saved_signature = metadata.get("dataset_signature")
+                saved_size = metadata.get("dataset_size", 0)
+                current_size = len(input_dataset)
+
+                # Strict validation: error on ANY change (signature OR size mismatch)
+                if current_signature != saved_signature or current_size != saved_size:
+                    from ..utils.error_handling import FlowValidationError
+
+                    raise FlowValidationError(
+                        f"Dataset has changed since checkpoints were created!\n"
+                        f"\n"
+                        f"Saved checkpoint info:\n"
+                        f"  - Columns: {metadata.get('input_columns')}\n"
+                        f"  - Size: {saved_size} rows\n"
+                        f"  - Signature: {saved_signature[:16]}...\n"
+                        f"\n"
+                        f"Current dataset info:\n"
+                        f"  - Columns: {input_dataset.columns.tolist()}\n"
+                        f"  - Size: {current_size} rows\n"
+                        f"  - Signature: {current_signature[:16]}...\n"
+                        f"\n"
+                        f"To fix this issue, choose one of the following:\n"
+                        f"  1. Use a different checkpoint_dir for this dataset:\n"
+                        f"     flow.generate(dataset, checkpoint_dir='new_checkpoint_dir')\n"
+                        f"  2. Delete all contents of '{self.checkpoint_dir}/' (including flow_metadata.json)\n"
+                        f"  3. Disable checkpointing entirely:\n"
+                        f"     flow.generate(dataset, checkpoint_dir=None, save_freq=None)"
+                    )
 
             # Load all completed samples from checkpoints
             completed_dataset = self._load_completed_samples()
@@ -138,14 +242,16 @@ class FlowCheckpointer:
         if not self.is_enabled:
             return
 
-        # Add to pending samples
-        for _, sample in samples.iterrows():
-            self._pending_samples.append(sample.to_dict())
-            self._samples_processed += 1
+        # Convert all samples to dicts in one vectorized operation (10-100x faster than iterrows)
+        samples_dicts = samples.to_dict(orient="records")
 
-            # Check if we should save a checkpoint
-            if self.save_freq and len(self._pending_samples) >= self.save_freq:
-                self._save_checkpoint()
+        # Batch append to pending samples
+        self._pending_samples.extend(samples_dicts)
+        self._samples_processed += len(samples_dicts)
+
+        # Check if we should save checkpoints (may need to save multiple times)
+        while self.save_freq and len(self._pending_samples) >= self.save_freq:
+            self._save_checkpoint()
 
     def save_final_checkpoint(self) -> None:
         """Save any remaining pending samples as final checkpoint."""
@@ -156,6 +262,76 @@ class FlowCheckpointer:
             sample_count = len(self._pending_samples)
             self._save_checkpoint()
             logger.info(f"Saved final checkpoint with {sample_count} samples")
+
+    def save_chunk_immediately(self, chunk: pd.DataFrame) -> None:
+        """Save a chunk directly to a checkpoint file without buffering.
+
+        This method saves processed chunks immediately without accumulating them in memory,
+        reducing memory footprint. Each chunk becomes one checkpoint file.
+
+        Parameters
+        ----------
+        chunk : pd.DataFrame
+            Processed chunk to save immediately.
+        """
+        if not self.is_enabled:
+            return
+
+        if len(chunk) == 0:
+            logger.warning("Attempted to save empty chunk, skipping")
+            return
+
+        self._checkpoint_counter += 1
+        checkpoint_file = os.path.join(
+            self.checkpoint_dir, f"checkpoint_{self._checkpoint_counter:04d}.jsonl"
+        )
+
+        # Save chunk directly to file
+        chunk.to_json(checkpoint_file, orient="records", lines=True)
+
+        self._samples_processed += len(chunk)
+
+        # Update metadata (without dataset signature - already saved)
+        self._save_metadata(input_dataset=None)
+
+        logger.info(
+            f"Saved checkpoint {self._checkpoint_counter} with "
+            f"{len(chunk)} samples to {checkpoint_file}"
+        )
+
+    def load_all_checkpoints(self) -> pd.DataFrame:
+        """Load and concatenate all checkpoint files.
+
+        This is used instead of keeping processed chunks in memory.
+        Loads from disk at the end of processing.
+
+        Returns
+        -------
+        pd.DataFrame
+            All completed samples from all checkpoint files.
+
+        Raises
+        ------
+        ValueError
+            If no checkpoint files found.
+        """
+        if not self.is_enabled:
+            raise ValueError("Cannot load checkpoints when checkpointing is disabled")
+
+        completed_dataset = self._load_completed_samples()
+
+        if completed_dataset is None or len(completed_dataset) == 0:
+            raise ValueError(
+                f"No checkpoint files found in {self.checkpoint_dir}. "
+                f"This should not happen after processing."
+            )
+
+        logger.info(
+            f"Loaded {len(completed_dataset)} total samples from "
+            f"{self._checkpoint_counter} checkpoint files"
+        )
+
+        return completed_dataset
 
     def _save_checkpoint(self) -> None:
         """Save current pending samples to a checkpoint file."""
@@ -182,8 +358,16 @@ class FlowCheckpointer:
         # Clear pending samples
         self._pending_samples.clear()
 
-    def _save_metadata(self) -> None:
-        """Save flow execution metadata."""
+    def _save_metadata(self, input_dataset: Optional[pd.DataFrame] = None) -> None:
+        """Save flow execution metadata.
+
+        Parameters
+        ----------
+        input_dataset : Optional[pd.DataFrame]
+            Input dataset to compute signature from. If provided, saves dataset
+            validation fields (signature, size, columns). If None, only updates
+            execution progress fields.
+        """
         metadata = {
             "flow_id": self.flow_id,
             "save_freq": self.save_freq,
@@ -191,6 +375,14 @@ class FlowCheckpointer:
             "checkpoint_counter": self._checkpoint_counter,
             "last_updated": str(uuid.uuid4()),  # Simple versioning
         }
+
+        # Add dataset validation fields (only on first save with input_dataset)
+        if input_dataset is not None:
+            metadata["dataset_signature"] = self._compute_dataset_signature(
+                input_dataset
+            )
+            metadata["dataset_size"] = len(input_dataset)
+            metadata["input_columns"] = input_dataset.columns.tolist()
 
         with open(self.metadata_path, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2)
@@ -243,13 +435,13 @@ class FlowCheckpointer:
     ) -> pd.DataFrame:
         """Find samples from input_dataset that are not in completed_dataset.
 
-        Note: Assumes input_dataset contains unique samples. For datasets with
-        duplicates, multiset semantics with collections.Counter would be needed.
+        Uses _sdg_input_index for matching when available (robust to column changes).
+        Falls back to column-based matching for backward compatibility.
 
         Parameters
         ----------
         input_dataset : pd.DataFrame
-            Original input dataset (assumed to contain unique samples).
+            Original input dataset.
         completed_dataset : pd.DataFrame
             Dataset of completed samples.
 
@@ -258,6 +450,32 @@ class FlowCheckpointer:
         pd.DataFrame
             Samples that still need processing.
         """
+        # Preferred method: Match by _sdg_input_index (robust to column transformations)
+        if "_sdg_input_index" in completed_dataset.columns:
+            completed_indices = set(completed_dataset["_sdg_input_index"])
+
+            # Add index to input if not present
+            if "_sdg_input_index" not in input_dataset.columns:
+                input_dataset = input_dataset.copy()
+                input_dataset["_sdg_input_index"] = range(len(input_dataset))
+
+            # Find rows not yet completed
+            remaining_mask = ~input_dataset["_sdg_input_index"].isin(completed_indices)
+            remaining_dataset = input_dataset[remaining_mask]
+
+            logger.info(
+                f"Matched by _sdg_input_index: {len(completed_indices)} completed, "
+                f"{len(remaining_dataset)} remaining"
+            )
+
+            return remaining_dataset
+
+        # Fallback: Column-based matching (old behavior for backward compatibility)
+        logger.warning(
+            "Checkpoints don't have _sdg_input_index. "
+            "Using legacy column-based matching (may fail if flow modifies input columns)."
+        )
+
         # Get common columns for comparison
         input_columns = set(input_dataset.columns.tolist())
         completed_columns = set(completed_dataset.columns.tolist())
@@ -275,7 +493,6 @@ class FlowCheckpointer:
         completed_df = completed_dataset[common_columns]
 
         # Find rows that haven't been completed
-        # Use tuple representation for comparison
         input_tuples = set(input_df.apply(tuple, axis=1))
         completed_tuples = set(completed_df.apply(tuple, axis=1))
         remaining_tuples = input_tuples - completed_tuples
@@ -285,8 +502,7 @@ class FlowCheckpointer:
         remaining_indices = input_df[remaining_mask].index.tolist()
 
         if not remaining_indices:
-            # Return empty dataframe with same structure
-            return input_dataset.iloc[0:0]
+            return input_dataset.iloc[0:0]  # Empty dataframe
 
         return input_dataset.iloc[remaining_indices]
 

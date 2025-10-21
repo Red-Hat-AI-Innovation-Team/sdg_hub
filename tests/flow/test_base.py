@@ -24,6 +24,15 @@ class TestFlow:
 
     def setup_method(self):
         """Set up test fixtures."""
+        # Standard
+        import shutil
+        from pathlib import Path
+
+        # Clean up default checkpoint directory BEFORE test
+        default_checkpoint_dir = Path(".sdg_hub_checkpoints")
+        if default_checkpoint_dir.exists():
+            shutil.rmtree(default_checkpoint_dir)
+
         self.temp_dir = tempfile.mkdtemp()
         # First Party
         from sdg_hub.core.flow.metadata import RecommendedModels
@@ -43,8 +52,14 @@ class TestFlow:
         """Clean up test fixtures."""
         # Standard
         import shutil
+        from pathlib import Path
 
         shutil.rmtree(self.temp_dir)
+
+        # Clean up default checkpoint directory if it exists
+        default_checkpoint_dir = Path(".sdg_hub_checkpoints")
+        if default_checkpoint_dir.exists():
+            shutil.rmtree(default_checkpoint_dir)
 
     def create_mock_block(self, name="test_block", input_cols=None, output_cols=None):
         """Create a mock block for testing."""
@@ -1392,7 +1407,8 @@ class TestFlow:
             "sdg_hub.core.blocks.llm.llm_chat_block.acompletion",
             side_effect=mock_acompletion,
         ):
-            flow.generate(dataset)  # No max_concurrency limit
+            # Disable checkpointing to test true concurrent behavior
+            flow.generate(dataset, checkpoint_dir=None, save_freq=None)
 
         assert max_concurrent[0] == 5  # All 5 should run concurrently
 
