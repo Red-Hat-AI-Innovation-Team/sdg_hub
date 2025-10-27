@@ -141,6 +141,10 @@ class FlowCheckpointer:
     ) -> Tuple[pd.DataFrame, Optional[pd.DataFrame]]:
         """Load existing checkpoint data and determine remaining work.
 
+        Implements hybrid error handling:
+        - FATAL errors (raise exception): Dataset signature mismatch, Flow ID mismatch
+        - RECOVERABLE errors (log warning, start fresh): Corrupted files, missing data
+
         Parameters
         ----------
         input_dataset : pd.DataFrame
@@ -151,61 +155,87 @@ class FlowCheckpointer:
         Tuple[pd.DataFrame, Optional[pd.DataFrame]]
             (remaining_samples_to_process, completed_samples_dataset)
             If no checkpoints exist, returns (input_dataset, None)
+
+        Raises
+        ------
+        FlowValidationError
+            If dataset signature or flow ID mismatch detected (requires user action)
         """
         if not self.is_enabled:
             return input_dataset, None
 
+        # Import here to avoid circular dependencies
+        from ..utils.error_handling import FlowValidationError
+
+        # Load flow metadata (wrapped to handle file system errors)
         try:
-            # Load flow metadata
             metadata = self._load_metadata()
-            if not metadata:
-                logger.info(f"No existing checkpoints found in {self.checkpoint_dir}")
-                # Save initial dataset signature for future validation
+        except Exception as exc:
+            logger.warning(
+                f"Failed to load checkpoint metadata: {exc}. Starting from scratch."
+            )
+            return input_dataset, None
+
+        if not metadata:
+            logger.info(f"No existing checkpoints found in {self.checkpoint_dir}")
+            # Save initial dataset signature for future validation
+            try:
                 self._save_metadata(input_dataset=input_dataset)
-                return input_dataset, None
+            except Exception as exc:
+                logger.warning(f"Failed to save metadata: {exc}")
+            return input_dataset, None
 
-            # Validate flow identity to prevent mixing checkpoints from different flows
-            saved_flow_id = metadata.get("flow_id")
-            if saved_flow_id and saved_flow_id != self.flow_id:
-                logger.warning(
-                    f"Flow ID mismatch: saved checkpoints are for flow ID '{saved_flow_id}' "
-                    f"but current flow ID is '{self.flow_id}'. Starting fresh to avoid "
-                    f"mixing incompatible checkpoint data."
+        # CRITICAL VALIDATION: Flow ID mismatch (FATAL - raise error)
+        saved_flow_id = metadata.get("flow_id")
+        if saved_flow_id and saved_flow_id != self.flow_id:
+            raise FlowValidationError(
+                f"Flow ID mismatch detected!\n"
+                f"\n"
+                f"Saved checkpoints are for flow: '{saved_flow_id}'\n"
+                f"Current flow ID is: '{self.flow_id}'\n"
+                f"\n"
+                f"Mixing checkpoints from different flows can lead to incorrect results.\n"
+                f"\n"
+                f"To fix this issue, choose one of the following:\n"
+                f"  1. Use a different checkpoint_dir for this flow:\n"
+                f"     flow.generate(dataset, checkpoint_dir='checkpoints_{self.flow_id}')\n"
+                f"  2. Delete all contents of '{self.checkpoint_dir}/' to start fresh\n"
+                f"  3. Disable checkpointing entirely:\n"
+                f"     flow.generate(dataset, checkpoint_dir=None, save_freq=None)"
+            )
+
+        # CRITICAL VALIDATION: Dataset signature mismatch (FATAL - raise error)
+        if "dataset_signature" in metadata:
+            current_signature = self._compute_dataset_signature(input_dataset)
+            saved_signature = metadata.get("dataset_signature")
+            saved_size = metadata.get("dataset_size", 0)
+            current_size = len(input_dataset)
+
+            # Strict validation: error on ANY change (signature OR size mismatch)
+            if current_signature != saved_signature or current_size != saved_size:
+                raise FlowValidationError(
+                    f"Dataset has changed since checkpoints were created!\n"
+                    f"\n"
+                    f"Saved checkpoint info:\n"
+                    f"  - Columns: {metadata.get('input_columns')}\n"
+                    f"  - Size: {saved_size} rows\n"
+                    f"  - Signature: {saved_signature[:16]}...\n"
+                    f"\n"
+                    f"Current dataset info:\n"
+                    f"  - Columns: {input_dataset.columns.tolist()}\n"
+                    f"  - Size: {current_size} rows\n"
+                    f"  - Signature: {current_signature[:16]}...\n"
+                    f"\n"
+                    f"To fix this issue, choose one of the following:\n"
+                    f"  1. Use a different checkpoint_dir for this dataset:\n"
+                    f"     flow.generate(dataset, checkpoint_dir='new_checkpoint_dir')\n"
+                    f"  2. Delete all contents of '{self.checkpoint_dir}/' (including flow_metadata.json)\n"
+                    f"  3. Disable checkpointing entirely:\n"
+                    f"     flow.generate(dataset, checkpoint_dir=None, save_freq=None)"
                 )
-                return input_dataset, None
 
-            # Validate dataset signature to prevent using checkpoints from different datasets
-            if "dataset_signature" in metadata:
-                current_signature = self._compute_dataset_signature(input_dataset)
-                saved_signature = metadata.get("dataset_signature")
-                saved_size = metadata.get("dataset_size", 0)
-                current_size = len(input_dataset)
-
-                # Strict validation: error on ANY change (signature OR size mismatch)
-                if current_signature != saved_signature or current_size != saved_size:
-                    from ..utils.error_handling import FlowValidationError
-
-                    raise FlowValidationError(
-                        f"Dataset has changed since checkpoints were created!\n"
-                        f"\n"
-                        f"Saved checkpoint info:\n"
-                        f"  - Columns: {metadata.get('input_columns')}\n"
-                        f"  - Size: {saved_size} rows\n"
-                        f"  - Signature: {saved_signature[:16]}...\n"
-                        f"\n"
-                        f"Current dataset info:\n"
-                        f"  - Columns: {input_dataset.columns.tolist()}\n"
-                        f"  - Size: {current_size} rows\n"
-                        f"  - Signature: {current_signature[:16]}...\n"
-                        f"\n"
-                        f"To fix this issue, choose one of the following:\n"
-                        f"  1. Use a different checkpoint_dir for this dataset:\n"
-                        f"     flow.generate(dataset, checkpoint_dir='new_checkpoint_dir')\n"
-                        f"  2. Delete all contents of '{self.checkpoint_dir}/' (including flow_metadata.json)\n"
-                        f"  3. Disable checkpointing entirely:\n"
-                        f"     flow.generate(dataset, checkpoint_dir=None, save_freq=None)"
-                    )
-
+        # RECOVERABLE OPERATIONS: Load checkpoint data (errors are logged, not fatal)
+        try:
             # Load all completed samples from checkpoints
             completed_dataset = self._load_completed_samples()
             if completed_dataset is None or len(completed_dataset) == 0:
@@ -227,8 +257,17 @@ class FlowCheckpointer:
 
             return remaining_dataset, completed_dataset
 
+        except (ValueError, KeyError, TypeError) as exc:
+            # Specific recoverable errors (corrupted data, schema issues, etc.)
+            logger.warning(
+                f"Failed to load checkpoint data: {exc}. Starting from scratch."
+            )
+            return input_dataset, None
         except Exception as exc:
-            logger.warning(f"Failed to load checkpoints: {exc}. Starting from scratch.")
+            # Unexpected errors - log and continue
+            logger.error(
+                f"Unexpected error loading checkpoints: {exc}. Starting from scratch."
+            )
             return input_dataset, None
 
     def add_completed_samples(self, samples: pd.DataFrame) -> None:
