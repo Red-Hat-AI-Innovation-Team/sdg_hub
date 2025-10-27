@@ -11,6 +11,7 @@ from sdg_hub.core.flow.checkpointer import FlowCheckpointer
 
 # Third Party
 import pandas as pd
+import pytest
 
 
 class TestFlowCheckpointer:
@@ -329,3 +330,290 @@ class TestFlowCheckpointer:
         if completed is not None:
             assert len(completed) >= 1
             assert "test1" in completed["input"].tolist()
+
+    def test_compute_dataset_signature_change_detection(self):
+        """Test that dataset signature detects changes in dataset."""
+        # Create original dataset
+        original_dataset = pd.DataFrame(
+            {"col1": [1, 2, 3, 4, 5], "col2": ["a", "b", "c", "d", "e"]}
+        )
+
+        # Compute original signature
+        original_sig = FlowCheckpointer._compute_dataset_signature(original_dataset)
+
+        # Test 1: Same dataset should produce same signature
+        same_dataset = pd.DataFrame(
+            {"col1": [1, 2, 3, 4, 5], "col2": ["a", "b", "c", "d", "e"]}
+        )
+        same_sig = FlowCheckpointer._compute_dataset_signature(same_dataset)
+        assert original_sig == same_sig
+
+        # Test 2: Different head values should change signature
+        modified_head = pd.DataFrame(
+            {"col1": [99, 2, 3, 4, 5], "col2": ["a", "b", "c", "d", "e"]}
+        )
+        modified_head_sig = FlowCheckpointer._compute_dataset_signature(modified_head)
+        assert original_sig != modified_head_sig
+
+        # Test 3: Different tail values should change signature
+        modified_tail = pd.DataFrame(
+            {"col1": [1, 2, 3, 4, 99], "col2": ["a", "b", "c", "d", "e"]}
+        )
+        modified_tail_sig = FlowCheckpointer._compute_dataset_signature(modified_tail)
+        assert original_sig != modified_tail_sig
+
+        # Test 4: Different columns should change signature
+        different_cols = pd.DataFrame(
+            {"col1": [1, 2, 3, 4, 5], "col3": ["a", "b", "c", "d", "e"]}
+        )
+        different_cols_sig = FlowCheckpointer._compute_dataset_signature(different_cols)
+        assert original_sig != different_cols_sig
+
+        # Test 5: Different size should change signature
+        different_size = pd.DataFrame({"col1": [1, 2, 3], "col2": ["a", "b", "c"]})
+        different_size_sig = FlowCheckpointer._compute_dataset_signature(different_size)
+        assert original_sig != different_size_sig
+
+    def test_dataset_signature_validation_raises_error_on_mismatch(self):
+        """Test that load_existing_progress raises FlowValidationError when dataset signature mismatches."""
+        # First Party
+        from sdg_hub.core.utils.error_handling import FlowValidationError
+
+        # Create initial dataset and save checkpoint
+        initial_dataset = pd.DataFrame(
+            {"input": ["test1", "test2", "test3"], "value": [1, 2, 3]}
+        )
+
+        checkpointer1 = FlowCheckpointer(
+            checkpoint_dir=self.temp_dir, save_freq=2, flow_id=self.flow_id
+        )
+
+        # First call to load_existing_progress saves initial dataset signature
+        checkpointer1.load_existing_progress(initial_dataset)
+
+        # Save checkpoint with initial dataset signature
+        completed_data = pd.DataFrame(
+            {"input": ["test1"], "value": [1], "output": ["result1"]}
+        )
+        checkpointer1.add_completed_samples(completed_data)
+
+        # Test 1: Different dataset with different columns should raise error
+        different_dataset = pd.DataFrame(
+            {"input": ["test1", "test2", "test3"], "different_col": [1, 2, 3]}
+        )
+
+        checkpointer2 = FlowCheckpointer(
+            checkpoint_dir=self.temp_dir, flow_id=self.flow_id
+        )
+
+        # Should raise FlowValidationError with helpful message
+        with pytest.raises(FlowValidationError) as exc_info:
+            checkpointer2.load_existing_progress(different_dataset)
+
+        assert "Dataset has changed" in str(exc_info.value)
+        assert "Saved checkpoint info" in str(exc_info.value)
+        assert "Current dataset info" in str(exc_info.value)
+        assert "different_col" in str(exc_info.value)  # New column name in error
+
+        # Test 2: Different dataset size should also raise error
+        different_size = pd.DataFrame({"input": ["test1"], "value": [1]})
+
+        checkpointer3 = FlowCheckpointer(
+            checkpoint_dir=self.temp_dir, flow_id=self.flow_id
+        )
+
+        with pytest.raises(FlowValidationError) as exc_info:
+            checkpointer3.load_existing_progress(different_size)
+
+        assert "Dataset has changed" in str(exc_info.value)
+        # Should mention size mismatch
+        assert "1 rows" in str(exc_info.value)  # Current size
+        assert "3 rows" in str(exc_info.value)  # Saved size
+
+    def test_flow_id_mismatch_raises_error(self):
+        """Test that load_existing_progress raises FlowValidationError when flow ID mismatches."""
+        # First Party
+        from sdg_hub.core.utils.error_handling import FlowValidationError
+
+        # Create checkpoint with flow_id_1
+        dataset = pd.DataFrame({"input": ["test1", "test2"], "value": [1, 2]})
+
+        checkpointer1 = FlowCheckpointer(
+            checkpoint_dir=self.temp_dir, save_freq=2, flow_id="flow_id_1"
+        )
+
+        # Save initial metadata with flow_id_1
+        checkpointer1.load_existing_progress(dataset)
+
+        # Save some checkpoint data
+        completed_data = pd.DataFrame(
+            {"input": ["test1"], "value": [1], "output": ["result1"]}
+        )
+        checkpointer1.add_completed_samples(completed_data)
+
+        # Try to load with different flow ID
+        checkpointer2 = FlowCheckpointer(
+            checkpoint_dir=self.temp_dir, flow_id="flow_id_2"
+        )
+
+        # Should raise FlowValidationError
+        with pytest.raises(FlowValidationError) as exc_info:
+            checkpointer2.load_existing_progress(dataset)
+
+        assert "Flow ID mismatch" in str(exc_info.value)
+        assert "flow_id_1" in str(exc_info.value)  # Saved flow ID
+        assert "flow_id_2" in str(exc_info.value)  # Current flow ID
+        assert "Mixing checkpoints from different flows" in str(exc_info.value)
+
+    def test_find_remaining_samples_with_sdg_input_index(self):
+        """Test _find_remaining_samples using _sdg_input_index for robust matching."""
+        checkpointer = FlowCheckpointer(
+            checkpoint_dir=self.temp_dir, flow_id=self.flow_id
+        )
+
+        # Create input dataset with _sdg_input_index
+        input_dataset = pd.DataFrame(
+            {
+                "original_col": ["a", "b", "c", "d"],
+                "_sdg_input_index": [0, 1, 2, 3],
+            }
+        )
+
+        # Create completed dataset where flow RENAMED the input column
+        # This simulates a flow that transforms/renames columns
+        completed_dataset = pd.DataFrame(
+            {
+                "renamed_col": ["a", "b"],  # Column renamed!
+                "output": ["result1", "result2"],
+                "_sdg_input_index": [0, 1],  # But index is preserved
+            }
+        )
+
+        # Find remaining samples - should use index matching
+        remaining = checkpointer._find_remaining_samples(
+            input_dataset, completed_dataset
+        )
+
+        # Should correctly identify samples 2 and 3 as remaining (indices 2, 3)
+        assert len(remaining) == 2
+        assert remaining["_sdg_input_index"].tolist() == [2, 3]
+        assert remaining["original_col"].tolist() == ["c", "d"]
+
+    def test_find_remaining_samples_index_fallback_warning(self):
+        """Test that _find_remaining_samples falls back to column matching with warning."""
+        checkpointer = FlowCheckpointer(
+            checkpoint_dir=self.temp_dir, flow_id=self.flow_id
+        )
+
+        # Input dataset WITHOUT _sdg_input_index
+        input_dataset = pd.DataFrame({"input": ["test1", "test2", "test3"]})
+
+        # Completed dataset also WITHOUT _sdg_input_index (old checkpoint format)
+        completed_dataset = pd.DataFrame({"input": ["test1"], "output": ["result1"]})
+
+        # Should fall back to column-based matching
+        remaining = checkpointer._find_remaining_samples(
+            input_dataset, completed_dataset
+        )
+
+        # Should find test2 and test3 as remaining
+        assert len(remaining) == 2
+        assert remaining["input"].tolist() == ["test2", "test3"]
+
+    def test_save_chunk_immediately(self):
+        """Test save_chunk_immediately saves chunks without buffering."""
+        checkpointer = FlowCheckpointer(
+            checkpoint_dir=self.temp_dir, flow_id=self.flow_id
+        )
+
+        # Save first chunk
+        chunk1 = pd.DataFrame({"input": ["test1", "test2"], "output": ["r1", "r2"]})
+        checkpointer.save_chunk_immediately(chunk1)
+
+        # Should create checkpoint file immediately
+        checkpoint_files = list(Path(self.temp_dir).glob("checkpoint_*.jsonl"))
+        assert len(checkpoint_files) == 1
+
+        # Verify metadata updated
+        progress = checkpointer.get_progress_info()
+        assert progress["samples_processed"] == 2
+        assert progress["checkpoint_counter"] == 1
+
+        # Save second chunk
+        chunk2 = pd.DataFrame({"input": ["test3"], "output": ["r3"]})
+        checkpointer.save_chunk_immediately(chunk2)
+
+        # Should create second checkpoint file
+        checkpoint_files = list(Path(self.temp_dir).glob("checkpoint_*.jsonl"))
+        assert len(checkpoint_files) == 2
+
+        # Verify metadata updated
+        progress = checkpointer.get_progress_info()
+        assert progress["samples_processed"] == 3
+        assert progress["checkpoint_counter"] == 2
+
+        # Verify pending samples is NOT used (immediate save)
+        assert progress["pending_samples"] == 0
+
+    def test_save_chunk_immediately_empty_chunk(self):
+        """Test save_chunk_immediately skips empty chunks with warning."""
+        checkpointer = FlowCheckpointer(
+            checkpoint_dir=self.temp_dir, flow_id=self.flow_id
+        )
+
+        # Try to save empty chunk
+        empty_chunk = pd.DataFrame({"input": [], "output": []})
+        checkpointer.save_chunk_immediately(empty_chunk)
+
+        # Should NOT create any checkpoint files
+        checkpoint_files = list(Path(self.temp_dir).glob("checkpoint_*.jsonl"))
+        assert len(checkpoint_files) == 0
+
+        # Counter should not increment
+        progress = checkpointer.get_progress_info()
+        assert progress["checkpoint_counter"] == 0
+
+    def test_load_all_checkpoints(self):
+        """Test load_all_checkpoints loads and concatenates all checkpoint files."""
+        checkpointer = FlowCheckpointer(
+            checkpoint_dir=self.temp_dir, flow_id=self.flow_id
+        )
+
+        # Save multiple chunks
+        chunk1 = pd.DataFrame({"input": ["test1", "test2"], "output": ["r1", "r2"]})
+        chunk2 = pd.DataFrame({"input": ["test3", "test4"], "output": ["r3", "r4"]})
+        chunk3 = pd.DataFrame({"input": ["test5"], "output": ["r5"]})
+
+        checkpointer.save_chunk_immediately(chunk1)
+        checkpointer.save_chunk_immediately(chunk2)
+        checkpointer.save_chunk_immediately(chunk3)
+
+        # Load all checkpoints
+        all_data = checkpointer.load_all_checkpoints()
+
+        # Should have all 5 samples
+        assert len(all_data) == 5
+        assert set(all_data["input"]) == {"test1", "test2", "test3", "test4", "test5"}
+        assert set(all_data["output"]) == {"r1", "r2", "r3", "r4", "r5"}
+
+    def test_load_all_checkpoints_error_when_disabled(self):
+        """Test load_all_checkpoints raises error when checkpointing is disabled."""
+        checkpointer = FlowCheckpointer()  # No checkpoint_dir
+
+        with pytest.raises(ValueError) as exc_info:
+            checkpointer.load_all_checkpoints()
+
+        assert "Cannot load checkpoints when checkpointing is disabled" in str(
+            exc_info.value
+        )
+
+    def test_load_all_checkpoints_error_when_no_files(self):
+        """Test load_all_checkpoints raises error when no checkpoint files exist."""
+        checkpointer = FlowCheckpointer(
+            checkpoint_dir=self.temp_dir, flow_id=self.flow_id
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            checkpointer.load_all_checkpoints()
+
+        assert "No checkpoint files found" in str(exc_info.value)

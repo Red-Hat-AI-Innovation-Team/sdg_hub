@@ -15,6 +15,7 @@ import yaml
 
 # First Party
 from sdg_hub import Flow, FlowMetadata
+from sdg_hub.core.flow.checkpointer import FlowCheckpointer
 from sdg_hub.core.flow.metadata import DatasetRequirements
 from sdg_hub.core.utils.error_handling import EmptyDatasetError, FlowValidationError
 
@@ -1046,9 +1047,6 @@ class TestFlow:
         checkpoint_dir.mkdir(parents=True)
 
         # Pre-create some checkpoint data manually
-        # First Party
-        from sdg_hub.core.flow.checkpointer import FlowCheckpointer
-
         checkpointer = FlowCheckpointer(
             checkpoint_dir=str(checkpoint_dir),
             save_freq=2,  # Need save_freq to trigger checkpoint save
@@ -1084,9 +1082,6 @@ class TestFlow:
         checkpoint_dir.mkdir(parents=True)
 
         # Pre-create checkpoint data for all input samples
-        # First Party
-        from sdg_hub.core.flow.checkpointer import FlowCheckpointer
-
         checkpointer = FlowCheckpointer(
             checkpoint_dir=str(checkpoint_dir),
             save_freq=2,  # Need save_freq to trigger checkpoint save
@@ -1438,3 +1433,203 @@ class TestFlow:
             FlowValidationError, match="max_concurrency must be greater than 0"
         ):
             flow.generate(dataset, max_concurrency=-1)
+
+    def test_sdg_input_index_added_when_checkpointing(self):
+        """Test that _sdg_input_index column is added when checkpointing is enabled."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset = pd.DataFrame({"input": ["test1", "test2", "test3"]})
+
+        checkpoint_dir = Path(self.temp_dir) / "checkpoint_index_test"
+
+        # First run - should add _sdg_input_index
+        result = flow.generate(dataset, checkpoint_dir=str(checkpoint_dir), save_freq=2)
+
+        # Result should have _sdg_input_index column
+        assert "_sdg_input_index" in result.columns
+        assert result["_sdg_input_index"].tolist() == [0, 1, 2]
+
+    def test_sdg_input_index_preserved_on_resume(self):
+        """Test that existing _sdg_input_index is preserved when resuming from checkpoint."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+
+        checkpoint_dir = Path(self.temp_dir) / "checkpoint_preserve_index"
+
+        # Manually create checkpoint for first sample to simulate partial completion
+        checkpointer = FlowCheckpointer(
+            checkpoint_dir=str(checkpoint_dir),
+            save_freq=1,
+            flow_id=flow.metadata.id,
+        )
+        completed_sample = pd.DataFrame(
+            {
+                "input": ["test1"],
+                "output": ["result1"],
+                "_sdg_input_index": [0],  # Original index preserved
+            }
+        )
+        checkpointer.save_chunk_immediately(completed_sample)
+
+        # Second run - resume with same dataset
+        # The dataset will get _sdg_input_index added if not present
+        resume_dataset = pd.DataFrame({"input": ["test1", "test2", "test3"]})
+
+        result = flow.generate(resume_dataset, checkpoint_dir=str(checkpoint_dir))
+
+        # Should have all 3 samples with correct indices
+        assert len(result) == 3
+        assert "_sdg_input_index" in result.columns
+
+        # Verify the indices are correct (not overwritten to [0, 1, 2])
+        # Should maintain original indices [0, 1, 2]
+        assert set(result["_sdg_input_index"]) == {0, 1, 2}
+
+    def test_checkpoint_parameter_validation_save_freq_without_dir(self):
+        """Test that save_freq without checkpoint_dir raises validation error."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset = pd.DataFrame({"input": ["test1"]})
+
+        # save_freq without checkpoint_dir should fail
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.generate(dataset, checkpoint_dir=None, save_freq=5)
+
+        assert "save_freq cannot be set without checkpoint_dir" in str(exc_info.value)
+        assert "checkpoint_dir=None" in str(exc_info.value)
+        assert "save_freq=5" in str(exc_info.value)
+
+    def test_checkpoint_parameter_validation_both_none(self):
+        """Test that both checkpoint_dir=None and save_freq=None works (no checkpointing)."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset = pd.DataFrame({"input": ["test1", "test2"]})
+
+        # Both None should work (disables checkpointing)
+        result = flow.generate(dataset, checkpoint_dir=None, save_freq=None)
+
+        assert len(result) == 2
+        assert "output" in result.columns
+
+    def test_checkpoint_parameter_validation_both_set(self):
+        """Test that both checkpoint_dir and save_freq set works."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset = pd.DataFrame({"input": ["test1", "test2"]})
+
+        checkpoint_dir = Path(self.temp_dir) / "both_set_checkpoint"
+
+        # Both set should work
+        result = flow.generate(dataset, checkpoint_dir=str(checkpoint_dir), save_freq=2)
+
+        assert len(result) == 2
+        assert checkpoint_dir.exists()
+
+    def test_checkpoint_parameter_validation_dir_only(self):
+        """Test that checkpoint_dir alone works (final checkpoint only)."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset = pd.DataFrame({"input": ["test1", "test2"]})
+
+        checkpoint_dir = Path(self.temp_dir) / "dir_only_checkpoint"
+
+        # checkpoint_dir alone should work (save_freq defaults to specific value)
+        result = flow.generate(dataset, checkpoint_dir=str(checkpoint_dir))
+
+        assert len(result) == 2
+        assert checkpoint_dir.exists()
+
+    def test_memory_optimized_chunked_processing(self):
+        """Test end-to-end chunked processing with immediate saves."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset = pd.DataFrame({"input": ["test1", "test2", "test3", "test4", "test5"]})
+
+        checkpoint_dir = Path(self.temp_dir) / "chunked_processing"
+        save_freq = 2
+
+        # Process with chunking
+        result = flow.generate(
+            dataset, checkpoint_dir=str(checkpoint_dir), save_freq=save_freq
+        )
+
+        # Verify result
+        assert len(result) == 5
+        assert "output" in result.columns
+
+        # Verify checkpoint files were created
+        # Should have 3 chunks: [0,1], [2,3], [4]
+        checkpoint_files = sorted(checkpoint_dir.glob("checkpoint_*.jsonl"))
+        assert len(checkpoint_files) == 3
+
+        # Verify checkpoint contents
+        # Standard
+        import json
+
+        # First checkpoint should have 2 samples
+        with open(checkpoint_files[0], "r") as f:
+            chunk1_data = [json.loads(line) for line in f]
+        assert len(chunk1_data) == 2
+
+        # Second checkpoint should have 2 samples
+        with open(checkpoint_files[1], "r") as f:
+            chunk2_data = [json.loads(line) for line in f]
+        assert len(chunk2_data) == 2
+
+        # Third checkpoint should have 1 sample
+        with open(checkpoint_files[2], "r") as f:
+            chunk3_data = [json.loads(line) for line in f]
+        assert len(chunk3_data) == 1
+
+        # Verify final result contains all samples (loaded from checkpoints)
+        assert set(result["input"]) == {"test1", "test2", "test3", "test4", "test5"}
+
+    def test_chunked_processing_with_resume(self):
+        """Test that chunked processing correctly resumes from partial completion."""
+        block = self.create_mock_block("test_block", output_cols=["output"])
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+
+        checkpoint_dir = Path(self.temp_dir) / "chunked_resume"
+
+        # First run - simulate interruption after processing 3 samples
+        checkpointer = FlowCheckpointer(
+            checkpoint_dir=str(checkpoint_dir),
+            save_freq=2,
+            flow_id=flow.metadata.id,
+        )
+
+        # Save first chunk (samples 0, 1)
+        chunk1 = pd.DataFrame(
+            {
+                "input": ["test1", "test2"],
+                "output": ["result1", "result2"],
+                "_sdg_input_index": [0, 1],
+            }
+        )
+        checkpointer.save_chunk_immediately(chunk1)
+
+        # Save second chunk (sample 2)
+        chunk2 = pd.DataFrame(
+            {"input": ["test3"], "output": ["result3"], "_sdg_input_index": [2]}
+        )
+        checkpointer.save_chunk_immediately(chunk2)
+
+        # Resume with full dataset (should only process samples 3 and 4)
+        full_dataset = pd.DataFrame(
+            {"input": ["test1", "test2", "test3", "test4", "test5"]}
+        )
+
+        result = flow.generate(
+            full_dataset, checkpoint_dir=str(checkpoint_dir), save_freq=2
+        )
+
+        # Should have all 5 samples
+        assert len(result) == 5
+
+        # Should include both old and new results
+        assert "result1" in result["output"].tolist()
+        assert "result2" in result["output"].tolist()
+        assert "result3" in result["output"].tolist()
+        # New samples will have test_block output format
+        assert "test_block_output_0" in result["output"].tolist()
+        assert "test_block_output_1" in result["output"].tolist()
