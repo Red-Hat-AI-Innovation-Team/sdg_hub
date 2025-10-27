@@ -508,11 +508,17 @@ class Flow(BaseModel):
         # This allows checkpoint matching even when flows modify/remove input columns
         if checkpoint_dir:
             dataset = dataset.copy()  # Avoid modifying user's dataframe
-            dataset["_sdg_input_index"] = range(len(dataset))
-            flow_logger.info(
-                f"Added _sdg_input_index column for checkpoint tracking "
-                f"(indices {dataset['_sdg_input_index'].min()}-{dataset['_sdg_input_index'].max()})"
-            )
+            if "_sdg_input_index" not in dataset.columns:
+                dataset["_sdg_input_index"] = range(len(dataset))
+                flow_logger.info(
+                    f"Added _sdg_input_index column for checkpoint tracking "
+                    f"(indices {dataset['_sdg_input_index'].min()}-{dataset['_sdg_input_index'].max()})"
+                )
+            else:
+                flow_logger.info(
+                    f"Using existing _sdg_input_index for checkpoint tracking "
+                    f"(indices {dataset['_sdg_input_index'].min()}-{dataset['_sdg_input_index'].max()})"
+                )
 
         flow_logger.info(
             f"Starting flow '{self.metadata.name}' v{self.metadata.version} "
