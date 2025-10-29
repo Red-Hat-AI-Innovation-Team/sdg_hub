@@ -51,11 +51,19 @@ echo "🚀 Starting recursive Jupyter Notebook security scan..."
 echo ""
 echo "🔎 Step 1/4: Finding and converting notebooks to Python scripts..."
 
-# Find all notebooks and store paths in array (compatible with older bash)
+# Find all notebooks tracked in git (excludes dependencies, build artifacts, etc.)
+# This respects .gitignore patterns and only scans notebooks that are part of the project
 notebooks=()
-while IFS= read -r -d $'\0' notebook; do
-    notebooks+=("$notebook")
-done < <(find "$PROJECT_DIR" -name "*.ipynb" -print0)
+if git -C "$PROJECT_DIR" rev-parse --git-dir > /dev/null 2>&1; then
+    while IFS= read -r notebook; do
+        notebooks+=("$PROJECT_DIR/$notebook")
+    done < <(git -C "$PROJECT_DIR" ls-files "*.ipynb")
+else
+    # Fallback to find if not in a git repository
+    while IFS= read -r -d $'\0' notebook; do
+        notebooks+=("$notebook")
+    done < <(find "$PROJECT_DIR" -name "*.ipynb" -print0)
+fi
 
 if [ ${#notebooks[@]} -eq 0 ]; then
     echo "⚠️ No .ipynb files found in $PROJECT_DIR"
@@ -90,16 +98,19 @@ echo "🔎 Step 2/4: Scanning dependencies for vulnerabilities..."
 # Try pipreqsnb first, fallback to regular pipreqs
 if command -v pipreqsnb &> /dev/null; then
     echo "📋 Generating requirements.txt from notebooks using pipreqsnb..."
-    if pipreqsnb "$PROJECT_DIR" --force --savepath "$TEMP_DIR/requirements.txt" 2>/dev/null; then
+    pipreqsnb "$PROJECT_DIR" --force --savepath "$TEMP_DIR/requirements.txt" 2>/dev/null || true
+
+    # Check if file was actually created (pipreqsnb may succeed but not create file)
+    if [ -f "$TEMP_DIR/requirements.txt" ]; then
         echo "✅ Requirements generated with pipreqsnb"
     else
-        echo "⚠️ pipreqsnb failed, trying regular pipreqs on converted files..."
-        add_user_site_to_path
+        echo "⚠️ pipreqsnb did not generate requirements.txt, trying pipreqs on converted files..."
+        add_user_site_to_path || true
         pipreqs "$TEMP_DIR" --force --savepath "$TEMP_DIR/requirements.txt" 2>/dev/null || true
     fi
 else
     echo "📋 pipreqsnb not found, using pipreqs on converted Python files..."
-    add_user_site_to_path
+    add_user_site_to_path || true
     pipreqs "$TEMP_DIR" --force --savepath "$TEMP_DIR/requirements.txt" 2>/dev/null || true
 fi
 
