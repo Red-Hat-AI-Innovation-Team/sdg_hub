@@ -9,10 +9,15 @@ Learn how to create your own custom blocks to extend SDG Hub's functionality. Cu
 All custom blocks must inherit from `BaseBlock` and implement the `generate()` method:
 
 ```python
+# Standard library imports
+from typing import Any
+
+# Third-party imports
+import pandas as pd
+
+# Local imports
 from sdg_hub.core.blocks.base import BaseBlock
 from sdg_hub.core.blocks.registry import BlockRegistry
-from datasets import Dataset
-from typing import Any
 
 @BlockRegistry.register(
     "MyCustomBlock",           # Block name for discovery
@@ -22,9 +27,41 @@ from typing import Any
 class MyCustomBlock(BaseBlock):
     """Custom block that performs specific processing."""
     
-    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
-        """Implement your custom processing logic here."""
-        #TODO: Add Custom block boilerplate code here
+    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
+        """Implement your custom processing logic here.
+
+        Parameters
+        ----------
+        samples : pd.DataFrame
+            Input dataset to process.
+        **kwargs : Any
+            Additional runtime parameters.
+
+        Returns
+        -------
+        pd.DataFrame
+            Processed dataset with new columns added.
+        """
+        # Validate required columns exist (optional - BaseBlock already does this)
+        for col in self.input_cols:
+            if col not in samples.columns:
+                raise ValueError(f"Required column '{col}' not found in dataset")
+
+        # Create a copy to avoid modifying the input
+        result = samples.copy()
+
+        # Process each row (example: transform input column to output column)
+        processed_data = []
+        for idx, row in result.iterrows():
+            # Your custom processing logic here
+            input_value = row[self.input_cols[0]]
+            processed_value = f"Processed: {input_value}"
+            processed_data.append(processed_value)
+
+        # Add the processed data as a new column
+        result[self.output_cols[0]] = processed_data
+
+        return result
 ```
 
 ### Block Configuration
