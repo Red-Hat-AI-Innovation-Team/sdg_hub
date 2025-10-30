@@ -222,11 +222,207 @@ dataset = Dataset.from_dict({
 
 ## 🏗️ PromptBuilderBlock
 
-Constructs prompts from templates and data with validation and formatting support.
+Constructs prompts from templates and data with validation and formatting support. Uses Jinja2 templating to dynamically render messages from dataset columns into structured chat format or plain text.
 
 ### Basic Template Usage
 
-#TODO: Add prompt builder block example
+Create a YAML configuration file defining your prompt template:
+
+```yaml
+# qa_prompt.yaml
+- role: system
+  content: "You are an expert {{domain}} assistant with deep knowledge in the field."
+
+- role: user
+  content: |
+    Please answer the following question based on the context provided.
+
+    Context: {{context}}
+    Question: {{question}}
+
+    Provide a clear and accurate answer.
+```
+
+Use the template with PromptBuilderBlock:
+
+```python
+from sdg_hub.core.blocks import PromptBuilderBlock
+import pandas as pd
+
+# Create the prompt builder block
+prompt_builder = PromptBuilderBlock(
+    block_name="qa_prompter",
+    input_cols=["domain", "context", "question"],
+    output_cols="messages",
+    prompt_config_path="qa_prompt.yaml",
+    format_as_messages=True  # Output as chat messages (default)
+)
+
+# Create dataset with your data
+dataset = pd.DataFrame([
+    {
+        "domain": "physics",
+        "context": "Newton's laws describe the relationship between forces and motion.",
+        "question": "What is Newton's first law?"
+    },
+    {
+        "domain": "biology",
+        "context": "DNA contains the genetic instructions for living organisms.",
+        "question": "What is the role of DNA?"
+    }
+])
+
+# Generate formatted prompts
+result = prompt_builder.generate(dataset)
+
+# Result contains messages in OpenAI chat format
+print(result["messages"][0])
+# [
+#   {"role": "system", "content": "You are an expert physics assistant..."},
+#   {"role": "user", "content": "Please answer the following question..."}
+# ]
+```
+
+### Column Mapping with Dictionary
+
+Map dataset column names to different template variable names:
+
+```python
+# When dataset columns don't match template variable names
+prompt_builder = PromptBuilderBlock(
+    block_name="mapped_prompter",
+    input_cols={
+        "article_text": "context",      # Maps article_text column to {{context}}
+        "user_query": "question",        # Maps user_query column to {{question}}
+        "subject": "domain"              # Maps subject column to {{domain}}
+    },
+    output_cols="messages",
+    prompt_config_path="qa_prompt.yaml"
+)
+
+dataset = pd.DataFrame([{
+    "article_text": "Einstein's theory of relativity...",
+    "user_query": "What is time dilation?",
+    "subject": "physics"
+}])
+
+result = prompt_builder.generate(dataset)
+```
+
+### Plain Text Format
+
+Generate formatted text instead of structured messages:
+
+```python
+# evaluation_prompt.yaml
+# - role: system
+#   content: "You are an evaluator assessing response quality."
+# - role: user
+#   content: |
+#     Document: {{document}}
+#     Response: {{response}}
+#
+#     Is the response faithful to the document? Answer YES or NO.
+
+prompt_builder = PromptBuilderBlock(
+    block_name="eval_prompter",
+    input_cols=["document", "response"],
+    output_cols="formatted_prompt",
+    prompt_config_path="evaluation_prompt.yaml",
+    format_as_messages=False  # Output as plain text
+)
+
+dataset = pd.DataFrame([{
+    "document": "The capital of France is Paris.",
+    "response": "Paris is the capital of France."
+}])
+
+result = prompt_builder.generate(dataset)
+
+print(result["formatted_prompt"][0])
+# system: You are an evaluator assessing response quality.
+#
+# user: Document: The capital of France is Paris.
+# Response: Paris is the capital of France.
+#
+# Is the response faithful to the document? Answer YES or NO.
+```
+
+### Practical Example: Question Generation Pipeline
+
+Complete example showing PromptBuilderBlock with LLMChatBlock:
+
+```python
+from sdg_hub.core.blocks import PromptBuilderBlock, LLMChatBlock
+import pandas as pd
+
+# Step 1: Create template for question generation
+# question_gen_prompt.yaml:
+# - role: system
+#   content: "You are a question generation assistant."
+# - role: user
+#   content: |
+#     Generate 3 questions based on this text:
+#     {{text}}
+#
+#     Format: Return questions separated by newlines.
+
+# Step 2: Configure prompt builder
+prompt_builder = PromptBuilderBlock(
+    block_name="question_prompter",
+    input_cols="text",
+    output_cols="messages",
+    prompt_config_path="question_gen_prompt.yaml"
+)
+
+# Step 3: Configure LLM chat block
+chat_block = LLMChatBlock(
+    block_name="question_generator",
+    model="openai/gpt-4o",
+    api_key="your-api-key",
+    input_cols="messages",
+    output_cols="llm_response",
+    temperature=0.7
+)
+
+# Step 4: Process dataset
+dataset = pd.DataFrame([{
+    "text": "Machine learning is a subset of AI that enables systems to learn from data."
+}])
+
+# Execute pipeline
+result = prompt_builder.generate(dataset)
+result = chat_block.generate(result)
+
+print(result["llm_response"][0])
+# Generated questions based on the text
+```
+
+### Configuration Reference
+
+**Required Parameters:**
+- `block_name` - Unique identifier for the block
+- `input_cols` - Column specification (str, list, or dict for mapping)
+- `output_cols` - Single output column name (must be exactly one)
+- `prompt_config_path` - Path to YAML template file
+
+**Optional Parameters:**
+- `format_as_messages` - Output format (default: `True`)
+  - `True`: List of dicts with 'role' and 'content' keys
+  - `False`: Concatenated string with role prefixes
+
+**Template Requirements:**
+- Must be a YAML list of message objects
+- Each message requires 'role' and 'content' fields
+- Valid roles: 'system', 'user', 'assistant', 'tool'
+- Must contain at least one 'user' message
+- Final message must have role='user' for chat completion
+- Content supports Jinja2 templating syntax
+
+**Template Variable Resolution:**
+- Variables in `{{...}}` are replaced with dataset column values
+- Use `input_cols` dict to map column names to template variables
+- Missing variables are logged as warnings
 
 ## 🔍 TextParserBlock
 
