@@ -20,7 +20,6 @@ import yaml
 
 # First Party
 from sdg_hub.core.utils.datautils import safe_concatenate_datasets
-import sdg_hub
 
 
 def setup_logger(name):
@@ -364,9 +363,8 @@ def create_knowledge_regular_ds(generated_dataset: Dataset):
 
     summarization_task_dataset = create_summarization_task_dataset(generated_dataset)
     if summarization_task_dataset is not None:
-        knowledge_ds = safe_concatenate_datasets(
-            [knowledge_ds, summarization_task_dataset]
-        )
+        datasets = [knowledge_ds, summarization_task_dataset]
+        knowledge_ds = Dataset.from_pandas(safe_concatenate_datasets([ds.to_pandas() for ds in datasets]))
     return knowledge_ds
 
 
@@ -397,9 +395,8 @@ def create_knowledge_pretraining_ds(
     summarization_task_dataset = create_summarization_task_dataset(generated_dataset)
     if summarization_task_dataset is not None and add_auxiliary_dataset:
         summarization_task_dataset = summarization_task_dataset.map(_conv_pretrain)
-        knowledge_ds = safe_concatenate_datasets(
-            [knowledge_ds, summarization_task_dataset]
-        )
+        datasets = [knowledge_ds, summarization_task_dataset]
+        knowledge_ds = Dataset.from_pandas(safe_concatenate_datasets([ds.to_pandas() for ds in datasets]))
     return knowledge_ds
 
 
@@ -758,7 +755,9 @@ class DocProcessor:
                     }
                 )
             )
-        chunked_document_all_icl = safe_concatenate_datasets(chunked_document_all_icl)
+        chunked_document_all_icl = Dataset.from_pandas(
+            safe_concatenate_datasets([ds.to_pandas() for ds in chunked_document_all_icl])
+        )
         chunked_document_all_icl = chunked_document_all_icl.map(
             lambda x: {
                 "chunks": chunk_document(
@@ -794,7 +793,7 @@ class DocProcessor:
             chunk_ds = self._process_parsed_docling_json(json_fp)
             chunk_ds_with_icls = self._add_icls(chunk_ds)
             datasets.append(chunk_ds_with_icls)
-        return safe_concatenate_datasets(datasets)
+        return Dataset.from_pandas(safe_concatenate_datasets([ds.to_pandas() for ds in datasets]))
 
     def get_processed_markdown_dataset(self, list_md_files: list[Path]) -> Dataset:
         chunks_mds = []
