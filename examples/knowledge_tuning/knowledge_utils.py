@@ -339,7 +339,7 @@ def build_raft_dataset(ds: Dataset, p, num_doc_in_context=4):
     return ds
 
 
-def create_knowledge_regular_ds(generated_dataset: Dataset):
+def create_knowledge_regular_ds(generated_dataset: Dataset) -> Dataset | None:
     """
     Create a knowledge dataset for the Skills Phase of knowledge tuning.
 
@@ -348,13 +348,11 @@ def create_knowledge_regular_ds(generated_dataset: Dataset):
 
     Parameters
     ----------
-    generated_dataset : Dataset
-        The input dataset containing generated knowledge content
+    generated_dataset (Dataset): The input dataset containing generated knowledge content
 
     Returns
     -------
-    Dataset
-        Processed dataset ready for skills phase training
+    Dataset | None: Processed dataset ready for skills phase training, or None if concatenation fails.
     """
     knowledge_ds = generate_knowledge_qa_dataset(
         generated_dataset, keep_context_separate=True
@@ -371,7 +369,7 @@ def create_knowledge_regular_ds(generated_dataset: Dataset):
 
 def create_knowledge_pretraining_ds(
     generated_dataset: Dataset, add_auxiliary_dataset: bool = True
-):
+) -> Dataset | None:
     # Phase 0.7 (Knowledge Phase)
     """
     Create a knowledge dataset for the Knowledge Phase of knowledge tuning.
@@ -386,7 +384,7 @@ def create_knowledge_pretraining_ds(
 
     Returns
     -------
-    Dataset: The generated knowledge dataset.
+    Dataset | None: The generated knowledge dataset, or None if concatenation fails.
     """
     knowledge_ds = generate_knowledge_qa_dataset(
         generated_dataset, keep_context_separate=False
@@ -789,7 +787,7 @@ class DocProcessor:
 
         Returns
         -------
-            Dataset: Dataset object.
+            Dataset | None: Dataset object, or None if concatenation fails.
         """
         datasets = []
         for json_fp in self.docling_jsons:
