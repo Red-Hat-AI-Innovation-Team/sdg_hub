@@ -364,7 +364,8 @@ def create_knowledge_regular_ds(generated_dataset: Dataset):
     summarization_task_dataset = create_summarization_task_dataset(generated_dataset)
     if summarization_task_dataset is not None:
         datasets = [knowledge_ds, summarization_task_dataset]
-        knowledge_ds = Dataset.from_pandas(safe_concatenate_datasets([ds.to_pandas() for ds in datasets]))
+        df = safe_concatenate_datasets([ds.to_pandas() for ds in datasets])
+        knowledge_ds = Dataset.from_pandas(df) if df is not None else None
     return knowledge_ds
 
 
@@ -396,7 +397,8 @@ def create_knowledge_pretraining_ds(
     if summarization_task_dataset is not None and add_auxiliary_dataset:
         summarization_task_dataset = summarization_task_dataset.map(_conv_pretrain)
         datasets = [knowledge_ds, summarization_task_dataset]
-        knowledge_ds = Dataset.from_pandas(safe_concatenate_datasets([ds.to_pandas() for ds in datasets]))
+        df = safe_concatenate_datasets([ds.to_pandas() for ds in datasets])
+        knowledge_ds = Dataset.from_pandas(df) if df is not None else None
     return knowledge_ds
 
 
@@ -755,9 +757,10 @@ class DocProcessor:
                     }
                 )
             )
-        chunked_document_all_icl = Dataset.from_pandas(
-            safe_concatenate_datasets([ds.to_pandas() for ds in chunked_document_all_icl])
-        )
+        df = safe_concatenate_datasets([ds.to_pandas() for ds in chunked_document_all_icl])
+        if df is None:
+            raise ValueError("No seed_examples found in user config. At least one seed example is required.")
+        chunked_document_all_icl = Dataset.from_pandas(df)
         chunked_document_all_icl = chunked_document_all_icl.map(
             lambda x: {
                 "chunks": chunk_document(
