@@ -13,8 +13,8 @@
 
 * **Flow System**
   * [Overview](flows/overview.md)
-  * [YAML Configuration](flows/yaml-configuration.md)
   * [Flow Discovery](flows/discovery.md)
+  * [Available Flows](flows/available-flows.md)
   * [Custom Flows](flows/custom-flows.md)
 
 * **Advanced**
