@@ -780,7 +780,7 @@ class DocProcessor:
         )
         return new_ds
 
-    def get_processed_dataset(self) -> Dataset:
+    def get_processed_dataset(self) -> Dataset | None:
         """
         Process all the parsed docling json files and return a dataset.
 
@@ -793,7 +793,8 @@ class DocProcessor:
             chunk_ds = self._process_parsed_docling_json(json_fp)
             chunk_ds_with_icls = self._add_icls(chunk_ds)
             datasets.append(chunk_ds_with_icls)
-        return Dataset.from_pandas(safe_concatenate_datasets([ds.to_pandas() for ds in datasets]))
+        df = safe_concatenate_datasets([ds.to_pandas() for ds in datasets])
+        return Dataset.from_pandas(df) if df is not None else None
 
     def get_processed_markdown_dataset(self, list_md_files: list[Path]) -> Dataset:
         chunks_mds = []
