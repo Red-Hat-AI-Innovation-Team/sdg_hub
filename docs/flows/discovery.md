@@ -132,6 +132,10 @@ print(f"Educational flows: {educational_flows}")
 
 document_flows = FlowRegistry.search_flows(tag="document-processing")
 print(f"Document processing flows: {document_flows}")
+
+# Get all flows organized by category
+flows_by_category = FlowRegistry.get_flows_by_category()
+# Returns: {"knowledge-tuning": [{"id": "...", "name": "..."}, ...], "text-analysis": [...], ...}
 ```
 
 
