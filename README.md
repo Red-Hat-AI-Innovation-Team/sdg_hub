@@ -1,14 +1,16 @@
-# `sdg_hub`: Synthetic Data Generation Toolkit
+<p align="center">
+    <b>SDG Hub - Synthetic Data Generation Toolkit</b>
+</p>
 
-[![Build](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/pypi.yaml/badge.svg?branch=main)](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/pypi.yaml)
-[![Release](https://img.shields.io/github/v/release/Red-Hat-AI-Innovation-Team/sdg_hub)](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/releases)
-[![License](https://img.shields.io/github/license/Red-Hat-AI-Innovation-Team/sdg_hub)](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/blob/main/LICENSE)
-[![Tests](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml/badge.svg)](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub/graph/badge.svg?token=SP75BCXWO2)](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub)
+<p align="center">
+    <a href="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/pypi.yaml"><img src="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/pypi.yaml/badge.svg?branch=main" alt="Build"></a>
+    <a href="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/releases"><img src="https://img.shields.io/github/v/release/Red-Hat-AI-Innovation-Team/sdg_hub" alt="Release"></a>
+    <a href="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Red-Hat-AI-Innovation-Team/sdg_hub" alt="License"></a>
+    <a href="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml"><img src="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
+    <a href="https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub"><img src="https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub/graph/badge.svg?token=SP75BCXWO2" alt="codecov"></a>
+</p>
 
-
-
-A modular Python framework for building synthetic data generation pipelines using composable blocks and flows. Transform datasets through **building-block composition** - mix and match LLM-powered and traditional processing blocks to create sophisticated data generation workflows.
+<p align="center">A modular Python framework for building synthetic data generation pipelines using composable blocks and flows. Transform datasets through <b>building-block composition</b> - mix and match LLM-powered and traditional processing blocks to create sophisticated data generation workflows.</p>
 
 **📖 Full documentation available at: [https://ai-innovation.team/sdg_hub](https://ai-innovation.team/sdg_hub)**
 

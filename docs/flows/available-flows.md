@@ -26,37 +26,6 @@ All flows support:
 | [Multilingual QA](#japanese-multilingual-multi-summary-qa-flow) | 1 | Japanese language QA generation | `multilingual`, `japanese` |
 | [Text Analysis](#structured-text-insights-extraction-flow) | 1 | NLP insights extraction | `text-analysis`, `nlp` |
 
-## Flow Discovery
-
-All flows are automatically discovered from `src/sdg_hub/flows/`:
-
-```python
-from sdg_hub.core.flow import FlowRegistry, Flow
-
-# Auto-discover all available flows
-FlowRegistry.discover_flows()
-
-# List all flows
-all_flows = FlowRegistry.list_flows()
-print(f"Found {len(all_flows)} flows")
-
-# Search by tag
-qa_flows = FlowRegistry.search_flows(tag="question-generation")
-knowledge_flows = FlowRegistry.search_flows(tag="knowledge-tuning")
-analysis_flows = FlowRegistry.search_flows(tag="text-analysis")
-
-# Get flow information
-flow_name = "Extractive Summary Knowledge Tuning Dataset Generation Flow"
-metadata = FlowRegistry.get_flow_metadata(flow_name)
-print(f"Flow: {metadata.name}")
-print(f"Version: {metadata.version}")
-print(f"Tags: {', '.join(metadata.tags)}")
-
-# Load and use a flow
-flow_path = FlowRegistry.get_flow_path(flow_name)
-flow = Flow.from_yaml(flow_path)
-```
-
 ---
 
 ## Enhanced Multi-Summary QA Flows

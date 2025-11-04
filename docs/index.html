@@ -6,7 +6,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
   <meta name="description" content="A modular Python framework for building synthetic data generation pipelines using composable blocks and flows.">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/buble.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-darklight-theme@latest/dist/style.min.css">
   <style>
     nav.app-nav li ul { 
       min-width: 100px; 
@@ -19,39 +19,31 @@
   <script>
     window.$docsify = {
       name: 'SDG Hub',
+      logo: 'assets/logo.png',
       repo: 'https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub',
       loadSidebar: true,
       loadNavbar: true,
-      coverpage: true,
       mergeNavbar: true,
       maxLevel: 4,
-      subMaxLevel: 2,
+      subMaxLevel: 3,
       auto2top: true,
+      executeScript: true,
       search: {
-        maxAge: 86400000,
         paths: 'auto',
         placeholder: 'Search...',
-        noData: 'No results found.',
-        depth: 6
-      },
-      plugins: [
-        function(hook, vm) {
-          hook.beforeEach(function (html) {
-            var url = 'https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/blob/main/docs/' + vm.route.file;
-            var editHtml = '[:memo: Edit Document](' + url + ')\n';
-            return editHtml + html;
-          });
-        }
-      ]
+        noData: 'No results found.'
+      }
     }
   </script>
-  <!-- Docsify v4 -->
-  <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
+  <!-- Docsify -->
+  <script src="//cdn.jsdelivr.net/npm/docsify/lib/docsify.min.js"></script>
   <!-- Search plugin -->
   <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
   <!-- Code syntax highlighting -->
-  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-python.min.js"></script>
-  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-yaml.min.js"></script>
-  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs/components/prism-python.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs/components/prism-yaml.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs/components/prism-bash.min.js"></script>
+  <!-- Darklight theme - load last -->
+  <script src="//cdn.jsdelivr.net/npm/docsify-darklight-theme@latest/dist/index.min.js" type="text/javascript"></script>
 </body>
 </html>
