@@ -693,7 +693,7 @@ Filter: Keep rating ≥ 1.0
 
 ## Japanese Multilingual Multi-Summary QA Flow
 
-**Name:** `Advanced Document Grounded Question-Answer Generation Flow for Knowledge Tuning` (Japanese)
+**Name:** `Advanced Japanese Document Grounded Question-Answer Generation Flow for Knowledge Tuning`
 
 **Purpose:** Localized version of InstructLab flow for Japanese language training data generation.
 
@@ -702,7 +702,7 @@ Filter: Keep rating ≥ 1.0
 ### Architecture
 
 Same as InstructLab flow but with:
-- All prompts translated to Japanese
+- Augmented prompts for Japanese text output
 - Japanese prompt YAML files (suffixed with `_ja.yaml`)
 - Same block structure and evaluation stages
 
@@ -754,7 +754,7 @@ from sdg_hub.core.flow import Flow, FlowRegistry
 # Load Japanese flow
 FlowRegistry.discover_flows()
 flow_path = FlowRegistry.get_flow_path(
-    "Advanced Document Grounded Question-Answer Generation Flow for Knowledge Tuning"
+    "Advanced Japanese Document Grounded Question-Answer Generation Flow for Knowledge Tuning"
 )
 
 # Note: Disambiguate if needed by checking metadata
@@ -769,7 +769,7 @@ flow = Flow.from_yaml(flow_path)
 
 # Configure model (use model with Japanese support)
 flow.set_model_config(
-    model="meta-llama/Llama-3.3-70B-Instruct",  # Supports Japanese
+    model="microsoft/phi-4",  # Supports Japanese
     api_key="your_key"
 )
 

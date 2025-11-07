@@ -16,6 +16,7 @@ metadata:
     - "qa-pairs"
     - "document-processing"
     - "educational"
+    - "multilingual"
     - "japanese"
   
   license: "Apache-2.0"
