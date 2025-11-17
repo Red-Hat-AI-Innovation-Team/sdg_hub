@@ -52,11 +52,11 @@ Learn about the modular block architecture that powers SDG Hub:
 - **[Custom Blocks](blocks/custom-blocks.md)** - Building your own processing blocks
 
 ### Flow System
-Master the orchestration system for building complete pipelines:
-- **[Flow Overview](flows/overview.md)** - Understanding flow orchestration
-- **[YAML Configuration](flows/yaml-configuration.md)** - Structure and parameters
+Master the orchestration system for building complete flows:
+- **[Flow Overview](flows/overview.md)** - Understanding flow orchestration and YAML structure
 - **[Flow Discovery](flows/discovery.md)** - Registry and auto-discovery system
-- **[Custom Flows](flows/custom-flows.md)** - Building custom pipeline flows
+- **[Custom Flows](flows/custom-flows.md)** - Building custom flows
+- **[Available Flows](flows/available-flows.md)** - Pre-built flows in the ecosystem
 
 ### Advanced Topics
 - **[API Reference](api-reference.md)** - Complete API documentation

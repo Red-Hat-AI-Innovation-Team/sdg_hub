@@ -187,6 +187,6 @@ print(f"Output columns: {result['final_dataset']['columns']}")
 Now that you understand the core concepts:
 
 1. **[Explore Block Types](blocks/overview.md)** - Learn about specific block categories
-2. **[Master Flow Configuration](flows/yaml-configuration.md)** - Deep dive into YAML structure
+2. **[Understand Flow System](flows/overview.md)** - Chain blocks into complete flows
 3. **[Build Custom Components](blocks/custom-blocks.md)** - Create your own blocks
-4. **[Advanced Patterns](flows/custom-flows.md)** - Build sophisticated pipelines
+4. **[Advanced Patterns](flows/custom-flows.md)** - Build sophisticated flows

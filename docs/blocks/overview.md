@@ -141,7 +141,7 @@ result = block.generate(dataset)  # ❌ Error!
 
 Ready to dive deeper? Explore specific block categories:
 
-- **[LLM Blocks](llm-blocks.md)** - AI-powered language model operations
-- **[Transform Blocks](transform-blocks.md)** - Data manipulation and reshaping
-- **[Filtering Blocks](filtering-blocks.md)** - Quality control and validation
-- **[Custom Blocks](custom-blocks.md)** - Build your own processing blocks
+- **[LLM Blocks](blocks/llm-blocks.md)** - AI-powered language model operations
+- **[Transform Blocks](blocks/transform-blocks.md)** - Data manipulation and reshaping
+- **[Filtering Blocks](blocks/filtering-blocks.md)** - Quality control and validation
+- **[Custom Blocks](blocks/custom-blocks.md)** - Build your own processing blocks

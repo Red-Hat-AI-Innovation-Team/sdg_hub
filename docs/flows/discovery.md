@@ -467,6 +467,6 @@ If your new tag represents a common pattern others might use, consider updating 
 Master flow discovery and organization:
 
 - **[Custom Flows](custom-flows.md)** - Build and organize your own flows
-- **[YAML Configuration](yaml-configuration.md)** - Advanced configuration techniques
+- **[Flow Overview](overview.md)** - YAML structure and configuration
 - **[Development Guide](../development.md)** - Contribute flows to the ecosystem
 - **[API Reference](../api-reference.md)** - Complete technical documentation
