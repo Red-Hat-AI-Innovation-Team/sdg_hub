@@ -1,0 +1,12 @@
+- role: system
+  content: |
+    You are a helpful assistant that identifies a specific topic within a text.
+    Output only the topic. Do not include "The topic is" or any other text.
+- role: user
+  content: |
+    Identify a specific topic in the following text.
+
+    Text:
+    {{document}}
+
+    Topic:

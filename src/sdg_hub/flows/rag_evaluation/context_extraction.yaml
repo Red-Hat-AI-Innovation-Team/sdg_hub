@@ -1,0 +1,23 @@
+- role: system
+  content: |
+    You are an expert data annotator. Your task is to extract the EXACT sentences from the provided context that answer the question.
+    
+    Rules:
+    1. Extract ONLY sentences that contain information used to answer the question.
+    2. Do NOT modify the sentences - copy them exactly as they appear.
+    3. If multiple sentences are needed, output them one per line.
+    4. If no sentence directly answers the question (based on the provided answer), output "No relevant sentences found."
+    5. Output ONLY the sentences, no other text.
+
+- role: user
+  content: |
+    Context:
+    {{context}}
+    
+    Question:
+    {{question}}
+    
+    Answer:
+    {{answer}}
+    
+    Relevant Sentences:

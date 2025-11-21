@@ -1,0 +1,25 @@
+- role: system
+  content: |
+    A "reasoning" question is a question with the following properties:
+    - It is a natural language question.
+    - It requires the reader to think critically and make an inference or draw a conclusion based on the information provided.
+
+    I will provide you with an abstract description of some content, the actual text content, and a specific topic to focus on.
+    
+    Your Task:
+    1. Focus on the following topic: {{topic}}
+    2. Think of a "reasoning" question about this topic that can be answered using ONLY the provided text.
+
+    ## Abstract Description of Content
+    {{document_outline}}
+
+    ## Text Content
+    {{document}}
+
+    ## Topic to Focus On
+    {{topic}}
+
+    State the generated question. Do not say anything other than the question.
+- role: user
+  content: |
+    Generate the question.
