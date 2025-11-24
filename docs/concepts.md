@@ -26,8 +26,7 @@ SDG Hub organizes blocks into logical categories:
 | **Filtering** | Quality control | Value-based filtering, threshold checks |
 | **Evaluation** | Quality assessment | Faithfulness scoring, relevancy evaluation |
 
-### Block Example
-#TODO: Add block example
+For detailed block examples and usage patterns, see [Block System Overview](blocks/overview.md).
 
 ## 🌊 Flows: Orchestrating Pipelines
 
