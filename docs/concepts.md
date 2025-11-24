@@ -33,9 +33,6 @@ SDG Hub organizes blocks into logical categories:
 
 **Flows** are YAML-defined pipelines that orchestrate multiple blocks into complete data processing workflows.
 
-### Flow Structure
-#TODO: Add flow structure
-
 ### Flow Execution Model
 
 Flows execute blocks sequentially:
@@ -57,6 +54,8 @@ Each block:
 - **⚙️ Parameterization** - Customize behavior without code changes
 - **🛡️ Validation** - Built-in checks for configuration and data compatibility
 - **📊 Monitoring** - Execution tracking and performance metrics
+
+For detailed flow structure and YAML configuration examples, see [Flow System Overview](flows/overview.md).
 
 ## 🔍 Auto-Discovery System
 
