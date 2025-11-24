@@ -34,7 +34,63 @@ SDG Hub organizes blocks into logical categories:
 **Flows** are YAML-defined pipelines that orchestrate multiple blocks into complete data processing workflows.
 
 ### Flow Structure
-#TODO: Add flow structure
+
+Flows are organized as directories containing YAML configuration files. Here's a typical flow structure:
+
+```
+flows/text_analysis/structured_insights/
+├── flow.yaml                    # Main flow definition
+├── summarize.yaml              # Prompt template for summarization
+├── extract_keywords.yaml       # Prompt template for keyword extraction
+├── extract_entities.yaml       # Prompt template for entity extraction
+└── analyze_sentiment.yaml      # Prompt template for sentiment analysis
+```
+
+**Flow YAML Structure:**
+
+```yaml
+metadata:
+  id: "unique-flow-id"
+  name: "Flow Display Name"
+  description: "What this flow does"
+  version: "1.0.0"
+  author: "Author Name"
+  recommended_models:
+    default: "openai/gpt-oss-120b"
+    compatible:
+      - "meta-llama/Llama-3.3-70B-Instruct"
+      - "microsoft/phi-4"
+  tags:
+    - "category"
+    - "use-case"
+  dataset_requirements:
+    required_columns:
+      - "input_column_name"
+
+blocks:
+  - block_type: "PromptBuilderBlock"
+    block_config:
+      block_name: "build_prompt"
+      input_cols: ["text"]
+      output_cols: "prompt"
+      prompt_config_path: "template.yaml"
+
+  - block_type: "LLMChatBlock"
+    block_config:
+      block_name: "generate_response"
+      input_cols: "prompt"
+      output_cols: "response"
+      max_tokens: 1024
+      temperature: 0.3
+      async_mode: true
+```
+
+**Key Components:**
+
+- **metadata**: Flow identification, versioning, and model recommendations
+- **blocks**: Sequential list of processing blocks with their configurations
+- **prompt_config_path**: References to separate YAML files containing prompt templates
+- **block_name**: Unique identifier for each block within the flow
 
 ### Flow Execution Model
 
