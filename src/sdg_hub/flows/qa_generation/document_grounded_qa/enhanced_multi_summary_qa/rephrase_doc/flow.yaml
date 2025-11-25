@@ -1,6 +1,6 @@
 metadata:
   name: Document Rephrasing Flow
-  description: Rephrases documents at different complexity levels (easy, medium, hard) using Jinja-templated prompts. Generates paraphrases suitable for different reading levels.
+  description: Rephrases documents at different complexity levels (easy, medium, hard) using Jinja-templated prompts based on Rephrasing the Web paper. Generates paraphrases suitable for different reading levels. The augmentation and the prompts are adopted from https://arxiv.org/abs/2401.16380
   version: 2.0.0
   author: SDG Hub Contributors
   recommended_models:
