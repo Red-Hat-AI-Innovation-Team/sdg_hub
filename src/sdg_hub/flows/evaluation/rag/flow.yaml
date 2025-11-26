@@ -2,16 +2,21 @@ metadata:
   name: RAG Evaluation Dataset Flow
   description: Generates Q&A pairs for RAG evaluation.
   version: 1.0.0
-  author: "SDG Hub Contributors"
+  author: "Red Hat AI RAG Contributors"
+  license: "Apache-2.0"
+  recommended_models:
+    default: "openai/gpt-oss-120b"
+    compatible:
+      - "meta-llama/Llama-3.3-70B-Instruct"
+      - "microsoft/phi-4"
   tags:
   - rag-evaluation
   - qa-pairs
   dataset_requirements:
     required_columns:
     - document
-    optional_columns:
     - document_outline
-    description: Input dataset should contain documents with text content. Optional column document_outline can be provided for enhanced prompts.
+    description: Input dataset should contain documents with text content and document outlines.
   id: loud-dawn-245
 blocks:
   - block_type: DuplicateColumnsBlock
@@ -156,8 +161,9 @@ blocks:
     block_config:
       block_name: filter_ungrounded
       input_cols: critic_content
-      filter_value: [4, 5, "4", "5"]
+      filter_value: [4, 5]
       operation: "eq"
+      convert_dtype: "int"
 
   - block_type: PromptBuilderBlock
     block_config:
