@@ -1,0 +1,10 @@
+{
+  "short_name": "SDG Hub",
+  "name": "SDG Hub UI",
+  "icons": [],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#151515",
+  "background_color": "#ffffff"
+}
+
