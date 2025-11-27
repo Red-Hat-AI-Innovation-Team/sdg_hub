@@ -165,14 +165,16 @@ class TestValidateApiKeyFormat:
     def test_validate_openai_key_format(self):
         """Test validating OpenAI key format."""
         from api_server import validate_api_key_format
-        # Valid OpenAI key format (using test prefix pattern)
-        is_valid, error = validate_api_key_format("sk-test0000000000", "openai")
+        # Valid OpenAI key format - must start with expected prefix
+        # Using obviously fake test value that passes format check
+        test_key = "sk-" + "test" * 5  # sk-testtesttesttesttest
+        is_valid, error = validate_api_key_format(test_key, "openai")
         assert is_valid is True
         
         # Invalid OpenAI key
         is_valid, error = validate_api_key_format("invalid-key-12345", "openai")
         assert is_valid is False
-        assert "sk-" in error
+        assert "sk-" in error  # Error message mentions expected prefix
     
     def test_validate_placeholder_keys(self):
         """Test validating placeholder keys that are explicitly checked."""

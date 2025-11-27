@@ -48,7 +48,7 @@ Authentication for the model provider:
 
 | Method | Format | Example |
 |--------|--------|---------|
-| **Direct** | Raw key | `sk-abc123...` |
+| **Direct** | Raw key | `your-api-key-here` |
 | **Environment** | `env:VAR_NAME` | `env:OPENAI_API_KEY` |
 | **Empty** | `EMPTY` | For local vLLM without auth |
 
@@ -58,7 +58,7 @@ You can reference environment variables instead of entering keys directly:
 
 ```bash
 # Set in your shell
-export OPENAI_API_KEY="sk-your-actual-key"
+export OPENAI_API_KEY="your-openai-key-here"
 ```
 
 Then in the UI, enter: `env:OPENAI_API_KEY`
@@ -148,7 +148,7 @@ Any other model-specific parameters as JSON:
 2. **Set environment variable:**
 
    ```bash
-   export OPENAI_API_KEY="sk-..."
+   export OPENAI_API_KEY="your-openai-key-here"
    ```
 
 3. **Configure in UI:**
@@ -166,7 +166,7 @@ Any other model-specific parameters as JSON:
 2. **Set environment variable:**
 
    ```bash
-   export ANTHROPIC_API_KEY="sk-ant-..."
+   export ANTHROPIC_API_KEY="your-anthropic-key-here"
    ```
 
 3. **Configure in UI:**

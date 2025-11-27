@@ -71,7 +71,7 @@ Set up the LLM that will power your generation:
 |-------|-------------|---------|
 | **Model** | Full model identifier | `hosted_vllm/meta-llama/Llama-3.3-70B-Instruct` |
 | **API Base** | Model server endpoint | `http://localhost:8000/v1` |
-| **API Key** | Authentication key | `sk-...` or `env:OPENAI_API_KEY` |
+| **API Key** | Authentication key | `your-key` or `env:OPENAI_API_KEY` |
 
 ### Model Naming Convention
 
