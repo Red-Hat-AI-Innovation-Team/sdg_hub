@@ -37,10 +37,10 @@ class TestMaskApiKey:
     def test_mask_long_key(self):
         """Test masking long API key."""
         from api_server import mask_api_key
-        key = "sk-1234567890abcdef"
+        key = "test-key-1234567890abcdef"
         result = mask_api_key(key)
         # Should show first 4 and last 4 characters
-        assert result.startswith("sk-1")
+        assert result.startswith("test")
         assert result.endswith("cdef")
         assert "*" in result
 
@@ -72,15 +72,15 @@ class TestSanitizeModelConfig:
     def test_sanitize_with_real_key_masked(self):
         """Test sanitizing config with real key (masked)."""
         from api_server import sanitize_model_config
-        config = {"api_key": "sk-1234567890abcdef", "model": "test-model"}
+        config = {"api_key": "test-key-1234567890abcdef", "model": "test-model"}
         result = sanitize_model_config(config, mask_key=True)
-        assert result["api_key"] != "sk-1234567890abcdef"
+        assert result["api_key"] != "test-key-1234567890abcdef"
         assert "*" in result["api_key"]
     
     def test_sanitize_with_real_key_removed(self):
         """Test sanitizing config with real key (removed)."""
         from api_server import sanitize_model_config
-        config = {"api_key": "sk-1234567890abcdef", "model": "test-model"}
+        config = {"api_key": "test-key-1234567890abcdef", "model": "test-model"}
         result = sanitize_model_config(config, mask_key=False)
         assert "api_key" not in result
         assert result["model"] == "test-model"
@@ -165,8 +165,8 @@ class TestValidateApiKeyFormat:
     def test_validate_openai_key_format(self):
         """Test validating OpenAI key format."""
         from api_server import validate_api_key_format
-        # Valid OpenAI key
-        is_valid, error = validate_api_key_format("sk-1234567890", "openai")
+        # Valid OpenAI key format (using test prefix pattern)
+        is_valid, error = validate_api_key_format("sk-test0000000000", "openai")
         assert is_valid is True
         
         # Invalid OpenAI key
