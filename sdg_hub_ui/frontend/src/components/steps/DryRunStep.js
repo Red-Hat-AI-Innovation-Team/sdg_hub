@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Card,
   CardTitle,
@@ -59,12 +59,25 @@ const DryRunStep = ({ onError }) => {
   const [isResultsExpanded, setIsResultsExpanded] = useState(true);
   const [isLogsExpanded, setIsLogsExpanded] = useState(true);
   const logsEndRef = useRef(null);
+  const eventSourceRef = useRef(null);
   const convert = new Convert({ fg: '#d4d4d4', bg: '#1e1e1e' });
+
+  /**
+   * Cleanup EventSource on unmount
+   */
+  useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+    };
+  }, []);
 
   /**
    * Auto-scroll logs to bottom when new logs arrive
    */
-  React.useEffect(() => {
+  useEffect(() => {
     if (logsEndRef.current && isDryRunning) {
       logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
@@ -96,8 +109,14 @@ const DryRunStep = ({ onError }) => {
       
       const url = `http://localhost:8000/api/flow/dry-run-stream?${params}`;
       
+      // Close any existing EventSource
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+      
       // Create EventSource for server-sent events
       const eventSource = new EventSource(url);
+      eventSourceRef.current = eventSource;
       
       eventSource.onmessage = (event) => {
         try {
@@ -115,12 +134,18 @@ const DryRunStep = ({ onError }) => {
             }]);
             setIsDryRunning(false);
             setIsStreaming(false);
-            eventSource.close();
+            if (eventSourceRef.current) {
+              eventSourceRef.current.close();
+              eventSourceRef.current = null;
+            }
           } else if (data.type === 'error') {
             onError('Dry run failed: ' + data.message);
             setIsDryRunning(false);
             setIsStreaming(false);
-            eventSource.close();
+            if (eventSourceRef.current) {
+              eventSourceRef.current.close();
+              eventSourceRef.current = null;
+            }
           }
         } catch (err) {
           console.error('Error parsing event:', err);
@@ -132,7 +157,10 @@ const DryRunStep = ({ onError }) => {
         onError('Connection to server lost');
         setIsDryRunning(false);
         setIsStreaming(false);
-        eventSource.close();
+        if (eventSourceRef.current) {
+          eventSourceRef.current.close();
+          eventSourceRef.current = null;
+        }
       };
 
     } catch (error) {

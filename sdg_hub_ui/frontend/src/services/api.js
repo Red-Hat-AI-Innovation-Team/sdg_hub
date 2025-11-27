@@ -291,11 +291,8 @@ export const configAPI = {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await api.post('/api/config/import', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    // Don't set Content-Type header - let axios set it with the boundary
+    const response = await api.post('/api/config/import', formData);
     return response.data;
   },
 };

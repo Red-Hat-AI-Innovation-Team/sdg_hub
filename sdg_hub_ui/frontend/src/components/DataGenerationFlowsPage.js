@@ -279,22 +279,13 @@ const DataGenerationFlowsPage = ({ executionStates, onUpdateExecutionState, getE
    * Update execution state for a config
    */
   const updateConfigExecutionState = (configId, updates) => {
-    setExecutionStates(prev => {
-      if (typeof updates === 'function') {
-        const currentState = prev[configId] || {};
-        return {
-          ...prev,
-          [configId]: updates(currentState)
-        };
-      }
-      return {
-        ...prev,
-        [configId]: {
-          ...(prev[configId] || {}),
-          ...updates
-        }
-      };
-    });
+    // Use the prop from parent to update execution state
+    if (typeof updates === 'function') {
+      const currentState = executionStates[configId] || {};
+      onUpdateExecutionState(configId, updates(currentState));
+    } else {
+      onUpdateExecutionState(configId, updates);
+    }
   };
 
   /**

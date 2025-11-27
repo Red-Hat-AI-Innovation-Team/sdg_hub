@@ -80,16 +80,6 @@ const FlowSelectionStep = ({ selectedFlow, onFlowSelect, onError, isImported }) 
   }, [flows, searchValue, selectedTags]);
 
   /**
-   * Initialize selectedFlowDetails from parent's selectedFlow
-   */
-  useEffect(() => {
-    if (selectedFlow && !selectedFlowDetails) {
-      // Parent has a selected flow but we don't - restore it
-      setSelectedFlowDetails(selectedFlow);
-    }
-  }, [selectedFlow]);
-
-  /**
    * Load flows from API
    */
   const loadFlows = async () => {
