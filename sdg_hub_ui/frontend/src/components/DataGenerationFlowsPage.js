@@ -524,12 +524,13 @@ const DataGenerationFlowsPage = ({ executionStates, onUpdateExecutionState, getE
             uniqueValues.add(modelConfig.model);
           }
           break;
-        case 'dataset':
+        case 'dataset': {
           const datasetName = getDatasetName(config);
           if (datasetName?.toLowerCase().includes(inputLower)) {
             uniqueValues.add(datasetName);
           }
           break;
+        }
         case 'tags':
           config.tags?.forEach(tag => {
             if (tag.toLowerCase().includes(inputLower)) {
