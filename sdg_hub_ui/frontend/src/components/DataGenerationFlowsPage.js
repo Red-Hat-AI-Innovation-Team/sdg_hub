@@ -78,6 +78,10 @@ const DataGenerationFlowsPage = ({ executionStates, onUpdateExecutionState, getE
   const [autocompleteOptions, setAutocompleteOptions] = useState([]);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const searchContainerRef = useRef(null);
+  
+  // Refs for callbacks to avoid stale closures in useEffect
+  const onAutoRunCompleteRef = useRef(onAutoRunComplete);
+  const loadConfigurationsRef = useRef(null);
 
   /**
    * Click outside to close autocomplete
@@ -183,6 +187,11 @@ const DataGenerationFlowsPage = ({ executionStates, onUpdateExecutionState, getE
     return 'configured';
   };
   
+  // Keep onAutoRunComplete ref updated
+  useEffect(() => {
+    onAutoRunCompleteRef.current = onAutoRunComplete;
+  }, [onAutoRunComplete]);
+
   /**
    * Load configurations from backend
    */
@@ -219,6 +228,9 @@ const DataGenerationFlowsPage = ({ executionStates, onUpdateExecutionState, getE
       setIsLoading(false);
     }
   };
+  
+  // Keep loadConfigurations ref updated
+  loadConfigurationsRef.current = loadConfigurations;
 
   /**
    * Load configurations on mount
@@ -260,17 +272,19 @@ const DataGenerationFlowsPage = ({ executionStates, onUpdateExecutionState, getE
         
         // Clear pending and autoRunConfig
         setPendingAutoRun(null);
-        if (onAutoRunComplete) {
-          onAutoRunComplete();
+        if (onAutoRunCompleteRef.current) {
+          onAutoRunCompleteRef.current();
         }
       } else if (autoRunConfig) {
         // Config not found yet, save it as pending and wait for next load
         setPendingAutoRun(autoRunConfig);
-        if (onAutoRunComplete) {
-          onAutoRunComplete();
+        if (onAutoRunCompleteRef.current) {
+          onAutoRunCompleteRef.current();
         }
         // Trigger a reload of configurations
-        loadConfigurations();
+        if (loadConfigurationsRef.current) {
+          loadConfigurationsRef.current();
+        }
       }
     }
   }, [autoRunConfig, configurations, pendingAutoRun]);
