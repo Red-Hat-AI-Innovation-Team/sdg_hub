@@ -3,13 +3,12 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-import requests
-
 from sdg_hub.core.blocks.agent.agent_wrapper.langflow_agent_wrapper import (
     LangflowAgentWrapper,
 )
 from sdg_hub.core.utils.error_handling import BlockValidationError
+import pytest
+import requests
 
 
 @pytest.fixture

@@ -6,9 +6,9 @@ import traceback
 
 import requests
 
-from .base import BaseAgentWrapper
 from ....utils.error_handling import BlockValidationError
 from ....utils.logger_config import setup_logger
+from .base import BaseAgentWrapper
 
 logger = setup_logger(__name__)
 

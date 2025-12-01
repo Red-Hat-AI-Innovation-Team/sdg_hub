@@ -3,9 +3,8 @@
 
 from typing import Any
 
-import pytest
-
 from sdg_hub.core.blocks.agent.agent_wrapper.base import BaseAgentWrapper
+import pytest
 
 
 class ConcreteAgentWrapper(BaseAgentWrapper):

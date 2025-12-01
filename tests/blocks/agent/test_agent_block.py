@@ -3,11 +3,10 @@
 
 from unittest.mock import MagicMock, patch
 
-import pandas as pd
-import pytest
-
 from sdg_hub.core.blocks.agent import AgentBlock
 from sdg_hub.core.utils.error_handling import BlockValidationError
+import pandas as pd
+import pytest
 
 
 @pytest.fixture
@@ -277,7 +276,7 @@ class TestGenerate:
             agent_url="http://localhost:8000",
         )
 
-        result = block.generate(sample_dataframe)
+        block.generate(sample_dataframe)
 
         # Get all session IDs used
         session_ids = [
