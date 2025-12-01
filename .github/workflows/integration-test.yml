@@ -127,6 +127,7 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
+          # Uses .[dev,integration] - lightweight, no torch/transformers
           tox -e py3-integrationcov
 
 
