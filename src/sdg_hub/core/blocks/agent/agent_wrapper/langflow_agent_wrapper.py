@@ -201,7 +201,7 @@ class LangflowAgentWrapper(BaseAgentWrapper):
         Raises
         ------
         BlockValidationError
-            If the request fails or response is invalid.
+            If input validation, request, or response parsing fails.
         """
         logger.info(
             "Sending request to Langflow with session_id=%s",
@@ -213,10 +213,26 @@ class LangflowAgentWrapper(BaseAgentWrapper):
             },
         )
 
+        # Step 1: Build payload and headers (input validation)
         try:
             payload = self._build_payload(messages, session_id)
             headers = self._build_headers()
+        except (ValueError, TypeError) as e:
+            # Invalid input messages or payload construction errors
+            error_msg = f"Invalid input messages for Langflow: {str(e)}"
+            logger.error(
+                error_msg,
+                extra={
+                    "session_id": session_id,
+                    "error_type": type(e).__name__,
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                },
+            )
+            raise BlockValidationError(error_msg) from e
 
+        # Step 2: Make HTTP request
+        try:
             response = requests.post(
                 self.agent_url,
                 json=payload,
@@ -231,20 +247,10 @@ class LangflowAgentWrapper(BaseAgentWrapper):
             )
 
             response.raise_for_status()
-            response_data = response.json()
-            validated_response = self.validate_response(response_data)
-
-            logger.info(
-                "Successfully received response from Langflow for session_id=%s",
-                session_id,
-                extra={"session_id": session_id},
-            )
-
-            return validated_response
 
         except requests.exceptions.RequestException as e:
-            # Catches all requests-related errors (timeout, HTTP errors, connection errors, etc.)
-            error_msg = f"Langflow request failed: {str(e)}"
+            # HTTP/network errors (timeout, connection, HTTP status errors, etc.)
+            error_msg = f"Langflow HTTP request failed: {str(e)}"
             logger.error(
                 error_msg,
                 extra={
@@ -256,8 +262,21 @@ class LangflowAgentWrapper(BaseAgentWrapper):
             )
             raise BlockValidationError(error_msg) from e
 
+        # Step 3: Parse and validate response
+        try:
+            response_data = response.json()
+            validated_response = self.validate_response(response_data)
+
+            logger.info(
+                "Successfully received response from Langflow for session_id=%s",
+                session_id,
+                extra={"session_id": session_id},
+            )
+
+            return validated_response
+
         except (ValueError, TypeError) as e:
-            # Catches JSON parsing errors and validation errors
+            # Response parsing or validation errors
             error_msg = f"Failed to parse or validate Langflow response: {str(e)}"
             logger.error(
                 error_msg,

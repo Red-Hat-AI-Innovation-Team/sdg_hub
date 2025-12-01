@@ -241,7 +241,7 @@ class TestGenerate:
         messages = [{"role": "user", "content": "Hello"}]
         session_id = "test-session"
 
-        with pytest.raises(BlockValidationError, match="Langflow request failed"):
+        with pytest.raises(BlockValidationError, match="Langflow HTTP request failed"):
             wrapper.generate(messages, session_id)
 
     def test_generate_http_error(self, wrapper, mock_requests_post_http_error):
@@ -249,7 +249,7 @@ class TestGenerate:
         messages = [{"role": "user", "content": "Hello"}]
         session_id = "test-session"
 
-        with pytest.raises(BlockValidationError, match="Langflow request failed"):
+        with pytest.raises(BlockValidationError, match="Langflow HTTP request failed"):
             wrapper.generate(messages, session_id)
 
     def test_generate_json_parse_error(self, wrapper):
