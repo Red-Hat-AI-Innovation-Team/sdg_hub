@@ -44,8 +44,6 @@ class AgentBlock(BaseBlock):
         API key to access the agent, by default None.
     timeout : float, optional
         Request timeout in seconds, by default 120.0.
-    session_id_strategy : str, optional
-        How to generate session IDs: "per_sample" (default) or "per_batch".
 
     Examples
     --------
@@ -73,11 +71,6 @@ class AgentBlock(BaseBlock):
     )
     timeout: float = Field(
         120.0, exclude=True, description="Request timeout in seconds"
-    )
-    session_id_strategy: str = Field(
-        "per_sample",
-        exclude=True,
-        description="Session ID strategy: 'per_sample' or 'per_batch'",
     )
 
     # Private: agent wrapper instance (initialized once)
@@ -133,17 +126,6 @@ class AgentBlock(BaseBlock):
             raise ValueError("agent_url is required")
         return v
 
-    @field_validator("session_id_strategy")
-    @classmethod
-    def validate_session_id_strategy(cls, v):
-        """Validate session ID strategy."""
-        allowed = ["per_sample", "per_batch"]
-        if v not in allowed:
-            raise ValueError(
-                f"Invalid session_id_strategy: {v}. Allowed: {', '.join(allowed)}"
-            )
-        return v
-
     def model_post_init(self, __context) -> None:
         """Initialize after Pydantic validation."""
         super().model_post_init(__context)
@@ -152,17 +134,15 @@ class AgentBlock(BaseBlock):
         self._agent_wrapper = self._create_agent_wrapper()
 
         logger.info(
-            "Initialized AgentBlock '%s' with framework '%s', timeout=%.1fs, strategy=%s",
+            "Initialized AgentBlock '%s' with framework '%s', timeout=%.1fs",
             self.block_name,
             self.agent_framework,
             self.timeout,
-            self.session_id_strategy,
             extra={
                 "block_name": self.block_name,
                 "agent_framework": self.agent_framework,
                 "agent_url": self.agent_url,
                 "timeout": self.timeout,
-                "session_id_strategy": self.session_id_strategy,
             },
         )
 
@@ -231,25 +211,15 @@ class AgentBlock(BaseBlock):
             return [messages]
         return [self._message_to_dict(messages)]
 
-    def _generate_session_id(self, batch_session_id: str, sample_idx: int) -> str:
-        """Generate session ID based on strategy.
-
-        Parameters
-        ----------
-        batch_session_id : str
-            The session ID for the entire batch.
-        sample_idx : int
-            Index of the current sample.
+    def _generate_session_id(self) -> str:
+        """Generate a unique session ID for each sample.
 
         Returns
         -------
         str
-            The session ID to use.
+            A unique UUID string for the session.
         """
-        if self.session_id_strategy == "per_batch":
-            return batch_session_id
-        else:  # per_sample
-            return str(uuid.uuid4())
+        return str(uuid.uuid4())
 
     def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         """Generate responses from the agent using the wrapper.
@@ -279,27 +249,21 @@ class AgentBlock(BaseBlock):
         # Extract messages from DataFrame
         messages_list = samples[self.input_cols[0]].tolist()
 
-        # Generate batch session ID (used if strategy is "per_batch")
-        batch_session_id = str(uuid.uuid4())
-
         logger.info(
-            "Starting agent generation for %d samples using %s framework (strategy=%s)",
+            "Starting agent generation for %d samples using %s framework",
             len(messages_list),
             self.agent_framework,
-            self.session_id_strategy,
             extra={
                 "block_name": self.block_name,
                 "agent_framework": self.agent_framework,
                 "batch_size": len(messages_list),
-                "session_id_strategy": self.session_id_strategy,
-                "batch_session_id": batch_session_id,
             },
         )
 
         # Generate responses
         responses = []
         for idx, message in enumerate(messages_list):
-            session_id = self._generate_session_id(batch_session_id, idx)
+            session_id = self._generate_session_id()
 
             logger.debug(
                 "Processing sample %d/%d with session_id=%s",
