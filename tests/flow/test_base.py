@@ -1422,3 +1422,48 @@ class TestFlow:
             FlowValidationError, match="max_concurrency must be greater than 0"
         ):
             flow.generate(dataset, max_concurrency=-1)
+
+    def test_set_model_config_redacts_sensitive_params(self, caplog):
+        """Test API key and secrets redaction in logs.
+
+        test ensuring sensitive parameters are redacted while non-sensitive ones remain visible.
+        """
+        # Standard
+        import logging
+
+        # First Party
+        from sdg_hub.core.blocks.llm.llm_chat_block import LLMChatBlock
+
+        llm_block = LLMChatBlock(
+            block_name="test_llm", input_cols="messages", output_cols="response"
+        )
+        flow = Flow(metadata=self.test_metadata, blocks=[llm_block])
+
+        with caplog.at_level(logging.INFO, logger="sdg_hub.core.flow.base"):
+            flow.set_model_config(
+                model="openai/gpt-4",
+                api_key="sk-secret-key",
+                password="secret123",
+                temperature=0.7,
+                max_tokens=100,
+            )
+
+        log_messages = [record.message for record in caplog.records]
+        relevant_logs = [msg for msg in log_messages if "Successfully configured" in msg]
+        assert len(relevant_logs) > 0
+        log_text = relevant_logs[0]
+
+        # Sensitive params must be redacted
+        assert "***REDACTED***" in log_text
+        assert "sk-secret-key" not in log_text
+        assert "secret123" not in log_text
+
+        # Non-sensitive params should be visible
+        assert "temperature: 0.7" in log_text
+        assert "max_tokens: 100" in log_text
+
+        # Test redaction logic directly
+        assert flow._should_redact_param("api_key") is True
+        assert flow._should_redact_param("password") is True
+        assert flow._should_redact_param("max_tokens") is False
+        assert flow._should_redact_param("temperature") is False

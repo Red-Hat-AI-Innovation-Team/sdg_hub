@@ -728,6 +728,56 @@ class Flow(BaseModel):
             return {}
         return runtime_params.get(block.block_name, {})
 
+    def _should_redact_param(self, param_name: str) -> bool:
+        """Check if a parameter should be redacted from logs.
+
+        Uses two strategies:
+        1. Keyword matching for common sensitive parameter patterns
+        2. Pydantic field metadata inspection (exclude=True indicates sensitive data)
+
+        Parameters
+        ----------
+        param_name : str
+            The parameter name to check
+
+        Returns
+        -------
+        bool
+            True if the parameter should be redacted, False otherwise
+        """
+        # Common sensitive parameter patterns (keyword-based fallback)
+        # Use suffix/prefix matching to avoid false positives like "max_tokens"
+        param_lower = param_name.lower()
+        sensitive_patterns = [
+            '_key',
+            'api_key',
+            'apikey',
+            'secret',
+            '_token',
+            'access_token',
+            'auth_token',
+            'bearer_token',
+            'password',
+            'credential',
+        ]
+
+        # Check if parameter matches any sensitive pattern
+        if any(pattern in param_lower for pattern in sensitive_patterns):
+            # Exclude false positives like "max_tokens", "num_tokens"
+            if param_lower in {'max_tokens', 'num_tokens', 'min_tokens'}:
+                return False
+            return True
+
+        # Check Pydantic field metadata from blocks
+        # If a field has exclude=True, it's considered sensitive
+        for block in self.blocks:
+            if hasattr(block, '__class__') and hasattr(block.__class__, 'model_fields'):
+                field_info = block.__class__.model_fields.get(param_name)
+                if field_info and field_info.exclude:
+                    return True
+
+        return False
+
     def set_model_config(
         self,
         model: Optional[str] = None,
@@ -861,6 +911,8 @@ class Flow(BaseModel):
                     param_summary.append(f"model: '{param_value}'")
                 elif param_name == "api_base":
                     param_summary.append(f"api_base: '{param_value}'")
+                elif self._should_redact_param(param_name):
+                    param_summary.append(f"{param_name}: ***REDACTED***")
                 else:
                     param_summary.append(f"{param_name}: {param_value}")
 
