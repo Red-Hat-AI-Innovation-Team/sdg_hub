@@ -166,13 +166,113 @@ def resolve_dataset_file(path_str: str) -> Path:
     )
 
 
+# Get SDG Hub flows directory (for reading predefined flows)
+SDG_HUB_FLOWS_DIR = (Path(__file__).parent.parent.parent / "src" / "sdg_hub" / "flows").resolve()
+
+# Allowed directories for reading flow files
+ALLOWED_FLOW_READ_DIRS: List[Path] = [CUSTOM_FLOWS_DIR, SDG_HUB_FLOWS_DIR]
+
+
+def is_path_within_allowed_dirs(path: Path, allowed_dirs: List[Path]) -> bool:
+    """Check if a path is within any of the allowed directories."""
+    resolved = path.resolve() if path.exists() else path.absolute()
+    for allowed_dir in allowed_dirs:
+        try:
+            resolved.relative_to(allowed_dir)
+            return True
+        except ValueError:
+            continue
+    return False
+
+
+def resolve_flow_file(path_str: str, must_exist: bool = True) -> Path:
+    """Resolve flow file path and ensure it is under an allowed directory."""
+    candidate = Path(path_str)
+    if not candidate.is_absolute():
+        # Try relative to custom flows first, then sdg_hub flows
+        for base_dir in ALLOWED_FLOW_READ_DIRS:
+            potential = base_dir / path_str
+            if potential.exists():
+                candidate = potential
+                break
+        else:
+            candidate = CUSTOM_FLOWS_DIR / path_str
+    
+    resolved = candidate.resolve() if candidate.exists() else candidate.absolute()
+    
+    if not is_path_within_allowed_dirs(resolved, ALLOWED_FLOW_READ_DIRS):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Flow file must reside within allowed directories."
+        )
+    
+    if must_exist and not resolved.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Flow file not found: {path_str}"
+        )
+    
+    return resolved
+
+
+def resolve_prompt_file(path_str: str, flow_dir: Optional[Path] = None) -> Path:
+    """Resolve prompt file path and ensure it is under an allowed directory.
+    
+    Args:
+        path_str: The prompt file path (can be relative or absolute)
+        flow_dir: Optional flow directory to resolve relative paths against
+    """
+    candidate = Path(path_str)
+    
+    # If relative path and flow_dir provided, try there first
+    if not candidate.is_absolute() and flow_dir:
+        potential = flow_dir / candidate.name
+        if potential.exists():
+            candidate = potential
+    
+    # If still not found, search in allowed directories
+    if not candidate.exists():
+        for base_dir in ALLOWED_FLOW_READ_DIRS:
+            for yaml_file in base_dir.rglob(candidate.name):
+                candidate = yaml_file
+                break
+            if candidate.exists():
+                break
+    
+    if not candidate.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Prompt file not found: {path_str}"
+        )
+    
+    resolved = candidate.resolve()
+    
+    if not is_path_within_allowed_dirs(resolved, ALLOWED_FLOW_READ_DIRS):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Prompt file must reside within allowed directories."
+        )
+    
+    return resolved
+
+
 # ============================================================================
 # Checkpoint Utilities
 # ============================================================================
 
 def get_checkpoint_dir_for_config(config_id: str) -> Path:
-    """Get the checkpoint directory path for a specific configuration."""
-    return CHECKPOINTS_DIR / config_id
+    """Get the checkpoint directory path for a specific configuration.
+    
+    Validates that config_id doesn't contain path traversal sequences.
+    """
+    # Sanitize config_id to prevent path traversal
+    safe_config_id = sanitize_filename(config_id)
+    if not safe_config_id:
+        raise HTTPException(status_code=400, detail="Invalid configuration ID")
+    
+    checkpoint_dir = CHECKPOINTS_DIR / safe_config_id
+    # Verify the resulting path is within CHECKPOINTS_DIR
+    return ensure_within_directory(CHECKPOINTS_DIR, checkpoint_dir)
 
 
 def get_checkpoint_info(config_id: str) -> Dict[str, Any]:
@@ -773,16 +873,17 @@ async def list_flows():
         # Extract just the flow names from the list of dicts
         flow_names = [flow["name"] for flow in flows]
         
-        # Also check for custom flows
-        custom_flows_dir = Path("custom_flows")
-        if custom_flows_dir.exists():
-            for flow_dir in custom_flows_dir.iterdir():
+        # Also check for custom flows (using validated CUSTOM_FLOWS_DIR constant)
+        if CUSTOM_FLOWS_DIR.exists():
+            for flow_dir in CUSTOM_FLOWS_DIR.iterdir():
                 if flow_dir.is_dir():
                     flow_yaml = flow_dir / "flow.yaml"
                     if flow_yaml.exists():
                         try:
                             import yaml
-                            with open(flow_yaml, 'r') as f:
+                            # Validate path is within allowed directory
+                            validated_path = ensure_within_directory(CUSTOM_FLOWS_DIR, flow_yaml)
+                            with open(validated_path, 'r') as f:
                                 flow_data = yaml.safe_load(f)
                                 custom_flow_name = flow_data.get('metadata', {}).get('name')
                                 if custom_flow_name and custom_flow_name not in flow_names:
@@ -835,10 +936,9 @@ async def get_flow_info(flow_name: str):
         
         # If not found in registry and is custom, check custom_flows directory
         if not flow_path and is_custom:
-            custom_flows_dir = Path("custom_flows")
-            # Normalize the flow name to match directory name
-            flow_dir_name = actual_flow_name.lower().replace(' ', '_').replace('-', '_').replace('(', '').replace(')', '')
-            custom_flow_path = custom_flows_dir / flow_dir_name / "flow.yaml"
+            # Normalize the flow name to match directory name using slugify
+            flow_dir_name = slugify_name(actual_flow_name, prefix="flow")
+            custom_flow_path = ensure_within_directory(CUSTOM_FLOWS_DIR, CUSTOM_FLOWS_DIR / flow_dir_name / "flow.yaml")
             
             logger.info(f"Looking for custom flow at: {custom_flow_path}")
             
@@ -846,29 +946,34 @@ async def get_flow_info(flow_name: str):
                 flow_path = str(custom_flow_path)
             else:
                 # Try to find by scanning the directory
-                if custom_flows_dir.exists():
-                    for flow_dir in custom_flows_dir.iterdir():
+                if CUSTOM_FLOWS_DIR.exists():
+                    for flow_dir in CUSTOM_FLOWS_DIR.iterdir():
                         if flow_dir.is_dir():
                             potential_path = flow_dir / "flow.yaml"
                             if potential_path.exists():
                                 import yaml
-                                with open(potential_path, 'r') as f:
+                                # Validate path before reading
+                                validated_path = ensure_within_directory(CUSTOM_FLOWS_DIR, potential_path)
+                                with open(validated_path, 'r') as f:
                                     flow_data = yaml.safe_load(f)
                                     if flow_data.get('metadata', {}).get('name') == actual_flow_name:
-                                        flow_path = str(potential_path)
+                                        flow_path = str(validated_path)
                                         break
         
         if not flow_path:
             raise HTTPException(status_code=404, detail=f"Flow '{flow_name}' not found")
         
+        # Validate flow_path is within allowed directories
+        validated_flow_path = resolve_flow_file(flow_path)
+        
         # Load flow
-        flow = Flow.from_yaml(flow_path)
+        flow = Flow.from_yaml(str(validated_flow_path))
         
         # Extract flow information
         flow_info = FlowInfo(
             name=flow.metadata.name,
             id=flow.metadata.id,
-            path=flow_path,
+            path=str(validated_flow_path),
             description=flow.metadata.description,
             version=flow.metadata.version,
             author=flow.metadata.author,
@@ -899,21 +1004,20 @@ async def select_flow_by_path(request: Dict[str, Any]):
         if not flow_path:
             raise HTTPException(status_code=400, detail="flow_path is required")
         
-        flow_path_obj = Path(flow_path)
-        if not flow_path_obj.exists():
-            raise HTTPException(status_code=404, detail=f"Flow file not found: {flow_path}")
+        # Validate and resolve the flow path within allowed directories
+        validated_flow_path = resolve_flow_file(flow_path)
         
         # Load the flow
-        flow = Flow.from_yaml(str(flow_path_obj))
+        flow = Flow.from_yaml(str(validated_flow_path))
         
         # Update current config
         current_config["flow"] = flow
-        current_config["flow_path"] = str(flow_path_obj)
+        current_config["flow_path"] = str(validated_flow_path)
         current_config["model_config"] = {}
         current_config["dataset"] = None
         current_config["dataset_info"] = {}
         
-        logger.info(f"Selected flow from path: {flow_path}")
+        logger.info(f"Selected flow from path: {validated_flow_path}")
         
         return {
             "status": "success",
@@ -943,30 +1047,34 @@ async def get_flow_yaml(flow_name: str):
         
         # If not found in registry and is custom, check custom_flows directory
         if not flow_path and is_custom:
-            custom_flows_dir = Path("custom_flows")
-            flow_dir_name = actual_flow_name.lower().replace(' ', '_').replace('-', '_').replace('(', '').replace(')', '')
-            custom_flow_path = custom_flows_dir / flow_dir_name / "flow.yaml"
+            flow_dir_name = slugify_name(actual_flow_name, prefix="flow")
+            custom_flow_path = ensure_within_directory(CUSTOM_FLOWS_DIR, CUSTOM_FLOWS_DIR / flow_dir_name / "flow.yaml")
             
             if custom_flow_path.exists():
                 flow_path = str(custom_flow_path)
             else:
-                # Try to find by scanning
-                if custom_flows_dir.exists():
-                    for flow_dir in custom_flows_dir.iterdir():
+                # Try to find by scanning within CUSTOM_FLOWS_DIR only
+                if CUSTOM_FLOWS_DIR.exists():
+                    for flow_dir in CUSTOM_FLOWS_DIR.iterdir():
                         if flow_dir.is_dir():
                             potential_path = flow_dir / "flow.yaml"
                             if potential_path.exists():
-                                with open(potential_path, 'r') as f:
+                                # Validate path is within allowed directory
+                                validated_path = ensure_within_directory(CUSTOM_FLOWS_DIR, potential_path)
+                                with open(validated_path, 'r') as f:
                                     flow_data = yaml.safe_load(f)
                                     if flow_data.get('metadata', {}).get('name') == actual_flow_name:
-                                        flow_path = str(potential_path)
+                                        flow_path = str(validated_path)
                                         break
         
         if not flow_path:
             raise HTTPException(status_code=404, detail=f"Flow '{flow_name}' not found")
         
+        # Validate flow_path is within allowed directories before reading
+        validated_flow_path = resolve_flow_file(flow_path)
+        
         # Read and parse the YAML file
-        with open(flow_path, 'r') as f:
+        with open(validated_flow_path, 'r') as f:
             flow_data = yaml.safe_load(f)
         
         logger.info(f"Retrieved YAML for flow: {flow_name}")
@@ -992,36 +1100,40 @@ async def select_flow(flow_name: str):
         
         # If not found and is custom, check custom_flows directory
         if not flow_path and is_custom:
-            custom_flows_dir = Path("custom_flows")
-            # Normalize the flow name
-            flow_dir_name = actual_flow_name.lower().replace(' ', '_').replace('-', '_').replace('(', '').replace(')', '')
-            custom_flow_path = custom_flows_dir / flow_dir_name / "flow.yaml"
+            # Normalize the flow name using slugify
+            flow_dir_name = slugify_name(actual_flow_name, prefix="flow")
+            custom_flow_path = ensure_within_directory(CUSTOM_FLOWS_DIR, CUSTOM_FLOWS_DIR / flow_dir_name / "flow.yaml")
             
             if custom_flow_path.exists():
                 flow_path = str(custom_flow_path)
             else:
                 # Scan directory to find by metadata name
-                if custom_flows_dir.exists():
+                if CUSTOM_FLOWS_DIR.exists():
                     import yaml
-                    for flow_dir in custom_flows_dir.iterdir():
+                    for flow_dir in CUSTOM_FLOWS_DIR.iterdir():
                         if flow_dir.is_dir():
                             potential_path = flow_dir / "flow.yaml"
                             if potential_path.exists():
-                                with open(potential_path, 'r') as f:
+                                # Validate path before reading
+                                validated_path = ensure_within_directory(CUSTOM_FLOWS_DIR, potential_path)
+                                with open(validated_path, 'r') as f:
                                     flow_data = yaml.safe_load(f)
                                     if flow_data.get('metadata', {}).get('name') == actual_flow_name:
-                                        flow_path = str(potential_path)
+                                        flow_path = str(validated_path)
                                         break
         
         if not flow_path:
             raise HTTPException(status_code=404, detail=f"Flow '{flow_name}' not found")
         
+        # Validate flow_path is within allowed directories
+        validated_flow_path = resolve_flow_file(flow_path)
+        
         # Load flow
-        flow = Flow.from_yaml(flow_path)
+        flow = Flow.from_yaml(str(validated_flow_path))
         
         # Store in current config
         current_config["flow"] = flow
-        current_config["flow_path"] = flow_path
+        current_config["flow_path"] = str(validated_flow_path)
         current_config["model_config"] = {}
         
         logger.info(f"Selected flow: {flow_name}")
@@ -2240,12 +2352,11 @@ async def create_flow(
         yaml.safe_load(flow_yaml)  # Validates YAML syntax
         
         # Create custom flows directory
-        custom_flows_dir = Path("custom_flows")
-        custom_flows_dir.mkdir(exist_ok=True)
+        CUSTOM_FLOWS_DIR.mkdir(parents=True, exist_ok=True)
         
-        # Create flow-specific directory
-        flow_dir_name = flow_name.lower().replace(' ', '_').replace('-', '_').replace('(', '').replace(')', '')
-        flow_dir = custom_flows_dir / flow_dir_name
+        # Create flow-specific directory with sanitized name
+        safe_flow_dir_name = slugify_name(flow_name, prefix="flow")
+        flow_dir = ensure_within_directory(CUSTOM_FLOWS_DIR, CUSTOM_FLOWS_DIR / safe_flow_dir_name)
         flow_dir.mkdir(exist_ok=True)
         
         # If this is a cloned flow, copy prompt template files from source
@@ -2254,15 +2365,19 @@ async def create_flow(
             if source_flow_path:
                 source_dir = Path(source_flow_path).parent
                 
-                # Copy all YAML files except flow.yaml
-                for yaml_file in source_dir.glob("*.yaml"):
-                    if yaml_file.name != "flow.yaml":
-                        dest_file = flow_dir / yaml_file.name
-                        shutil.copy2(yaml_file, dest_file)
-                        logger.info(f"Copied prompt template: {yaml_file.name}")
+                # Validate source directory is within allowed directories
+                if is_path_within_allowed_dirs(source_dir, ALLOWED_FLOW_READ_DIRS):
+                    # Copy all YAML files except flow.yaml
+                    for yaml_file in source_dir.glob("*.yaml"):
+                        if yaml_file.name != "flow.yaml":
+                            # Sanitize destination filename and validate path
+                            safe_filename = sanitize_filename(yaml_file.name) or "prompt.yaml"
+                            dest_file = ensure_within_directory(flow_dir, flow_dir / safe_filename)
+                            shutil.copy2(yaml_file, dest_file)
+                            logger.info(f"Copied prompt template: {yaml_file.name}")
         
         # Save flow.yaml
-        flow_yaml_path = flow_dir / "flow.yaml"
+        flow_yaml_path = ensure_within_directory(flow_dir, flow_dir / "flow.yaml")
         with open(flow_yaml_path, 'w') as f:
             f.write(flow_yaml)
         
@@ -2272,7 +2387,9 @@ async def create_flow(
         if prompt_templates:
             templates_data = json.loads(prompt_templates)
             for block_name, messages in templates_data.items():
-                template_yaml_path = flow_dir / f"{block_name}.yaml"
+                # Sanitize block_name for use in filename
+                safe_block_name = sanitize_filename(f"{block_name}.yaml") or f"prompt_{int(time.time())}.yaml"
+                template_yaml_path = ensure_within_directory(flow_dir, flow_dir / safe_block_name)
                 
                 # Convert messages to YAML format
                 template_yaml = yaml.dump(messages, default_flow_style=False, allow_unicode=True)
@@ -2294,6 +2411,8 @@ async def create_flow(
         
     except yaml.YAMLError as e:
         raise HTTPException(status_code=400, detail=f"Invalid YAML: {e}")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error creating flow: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -2566,30 +2685,9 @@ async def load_prompt_template(prompt_path: str):
     """Load an existing prompt template YAML file."""
     try:
         import yaml
-        from pathlib import Path
         
-        # Resolve the path - could be relative to flow directory
-        prompt_file = Path(prompt_path)
-        
-        if not prompt_file.exists():
-            # Try in custom_flows directory
-            custom_flows_dir = Path("custom_flows")
-            if custom_flows_dir.exists():
-                for yaml_file in custom_flows_dir.rglob(prompt_file.name):
-                    prompt_file = yaml_file
-                    break
-        
-        if not prompt_file.exists():
-            # Try in sdg_hub flows directory
-            sdg_hub_path = Path(__file__).parent.parent.parent / "sdg_hub" / "src" / "sdg_hub" / "flows"
-            
-            # Search for the file
-            for yaml_file in sdg_hub_path.rglob(prompt_file.name):
-                prompt_file = yaml_file
-                break
-        
-        if not prompt_file.exists():
-            raise HTTPException(status_code=404, detail=f"Prompt file not found: {prompt_path}")
+        # Validate and resolve the prompt file path within allowed directories
+        prompt_file = resolve_prompt_file(prompt_path)
         
         # Load YAML
         with open(prompt_file, 'r') as f:
@@ -2603,6 +2701,8 @@ async def load_prompt_template(prompt_path: str):
             "file_path": str(prompt_file)
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error loading prompt template: {e}")
         raise HTTPException(status_code=500, detail=str(e))
