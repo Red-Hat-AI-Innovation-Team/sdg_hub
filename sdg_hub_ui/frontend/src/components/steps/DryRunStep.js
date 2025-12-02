@@ -103,11 +103,12 @@ const DryRunStep = ({ onError }) => {
       }
       
       // Build URL with query parameters
-      const params = new URLSearchParams({
-        sample_size: sampleSize,
-        enable_time_estimation: enableTimeEstimation,
-        max_concurrency: useMaxConcurrency ? maxConcurrency : '',
-      });
+      const params = new URLSearchParams();
+      params.append('sample_size', String(sampleSize));
+      params.append('enable_time_estimation', String(enableTimeEstimation));
+      if (useMaxConcurrency) {
+        params.append('max_concurrency', String(maxConcurrency));
+      }
       
       const url = `http://localhost:8000/api/flow/dry-run-stream?${params}`;
       
@@ -166,6 +167,11 @@ const DryRunStep = ({ onError }) => {
       };
 
     } catch (error) {
+      // Clean up EventSource on error
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
       onError('Dry run failed: ' + error.message);
       setIsDryRunning(false);
       setIsStreaming(false);

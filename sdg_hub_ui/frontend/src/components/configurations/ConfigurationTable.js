@@ -65,8 +65,10 @@ const ConfigurationTable = ({
    */
   const stripAnsi = (str) => {
     if (!str) return '';
-    // eslint-disable-next-line no-control-regex
-    return str.replace(/\x1b\[[0-9;]*m/g, '').replace(/\[([0-9;]*)m/g, '');
+    // Use RegExp constructor to avoid raw control characters in regex literals
+    const ansiPattern = new RegExp('\\x1b\\[[0-9;]*m', 'g');
+    const bracketPattern = new RegExp('\\[([0-9;]*)m', 'g');
+    return str.replace(ansiPattern, '').replace(bracketPattern, '');
   };
 
   /**
