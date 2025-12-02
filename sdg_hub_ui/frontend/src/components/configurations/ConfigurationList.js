@@ -233,7 +233,7 @@ const ConfigurationList = ({
       }
     }
     
-    // 3. Call backend to stop process
+    // 4. Call backend to stop process
     try {
       await executionAPI.cancel(config.id);
       

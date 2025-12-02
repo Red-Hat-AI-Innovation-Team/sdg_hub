@@ -60,7 +60,9 @@ const DryRunStep = ({ onError }) => {
   const [isLogsExpanded, setIsLogsExpanded] = useState(true);
   const logsEndRef = useRef(null);
   const eventSourceRef = useRef(null);
-  const convert = new Convert({ fg: '#d4d4d4', bg: '#1e1e1e' });
+  
+  // Single Convert instance with escapeXML enabled to prevent XSS
+  const convertRef = useRef(new Convert({ fg: '#d4d4d4', bg: '#1e1e1e', escapeXML: true }));
 
   /**
    * Cleanup EventSource on unmount
@@ -326,10 +328,11 @@ const DryRunStep = ({ onError }) => {
                   wordBreak: 'break-word'
                 }}>
                   {executionLogs.map((log, index) => (
+                    // eslint-disable-next-line react/no-danger -- HTML is sanitized by ansi-to-html with escapeXML enabled
                     <span
                       key={index}
                       dangerouslySetInnerHTML={{
-                        __html: convert.toHtml(log.message || '')
+                        __html: convertRef.current.toHtml(log.message || '')
                       }}
                     />
                   ))}

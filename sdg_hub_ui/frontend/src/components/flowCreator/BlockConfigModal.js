@@ -410,8 +410,9 @@ const BlockConfigModal = ({ block, isEdit, onSubmit, onClose, onTempFlowCreated,
         setExpandedBlocks([0]);
       }
     } catch (error) {
-      console.error('Failed to save prompt:', error);
-      alert('Failed to save prompt: ' + error.message);
+      const msg = (error && error.message) || String(error) || 'Unknown error';
+      console.error('Failed to save prompt:', msg);
+      alert('Failed to save prompt: ' + msg);
     }
   };
 
@@ -855,136 +856,6 @@ const BlockConfigModal = ({ block, isEdit, onSubmit, onClose, onTempFlowCreated,
                 description: block.description || ''
               }, 0);
             })()}
-          </>
-        )}
-
-        {/* Keep old LLM-specific configs for backward compatibility */}
-        {!block.isBundle && false && ( // Disabled - using renderBundleBlockConfig instead
-          <>
-            {/* Block Name */}
-            <FormGroup
-              label="Block Name"
-              isRequired
-              fieldId="block_name"
-              helperText="Unique identifier for this block in the flow"
-            >
-              <TextInput
-                isRequired
-                type="text"
-                id="block_name"
-                value={config.block_name || ''}
-                onChange={(event, value) => handleChange('block_name', value)}
-                placeholder="Enter a unique block name"
-              />
-            </FormGroup>
-
-            {/* Block-specific parameters */}
-            {block.id === 'LLMChatBlock' && false && (
-              <>
-                <Grid hasGutter>
-                  <GridItem span={6}>
-                    <FormGroup label="Max Tokens" fieldId="max_tokens">
-                      <NumberInput
-                        id="max_tokens"
-                        value={config.max_tokens || 2048}
-                        onMinus={() => handleChange('max_tokens', Math.max(1, (config.max_tokens || 2048) - 100))}
-                        onPlus={() => handleChange('max_tokens', (config.max_tokens || 2048) + 100)}
-                        onChange={(event) => {
-                          const value = parseInt(event.target.value, 10);
-                          handleChange('max_tokens', isNaN(value) ? 2048 : value);
-                        }}
-                        min={1}
-                        widthChars={10}
-                      />
-                    </FormGroup>
-                  </GridItem>
-                  <GridItem span={6}>
-                    <FormGroup label="Temperature" fieldId="temperature">
-                      <NumberInput
-                        id="temperature"
-                        value={config.temperature !== undefined ? config.temperature : 0.7}
-                        onMinus={() => handleChange('temperature', Math.max(0, (config.temperature || 0.7) - 0.1))}
-                        onPlus={() => handleChange('temperature', Math.min(2, (config.temperature || 0.7) + 0.1))}
-                        onChange={(event) => {
-                          const value = parseFloat(event.target.value);
-                          handleChange('temperature', isNaN(value) ? 0.7 : value);
-                        }}
-                        min={0}
-                        max={2}
-                        widthChars={8}
-                      />
-                    </FormGroup>
-                  </GridItem>
-                </Grid>
-                <FormGroup fieldId="async_mode">
-                  <Checkbox
-                    id="async_mode"
-                    label="Async Mode (faster for large batches)"
-                    isChecked={config.async_mode !== undefined ? config.async_mode : true}
-                    onChange={(event, checked) => handleChange('async_mode', checked)}
-                  />
-                </FormGroup>
-              </>
-            )}
-
-            {block.id === 'TextParserBlock' && (
-              <Grid hasGutter>
-                <GridItem span={6}>
-                  <FormGroup label="Start Tags (comma-separated)" fieldId="start_tags">
-                    <TextInput
-                      type="text"
-                      id="start_tags"
-                      value={Array.isArray(config.start_tags) ? config.start_tags.join(', ') : ''}
-                      onChange={(event, value) => {
-                        const parsed = value.split(',').map(s => s.trim());
-                        handleChange('start_tags', parsed);
-                      }}
-                      placeholder="[START], [BEGIN]"
-                    />
-                  </FormGroup>
-                </GridItem>
-                <GridItem span={6}>
-                  <FormGroup label="End Tags (comma-separated)" fieldId="end_tags">
-                    <TextInput
-                      type="text"
-                      id="end_tags"
-                      value={Array.isArray(config.end_tags) ? config.end_tags.join(', ') : ''}
-                      onChange={(event, value) => {
-                        const parsed = value.split(',').map(s => s.trim());
-                        handleChange('end_tags', parsed);
-                      }}
-                      placeholder="[END], [/END]"
-                    />
-                  </FormGroup>
-                </GridItem>
-              </Grid>
-            )}
-
-            {block.id === 'ColumnValueFilterBlock' && (
-              <Grid hasGutter>
-                <GridItem span={6}>
-                  <FormGroup label="Filter Value" fieldId="filter_value">
-                    <TextInput
-                      type="text"
-                      id="filter_value"
-                      value={config.filter_value || ''}
-                      onChange={(event, value) => handleChange('filter_value', value)}
-                    />
-                  </FormGroup>
-                </GridItem>
-                <GridItem span={6}>
-                  <FormGroup label="Operation" fieldId="operation">
-                    <TextInput
-                      type="text"
-                      id="operation"
-                      value={config.operation || 'eq'}
-                      onChange={(event, value) => handleChange('operation', value)}
-                      placeholder="eq, ne, gt, lt, ge, le"
-                    />
-                  </FormGroup>
-                </GridItem>
-              </Grid>
-            )}
           </>
         )}
 

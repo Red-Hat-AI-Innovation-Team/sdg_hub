@@ -76,6 +76,13 @@ const App = () => {
   
   // Track previous execution states to detect changes
   const previousExecutionStatesRef = useRef({});
+  
+  // Ref to read executionStates without triggering re-runs in effects
+  const executionStatesRef = useRef(executionStates);
+  useEffect(() => { executionStatesRef.current = executionStates; }, [executionStates]);
+  
+  // Track active EventSource instances for cleanup on unmount
+  const activeEventSourcesRef = useRef(new Map());
 
   /**
    * Update execution state for a specific config
@@ -205,7 +212,7 @@ const App = () => {
         // For each running generation, try to reconnect
         for (const gen of runningGenerations) {
           const configId = gen.config_id;
-          const currentState = executionStates[configId];
+          const currentState = executionStatesRef.current[configId];
           
           if (currentState?.pendingReconnection || currentState?.isRunning) {
             console.log(`🔗 Reconnecting to generation for config: ${configId}`);
@@ -213,6 +220,15 @@ const App = () => {
             // Create new EventSource for reconnection
             const reconnectUrl = `${API_BASE_URL}/api/flow/reconnect-stream?config_id=${encodeURIComponent(configId)}`;
             const eventSource = new EventSource(reconnectUrl);
+            
+            // Track EventSource for cleanup on unmount
+            activeEventSourcesRef.current.set(configId, eventSource);
+            
+            // Helper to cleanup EventSource
+            const cleanupEventSource = () => {
+              eventSource.close();
+              activeEventSourcesRef.current.delete(configId);
+            };
             
             // Update state to show as running and connected
             setExecutionStates(prev => ({
@@ -249,7 +265,7 @@ const App = () => {
                     }
                   }));
                 } else if (data.type === 'complete') {
-                  eventSource.close();
+                  cleanupEventSource();
                   
                   // Update run record
                   const runId = currentState?.runId;
@@ -282,7 +298,7 @@ const App = () => {
                     }
                   }));
                 } else if (data.type === 'error') {
-                  eventSource.close();
+                  cleanupEventSource();
                   
                   // Update run record
                   const runId = currentState?.runId;
@@ -312,7 +328,7 @@ const App = () => {
             
             eventSource.onerror = (error) => {
               console.error('Reconnect EventSource error:', error);
-              eventSource.close();
+              cleanupEventSource();
               
               setExecutionStates(prev => ({
                 ...prev,
@@ -331,8 +347,8 @@ const App = () => {
         
         // For any states that were marked as running but backend says they're not running,
         // check if they completed or failed
-        Object.keys(executionStates).forEach(configId => {
-          const state = executionStates[configId];
+        Object.keys(executionStatesRef.current).forEach(configId => {
+          const state = executionStatesRef.current[configId];
           if (state?.pendingReconnection && !runningGenerations.find(g => g.config_id === configId)) {
             // This generation is no longer running on backend
             // Check runs history to see what happened
@@ -377,7 +393,21 @@ const App = () => {
     };
     
     checkAndReconnect();
-  }, [isBackendHealthy, hasCheckedRunningGenerations, executionStates]);
+  }, [isBackendHealthy, hasCheckedRunningGenerations]); // executionStates accessed via ref
+
+  /**
+   * Cleanup all active EventSources on component unmount
+   */
+  useEffect(() => {
+    return () => {
+      // Close all tracked EventSources to prevent memory leaks
+      activeEventSourcesRef.current.forEach((eventSource, configId) => {
+        console.log(`🧹 Cleaning up EventSource for config: ${configId}`);
+        eventSource.close();
+      });
+      activeEventSourcesRef.current.clear();
+    };
+  }, []);
 
   /**
    * Monitor execution state changes and trigger notifications

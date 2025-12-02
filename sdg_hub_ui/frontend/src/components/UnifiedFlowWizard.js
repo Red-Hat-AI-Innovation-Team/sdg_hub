@@ -82,6 +82,38 @@ const BuildFlowFooter = ({ flowBuilderSaveInfo, selectedFlow }) => {
   );
 };
 
+/**
+ * Custom Footer for Review step with Save and Run buttons
+ * Uses useWizardContext for proper navigation instead of DOM queries
+ */
+const ReviewFooter = ({ onSaveAndRun, onSave, isSaveAndRunning }) => {
+  const { goToPrevStep } = useWizardContext();
+  
+  return (
+    <WizardFooterWrapper>
+      <Button variant="secondary" onClick={goToPrevStep}>
+        Back
+      </Button>
+      <Button
+        variant="primary"
+        icon={isSaveAndRunning ? <Spinner size="sm" /> : <PlayIcon />}
+        onClick={onSaveAndRun}
+        isDisabled={isSaveAndRunning}
+        isLoading={isSaveAndRunning}
+      >
+        {isSaveAndRunning ? 'Saving...' : 'Save and Run'}
+      </Button>
+      <Button
+        variant="secondary"
+        onClick={onSave}
+        isDisabled={isSaveAndRunning}
+      >
+        Save to Flows List
+      </Button>
+    </WizardFooterWrapper>
+  );
+};
+
 // Session storage key for wizard state persistence
 const WIZARD_SESSION_KEY = 'wizard_session_state';
 
@@ -997,13 +1029,14 @@ const UnifiedFlowWizard = ({ wizardData, editingConfig, onComplete, onCancel }) 
    * @param {boolean} completedSuccessfully - If true, wizard completed successfully (session already cleared)
    */
   const handleWizardClose = async (completedSuccessfully = false) => {
-    // If completed successfully, session state was already cleared
+    // If completed successfully, session state was already cleared and config was already saved
+    // Skip autosave when we already completed a full Save or Save & Run
     // If user is cancelling (clicking Cancel button), clear session state
     // Note: We DON'T clear session state when user navigates away (refresh, clicking other nav)
     // because we want to restore the state when they come back
     
-    // When editing and changes were made, save them
-    if (isEditMode && hasChanges && selectedFlow) {
+    // When editing and changes were made, save them (skip if already saved via Save/Save & Run)
+    if (!completedSuccessfully && isEditMode && hasChanges && selectedFlow) {
       try {
         // Delete old config first (backend doesn't support updates)
         if (editingConfig?.id) {
@@ -1033,8 +1066,8 @@ const UnifiedFlowWizard = ({ wizardData, editingConfig, onComplete, onCancel }) 
         console.error('Failed to save changes on close:', error);
       }
     }
-    // For new flows (not editing), save as not_configured if partially filled
-    else if (selectedFlow && (!modelConfig.model || !datasetConfig.data_files)) {
+    // For new flows (not editing), save as not_configured if partially filled (skip if already saved)
+    else if (!completedSuccessfully && selectedFlow && (!modelConfig.model || !datasetConfig.data_files)) {
       // Check if we're updating an existing configuration
       const isUpdating = editingConfig && editingConfig.id;
       
@@ -1842,35 +1875,11 @@ const UnifiedFlowWizard = ({ wizardData, editingConfig, onComplete, onCancel }) 
               id={step.id}
               name={step.name}
               footer={step.isReviewStep ? (
-                <WizardFooterWrapper>
-                  <Button 
-                    variant="secondary" 
-                    onClick={() => {
-                      // Go back to previous step
-                      const wizard = document.querySelector('.pf-v5-c-wizard');
-                      const backBtn = wizard?.querySelector('.pf-v5-c-wizard__footer-cancel')?.previousElementSibling;
-                      if (backBtn) backBtn.click();
-                    }}
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    variant="primary"
-                    icon={isSaveAndRunning ? <Spinner size="sm" /> : <PlayIcon />}
-                    onClick={handleSaveAndRun}
-                    isDisabled={isSaveAndRunning}
-                    isLoading={isSaveAndRunning}
-                  >
-                    {isSaveAndRunning ? 'Saving...' : 'Save and Run'}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={handleWizardSave}
-                    isDisabled={isSaveAndRunning}
-                  >
-                    Save to Flows List
-                  </Button>
-                </WizardFooterWrapper>
+                <ReviewFooter
+                  onSaveAndRun={handleSaveAndRun}
+                  onSave={handleWizardSave}
+                  isSaveAndRunning={isSaveAndRunning}
+                />
               ) : step.customFooter ? (
                 <BuildFlowFooter 
                   flowBuilderSaveInfo={flowBuilderSaveInfo} 

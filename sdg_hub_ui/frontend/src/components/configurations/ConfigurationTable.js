@@ -432,9 +432,16 @@ const ConfigurationTable = ({
                       <DropdownItem
                         key="download"
                         icon={<DownloadIcon />}
-                        onClick={() => {
-                          runsAPI.download(executionState.runId);
-                          toggleMenu(config.id);
+                        onClick={async () => {
+                          try {
+                            await runsAPI.download(executionState.runId);
+                          } catch (error) {
+                            const msg = (error && error.message) || String(error) || 'Unknown error';
+                            console.error('Failed to download dataset:', msg);
+                            alert('Failed to download dataset: ' + msg);
+                          } finally {
+                            toggleMenu(config.id);
+                          }
                         }}
                         description="Download generated output file"
                       >

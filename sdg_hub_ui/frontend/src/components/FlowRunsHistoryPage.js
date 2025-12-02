@@ -169,12 +169,13 @@ const FlowRunsHistoryPage = () => {
             uniqueValues.add(run.model_name);
           }
           break;
-        case 'status':
+        case 'status': {
           const status = run.status || 'unknown';
           if (status.toLowerCase().includes(inputLower)) {
             uniqueValues.add(status);
           }
           break;
+        }
         case 'type':
           if (run.flow_type?.toLowerCase().includes(inputLower)) {
             uniqueValues.add(run.flow_type);

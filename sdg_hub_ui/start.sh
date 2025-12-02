@@ -47,9 +47,30 @@ cleanup() {
 trap cleanup SIGINT SIGTERM EXIT
 
 # Function to check if a port is in use
+# Uses lsof if available, falls back to nc or /dev/tcp for container environments
 check_port() {
     local port=$1
-    if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+    
+    # Try lsof first (most reliable when available)
+    if command -v lsof >/dev/null 2>&1; then
+        if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+            return 0  # Port is in use
+        else
+            return 1  # Port is free
+        fi
+    fi
+    
+    # Fallback: try nc (netcat) if available
+    if command -v nc >/dev/null 2>&1; then
+        if nc -z 127.0.0.1 $port >/dev/null 2>&1; then
+            return 0  # Port is in use
+        else
+            return 1  # Port is free
+        fi
+    fi
+    
+    # Fallback: try bash /dev/tcp (works in most bash environments)
+    if (echo >/dev/tcp/127.0.0.1/$port) 2>/dev/null; then
         return 0  # Port is in use
     else
         return 1  # Port is free
@@ -59,6 +80,53 @@ check_port() {
 # Function to check if a command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
+}
+
+# Function to gracefully kill process on a port
+# Sends SIGTERM first, waits, then escalates to SIGKILL if needed
+kill_process_on_port() {
+    local port=$1
+    local pids
+    
+    # Get PIDs using the port (silently return if none)
+    if command -v lsof >/dev/null 2>&1; then
+        pids=$(lsof -ti:$port 2>/dev/null) || true
+    else
+        # Can't determine PIDs without lsof, skip graceful shutdown
+        echo -e "${YELLOW}   Warning: lsof not available, cannot kill process${NC}"
+        return 1
+    fi
+    
+    # No processes found
+    if [ -z "$pids" ]; then
+        return 0
+    fi
+    
+    # Send graceful SIGTERM first
+    echo "$pids" | xargs kill -TERM 2>/dev/null || true
+    
+    # Wait for graceful shutdown (up to 3 seconds)
+    local waited=0
+    while [ $waited -lt 3 ]; do
+        sleep 1
+        waited=$((waited + 1))
+        # Check if any processes still exist
+        local still_running=false
+        for pid in $pids; do
+            if kill -0 "$pid" 2>/dev/null; then
+                still_running=true
+                break
+            fi
+        done
+        if [ "$still_running" = false ]; then
+            return 0
+        fi
+    done
+    
+    # Escalate to SIGKILL for remaining processes
+    echo "$pids" | xargs kill -9 2>/dev/null || true
+    sleep 1
+    return 0
 }
 
 # ============================================================
@@ -129,8 +197,7 @@ if check_port $BACKEND_PORT; then
     read -r response
     if [[ "$response" =~ ^[Yy]$ ]]; then
         echo -e "${BLUE}   Killing process on port $BACKEND_PORT...${NC}"
-        lsof -ti:$BACKEND_PORT | xargs kill -9 2>/dev/null || true
-        sleep 1
+        kill_process_on_port $BACKEND_PORT
     else
         echo -e "${RED}❌ Cannot start - port $BACKEND_PORT in use${NC}"
         exit 1
@@ -143,8 +210,7 @@ if check_port $FRONTEND_PORT; then
     read -r response
     if [[ "$response" =~ ^[Yy]$ ]]; then
         echo -e "${BLUE}   Killing process on port $FRONTEND_PORT...${NC}"
-        lsof -ti:$FRONTEND_PORT | xargs kill -9 2>/dev/null || true
-        sleep 1
+        kill_process_on_port $FRONTEND_PORT
     else
         echo -e "${RED}❌ Cannot start - port $FRONTEND_PORT in use${NC}"
         exit 1
@@ -195,10 +261,17 @@ echo -e "${BLUE}🔧 Setting up frontend...${NC}"
 cd frontend
 
 # Install dependencies if needed
-if [ ! -d "node_modules" ] || [ "package.json" -nt "node_modules/.package-lock.json" ]; then
+# Check if node_modules exists and has our marker file
+if [ ! -d "node_modules" ] || [ ! -f "node_modules/.installed" ]; then
     echo -e "${YELLOW}   Installing Node.js dependencies (this may take a minute)...${NC}"
-    npm install --silent
-    echo -e "${GREEN}   ✓ Frontend dependencies installed${NC}"
+    if npm install --silent; then
+        # Create marker file on successful install
+        touch node_modules/.installed
+        echo -e "${GREEN}   ✓ Frontend dependencies installed${NC}"
+    else
+        echo -e "${RED}❌ Failed to install frontend dependencies${NC}"
+        exit 1
+    fi
 else
     echo -e "${GREEN}   ✓ Frontend dependencies up to date${NC}"
 fi
