@@ -666,8 +666,13 @@ def generation_worker(log_queue, flow_path, model_config, dataset_params, max_co
         if checkpoint_dir and not resume_from_checkpoint:
             import shutil
             checkpoint_path = Path(checkpoint_dir)
-            if checkpoint_path.exists():
-                shutil.rmtree(checkpoint_path)
+            # Validate checkpoint_path is within CHECKPOINTS_DIR before removing
+            try:
+                checkpoint_path.resolve().relative_to(CHECKPOINTS_DIR.resolve())
+                if checkpoint_path.exists():
+                    shutil.rmtree(checkpoint_path)
+            except ValueError:
+                log_queue.put({'type': 'error', 'message': 'Invalid checkpoint directory'})
                 log_queue.put({
                     'type': 'log',
                     'message': '🗑️ Cleared existing checkpoints for fresh start\n',
@@ -1916,9 +1921,10 @@ async def generate_stream(
                             
                             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                             # Use the flow_name we determined earlier (from isolated config or current_config)
-                            output_flow_name = flow_name.replace(" ", "_").lower() if flow_name else "unknown"
+                            # Sanitize flow_name to prevent path traversal
+                            output_flow_name = sanitize_filename(flow_name.replace(" ", "_").lower()) if flow_name else "unknown"
                             output_filename = f"{output_flow_name}_{timestamp}.jsonl"
-                            output_path = outputs_dir / output_filename
+                            output_path = ensure_within_directory(outputs_dir, outputs_dir / output_filename)
                             
                             with open(output_path, 'w') as f:
                                 for record in dataset_list:
@@ -2094,9 +2100,11 @@ async def reconnect_stream(config_id: str):
                             outputs_dir.mkdir(exist_ok=True)
                             
                             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                            flow_name = gen_info.get("flow_name", "flow").replace(" ", "_").lower()
-                            output_filename = f"{flow_name}_{timestamp}.jsonl"
-                            output_path = outputs_dir / output_filename
+                            # Sanitize flow_name to prevent path traversal
+                            raw_flow_name = gen_info.get("flow_name", "flow").replace(" ", "_").lower()
+                            safe_flow_name = sanitize_filename(raw_flow_name) or "flow"
+                            output_filename = f"{safe_flow_name}_{timestamp}.jsonl"
+                            output_path = ensure_within_directory(outputs_dir, outputs_dir / output_filename)
                             
                             with open(output_path, 'w') as f:
                                 for record in dataset_list:
