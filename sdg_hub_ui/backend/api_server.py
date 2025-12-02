@@ -2594,8 +2594,15 @@ async def get_block_templates():
                 if not flow_path:
                     continue
                 
+                # Validate flow_path is within allowed directories
+                try:
+                    validated_path = resolve_flow_file(flow_path)
+                except HTTPException:
+                    logger.warning(f"Skipping flow {flow_name}: path validation failed")
+                    continue
+                
                 # Read the flow YAML
-                with open(flow_path, 'r') as f:
+                with open(validated_path, 'r') as f:
                     flow_data = yaml.safe_load(f)
                 
                 # Extract block configurations
@@ -2647,8 +2654,15 @@ async def get_flow_templates():
                 if not flow_path:
                     continue
                 
+                # Validate flow_path is within allowed directories
+                try:
+                    validated_path = resolve_flow_file(flow_path)
+                except HTTPException:
+                    logger.warning(f"Skipping flow template {flow_name}: path validation failed")
+                    continue
+                
                 # Read the flow YAML
-                with open(flow_path, 'r') as f:
+                with open(validated_path, 'r') as f:
                     flow_data = yaml.safe_load(f)
                 
                 # Create template entry with full flow configuration
@@ -2986,7 +3000,7 @@ async def save_custom_flow(flow_data: Dict[str, Any]):
                         raise Exception(error_msg)
         
         # Save flow.yaml
-        flow_path = flow_dir / 'flow.yaml'
+        flow_path = ensure_within_directory(flow_dir, flow_dir / 'flow.yaml')
         with open(flow_path, 'w') as f:
             yaml.dump(flow_data, f, default_flow_style=False, sort_keys=False)
         
