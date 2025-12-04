@@ -1449,7 +1449,9 @@ class TestFlow:
             )
 
         log_messages = [record.message for record in caplog.records]
-        relevant_logs = [msg for msg in log_messages if "Successfully configured" in msg]
+        relevant_logs = [
+            msg for msg in log_messages if "Successfully configured" in msg
+        ]
         assert len(relevant_logs) > 0
         log_text = relevant_logs[0]
 
