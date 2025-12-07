@@ -7,11 +7,11 @@ import asyncio
 
 from litellm import acompletion, completion
 from pydantic import ConfigDict, Field, SecretStr, field_validator
+from tqdm.asyncio import tqdm_asyncio
 import litellm
 
 # Third Party
 import pandas as pd
-from tqdm.asyncio import tqdm_asyncio
 
 from ...utils.error_handling import BlockValidationError
 from ...utils.logger_config import setup_logger
