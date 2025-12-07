@@ -11,6 +11,7 @@ import litellm
 
 # Third Party
 import pandas as pd
+from tqdm.asyncio import tqdm_asyncio
 
 from ...utils.error_handling import BlockValidationError
 from ...utils.logger_config import setup_logger
@@ -502,7 +503,9 @@ class LLMChatBlock(BaseBlock):
                     for messages in messages_list
                 ]
 
-            responses = await asyncio.gather(*tasks)
+            responses = await tqdm_asyncio.gather(
+                *tasks, desc=self.block_name, unit="req"
+            )
             return responses
 
         except Exception as e:
