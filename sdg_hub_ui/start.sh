@@ -287,7 +287,7 @@ echo ""
 echo -e "${BLUE}🚀 Starting backend server...${NC}"
 cd backend
 source venv/bin/activate
-python api_server.py &
+./venv/bin/python api_server.py &
 BACKEND_PID=$!
 cd ..
 

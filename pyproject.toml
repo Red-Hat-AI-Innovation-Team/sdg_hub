@@ -51,22 +51,7 @@ source = "https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub"
 issues = "https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/issues"
 
 [project.optional-dependencies]
-examples = [
-    "tabulate>=0.9.0",
-    "transformers>=4.37.0",
-    "langchain-text-splitters",
-    "docling>=2.3.0",
-    "scikit-learn",
-    "polars",
-    "matplotlib",
-    "spacy",
-    "nltk",
-    "sentence-transformers",
-    "instructor",
-    "fastapi",
-    "nest-asyncio",
-    "ipykernel",
-]
+# Development and testing dependencies (lightweight, no ML libraries)
 dev = [
     "pre-commit>=3.0.4,<4.0",
     "pylint>=2.16.2,<4.0",
@@ -80,6 +65,28 @@ dev = [
     "pytest-env",
     # Integration testing dependencies
     "nbconvert>=7.0.0",
+]
+# Minimal dependencies for integration testing only
+# Integration tests run knowledge_generation.ipynb which only needs nest-asyncio
+integration = [
+    "nest-asyncio",
+]
+# Heavy dependencies for example notebooks (knowledge_mixing.ipynb, etc.)
+# NOT required for core functionality testing or integration tests
+examples = [
+    "tabulate>=0.9.0",
+    "transformers>=4.37.0",      # For knowledge_mixing.ipynb, NOT integration tests
+    "langchain-text-splitters",
+    "docling>=2.3.0",            # For document parsing examples
+    "scikit-learn",              # For raft_builder.py utility
+    "polars",                     # For knowledge_mixing_utils.py
+    "matplotlib",
+    "spacy",
+    "nltk",
+    "sentence-transformers",
+    "instructor",
+    "fastapi",
+    "ipykernel",
 ]
 
 [tool.setuptools_scm]

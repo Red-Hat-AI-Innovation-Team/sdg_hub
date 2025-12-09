@@ -249,6 +249,35 @@ class TestSlugifyName:
         assert "#" not in result
 
 
+class TestDetectPathTraversal:
+    """Tests for detect_path_traversal function."""
+    
+    def test_detect_empty_path(self):
+        """Test detecting empty path."""
+        from api_server import detect_path_traversal
+        assert detect_path_traversal("") is False
+        assert detect_path_traversal(None) is False
+    
+    def test_detect_normal_path(self):
+        """Test normal paths without traversal."""
+        from api_server import detect_path_traversal
+        assert detect_path_traversal("file.yaml") is False
+        assert detect_path_traversal("subdir/file.yaml") is False
+        assert detect_path_traversal("/absolute/path/file.yaml") is False
+    
+    def test_detect_path_traversal_patterns(self):
+        """Test detecting path traversal patterns."""
+        from api_server import detect_path_traversal
+        # Basic path traversal
+        assert detect_path_traversal("../file.yaml") is True
+        assert detect_path_traversal("../../etc/passwd") is True
+        assert detect_path_traversal("subdir/../../../etc/passwd") is True
+        # Windows-style path traversal
+        assert detect_path_traversal("..\\file.yaml") is True
+        # Hidden traversal
+        assert detect_path_traversal("./subdir/../../../etc/passwd") is True
+
+
 class TestEnsureWithinDirectory:
     """Tests for ensure_within_directory function."""
     
