@@ -262,6 +262,51 @@ def is_path_within_allowed_dirs(path: Path, allowed_dirs: List[Path]) -> bool:
     return False
 
 
+def _get_trusted_flow_paths() -> Dict[str, Path]:
+    """Build a dictionary of trusted flow/prompt paths from FlowRegistry.
+
+    This creates a whitelist of known-good paths that can be safely used for
+    file operations, breaking the taint chain from user input.
+
+    Returns:
+        Dict mapping flow/prompt identifiers to their absolute resolved paths.
+    """
+    trusted_paths: Dict[str, Path] = {}
+
+    # Get all flows from the registry
+    try:
+        registered_flows = FlowRegistry.list_flows()
+        for flow_name in registered_flows:
+            flow_path = FlowRegistry.get_flow_path(flow_name)
+            if flow_path:
+                flow_path_obj = Path(flow_path).resolve()
+                trusted_paths[flow_name] = flow_path_obj
+                # Also add all yaml files in the flow's directory
+                flow_dir = flow_path_obj.parent
+                if flow_dir.exists():
+                    for yaml_file in flow_dir.glob("*.yaml"):
+                        resolved_yaml = yaml_file.resolve()
+                        trusted_paths[str(resolved_yaml)] = resolved_yaml
+                    for yml_file in flow_dir.glob("*.yml"):
+                        resolved_yml = yml_file.resolve()
+                        trusted_paths[str(resolved_yml)] = resolved_yml
+    except Exception as e:
+        logger.warning(f"Could not enumerate FlowRegistry flows: {e}")
+
+    # Add custom flows directory
+    if CUSTOM_FLOWS_DIR.exists():
+        for flow_subdir in CUSTOM_FLOWS_DIR.iterdir():
+            if flow_subdir.is_dir():
+                for yaml_file in flow_subdir.glob("*.yaml"):
+                    resolved_yaml = yaml_file.resolve()
+                    trusted_paths[str(resolved_yaml)] = resolved_yaml
+                for yml_file in flow_subdir.glob("*.yml"):
+                    resolved_yml = yml_file.resolve()
+                    trusted_paths[str(resolved_yml)] = resolved_yml
+
+    return trusted_paths
+
+
 def resolve_flow_file(path_str: str, must_exist: bool = True) -> Path:
     """Resolve flow file path and ensure it is under an allowed directory.
 
@@ -3267,81 +3312,61 @@ async def save_custom_flow(flow_data: Dict[str, Any]):
                         )
                         continue  # Skip to next block - prompt is already in place
 
-                    # Try to copy from temp flow directory first (for newly created prompts)
-                    source_file = None
+                    # Use trusted whitelist approach to find source file
+                    # This breaks the taint chain by only using paths from our trusted registry
+                    trusted_source_path = None
 
-                    # Check temp flow directory first
+                    # Check temp flow directory first (trusted - we control it)
                     if temp_flow_dir and temp_flow_dir.exists():
-                        temp_prompt_file = temp_flow_dir / prompt_filename
-                        if temp_prompt_file.exists():
-                            source_file = temp_prompt_file
-                            logger.info(f"✓ Found prompt in temp flow: {source_file}")
+                        temp_prompt_file = (temp_flow_dir / prompt_filename).resolve()
+                        # Verify temp file is within temp_flow_dir (no traversal)
+                        if temp_prompt_file.exists() and is_path_within_allowed_dirs(
+                            temp_prompt_file, [temp_flow_dir]
+                        ):
+                            trusted_source_path = temp_prompt_file
+                            logger.info(f"✓ Found prompt in temp flow: {trusted_source_path}")
 
-                    # If we have source flow directory, look there
-                    if not source_file and source_flow_dir:
-                        # Try with the full old_path first
-                        source_in_flow_dir = (source_flow_dir / old_path).resolve()
-                        if source_in_flow_dir.exists():
-                            source_file = source_in_flow_dir
-                            logger.info(
-                                f"✓ Found prompt in source flow (full path): {source_file}"
-                            )
-                        else:
-                            # Try with just the filename
-                            source_in_flow_dir = (
-                                source_flow_dir / prompt_filename
-                            ).resolve()
-                            if source_in_flow_dir.exists():
-                                source_file = source_in_flow_dir
-                                logger.info(
-                                    f"✓ Found prompt in source flow (filename): {source_file}"
-                                )
+                    # If not found in temp, look up in trusted flow registry
+                    if not trusted_source_path:
+                        trusted_paths = _get_trusted_flow_paths()
+                        # Look for the prompt file by name in our trusted paths
+                        for trusted_path in trusted_paths.values():
+                            if trusted_path.name == prompt_filename and trusted_path.exists():
+                                trusted_source_path = trusted_path
+                                logger.info(f"✓ Found prompt in trusted registry: {trusted_source_path}")
+                                break
 
-                    if not source_file:
+                    # Also check source flow directory if it's in trusted paths
+                    if not trusted_source_path and source_flow_dir:
+                        trusted_paths = _get_trusted_flow_paths()
+                        # Check if source_flow_dir itself is trusted
+                        source_flow_dir_resolved = source_flow_dir.resolve()
+                        is_trusted_flow = any(
+                            str(source_flow_dir_resolved) in str(tp) or str(tp) in str(source_flow_dir_resolved)
+                            for tp in trusted_paths.values()
+                        )
+                        if is_trusted_flow:
+                            # Build candidate path and verify it exists and is a .yaml file
+                            candidate = (source_flow_dir / prompt_filename).resolve()
+                            if (
+                                candidate.exists()
+                                and candidate.suffix in (".yaml", ".yml")
+                                and is_path_within_allowed_dirs(candidate, ALLOWED_FLOW_READ_DIRS)
+                            ):
+                                trusted_source_path = candidate
+                                logger.info(f"✓ Found prompt in trusted source flow: {trusted_source_path}")
+
+                    if not trusted_source_path:
                         logger.warning(
-                            f"Prompt source not found for block {block_name} ({old_path})."
+                            f"Prompt source not found in trusted paths for block {block_name} ({prompt_filename})."
                         )
 
-                    # Copy the file or fail
-                    if source_file:
-                        resolved_source = Path(source_file).resolve()
-
-                        # Build list of allowed directories - start with standard flow directories
-                        allowed_prompt_dirs = list(ALLOWED_FLOW_READ_DIRS)
-
-                        # Add current working directories if they exist
-                        if flow_dir:
-                            allowed_prompt_dirs.append(flow_dir)
-                        if temp_flow_dir:
-                            allowed_prompt_dirs.append(temp_flow_dir)
-
-                        # When cloning from a source flow, also allow parent directories
-                        # because prompts can be shared across flows using relative paths like ../prompt.yaml
-                        if source_flow_dir:
-                            # Add source flow dir and all its parent directories up to 'flows' or 'sdg_hub'
-                            current_dir = source_flow_dir
-                            while current_dir and current_dir.name:
-                                allowed_prompt_dirs.append(current_dir)
-                                # Stop at the 'flows' directory or root
-                                if current_dir.name in (
-                                    "flows",
-                                    "sdg_hub",
-                                    "custom_flows",
-                                ):
-                                    break
-                                current_dir = current_dir.parent
-
-                        # Use the standard helper function for path validation (path traversal protection)
-                        if not is_path_within_allowed_dirs(
-                            resolved_source, allowed_prompt_dirs
-                        ):
-                            raise HTTPException(
-                                status_code=400,
-                                detail=f"Prompt source {resolved_source} is outside allowed directories.",
-                            )
-                        shutil.copy2(resolved_source, new_prompt_file)
+                    # Copy the file only if we found it in trusted paths
+                    if trusted_source_path:
+                        # trusted_source_path is already validated - copy directly
+                        shutil.copy2(trusted_source_path, new_prompt_file)
                         logger.info(
-                            f"✅ Copied prompt file: {resolved_source} -> {new_prompt_file}"
+                            f"✅ Copied prompt file: {trusted_source_path} -> {new_prompt_file}"
                         )
                     else:
                         # Can't find source - this is an error
