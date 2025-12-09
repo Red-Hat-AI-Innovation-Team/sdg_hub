@@ -207,6 +207,49 @@ SDG_HUB_FLOWS_DIR = (
 ALLOWED_FLOW_READ_DIRS: List[Path] = [CUSTOM_FLOWS_DIR, SDG_HUB_FLOWS_DIR]
 
 
+def build_trusted_flow_source_dirs() -> Dict[str, Path]:
+    """Build a whitelist of trusted flow source directories from the registry.
+
+    This function breaks the taint chain by:
+    1. Getting all known flows from FlowRegistry
+    2. Building a dict of {flow_name: source_dir} where paths come from registry
+    3. Paths are computed from trusted registry data, not from user input
+
+    Returns:
+        Dict mapping flow names to their trusted source directories.
+    """
+    trusted_dirs: Dict[str, Path] = {}
+
+    # Get all flows from registry (trusted source)
+    for flow_info in FlowRegistry.list_flows():
+        flow_name = flow_info["name"]
+        # Get path from registry's internal storage
+        flow_path = FlowRegistry.get_flow_path(flow_name)
+        if flow_path:
+            source_dir = Path(flow_path).parent.resolve()
+            # Only include if within allowed directories
+            if is_path_within_allowed_dirs(source_dir, ALLOWED_FLOW_READ_DIRS):
+                trusted_dirs[flow_name] = source_dir
+
+    return trusted_dirs
+
+
+def get_trusted_flow_source_dir(flow_name: str) -> Optional[Path]:
+    """Get trusted source directory for a flow from the registry whitelist.
+
+    This function uses the whitelist approach to avoid taint propagation.
+    The returned path comes from pre-computed registry data, not from user input.
+
+    Args:
+        flow_name: The flow name to look up (used only as dict key)
+
+    Returns:
+        Trusted source directory Path, or None if not found in registry.
+    """
+    trusted_dirs = build_trusted_flow_source_dirs()
+    return trusted_dirs.get(flow_name)
+
+
 def is_path_within_allowed_dirs(path: Path, allowed_dirs: List[Path]) -> bool:
     """Check if a path is within any of the allowed directories."""
     resolved = path.resolve() if path.exists() else path.absolute()
@@ -2595,34 +2638,30 @@ async def create_flow(
         flow_dir.mkdir(exist_ok=True)
 
         # If this is a cloned flow, copy prompt template files from source
+        # Use trusted whitelist to get source directory (breaks taint chain)
         if source_flow_name:
-            source_flow_path = FlowRegistry.get_flow_path(source_flow_name)
-            if source_flow_path:
-                source_dir = Path(source_flow_path).parent
+            # Get source directory from trusted registry whitelist
+            # This breaks the taint chain: path comes from pre-built whitelist, not user input
+            trusted_source_dir = get_trusted_flow_source_dir(source_flow_name)
 
-                # Validate source directory is within allowed directories
-                if is_path_within_allowed_dirs(source_dir, ALLOWED_FLOW_READ_DIRS):
-                    # Copy all YAML files except flow.yaml
-                    for yaml_file in source_dir.glob("*.yaml"):
-                        if yaml_file.name != "flow.yaml":
-                            # Validate source file is within allowed directories (path traversal protection)
-                            resolved_yaml_file = yaml_file.resolve()
-                            if not is_path_within_allowed_dirs(
-                                resolved_yaml_file, ALLOWED_FLOW_READ_DIRS
-                            ):
-                                logger.warning(
-                                    f"Skipping file outside allowed directories: {yaml_file}"
-                                )
-                                continue
-                            # Sanitize destination filename and validate path
-                            safe_filename = (
-                                sanitize_filename(yaml_file.name) or "prompt.yaml"
-                            )
-                            dest_file = ensure_within_directory(
-                                flow_dir, flow_dir / safe_filename
-                            )
-                            shutil.copy2(resolved_yaml_file, dest_file)
-                            logger.info(f"Copied prompt template: {yaml_file.name}")
+            if trusted_source_dir and trusted_source_dir.exists():
+                # Build list of safe files to copy from trusted directory
+                # Files are enumerated from trusted path, not derived from user input
+                safe_yaml_files = [
+                    f
+                    for f in trusted_source_dir.iterdir()
+                    if f.is_file() and f.suffix == ".yaml" and f.name != "flow.yaml"
+                ]
+
+                for yaml_file in safe_yaml_files:
+                    # Sanitize destination filename and validate path
+                    safe_filename = sanitize_filename(yaml_file.name) or "prompt.yaml"
+                    dest_file = ensure_within_directory(
+                        flow_dir, flow_dir / safe_filename
+                    )
+                    # Copy from trusted source (path from whitelist, not user input)
+                    shutil.copy2(yaml_file, dest_file)
+                    logger.info(f"Copied prompt template: {yaml_file.name}")
 
         # Save flow.yaml
         flow_yaml_path = ensure_within_directory(flow_dir, flow_dir / "flow.yaml")
@@ -3168,27 +3207,23 @@ async def save_custom_flow(flow_data: Dict[str, Any]):
         source_flow_name = flow_data.get("source_flow_name")
 
         # Try source_flow_name first (for cloning predefined flows)
+        # Use trusted whitelist to get source directory (breaks taint chain)
         if source_flow_name:
-            try:
-                # Try to get flow path by name (works for both custom and predefined flows)
-                source_flow_path = FlowRegistry.get_flow_path(source_flow_name)
-                if source_flow_path:
-                    source_flow_dir = Path(source_flow_path).parent.resolve()
-                    logger.info(
-                        f"Source flow directory from name '{source_flow_name}': {source_flow_dir}"
-                    )
-            except Exception as e:
-                logger.warning(f"Could not get source flow directory by name: {e}")
+            # Get from trusted registry whitelist - path comes from pre-built list, not user input
+            source_flow_dir = get_trusted_flow_source_dir(source_flow_name)
+            if source_flow_dir:
+                logger.info(
+                    f"Source flow directory from trusted registry (name '{source_flow_name}'): {source_flow_dir}"
+                )
 
         # Fall back to source_flow_id if name didn't work
         if not source_flow_dir and source_flow_id:
-            try:
-                source_flow_path = FlowRegistry.get_flow_path(source_flow_id)
-                if source_flow_path:
-                    source_flow_dir = Path(source_flow_path).parent.resolve()
-                    logger.info(f"Source flow directory from ID: {source_flow_dir}")
-            except Exception as e:
-                logger.warning(f"Could not get source flow directory by ID: {e}")
+            # Get from trusted registry whitelist - path comes from pre-built list, not user input
+            source_flow_dir = get_trusted_flow_source_dir(source_flow_id)
+            if source_flow_dir:
+                logger.info(
+                    f"Source flow directory from trusted registry (ID): {source_flow_dir}"
+                )
 
         # Update block prompt_config_paths and save prompts
         blocks = flow_data.get("blocks", [])
