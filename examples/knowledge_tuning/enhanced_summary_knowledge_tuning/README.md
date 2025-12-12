@@ -50,8 +50,8 @@ Only claims passing this check are retained. This process filters out **hallucin
 
 ## Data Generation Statistics and Results
 
-**Teacher model for generation:** `gptoss-120B`  
-**Student model trained:** `meta-llama 3.1 8B instruct`  
+**Teacher model for generation:** `openai/gpt-oss-120b`  
+**Student model trained:** `meta-llama/Llama-3.1-8B-Instruct`  
 **Training method:** Supervised Fine-Tuning (SFT)
 
 ---
@@ -75,7 +75,7 @@ For each document, we generate three augmentation types—detailed summaries, ex
 
 - **Evaluation benchmark:** [QuALITY benchmark](https://nyu-mll.github.io/quality/)
 - **Evaluation script & metric:** [Synthetic_Continued_Pretraining](https://github.com/ZitongYang/Synthetic_Continued_Pretraining/blob/main/evaluation.py), Exact Match (EM)
-- **Student model:** meta-llama 3.1 8B instruct (after SFT on generated/augmented summaries)
+- **Student model:** meta-llama/Llama-3.1-8B-Instruct (after SFT on generated/augmented summaries)
 - **Performance metric:** Model accuracy
 
 ![Quality Benchmark Accuracy](imgs/quality_benchmark_accuracy.png)
