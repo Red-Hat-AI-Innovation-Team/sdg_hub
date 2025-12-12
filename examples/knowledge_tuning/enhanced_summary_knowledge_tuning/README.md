@@ -50,21 +50,36 @@ Only claims passing this check are retained. This process filters out **hallucin
 
 ## Data Generation Statistics and Results
 
+**Teacher model for generation:** `gptoss-120B`  
+**Student model trained:** `meta-llama 3.1 8B instruct`  
+**Training method:** Supervised Fine-Tuning (SFT)
+
+---
+
 ### Summary Augmentation
 
-Each “cut” represents the total number of summaries generated per document across all three augmentation types.
+For each document, we generate three augmentation types—detailed summaries, extractive summaries, and atomic facts. Each “cut” on the table below represents the total number of summary augmentations per document (i.e., how many times each augmentation process is run).
 
-| Cut (NUMBER\_OF\_SUMMARIES = 3) | Token Count |
-| ------------------------------- | ----------- |
-| 10                              | 21,815,170  |
-| 20                              | 43,601,976  |
-| 30                              | 65,395,710  |
-| 40                              | 87,118,308  |
-| 50                              | 108,779,213 |
+| Cut (NUMBER\_OF\_SUMMARIES = 3) | Token Count   |
+| ------------------------------- | ------------- |
+| Input Corpus                    | 1,517,465     |
+| 10                              | 87,248,889    |
+| 20                              | 158,615,276   |
+| 30                              | 230,306,195   |
+| 40                              | 301,805,906   |
+| 50                              | 373,183,414   |
+
+---
 
 ### Benchmark Results
 
-![Quality Benchmark Accuracy](imgs/quality_benchmark_accuracy.png)
-*Figure: Model accuracy across the [QuALITY benchmark](https://nyu-mll.github.io/quality/) datasets after SFT using enhanced document summaries.*
----
+- **Evaluation benchmark:** [QuALITY benchmark](https://nyu-mll.github.io/quality/)
+- **Evaluation script & metric:** [Synthetic_Continued_Pretraining](https://github.com/ZitongYang/Synthetic_Continued_Pretraining/blob/main/evaluation.py), Exact Match (EM)
+- **Student model:** meta-llama 3.1 8B instruct (after SFT on generated/augmented summaries)
+- **Performance metric:** Model accuracy
 
+![Quality Benchmark Accuracy](imgs/quality_benchmark_accuracy.png)
+
+*Figure: Model accuracy across the QuALITY benchmark datasets, comparing SFT training on enhanced document summaries with the original model performance.*
+
+---
