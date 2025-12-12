@@ -44,7 +44,7 @@ blocks:
     output_cols: raw_rephrase_output
     max_tokens: 4096
     temperature: 0.7
-    n: 2
+    n: 10
     async_mode: true
 - block_type: LLMParserBlock
   block_config:
