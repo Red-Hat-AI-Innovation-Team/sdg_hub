@@ -48,7 +48,7 @@ Only claims passing this check are retained. This process filters out **hallucin
 
 ---
 
-## Data Generation Statistics
+## Data Generation Statistics and Results
 
 ### Summary Augmentation
 
@@ -56,21 +56,15 @@ Each “cut” represents the total number of summaries generated per document a
 
 | Cut (NUMBER\_OF\_SUMMARIES = 3) | Token Count |
 | ------------------------------- | ----------- |
-| 1                               | 2,193,502   |
-| 2                               | 4,383,655   |
-| 5                               | 10,870,396  |
 | 10                              | 21,815,170  |
 | 20                              | 43,601,976  |
 | 30                              | 65,395,710  |
 | 40                              | 87,118,308  |
 | 50                              | 108,779,213 |
 
+### Benchmark Results
+
+![Quality Benchmark Accuracy](examples/knowledge_tuning/enhanced_summary_knowledge_tuning/imgs/quality_benchmark_accuracy.png)
+*Figure: Model accuracy across the [QuALITY benchmark](https://nyu-mll.github.io/quality/) datasets after SFT using enhanced document summaries.*
 ---
 
-### Finance Bench Example
-
-For Finance Bench (NUMBER\_OF\_SUMMARIES = 1):
-
-| Cut | Token Count |
-| --- | ----------- |
-| 50  | 213,333,192 |
