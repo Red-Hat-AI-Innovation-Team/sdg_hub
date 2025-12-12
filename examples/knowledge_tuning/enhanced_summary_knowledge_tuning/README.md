@@ -64,7 +64,7 @@ Each “cut” represents the total number of summaries generated per document a
 
 ### Benchmark Results
 
-![Quality Benchmark Accuracy](examples/knowledge_tuning/enhanced_summary_knowledge_tuning/imgs/quality_benchmark_accuracy.png)
+![Quality Benchmark Accuracy](imgs/quality_benchmark_accuracy.png)
 *Figure: Model accuracy across the [QuALITY benchmark](https://nyu-mll.github.io/quality/) datasets after SFT using enhanced document summaries.*
 ---
 
