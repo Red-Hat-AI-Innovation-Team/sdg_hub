@@ -602,13 +602,14 @@ def _num_chars_from_tokens(num_tokens) -> int:
     return int(num_tokens * 4)  # 1 token ~ 4 English character
 
 
-def chunk_document(documents: List, server_ctx_size, chunk_word_count) -> List[str]:
+def chunk_document(documents: List, server_ctx_size, chunk_word_count, **kwargs) -> List[str]:
     """
     Iterates over the documents and splits them into chunks based on the word count provided by the user.
     Args:
         documents (list): List of documents retrieved from git (can also consist of a single document).
         server_ctx_size (int): Context window size of server.
         chunk_word_count (int): Maximum number of words to chunk a document.
+        chunk_overlap (int): Overlap in characters between chunks.
     Returns:
          List[str]: List of chunked documents.
     """
@@ -634,7 +635,7 @@ def chunk_document(documents: List, server_ctx_size, chunk_word_count) -> List[s
     # Placeholder for params
     content = []
     chunk_size = _num_chars_from_tokens(no_tokens_per_doc)
-    chunk_overlap = _DEFAULT_CHUNK_OVERLAP
+    chunk_overlap = int(kwargs.pop("chunk_overlap", str(_DEFAULT_CHUNK_OVERLAP)))
 
     # Using Markdown as default, document-specific chunking will be implemented in seperate pr.
     text_splitter = RecursiveCharacterTextSplitter.from_language(
@@ -729,16 +730,21 @@ class DocProcessor:
             }
         )
 
-    def _add_icls(self, chunked_document: Dataset) -> Dataset:
+    def _add_icls(self, chunked_document: Dataset, **kwargs) -> Dataset:
         """
         Add the ICLS label to the dataset.
         Args:
             dataset (Dataset): Dataset object.
+            server_ctx_size (int): Context window size of server.
+            chunk_word_count (int): Maximum number of words to chunk a document.
+            chunk_overlap (int): Overlap in characters between chunks.
 
         Returns
         -------
             Dataset: Dataset object with ICLS label.
         """
+        server_ctx_size = int(kwargs.pop("server_ctx_size", "4096"))
+        chunk_word_count = int(kwargs.pop("chunk_word_count", "1024"))
         icl = self.user_config["seed_examples"]
         chunked_document_all_icl = []
         for icl_ in icl:
@@ -762,7 +768,7 @@ class DocProcessor:
         chunked_document_all_icl = chunked_document_all_icl.map(
             lambda x: {
                 "chunks": chunk_document(
-                    [x["document"]], server_ctx_size=4096, chunk_word_count=1024
+                    [x["document"]], server_ctx_size=server_ctx_size, chunk_word_count=chunk_word_count, **kwargs
                 )
                 if get_token_count(x["document"], self.tokenizer) > 1024
                 else [x["document"]]
@@ -797,7 +803,7 @@ class DocProcessor:
         df = safe_concatenate_datasets([ds.to_pandas() for ds in datasets])
         return Dataset.from_pandas(df) if df is not None else None
 
-    def get_processed_markdown_dataset(self, list_md_files: list[Path]) -> Dataset:
+    def get_processed_markdown_dataset(self, list_md_files: list[Path], **kwargs) -> Dataset:
         chunks_mds = []
         for md_file in list_md_files:
             with open(md_file, "r", encoding="utf-8") as f:
@@ -811,5 +817,5 @@ class DocProcessor:
                     }
                 )
         chunk_ds = Dataset.from_list(chunks_mds)
-        chunk_ds_with_icls = self._add_icls(chunk_ds)
+        chunk_ds_with_icls = self._add_icls(chunk_ds, **kwargs)
         return chunk_ds_with_icls
