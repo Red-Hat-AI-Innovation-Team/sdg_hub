@@ -7,7 +7,7 @@ import asyncio
 import logging
 
 from litellm import acompletion, completion
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, SecretStr, field_validator
 import litellm
 
 # Third Party
@@ -59,8 +59,9 @@ class LLMChatBlock(BaseBlock):
     model : Optional[str], optional
         Model identifier in LiteLLM format. Can be set later via flow.set_model_config().
         Examples: "openai/gpt-4", "anthropic/claude-3-sonnet-20240229"
-    api_key : Optional[str], optional
+    api_key : Optional[SecretStr], optional
         API key for the provider. Falls back to environment variables.
+        Automatically redacted in logs and string representations.
     api_base : Optional[str], optional
         Base URL for the API. Required for local models.
     async_mode : bool, optional
@@ -104,7 +105,7 @@ class LLMChatBlock(BaseBlock):
     model: Optional[str] = Field(
         None, exclude=True, description="Model identifier in LiteLLM format"
     )
-    api_key: Optional[str] = Field(
+    api_key: Optional[SecretStr] = Field(
         None, exclude=True, description="API key for the provider"
     )
     api_base: Optional[str] = Field(
@@ -308,7 +309,7 @@ class LLMChatBlock(BaseBlock):
         if self.model is not None:
             completion_kwargs["model"] = self.model
         if self.api_key is not None:
-            completion_kwargs["api_key"] = self.api_key
+            completion_kwargs["api_key"] = self.api_key.get_secret_value()
         if self.api_base is not None:
             completion_kwargs["api_base"] = self.api_base
         if self.timeout is not None:

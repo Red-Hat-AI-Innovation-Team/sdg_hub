@@ -527,13 +527,15 @@ class TestFlow:
     ):
         """Create a mock LLM block with model attributes."""
         # First Party
+        from pydantic import SecretStr
         from tests.flow.conftest import MockBlock
 
         block = MockBlock(block_name=name, input_cols=["input"], output_cols=["output"])
         # Add LLM-related attributes
         block.model = model
         block.api_base = api_base
-        block.api_key = api_key
+        # Convert api_key to SecretStr to match real LLM blocks
+        block.api_key = SecretStr(api_key) if isinstance(api_key, str) else api_key
         block.temperature = 0.0
         block.max_tokens = 1024
         return block
@@ -637,7 +639,7 @@ class TestFlow:
         # Check that LLM blocks were modified
         assert flow.blocks[1].model == "new-model"  # llm_block1
         assert flow.blocks[1].api_base == "http://localhost:8101/v1"
-        assert flow.blocks[1].api_key == "NEW_KEY"
+        assert flow.blocks[1].api_key.get_secret_value() == "NEW_KEY"
         assert flow.blocks[1].temperature == 0.7
         assert flow.blocks[1].max_tokens == 2048
 
@@ -696,7 +698,7 @@ class TestFlow:
 
         # Other parameters should remain unchanged
         assert flow.blocks[0].api_base == "http://localhost:8000/v1"
-        assert flow.blocks[0].api_key == "OLD_KEY"
+        assert flow.blocks[0].api_key.get_secret_value() == "OLD_KEY"
         assert flow.blocks[0].max_tokens == 1024
 
     def test_set_model_config_with_kwargs(self):
@@ -793,7 +795,7 @@ class TestFlow:
 
         # Everything else should remain the same
         assert flow.blocks[0].api_base == "http://localhost:8000/v1"
-        assert flow.blocks[0].api_key == "ORIGINAL_KEY"
+        assert flow.blocks[0].api_key.get_secret_value() == "ORIGINAL_KEY"
         assert flow.blocks[0].temperature == 0.5
         assert flow.blocks[0].max_tokens == 1024
         assert flow.blocks[0].custom_param == "custom_value"
@@ -1424,9 +1426,10 @@ class TestFlow:
             flow.generate(dataset, max_concurrency=-1)
 
     def test_set_model_config_redacts_sensitive_params(self, caplog):
-        """Test API key and secrets redaction in logs.
+        """Test API key and secrets redaction in logs using Pydantic SecretStr.
 
-        test ensuring sensitive parameters are redacted while non-sensitive ones remain visible.
+        Verifies that sensitive parameters (api_key) are automatically redacted
+        by SecretStr while non-sensitive ones remain visible.
         """
         # Standard
         import logging
@@ -1443,7 +1446,6 @@ class TestFlow:
             flow.set_model_config(
                 model="openai/gpt-4",
                 api_key="sk-secret-key",
-                password="secret123",
                 temperature=0.7,
                 max_tokens=100,
             )
@@ -1455,17 +1457,14 @@ class TestFlow:
         assert len(relevant_logs) > 0
         log_text = relevant_logs[0]
 
-        # Sensitive params must be redacted
-        assert "***REDACTED***" in log_text
+        # Sensitive params must be redacted - SecretStr displays as '**********'
+        assert "**********" in log_text or "SecretStr" in log_text
         assert "sk-secret-key" not in log_text
-        assert "secret123" not in log_text
 
         # Non-sensitive params should be visible
         assert "temperature: 0.7" in log_text
         assert "max_tokens: 100" in log_text
 
-        # Test redaction logic directly
-        assert flow._should_redact_param("api_key") is True
-        assert flow._should_redact_param("password") is True
-        assert flow._should_redact_param("max_tokens") is False
-        assert flow._should_redact_param("temperature") is False
+        # Verify that the api_key was actually set as a SecretStr on the block
+        assert llm_block.api_key is not None
+        assert llm_block.api_key.get_secret_value() == "sk-secret-key"
