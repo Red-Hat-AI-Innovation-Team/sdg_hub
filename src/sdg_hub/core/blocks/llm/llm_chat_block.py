@@ -4,7 +4,6 @@
 # Standard
 from typing import Any, Optional
 import asyncio
-import logging
 
 from litellm import acompletion, completion
 from pydantic import ConfigDict, Field, SecretStr, field_validator
@@ -21,12 +20,6 @@ from ..base import BaseBlock
 from ..registry import BlockRegistry
 
 litellm.drop_params = True
-
-# Suppress LiteLLM's debug logging to prevent API key exposure
-# LiteLLM logs the full function call including api_key parameter at DEBUG level
-litellm.suppress_debug_info = True
-logging.getLogger("LiteLLM").setLevel(logging.WARNING)
-
 logger = setup_logger(__name__)
 
 
