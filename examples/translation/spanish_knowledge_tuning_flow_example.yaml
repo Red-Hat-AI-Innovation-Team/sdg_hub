@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: Apache-2.0
+# Example flow demonstrating TranslationBlock for Spanish knowledge tuning
+# This flow shows how to translate English prompt scaffolding to Spanish while preserving
+# already-translated Spanish content (documents, ICL examples)
+
+metadata:
+  id: spanish-knowledge-tuning-example
+  name: "Spanish Knowledge Tuning with Translation"
+  description: "Generate Spanish knowledge tuning data by translating English prompt templates while preserving Spanish source documents"
+  version: "1.0.0"
+  author: "SDG Hub Contributors"
+
+  recommended_models:
+    default: "openai/gpt-4"
+    compatible: ["anthropic/claude-3-sonnet-20240229", "openai/gpt-3.5-turbo"]
+
+  tags:
+    - "translation"
+    - "multilingual"
+    - "spanish"
+    - "knowledge-tuning"
+
+  license: "Apache-2.0"
+
+  dataset_requirements:
+    required_columns:
+      - "document_spanish"          # Spanish document (already translated)
+      - "icl_document_spanish"      # Spanish ICL document
+      - "icl_query_1_spanish"       # Spanish ICL question 1
+      - "icl_query_2_spanish"       # Spanish ICL question 2
+      - "icl_query_3_spanish"       # Spanish ICL question 3
+      - "icl_response_1"            # ICL answer 1
+      - "icl_response_2"            # ICL answer 2
+      - "icl_response_3"            # ICL answer 3
+      - "domain"                    # Domain (e.g., "science", "history")
+      - "document_outline"          # Document outline/summary
+    description: "Input dataset should contain Spanish documents and ICL examples that are already translated and verified. The TranslationBlock will translate only the English prompt scaffolding."
+
+blocks:
+  # Step 1: Build English prompt using Spanish data
+  # This uses the standard English template but injects Spanish content
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: build_english_prompt
+      input_cols:
+        document_spanish: document          # Map Spanish columns to template variables
+        icl_document_spanish: icl_document
+        icl_query_1_spanish: icl_query_1
+        icl_query_2_spanish: icl_query_2
+        icl_query_3_spanish: icl_query_3
+        icl_response_1: icl_response_1
+        icl_response_2: icl_response_2
+        icl_response_3: icl_response_3
+        domain: domain
+        document_outline: document_outline
+      output_cols: english_prompt
+      # Uses standard English template from instructlab flow
+      prompt_config_path: ../qa_generation/document_grounded_qa/multi_summary_qa/instructlab/generate_questions_responses.yaml
+      format_as_messages: true
+
+  # Step 2: Translate English prompt scaffolding to Spanish
+  # The LLM will detect Spanish content and preserve it unchanged
+  - block_type: TranslationBlock
+    block_config:
+      block_name: translate_to_spanish
+      input_cols: english_prompt
+      output_cols: spanish_prompt
+      source_language: "en"
+      target_language: "es"
+      # Translation-specific parameters
+      temperature: 0.3              # Low temperature for consistent translation
+      max_tokens: 8192              # Large enough for full prompts
+
+  # Step 3: Generate Spanish Q&A pairs
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: generate_spanish_qa
+      input_cols: spanish_prompt
+      output_cols: raw_spanish_response
+      temperature: 0.7              # Higher temp for creative Q&A generation
+      max_tokens: 2048
+      async_mode: true
+
+  # Step 4: Parse the generated Q&A pairs
+  - block_type: LLMParserBlock
+    block_config:
+      block_name: parse_response
+      input_cols: raw_spanish_response
+      extract_content: true
+
+  # Step 5: Extract questions and answers
+  - block_type: TextParserBlock
+    block_config:
+      block_name: extract_qa_pairs
+      input_cols: parse_response_content
+      output_cols: [question_spanish, response_spanish]
+      parsing_pattern: "\\[(?:Question|QUESTION)\\]\\s*(.*?)\\s*\\[(?:Answer|ANSWER)\\]\\s*(.*?)\\s*(?=\\[(?:Question|QUESTION)\\]|$)"
+      parser_cleanup_tags: ["[END]"]

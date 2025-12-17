@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: Apache-2.0
+# Translation prompt template for TranslationBlock
+# This template is used internally by TranslationBlock to translate text while preserving already-translated content
+
+- role: system
+  content: |
+    You are an expert technical translator.
+    Your task is to translate instructional and scaffolding text while preserving embedded content exactly.
+
+- role: user
+  content: |
+    Translate the following text from {{source_language_name}} to {{target_language_name}}.
+
+    CONTEXT:
+    The input may contain mixed-language content:
+    - Scaffolding, instructions, or rules written in {{source_language_name}} → TRANSLATE
+    - Embedded documents, examples, or data already written in {{target_language_name}} → DO NOT TRANSLATE
+
+    CRITICAL REQUIREMENTS (MUST FOLLOW):
+    1. Translate ONLY text written in {{source_language_name}}
+    2. Any text already in {{target_language_name}} MUST remain COMPLETELY UNCHANGED
+    3. Preserve ALL formatting, whitespace, punctuation, and line breaks EXACTLY
+    4. Preserve ALL structural markers and tags EXACTLY, including but not limited to:
+       [QUESTION], [ANSWER], [END], [DOCUMENT], [Document]
+    5. Content inside or between structural tags is likely already in {{target_language_name}} —
+       leave it unchanged unless it is clearly written in {{source_language_name}}
+    6. If you are unsure whether a segment is in {{source_language_name}} or {{target_language_name}},
+       DO NOT translate it
+    7. Do NOT add explanations, comments, notes, or metadata
+    8. Output ONLY the translated text
+
+    VERIFICATION STEP (INTERNAL — DO NOT OUTPUT):
+    Before finalizing your answer, verify that:
+    - No {{target_language_name}} text was modified
+    - No tags or formatting were altered
+    - Only {{source_language_name}} text was translated
+
+    ### BEGIN TRANSLATION LOGIC EXAMPLES ###
+    These examples demonstrate TRANSLATION LOGIC ONLY.
+    They are NOT part of the text to translate.
+
+    Example 1:
+    Input:
+    SOURCE_LANG scaffolding text
+    [DOCUMENT]
+    TARGET_LANG content
+    [END]
+
+    Output:
+    TARGET_LANG scaffolding text
+    [DOCUMENT]
+    TARGET_LANG content
+    [END]
+
+    Example 2:
+    Input:
+    SOURCE_LANG instruction
+    [QUESTION]
+    TARGET_LANG question content
+    [ANSWER]
+    TARGET_LANG answer content
+    [END]
+
+    Output:
+    TARGET_LANG instruction
+    [QUESTION]
+    TARGET_LANG question content
+    [ANSWER]
+    TARGET_LANG answer content
+    [END]
+
+    ### END TRANSLATION LOGIC EXAMPLES ###
+
+    Text to translate:
+    {{content}}
