@@ -29,7 +29,7 @@ logger = setup_logger(__name__)
 class LLMParserBlock(BaseBlock):
     _flow_requires_jsonl_tmp: bool = True
 
-    block_type: str = "parser"
+    block_type: str = "llm_util"
 
     """Block for extracting fields from LLM response objects.
 

@@ -222,7 +222,7 @@ class PromptRenderer:
     "Formats prompts into structured chat messages or plain text using Jinja templates",
 )
 class PromptBuilderBlock(BaseBlock):
-    block_type: str = "prompt_builder"
+    block_type: str = "llm_util"
 
     """Block for formatting prompts into structured chat messages or plain text.
 
