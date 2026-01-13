@@ -854,7 +854,7 @@ class TestGetInfo:
         info = block.get_info()
 
         assert info["block_name"] == "test_block"
-        assert info["block_type"] == "DummyBlock"
+        assert info["block_class"] == "DummyBlock"
         assert info["input_cols"] == ["input"]
         assert info["output_cols"] == ["output"]
         assert isinstance(info, dict)
@@ -870,7 +870,7 @@ class TestGetInfo:
         info = block.get_info()
 
         assert info["block_name"] == "test_block"
-        assert info["block_type"] == "DummyBlock"
+        assert info["block_class"] == "DummyBlock"
         assert info["input_cols"] == input_dict
         assert info["output_cols"] == output_dict
 
@@ -883,7 +883,7 @@ class TestGetInfo:
         assert info["input_cols"] is None
         assert info["output_cols"] is None
         assert info["block_name"] == "test_block"
-        assert info["block_type"] == "DummyBlock"
+        assert info["block_class"] == "DummyBlock"
 
     def test_get_info_includes_config(self):
         """Test that get_info includes full configuration."""

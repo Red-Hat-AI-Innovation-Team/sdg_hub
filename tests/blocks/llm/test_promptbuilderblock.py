@@ -446,7 +446,7 @@ class TestPromptBuilderBlock:
         # Test get_info method from BaseBlock
         info = block.get_info()
         assert info["block_name"] == "test_block"
-        assert info["block_type"] == "PromptBuilderBlock"
+        assert info["block_class"] == "PromptBuilderBlock"
         assert info["input_cols"] == ["input_text"]
         assert info["output_cols"] == ["output"]
 

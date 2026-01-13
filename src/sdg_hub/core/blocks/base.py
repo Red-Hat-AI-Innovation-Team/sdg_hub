@@ -369,5 +369,5 @@ class BaseBlock(BaseModel, ABC):
         Dict[str, Any]
         """
         config = self.get_config()
-        config["block_type"] = self.__class__.__name__
+        config["block_class"] = self.__class__.__name__
         return config

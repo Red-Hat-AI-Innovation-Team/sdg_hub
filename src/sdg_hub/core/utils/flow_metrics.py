@@ -31,12 +31,12 @@ def aggregate_block_metrics(entries: list[dict[str, Any]]) -> list[dict[str, Any
     """
     agg: dict[tuple[str, str], dict[str, Any]] = {}
     for m in entries:
-        key = (m.get("block_name"), m.get("block_type"))
+        key = (m.get("block_name"), m.get("block_class"))
         a = agg.setdefault(
             key,
             {
                 "block_name": key[0],
-                "block_type": key[1],
+                "block_class": key[1],
                 "execution_time": 0.0,
                 "input_rows": 0,
                 "output_rows": 0,
@@ -138,7 +138,7 @@ def display_metrics_summary(
 
         table.add_row(
             metrics["block_name"],
-            metrics["block_type"],
+            metrics["block_class"],
             duration,
             row_change,
             col_change,

@@ -679,7 +679,7 @@ class Flow(BaseModel):
                 self._block_metrics.append(
                     {
                         "block_name": block.block_name,
-                        "block_type": block.__class__.__name__,
+                        "block_class": block.__class__.__name__,
                         "execution_time": execution_time,
                         "input_rows": input_rows,
                         "output_rows": output_rows,
@@ -701,7 +701,7 @@ class Flow(BaseModel):
                 self._block_metrics.append(
                     {
                         "block_name": block.block_name,
-                        "block_type": block.__class__.__name__,
+                        "block_class": block.__class__.__name__,
                         "execution_time": execution_time,
                         "input_rows": input_rows,
                         "output_rows": 0,
@@ -882,38 +882,14 @@ class Flow(BaseModel):
             )
 
     def _detect_llm_blocks(self) -> list[str]:
-        """Detect LLM blocks in the flow by checking for model-related attribute existence.
-
-        LLM blocks are identified by having model, api_base, or api_key attributes,
-        regardless of their values (they may be None until set_model_config() is called).
+        """Detect blocks with block_type='llm'.
 
         Returns
         -------
         List[str]
-            List of block names that have LLM-related attributes.
+            List of block names that are LLM blocks.
         """
-        llm_blocks = []
-
-        for block in self.blocks:
-            block_type = block.__class__.__name__
-            block_name = block.block_name
-
-            # Check by attribute existence (not value) - LLM blocks have these attributes even if None
-            has_model_attr = hasattr(block, "model")
-            has_api_base_attr = hasattr(block, "api_base")
-            has_api_key_attr = hasattr(block, "api_key")
-
-            # A block is considered an LLM block if it has any LLM-related attributes
-            is_llm_block = has_model_attr or has_api_base_attr or has_api_key_attr
-
-            if is_llm_block:
-                llm_blocks.append(block_name)
-                logger.debug(
-                    f"Detected LLM block '{block_name}' ({block_type}): "
-                    f"has_model_attr={has_model_attr}, has_api_base_attr={has_api_base_attr}, has_api_key_attr={has_api_key_attr}"
-                )
-
-        return llm_blocks
+        return [block.block_name for block in self.blocks if block.block_type == "llm"]
 
     def is_model_config_required(self) -> bool:
         """Check if model configuration is required for this flow.
@@ -1152,7 +1128,7 @@ class Flow(BaseModel):
                 # Record block execution info
                 block_info = {
                     "block_name": block.block_name,
-                    "block_type": block.__class__.__name__,
+                    "block_class": block.__class__.__name__,
                     "execution_time_seconds": block_execution_time,
                     "input_rows": input_rows,
                     "output_rows": len(current_dataset),
@@ -1341,7 +1317,7 @@ class Flow(BaseModel):
             "metadata": self.metadata.model_dump(),
             "blocks": [
                 {
-                    "block_type": block.__class__.__name__,
+                    "block_class": block.__class__.__name__,
                     "block_name": block.block_name,
                     "input_cols": getattr(block, "input_cols", None),
                     "output_cols": getattr(block, "output_cols", None),
@@ -1531,7 +1507,7 @@ class Flow(BaseModel):
             "metadata": self.metadata.model_dump(),
             "blocks": [
                 {
-                    "block_type": block.__class__.__name__,
+                    "block_class": block.__class__.__name__,
                     "block_config": block.model_dump(),
                 }
                 for block in self.blocks

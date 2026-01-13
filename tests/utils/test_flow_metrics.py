@@ -20,7 +20,7 @@ class TestAggregateBlockMetrics:
         entries = [
             {
                 "block_name": "test_block",
-                "block_type": "TestType",
+                "block_class": "TestType",
                 "execution_time": 1.5,
                 "input_rows": 10,
                 "output_rows": 10,
@@ -42,7 +42,7 @@ class TestAggregateBlockMetrics:
         entries = [
             {
                 "block_name": "test_block",
-                "block_type": "TestType",
+                "block_class": "TestType",
                 "execution_time": 1.0,
                 "input_rows": 5,
                 "output_rows": 5,
@@ -52,7 +52,7 @@ class TestAggregateBlockMetrics:
             },
             {
                 "block_name": "test_block",
-                "block_type": "TestType",
+                "block_class": "TestType",
                 "execution_time": 2.0,
                 "input_rows": 5,
                 "output_rows": 5,
@@ -75,7 +75,7 @@ class TestAggregateBlockMetrics:
         entries = [
             {
                 "block_name": "test_block",
-                "block_type": "TestType",
+                "block_class": "TestType",
                 "execution_time": 1.0,
                 "input_rows": 10,
                 "output_rows": 0,
@@ -113,7 +113,7 @@ class TestDisplayMetricsSummary:
         metrics = [
             {
                 "block_name": "test_block",
-                "block_type": "TestType",
+                "block_class": "TestType",
                 "execution_time": 1.5,
                 "input_rows": 10,
                 "output_rows": 10,
@@ -138,7 +138,7 @@ class TestDisplayMetricsSummary:
         metrics = [
             {
                 "block_name": "test_block",
-                "block_type": "TestType",
+                "block_class": "TestType",
                 "execution_time": 1.0,
                 "input_rows": 10,
                 "output_rows": 0,
@@ -163,7 +163,7 @@ class TestDisplayMetricsSummary:
         metrics = [
             {
                 "block_name": "test_block",
-                "block_type": "TestType",
+                "block_class": "TestType",
                 "execution_time": 1.5,
                 "input_rows": 10,
                 "output_rows": 10,
@@ -188,7 +188,7 @@ class TestDisplayMetricsSummary:
         metrics = [
             {
                 "block_name": "block1",
-                "block_type": "TestType",
+                "block_class": "TestType",
                 "execution_time": 1.0,
                 "input_rows": 10,
                 "output_rows": 10,
@@ -198,7 +198,7 @@ class TestDisplayMetricsSummary:
             },
             {
                 "block_name": "block2",
-                "block_type": "TestType",
+                "block_class": "TestType",
                 "execution_time": 0.5,
                 "input_rows": 10,
                 "output_rows": 0,
@@ -411,7 +411,7 @@ class TestSaveMetricsToJson:
         metrics = [
             {
                 "block_name": "test_block",
-                "block_type": "TestType",
+                "block_class": "TestType",
                 "execution_time": 1.5,
                 "input_rows": 10,
                 "output_rows": 10,
@@ -451,7 +451,7 @@ class TestSaveMetricsToJson:
         metrics = [
             {
                 "block_name": "test_block",
-                "block_type": "TestType",
+                "block_class": "TestType",
                 "execution_time": 1.5,
                 "input_rows": 10,
                 "output_rows": 10,

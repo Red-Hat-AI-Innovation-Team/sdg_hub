@@ -531,6 +531,8 @@ class TestFlow:
         from tests.flow.conftest import MockBlock
 
         block = MockBlock(block_name=name, input_cols=["input"], output_cols=["output"])
+        # Set block_type to "llm" for detection
+        block.block_type = "llm"
         # Add LLM-related attributes
         block.model = model
         block.api_base = api_base
