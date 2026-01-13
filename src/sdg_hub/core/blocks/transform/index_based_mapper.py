@@ -28,6 +28,8 @@ logger = setup_logger(__name__)
     "Maps values from source columns to output columns based on choice columns using shared mapping",
 )
 class IndexBasedMapperBlock(BaseBlock):
+    block_type: str = "transform"
+
     """Block for mapping values from source columns to output columns based on choice columns.
 
     This block uses a shared mapping dictionary to select values from source columns and

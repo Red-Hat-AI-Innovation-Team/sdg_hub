@@ -27,6 +27,8 @@ logger = setup_logger(__name__)
     "Duplicates existing columns with new names according to a mapping specification",
 )
 class DuplicateColumnsBlock(BaseBlock):
+    block_type: str = "transform"
+
     """Block for duplicating existing columns with new names.
 
     This block creates copies of existing columns with new names according to a mapping specification.

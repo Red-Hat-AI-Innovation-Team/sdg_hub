@@ -683,6 +683,7 @@ class TestGetConfig:
 
         expected = {
             "block_name": "test_block",
+            "block_type": None,
             "input_cols": ["input"],
             "output_cols": ["output"],
             "generate_called": False,

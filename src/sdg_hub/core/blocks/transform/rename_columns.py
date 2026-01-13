@@ -27,6 +27,8 @@ logger = setup_logger(__name__)
     "Renames columns in a dataset according to a mapping specification",
 )
 class RenameColumnsBlock(BaseBlock):
+    block_type: str = "transform"
+
     """Block for renaming columns in a dataset.
 
     This block renames columns in a dataset according to a mapping specification.

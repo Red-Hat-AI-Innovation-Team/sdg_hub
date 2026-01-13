@@ -27,6 +27,8 @@ logger = setup_logger(__name__)
     "Combines multiple columns into a single column using a specified separator",
 )
 class TextConcatBlock(BaseBlock):
+    block_type: str = "transform"
+
     """Block for combining multiple columns into a single column.
 
     This block concatenates values from multiple columns into a single output column,

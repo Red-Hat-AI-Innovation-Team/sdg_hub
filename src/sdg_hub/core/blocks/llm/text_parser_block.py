@@ -30,6 +30,8 @@ logger = setup_logger(__name__)
 class TextParserBlock(BaseBlock):
     _flow_requires_jsonl_tmp: bool = True
 
+    block_type: str = "parser"
+
     """Block for parsing and post-processing text content.
 
     This block handles text parsing using start/end tags, custom regex patterns,

@@ -32,6 +32,8 @@ logger = setup_logger(__name__)
 class LLMChatBlock(BaseBlock):
     model_config = ConfigDict(extra="allow")
 
+    block_type: str = "llm"
+
     """Unified LLM chat block supporting all providers via LiteLLM.
 
     This block provides a minimal wrapper around LiteLLM's completion API,

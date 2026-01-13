@@ -28,6 +28,8 @@ logger = setup_logger(__name__)
     "Combines multiple columns into a single column containing a structured JSON object",
 )
 class JSONStructureBlock(BaseBlock):
+    block_type: str = "transform"
+
     """Block for combining multiple columns into a structured JSON object.
 
     This block takes values from multiple input columns and combines them into a single

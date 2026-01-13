@@ -28,6 +28,8 @@ logger = setup_logger(__name__)
     "Transforms wide dataset format into long format by melting columns into rows",
 )
 class MeltColumnsBlock(BaseBlock):
+    block_type: str = "transform"
+
     """Block for flattening multiple columns into a long format.
 
     This block transforms a wide dataset format into a long format by melting

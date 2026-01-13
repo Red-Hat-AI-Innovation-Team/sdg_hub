@@ -222,6 +222,8 @@ class PromptRenderer:
     "Formats prompts into structured chat messages or plain text using Jinja templates",
 )
 class PromptBuilderBlock(BaseBlock):
+    block_type: str = "prompt_builder"
+
     """Block for formatting prompts into structured chat messages or plain text.
 
     This block takes input from dataset columns, applies Jinja templates from a YAML config

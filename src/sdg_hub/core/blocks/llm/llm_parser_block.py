@@ -29,6 +29,8 @@ logger = setup_logger(__name__)
 class LLMParserBlock(BaseBlock):
     _flow_requires_jsonl_tmp: bool = True
 
+    block_type: str = "parser"
+
     """Block for extracting fields from LLM response objects.
 
     This block extracts specified fields from chat completion response objects.

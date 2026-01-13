@@ -46,6 +46,8 @@ DTYPE_MAP = {
     "Filters datasets based on column values using various comparison operations",
 )
 class ColumnValueFilterBlock(BaseBlock):
+    block_type: str = "filtering"
+
     """A block for filtering datasets based on column values.
 
     This block allows filtering of datasets using various operations (e.g., equals, contains)

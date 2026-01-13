@@ -28,6 +28,8 @@ logger = setup_logger(__name__)
     "Replaces all values in a column with a single summary statistic (e.g., mode, mean, median)",
 )
 class UniformColumnValueSetter(BaseBlock):
+    block_type: str = "transform"
+
     """Block that replaces all values in a column with a single aggregate value.
 
     Supported strategies include: mode, min, max, mean, median.
