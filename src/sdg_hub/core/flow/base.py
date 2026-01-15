@@ -1507,7 +1507,7 @@ class Flow(BaseModel):
             "metadata": self.metadata.model_dump(),
             "blocks": [
                 {
-                    "block_class": block.__class__.__name__,
+                    "block_type": block.__class__.__name__,
                     "block_config": block.model_dump(),
                 }
                 for block in self.blocks

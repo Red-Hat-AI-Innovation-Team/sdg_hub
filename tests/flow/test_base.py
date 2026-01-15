@@ -491,6 +491,32 @@ class TestFlow:
         assert "MockBlock" in content
         assert "test_block" in content
 
+    def test_to_yaml_from_yaml_roundtrip(self):
+        """Test that to_yaml() output can be loaded by from_yaml()."""
+        # First Party
+        from sdg_hub.core.blocks import UniformColumnValueSetter
+
+        # Create flow with a real registered block
+        block = UniformColumnValueSetter(
+            block_name="setter_block",
+            input_cols=["col1"],
+            reduction_strategy="mode",
+        )
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+
+        # Save to YAML
+        output_path = Path(self.temp_dir) / "roundtrip.yaml"
+        flow.to_yaml(str(output_path))
+
+        # Load back
+        loaded_flow = Flow.from_yaml(str(output_path))
+
+        # Verify structure matches
+        assert len(loaded_flow.blocks) == len(flow.blocks)
+        assert type(loaded_flow.blocks[0]).__name__ == type(flow.blocks[0]).__name__
+        assert loaded_flow.blocks[0].block_name == flow.blocks[0].block_name
+        assert loaded_flow.metadata.name == flow.metadata.name
+
     def test_string_representations(self):
         """Test string representations of flow."""
         block = self.create_mock_block("test_block")
