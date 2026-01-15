@@ -598,7 +598,10 @@ class TestLLMResponseExtractorBlockRegistration:
         from sdg_hub.core.blocks.registry import BlockRegistry
 
         assert "LLMResponseExtractorBlock" in BlockRegistry._metadata
-        assert BlockRegistry._metadata["LLMResponseExtractorBlock"].block_class == LLMResponseExtractorBlock
+        assert (
+            BlockRegistry._metadata["LLMResponseExtractorBlock"].block_class
+            == LLMResponseExtractorBlock
+        )
         assert BlockRegistry._metadata["LLMResponseExtractorBlock"].category == "llm"
 
 

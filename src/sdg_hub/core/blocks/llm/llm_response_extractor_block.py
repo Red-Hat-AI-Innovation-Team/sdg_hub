@@ -122,7 +122,9 @@ class LLMResponseExtractorBlock(BaseBlock):
         """
         # Validate that we have exactly one input column
         if len(self.input_cols) == 0:
-            raise ValueError("LLMResponseExtractorBlock expects at least one input column")
+            raise ValueError(
+                "LLMResponseExtractorBlock expects at least one input column"
+            )
         if len(self.input_cols) > 1:
             logger.warning(
                 f"LLMResponseExtractorBlock expects exactly one input column, but got {len(self.input_cols)}. "
