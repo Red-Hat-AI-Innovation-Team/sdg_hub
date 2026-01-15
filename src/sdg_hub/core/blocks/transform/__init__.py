@@ -6,6 +6,7 @@ wide-to-long transformations, value selection, and majority value assignment.
 """
 
 # Local
+from .dict_field_extractor_block import DictFieldExtractorBlock
 from .duplicate_columns import DuplicateColumnsBlock
 from .index_based_mapper import IndexBasedMapperBlock
 from .json_structure_block import JSONStructureBlock
@@ -15,11 +16,12 @@ from .text_concat import TextConcatBlock
 from .uniform_col_val_setter import UniformColumnValueSetter
 
 __all__ = [
-    "TextConcatBlock",
+    "DictFieldExtractorBlock",
     "DuplicateColumnsBlock",
+    "IndexBasedMapperBlock",
     "JSONStructureBlock",
     "MeltColumnsBlock",
-    "IndexBasedMapperBlock",
     "RenameColumnsBlock",
+    "TextConcatBlock",
     "UniformColumnValueSetter",
 ]
