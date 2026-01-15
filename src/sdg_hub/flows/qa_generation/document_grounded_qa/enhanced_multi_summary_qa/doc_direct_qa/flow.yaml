@@ -64,7 +64,7 @@ blocks:
     temperature: 1.0
     n: 1
     async_mode: true
-- block_type: LLMParserBlock
+- block_type: LLMResponseExtractorBlock
   block_config:
     block_name: extract_questions
     input_cols: question_list
@@ -98,7 +98,7 @@ blocks:
     temperature: 1.0
     n: 1
     async_mode: true
-- block_type: LLMParserBlock
+- block_type: LLMResponseExtractorBlock
   block_config:
     block_name: extract_answer
     input_cols: response_dict
@@ -130,7 +130,7 @@ blocks:
     output_cols: eval_faithful_response_dict
     n: 1
     async_mode: true
-- block_type: LLMParserBlock
+- block_type: LLMResponseExtractorBlock
   block_config:
     block_name: extract_eval_faithful
     input_cols: eval_faithful_response_dict

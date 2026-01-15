@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""LLM parser block for extracting fields from LLM response objects.
+"""LLM response extractor block for extracting fields from LLM response objects.
 
-This module provides the LLMParserBlock for extracting specific fields
+This module provides the LLMResponseExtractorBlock for extracting specific fields
 (content, reasoning_content, tool_calls) from chat completion response objects.
 """
 
@@ -22,11 +22,11 @@ logger = setup_logger(__name__)
 
 
 @BlockRegistry.register(
-    "LLMParserBlock",
+    "LLMResponseExtractorBlock",
     "llm",
     "Extracts specified fields from LLM response objects",
 )
-class LLMParserBlock(BaseBlock):
+class LLMResponseExtractorBlock(BaseBlock):
     _flow_requires_jsonl_tmp: bool = True
 
     block_type: str = "llm_util"
@@ -90,7 +90,7 @@ class LLMParserBlock(BaseBlock):
             ]
         ):
             raise ValueError(
-                "LLMParserBlock requires at least one extraction field to be enabled: "
+                "LLMResponseExtractorBlock requires at least one extraction field to be enabled: "
                 "extract_content, extract_reasoning_content, or extract_tool_calls"
             )
 
@@ -108,7 +108,7 @@ class LLMParserBlock(BaseBlock):
         return self
 
     def _validate_custom(self, dataset: pd.DataFrame) -> None:
-        """Validate LLMParserBlock specific requirements.
+        """Validate LLMResponseExtractorBlock specific requirements.
 
         Parameters
         ----------
@@ -118,14 +118,14 @@ class LLMParserBlock(BaseBlock):
         Raises
         ------
         ValueError
-            If LLMParserBlock requirements are not met.
+            If LLMResponseExtractorBlock requirements are not met.
         """
         # Validate that we have exactly one input column
         if len(self.input_cols) == 0:
-            raise ValueError("LLMParserBlock expects at least one input column")
+            raise ValueError("LLMResponseExtractorBlock expects at least one input column")
         if len(self.input_cols) > 1:
             logger.warning(
-                f"LLMParserBlock expects exactly one input column, but got {len(self.input_cols)}. "
+                f"LLMResponseExtractorBlock expects exactly one input column, but got {len(self.input_cols)}. "
                 f"Using the first column: {self.input_cols[0]}"
             )
 

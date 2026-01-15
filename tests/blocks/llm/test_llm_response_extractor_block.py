@@ -1,19 +1,19 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for LLMParserBlock."""
+"""Tests for LLMResponseExtractorBlock."""
 
 # Third Party
 # First Party
-from sdg_hub.core.blocks.llm import LLMParserBlock
+from sdg_hub.core.blocks.llm import LLMResponseExtractorBlock
 import pandas as pd
 import pytest
 
 
-class TestLLMParserBlockInitialization:
-    """Test LLMParserBlock initialization."""
+class TestLLMResponseExtractorBlockInitialization:
+    """Test LLMResponseExtractorBlock initialization."""
 
     def test_init_default_settings(self):
         """Test initialization with default settings."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
         )
@@ -28,7 +28,7 @@ class TestLLMParserBlockInitialization:
 
     def test_init_custom_settings(self):
         """Test initialization with custom settings."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -47,7 +47,7 @@ class TestLLMParserBlockInitialization:
     def test_init_no_extraction_fields_enabled(self):
         """Test that initialization fails when no extraction fields are enabled."""
         with pytest.raises(ValueError, match="at least one extraction field"):
-            LLMParserBlock(
+            LLMResponseExtractorBlock(
                 block_name="test_parser",
                 input_cols="llm_response",
                 extract_content=False,
@@ -58,7 +58,7 @@ class TestLLMParserBlockInitialization:
     def test_field_name_computation(self):
         """Test that field names are computed correctly."""
         # Test with empty prefix (should use block name)
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             field_prefix="",
@@ -68,7 +68,7 @@ class TestLLMParserBlockInitialization:
         assert block._tool_calls_field == "test_parser_tool_calls"
 
         # Test with custom prefix
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             field_prefix="llm_",
@@ -78,12 +78,12 @@ class TestLLMParserBlockInitialization:
         assert block._tool_calls_field == "llm_tool_calls"
 
 
-class TestLLMParserBlockSingleResponse:
-    """Test LLMParserBlock with single response objects."""
+class TestLLMResponseExtractorBlockSingleResponse:
+    """Test LLMResponseExtractorBlock with single response objects."""
 
     def test_extract_content_only(self):
         """Test extracting only content from single response."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -104,7 +104,7 @@ class TestLLMParserBlockSingleResponse:
 
     def test_extract_all_fields(self):
         """Test extracting all fields from single response."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -133,7 +133,7 @@ class TestLLMParserBlockSingleResponse:
 
     def test_extract_with_custom_prefix(self):
         """Test extracting with custom field prefix."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -150,7 +150,7 @@ class TestLLMParserBlockSingleResponse:
 
     def test_missing_fields_partial_extraction(self, caplog):
         """Test that partial field extraction works when some fields are missing."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -182,7 +182,7 @@ class TestLLMParserBlockSingleResponse:
 
     def test_multiple_missing_fields_warnings(self, caplog):
         """Test that warnings are logged for multiple missing fields."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -210,12 +210,12 @@ class TestLLMParserBlockSingleResponse:
         )
 
 
-class TestLLMParserBlockListResponsesExpandTrue:
-    """Test LLMParserBlock with list responses and expand_lists=True."""
+class TestLLMResponseExtractorBlockListResponsesExpandTrue:
+    """Test LLMResponseExtractorBlock with list responses and expand_lists=True."""
 
     def test_expand_list_responses(self):
         """Test expanding list of responses into individual rows."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -251,7 +251,7 @@ class TestLLMParserBlockListResponsesExpandTrue:
 
     def test_expand_multiple_samples(self):
         """Test expanding multiple samples with list responses."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -283,7 +283,7 @@ class TestLLMParserBlockListResponsesExpandTrue:
 
     def test_expand_empty_list(self):
         """Test handling empty list responses."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -298,7 +298,7 @@ class TestLLMParserBlockListResponsesExpandTrue:
 
     def test_expand_invalid_list_items(self, caplog):
         """Test handling invalid items in list responses."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -332,7 +332,7 @@ class TestLLMParserBlockListResponsesExpandTrue:
 
     def test_expand_all_invalid_list_items(self):
         """Test handling when all items in list are invalid."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -349,12 +349,12 @@ class TestLLMParserBlockListResponsesExpandTrue:
             block.generate(dataset)
 
 
-class TestLLMParserBlockListResponsesExpandFalse:
-    """Test LLMParserBlock with list responses and expand_lists=False."""
+class TestLLMResponseExtractorBlockListResponsesExpandFalse:
+    """Test LLMResponseExtractorBlock with list responses and expand_lists=False."""
 
     def test_preserve_list_structure(self):
         """Test preserving list structure in output."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -386,7 +386,7 @@ class TestLLMParserBlockListResponsesExpandFalse:
 
     def test_preserve_multiple_fields(self):
         """Test preserving multiple fields as lists."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -416,7 +416,7 @@ class TestLLMParserBlockListResponsesExpandFalse:
 
     def test_preserve_empty_list(self):
         """Test handling empty list with preserve structure."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -431,7 +431,7 @@ class TestLLMParserBlockListResponsesExpandFalse:
 
     def test_preserve_all_invalid_list_items(self):
         """Test handling when all items in list are invalid with preserve structure."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -448,12 +448,12 @@ class TestLLMParserBlockListResponsesExpandFalse:
             block.generate(dataset)
 
 
-class TestLLMParserBlockValidation:
-    """Test LLMParserBlock validation."""
+class TestLLMResponseExtractorBlockValidation:
+    """Test LLMResponseExtractorBlock validation."""
 
     def test_validation_single_input_column(self):
         """Test validation with single input column."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
         )
@@ -465,7 +465,7 @@ class TestLLMParserBlockValidation:
 
     def test_validation_multiple_input_columns_warning(self, caplog):
         """Test validation warning with multiple input columns."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols=["col1", "col2"],
         )
@@ -481,7 +481,7 @@ class TestLLMParserBlockValidation:
 
     def test_validation_no_input_columns(self):
         """Test validation fails with no input columns."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols=[],
         )
@@ -492,12 +492,12 @@ class TestLLMParserBlockValidation:
             block._validate_custom(dataset)
 
 
-class TestLLMParserBlockErrorHandling:
-    """Test LLMParserBlock error handling."""
+class TestLLMResponseExtractorBlockErrorHandling:
+    """Test LLMResponseExtractorBlock error handling."""
 
     def test_invalid_input_type(self, caplog):
         """Test handling invalid input data type."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
         )
@@ -511,7 +511,7 @@ class TestLLMParserBlockErrorHandling:
 
     def test_empty_dataset(self, caplog):
         """Test handling empty dataset."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
         )
@@ -525,7 +525,7 @@ class TestLLMParserBlockErrorHandling:
 
     def test_no_fields_extracted(self):
         """Test handling when no fields can be extracted."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -543,7 +543,7 @@ class TestLLMParserBlockErrorHandling:
 
     def test_none_content_handled_gracefully(self, caplog):
         """Test handling when content field is None."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -566,7 +566,7 @@ class TestLLMParserBlockErrorHandling:
 
     def test_none_reasoning_content_handled_gracefully(self, caplog):
         """Test handling when reasoning_content field is None."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_reasoning_content=True,
@@ -590,24 +590,24 @@ class TestLLMParserBlockErrorHandling:
         )
 
 
-class TestLLMParserBlockRegistration:
-    """Test LLMParserBlock registration."""
+class TestLLMResponseExtractorBlockRegistration:
+    """Test LLMResponseExtractorBlock registration."""
 
-    def test_llm_parser_block_registered(self):
-        """Test that LLMParserBlock is properly registered."""
+    def test_llm_response_extractor_block_registered(self):
+        """Test that LLMResponseExtractorBlock is properly registered."""
         from sdg_hub.core.blocks.registry import BlockRegistry
 
-        assert "LLMParserBlock" in BlockRegistry._metadata
-        assert BlockRegistry._metadata["LLMParserBlock"].block_class == LLMParserBlock
-        assert BlockRegistry._metadata["LLMParserBlock"].category == "llm"
+        assert "LLMResponseExtractorBlock" in BlockRegistry._metadata
+        assert BlockRegistry._metadata["LLMResponseExtractorBlock"].block_class == LLMResponseExtractorBlock
+        assert BlockRegistry._metadata["LLMResponseExtractorBlock"].category == "llm"
 
 
-class TestLLMParserBlockIntegration:
-    """Test LLMParserBlock integration scenarios."""
+class TestLLMResponseExtractorBlockIntegration:
+    """Test LLMResponseExtractorBlock integration scenarios."""
 
     def test_integration_with_llm_chat_output(self):
         """Test integration with typical LLMChatBlock output format."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,
@@ -640,7 +640,7 @@ class TestLLMParserBlockIntegration:
 
     def test_integration_preserve_lists_for_text_parser(self):
         """Test preserving lists for downstream TextParserBlock processing."""
-        block = LLMParserBlock(
+        block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
             extract_content=True,

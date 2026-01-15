@@ -41,7 +41,7 @@ blocks:
       max_tokens: 2048
       temperature: 0.7
 
-  - block_type: LLMParserBlock
+  - block_type: LLMResponseExtractorBlock
     block_config:
       block_name: parse_topic
       input_cols: topic_response
@@ -73,7 +73,7 @@ blocks:
       max_tokens: 2048
       temperature: 0.7
 
-  - block_type: LLMParserBlock
+  - block_type: LLMResponseExtractorBlock
     block_config:
       block_name: parse_question
       input_cols: question_response
@@ -97,7 +97,7 @@ blocks:
       max_tokens: 4096
       temperature: 0.7
 
-  - block_type: LLMParserBlock
+  - block_type: LLMResponseExtractorBlock
     block_config:
       block_name: parse_evolved_question
       input_cols: evolution_response
@@ -123,7 +123,7 @@ blocks:
       max_tokens: 4096
       temperature: 0.2
 
-  - block_type: LLMParserBlock
+  - block_type: LLMResponseExtractorBlock
     block_config:
       block_name: parse_answer
       input_cols: answer_response
@@ -150,7 +150,7 @@ blocks:
       max_tokens: 512
       temperature: 0.0
 
-  - block_type: LLMParserBlock
+  - block_type: LLMResponseExtractorBlock
     block_config:
       block_name: parse_critic_score
       input_cols: critic_response
@@ -185,7 +185,7 @@ blocks:
       max_tokens: 4096
       temperature: 0.0
 
-  - block_type: LLMParserBlock
+  - block_type: LLMResponseExtractorBlock
     block_config:
       block_name: parse_extracted_context
       input_cols: extraction_response

@@ -316,7 +316,7 @@ blocks:
       output_cols: ["eval_response"]
       async_mode: true
 
-  - block_type: "LLMParserBlock"
+  - block_type: "LLMResponseExtractorBlock"
     block_config:
       block_name: "extract_eval_content"
       input_cols: ["eval_response"]
@@ -537,7 +537,7 @@ result = flow.generate(
 | | `top_p` | Nucleus sampling threshold | `0.0` - `1.0` |
 | | `frequency_penalty` | Penalize token repetition | `-2.0` - `2.0` |
 | | `presence_penalty` | Penalize new topics | `-2.0` - `2.0` |
-| **LLMParserBlock** | `extract_content` | Extract main content field | `True`, `False` |
+| **LLMResponseExtractorBlock** | `extract_content` | Extract main content field | `True`, `False` |
 | | `extract_reasoning_content` | Extract reasoning/thinking | `True`, `False` |
 | | `extract_tool_calls` | Extract tool call data | `True`, `False` |
 | | `field_prefix` | Prefix for output fields | `"llm_"`, `"parsed_"` |
@@ -752,7 +752,7 @@ result = flow.generate(dataset)
 │ │ generate_question    │ LLMChatBlock    │   45.30s │ 100 → 100    │ +1      │ ✓││
 │ │ generate_answer      │ LLMChatBlock    │   78.45s │ 100 → 100    │ +1      │ ✓││
 │ │ eval_faithfulness... │ LLMChatBlock    │   52.20s │ 100 → 100    │ +1      │ ✓││
-│ │ extract_eval_con...  │ LLMParserBlock  │    0.15s │ 100 → 100    │ +2      │ ✓││
+│ │ extract_eval_con...  │ LLMResponseExtractorBlock  │    0.15s │ 100 → 100    │ +2      │ ✓││
 │ │ parse_evaluation     │ TextParserBlock │    0.22s │ 100 → 100    │ +2      │ ✓││
 │ │ filter_faithful      │ ColumnValueF... │    0.08s │ 100 → 87     │ —       │ ✓││
 │ ├──────────────────────┼─────────────────┼──────────┼──────────────┼─────────┼──┤│

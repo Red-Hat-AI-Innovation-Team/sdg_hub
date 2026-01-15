@@ -603,7 +603,7 @@ print(result["judgment"])     # ['YES']
 TextParserBlock is commonly used after LLMChatBlock to structure responses:
 
 ```python
-from sdg_hub.core.blocks import LLMChatBlock, LLMParserBlock, TextParserBlock
+from sdg_hub.core.blocks import LLMChatBlock, LLMResponseExtractorBlock, TextParserBlock
 
 # Step 1: Generate LLM response
 chat_block = LLMChatBlock(
@@ -615,7 +615,7 @@ chat_block = LLMChatBlock(
 
 # Step 2: Extract content from response object
 # Use field_prefix="" to get cleaner column names
-llm_parser = LLMParserBlock(
+llm_parser = LLMResponseExtractorBlock(
     block_name="extract_eval",
     input_cols=["eval_response"],
     extract_content=True,

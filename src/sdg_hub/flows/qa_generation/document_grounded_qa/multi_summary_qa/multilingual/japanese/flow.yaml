@@ -57,7 +57,7 @@ blocks:
       async_mode: true
       # n: 2
 
-  - block_type: LLMParserBlock
+  - block_type: LLMResponseExtractorBlock
     block_config:
       block_name: detailed_summary
       input_cols: raw_summary_detailed
@@ -87,7 +87,7 @@ blocks:
       max_tokens: 2048
       async_mode: true
 
-  - block_type: LLMParserBlock
+  - block_type: LLMResponseExtractorBlock
     block_config:
       block_name: atomic_facts
       input_cols: raw_atomic_facts
@@ -116,7 +116,7 @@ blocks:
       max_tokens: 2048
       async_mode: true
 
-  - block_type: LLMParserBlock
+  - block_type: LLMResponseExtractorBlock
     block_config:
       block_name: extractive_summary
       input_cols: raw_summary_extractive
@@ -161,7 +161,7 @@ blocks:
       max_tokens: 2048
       async_mode: true
 
-  - block_type: LLMParserBlock
+  - block_type: LLMResponseExtractorBlock
     block_config:
       block_name: get_knowledge_generation
       input_cols: raw_knowledge_generation
@@ -192,7 +192,7 @@ blocks:
       n: 1
       async_mode: true
 
-  - block_type: LLMParserBlock
+  - block_type: LLMResponseExtractorBlock
     block_config:
       block_name: extract_eval_faithful
       input_cols: eval_faithful_response_dict
@@ -237,7 +237,7 @@ blocks:
       max_tokens: 2048
       n: 1
       async_mode: true
-  - block_type: LLMParserBlock
+  - block_type: LLMResponseExtractorBlock
     block_config:
       block_name: extract_eval_relevancy
       input_cols: eval_relevancy_response_dict
@@ -281,7 +281,7 @@ blocks:
       max_tokens: 2048
       n: 1
       async_mode: true
-  - block_type: LLMParserBlock
+  - block_type: LLMResponseExtractorBlock
     block_config:
       block_name: extract_verify_question
       input_cols: verify_question_response_dict

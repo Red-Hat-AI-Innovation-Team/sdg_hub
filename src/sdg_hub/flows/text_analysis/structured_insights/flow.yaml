@@ -49,7 +49,7 @@ blocks:
       max_tokens: 1024
       temperature: 0.3
       async_mode: true
-  - block_type: "LLMParserBlock"
+  - block_type: "LLMResponseExtractorBlock"
     block_config:
       block_name: "extract_summary"
       input_cols: "raw_summary"
@@ -81,7 +81,7 @@ blocks:
       max_tokens: 512
       temperature: 0.3
       async_mode: true
-  - block_type: "LLMParserBlock"
+  - block_type: "LLMResponseExtractorBlock"
     block_config:
       block_name: "extract_keywords"
       input_cols: "raw_keywords"
@@ -113,7 +113,7 @@ blocks:
       max_tokens: 1024
       temperature: 0.3
       async_mode: true
-  - block_type: "LLMParserBlock"
+  - block_type: "LLMResponseExtractorBlock"
     block_config:
       block_name: "extract_entities"
       input_cols: "raw_entities"
@@ -145,7 +145,7 @@ blocks:
       max_tokens: 256
       temperature: 0.1
       async_mode: true
-  - block_type: "LLMParserBlock"
+  - block_type: "LLMResponseExtractorBlock"
     block_config:
       block_name: "extract_sentiment"
       input_cols: "raw_sentiment"
