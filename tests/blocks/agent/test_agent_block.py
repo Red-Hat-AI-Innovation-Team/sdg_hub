@@ -3,10 +3,11 @@
 
 from unittest.mock import MagicMock, patch
 
-from sdg_hub.core.blocks.agent import AgentBlock
-from sdg_hub.core.utils.error_handling import BlockValidationError
 import pandas as pd
 import pytest
+
+from sdg_hub.core.blocks.agent import AgentBlock
+from sdg_hub.core.utils.error_handling import BlockValidationError
 
 
 @pytest.fixture
@@ -89,15 +90,16 @@ class TestAgentBlockInit:
 class TestAgentBlockValidation:
     """Test AgentBlock field validation."""
 
-    def test_missing_agent_framework(self):
-        """Test that missing agent_framework raises ValidationError."""
-        with pytest.raises(Exception, match="Field required"):
-            AgentBlock(
-                block_name="test",
-                input_cols="messages",
-                output_cols="response",
-                agent_url="http://localhost:8000",
-            )
+    def test_missing_agent_framework(self, sample_dataframe):
+        """Test that missing agent_framework raises error at runtime."""
+        block = AgentBlock(
+            block_name="test",
+            input_cols="messages",
+            output_cols="response",
+            agent_url="http://localhost:8000",
+        )
+        with pytest.raises(BlockValidationError, match="agent_framework and agent_url are required"):
+            block(sample_dataframe)
 
     def test_invalid_agent_framework(self):
         """Test that invalid agent_framework raises ValidationError."""
@@ -110,15 +112,16 @@ class TestAgentBlockValidation:
                 agent_url="http://localhost:8000",
             )
 
-    def test_missing_agent_url(self):
-        """Test that missing agent_url raises ValidationError."""
-        with pytest.raises(Exception, match="Field required"):
-            AgentBlock(
-                block_name="test",
-                input_cols="messages",
-                output_cols="response",
-                agent_framework="langflow",
-            )
+    def test_missing_agent_url(self, sample_dataframe):
+        """Test that missing agent_url raises error at runtime."""
+        block = AgentBlock(
+            block_name="test",
+            input_cols="messages",
+            output_cols="response",
+            agent_framework="langflow",
+        )
+        with pytest.raises(BlockValidationError, match="agent_framework and agent_url are required"):
+            block(sample_dataframe)
 
     def test_multiple_input_cols(self):
         """Test that multiple input columns raises ValidationError."""

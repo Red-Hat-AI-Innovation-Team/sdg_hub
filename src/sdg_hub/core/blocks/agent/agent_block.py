@@ -60,11 +60,13 @@ class AgentBlock(BaseBlock):
 
     model_config = ConfigDict(extra="allow")
 
-    # Required operational fields (excluded from YAML serialization)
-    agent_framework: str = Field(
-        ..., exclude=True, description="Agent framework (e.g., 'langflow')"
+    # Operational fields (excluded from YAML serialization)
+    agent_framework: Optional[str] = Field(
+        None, exclude=True, description="Agent framework (e.g., 'langflow')"
     )
-    agent_url: str = Field(..., exclude=True, description="Agent API endpoint URL")
+    agent_url: Optional[str] = Field(
+        None, exclude=True, description="Agent API endpoint URL"
+    )
     agent_api_key: Optional[str] = Field(
         None, exclude=True, description="API key for agent authentication"
     )
@@ -106,9 +108,9 @@ class AgentBlock(BaseBlock):
     @field_validator("agent_framework")
     @classmethod
     def validate_agent_framework(cls, v):
-        """Validate that agent framework is provided and supported."""
-        if not v:
-            raise ValueError("agent_framework is required")
+        """Validate agent framework is supported if provided."""
+        if v is None:
+            return v
 
         supported = ["langflow"]
         if v not in supported:
@@ -117,33 +119,26 @@ class AgentBlock(BaseBlock):
             )
         return v
 
-    @field_validator("agent_url")
-    @classmethod
-    def validate_agent_url(cls, v):
-        """Validate that agent URL is provided."""
-        if not v:
-            raise ValueError("agent_url is required")
-        return v
-
     def model_post_init(self, __context) -> None:
         """Initialize after Pydantic validation."""
         super().model_post_init(__context)
 
-        # Initialize the agent wrapper once
-        self._agent_wrapper = self._create_agent_wrapper()
+        # Initialize wrapper if required fields are set
+        if self.agent_framework and self.agent_url:
+            self._agent_wrapper = self._create_agent_wrapper()
 
-        logger.info(
-            "Initialized AgentBlock '%s' with framework '%s', timeout=%.1fs",
-            self.block_name,
-            self.agent_framework,
-            self.timeout,
-            extra={
-                "block_name": self.block_name,
-                "agent_framework": self.agent_framework,
-                "agent_url": self.agent_url,
-                "timeout": self.timeout,
-            },
-        )
+            logger.info(
+                "Initialized AgentBlock '%s' with framework '%s', timeout=%.1fs",
+                self.block_name,
+                self.agent_framework,
+                self.timeout,
+                extra={
+                    "block_name": self.block_name,
+                    "agent_framework": self.agent_framework,
+                    "agent_url": self.agent_url,
+                    "timeout": self.timeout,
+                },
+            )
 
     def _create_agent_wrapper(self):
         """Create the appropriate agent wrapper based on framework.
@@ -168,10 +163,27 @@ class AgentBlock(BaseBlock):
                 timeout=self.timeout,
             )
         else:
-            # This should never happen due to field validation, but keeping for safety
             raise BlockValidationError(
                 f"Unsupported agent framework: {self.agent_framework}"
             )
+
+    def _get_current_wrapper(self):
+        """Get wrapper with current field values, recreating if needed."""
+        if not self.agent_framework or not self.agent_url:
+            raise BlockValidationError(
+                f"agent_framework and agent_url are required for block '{self.block_name}'"
+            )
+
+        if self._agent_wrapper is not None:
+            w = self._agent_wrapper
+            if (
+                w.agent_url == self.agent_url
+                and w.agent_api_key == self.agent_api_key
+                and w.timeout == self.timeout
+            ):
+                return w
+
+        return self._create_agent_wrapper()
 
     def _message_to_dict(self, message: Any) -> dict[str, Any]:
         """Convert message to dict.
@@ -240,10 +252,8 @@ class AgentBlock(BaseBlock):
         BlockValidationError
             If agent wrapper is not initialized or generation fails.
         """
-        if self._agent_wrapper is None:
-            raise BlockValidationError(
-                f"Agent wrapper not initialized for block '{self.block_name}'"
-            )
+        # Get wrapper with current values (supports runtime overrides)
+        wrapper = self._get_current_wrapper()
 
         # Extract messages from DataFrame
         messages_list = samples[self.input_cols[0]].tolist()
@@ -277,7 +287,7 @@ class AgentBlock(BaseBlock):
             )
 
             try:
-                response = self._agent_wrapper.generate(
+                response = wrapper.generate(
                     self._messages_to_dict(message), session_id
                 )
                 responses.append(response)
