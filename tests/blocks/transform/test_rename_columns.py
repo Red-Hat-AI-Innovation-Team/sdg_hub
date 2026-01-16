@@ -83,3 +83,12 @@ def test_rename_columns_preserve_data():
     # Check that values are preserved
     assert result["new_name"].equals(dataset["old_name"])
     assert result["other_col"].equals(dataset["other_col"])
+
+
+def test_rename_columns_sets_output_cols():
+    """Test that output_cols is automatically set from input_cols values."""
+    block = RenameColumnsBlock(
+        block_name="test",
+        input_cols={"old_col": "new_col", "another": "renamed"},
+    )
+    assert block.output_cols == ["new_col", "renamed"]

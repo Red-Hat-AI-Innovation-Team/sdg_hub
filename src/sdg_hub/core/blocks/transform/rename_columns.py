@@ -55,6 +55,16 @@ class RenameColumnsBlock(BaseBlock):
             )
         return v
 
+    def model_post_init(self, __context: Any) -> None:
+        """Initialize derived attributes after Pydantic validation."""
+        super().model_post_init(__context) if hasattr(
+            super(), "model_post_init"
+        ) else None
+
+        # Set output_cols to the new column names being created
+        if self.output_cols is None:
+            self.output_cols = list(self.input_cols.values())
+
     def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         """Generate a dataset with renamed columns.
 
