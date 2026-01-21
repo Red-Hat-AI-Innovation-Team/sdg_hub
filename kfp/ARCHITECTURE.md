@@ -20,9 +20,9 @@
 5. [Output Data Interface](#5-output-data-interface)
 6. [Flow Selection & Configuration](#6-flow-selection--configuration)
 7. [Model/LLM Configuration](#7-modelllm-configuration)
-8. [Execution Configuration](#8-execution-configuration) *(Pending)*
-9. [Error Handling & Observability](#9-error-handling--observability) *(Pending)*
-10. [Container & Packaging](#10-container--packaging) *(Pending)*
+8. [Execution Configuration](#8-execution-configuration)
+9. [Error Handling & Observability](#9-error-handling--observability)
+10. [Container & Packaging](#10-container--packaging)
 
 ---
 
@@ -1047,40 +1047,652 @@ def pipeline():
 
 ## 8. Execution Configuration
 
-*Status: Pending Design Discussion*
+### 8.1 Decision Summary
 
-### 8.1 Topics to Cover
+| Aspect | Decision |
+|--------|----------|
+| **Concurrency Default** | `max_concurrency=10` (conservative) |
+| **Checkpoint Frequency** | `save_freq=100` samples |
+| **Log Level** | Component parameter (`log_level`) |
+| **Resource Limits** | Use KFP native methods (no component params) |
+| **Timeout** | Use KFP native methods (no component params) |
 
-- Concurrency control (`max_concurrency`)
-- Checkpointing configuration (`checkpoint_pvc_path`, `save_freq`)
-- Logging configuration
-- Resource requests and limits
+### 8.2 Concurrency Control
+
+The `max_concurrency` parameter limits parallel LLM requests to avoid rate limiting.
+
+```python
+max_concurrency: int = 10  # Conservative default
+```
+
+**Why 10 as default:**
+- Safe for most LLM providers without hitting rate limits
+- Users can increase for high-throughput endpoints (e.g., self-hosted vLLM)
+- Users can decrease for providers with strict rate limits
+
+### 8.3 Checkpointing Configuration
+
+Checkpointing saves progress to PVC, enabling resume after interruption.
+
+```mermaid
+flowchart LR
+    subgraph processing["Flow Processing"]
+        A["Sample 1-100"] --> B["Checkpoint 1"]
+        C["Sample 101-200"] --> D["Checkpoint 2"]
+        E["Sample 201-300"] --> F["Checkpoint 3"]
+    end
+
+    subgraph resume["On Restart"]
+        G["Load checkpoints"] --> H["Skip completed"]
+        H --> I["Process remaining"]
+    end
+```
+
+**Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `checkpoint_pvc_path` | str | None | PVC path for checkpoints; None disables checkpointing |
+| `save_freq` | int | 100 | Save checkpoint every N completed samples |
+
+**Why `save_freq=100`:**
+- Balances data loss risk (max 99 samples) with I/O overhead
+- Reasonable for most dataset sizes
+- Users can adjust based on sample processing time
+
+**Checkpoint behavior:**
+1. If `checkpoint_pvc_path` is None: No checkpointing (simpler, faster)
+2. If path provided: Checkpoints saved every `save_freq` samples
+3. On start: Automatically loads existing checkpoints and resumes
+
+### 8.4 Logging Configuration
+
+Log level is controlled via a component parameter for easy pipeline configuration.
+
+```python
+log_level: str = "INFO"  # DEBUG, INFO, WARNING, ERROR
+```
+
+**Why component parameter (not env var only):**
+- Visible in KFP UI and pipeline definition
+- Easy to adjust per pipeline run
+- More discoverable than environment variables
+
+**Log output:**
+- Logs go to stdout/stderr (K8s native)
+- KFP captures and displays in task logs
+- No separate log aggregation required
+
+### 8.5 Resource Configuration
+
+Resource requests and limits are configured using **KFP's native methods**, not component parameters.
+
+```python
+@dsl.pipeline
+def pipeline():
+    sdg_task = sdg(
+        input_pvc_path="/mnt/data/input.jsonl",
+        flow_id="extractive-summary-qa",
+    )
+
+    # Configure resources via KFP native methods
+    sdg_task.set_cpu_request("2")
+    sdg_task.set_cpu_limit("4")
+    sdg_task.set_memory_request("8Gi")
+    sdg_task.set_memory_limit("16Gi")
+```
+
+**Why KFP native (not component params):**
+
+| Alternative | Why Not Selected |
+|-------------|------------------|
+| **Component parameters** | Duplicates KFP functionality; inconsistent with other components |
+| **Hardcoded defaults** | Inflexible; different flows have different requirements |
+
+**Selected: KFP native** because it's consistent with KFP patterns and avoids duplication.
+
+### 8.6 Timeout Configuration
+
+Execution timeout is configured using **KFP's native method**.
+
+```python
+@dsl.pipeline
+def pipeline():
+    sdg_task = sdg(...)
+
+    # Set timeout via KFP native method (seconds)
+    sdg_task.set_timeout(7200)  # 2 hours
+```
+
+**Why KFP native:** Same rationale as resource configuration - avoids duplication, consistent with KFP patterns.
+
+### 8.7 Component Interface (Execution Parameters)
+
+```python
+@component
+def sdg(
+    # ... other params ...
+
+    # ==================== EXECUTION ====================
+    max_concurrency: int = 10,
+    # Maximum concurrent LLM requests (default: 10)
+
+    checkpoint_pvc_path: str = None,
+    # PVC path for checkpoints; None disables checkpointing
+
+    save_freq: int = 100,
+    # Checkpoint save frequency in samples
+
+    log_level: str = "INFO",
+    # Logging level: DEBUG, INFO, WARNING, ERROR
+):
+```
+
+### 8.8 Usage Examples
+
+#### Example 1: Default Execution Settings
+
+```python
+sdg_task = sdg(
+    input_pvc_path="/mnt/data/input.jsonl",
+    flow_id="extractive-summary-qa",
+    model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
+    # Uses defaults: max_concurrency=10, no checkpointing, log_level=INFO
+)
+```
+
+#### Example 2: High-Throughput with Checkpointing
+
+```python
+@dsl.pipeline
+def high_throughput_pipeline():
+    sdg_task = sdg(
+        input_pvc_path="/mnt/data/large_dataset.jsonl",
+        flow_id="extractive-summary-qa",
+        model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
+
+        # High concurrency for self-hosted vLLM
+        max_concurrency=50,
+
+        # Enable checkpointing for large job
+        checkpoint_pvc_path="/mnt/checkpoints/job-001/",
+        save_freq=200,  # Less frequent saves for speed
+
+        log_level="DEBUG",  # Verbose logging for monitoring
+    )
+
+    # Allocate resources for high throughput
+    sdg_task.set_cpu_request("4")
+    sdg_task.set_memory_request("16Gi")
+    sdg_task.set_timeout(14400)  # 4 hours
+
+    # Mount checkpoint PVC
+    kubernetes.mount_pvc(
+        sdg_task,
+        pvc_name="sdg-checkpoints",
+        mount_path="/mnt/checkpoints",
+    )
+```
+
+#### Example 3: Conservative Settings for Rate-Limited API
+
+```python
+sdg_task = sdg(
+    input_pvc_path="/mnt/data/input.jsonl",
+    flow_id="extractive-summary-qa",
+    model="openai/gpt-4",
+
+    # Low concurrency to avoid rate limits
+    max_concurrency=5,
+
+    # Frequent checkpoints (expensive API calls)
+    checkpoint_pvc_path="/mnt/checkpoints/",
+    save_freq=50,
+)
+```
 
 ---
 
 ## 9. Error Handling & Observability
 
-*Status: Pending Design Discussion*
+### 9.1 Decision Summary
 
-### 9.1 Topics to Cover
+| Aspect | Decision |
+|--------|----------|
+| **Failure Behavior** | Fail-fast on unrecoverable errors |
+| **Retry Logic** | Use SDK defaults (tenacity-based) |
+| **Metrics Scope** | Extended metrics including per-block timing |
+| **Log Format** | Human-readable (standard Python logging) |
+| **Progress Reporting** | Periodic log messages |
 
-- Failure modes and retry behavior
-- Structured logging format
-- Prometheus metrics exposure
-- Health checks
+### 9.2 Failure Behavior
+
+The component uses **fail-fast** semantics: stop on first unrecoverable error and save checkpoint if enabled.
+
+```mermaid
+flowchart TB
+    A[Processing Sample] --> B{Error?}
+    B -->|No| C[Continue]
+    B -->|Transient| D[SDK Retry Logic]
+    D -->|Success| C
+    D -->|Max Retries| E[Save Checkpoint]
+    B -->|Unrecoverable| E
+    E --> F[Fail Task]
+    F --> G[KFP Retry at Task Level]
+```
+
+**Why fail-fast:**
+- Simple and predictable behavior
+- Checkpoints preserve progress before failure
+- KFP handles task-level retries natively
+- Avoids silently producing incomplete data
+
+**Rejected alternative:**
+
+| Alternative | Why Not Selected |
+|-------------|------------------|
+| **Best-effort (skip failures)** | May produce incomplete data silently; harder to debug |
+
+### 9.3 Retry Logic
+
+The component **uses SDK defaults** for retry behavior. The SDK uses `tenacity` for transient error handling (rate limits, timeouts).
+
+**Why not expose retry params:**
+- SDK defaults are well-tuned for common providers
+- Reduces component surface area
+- Users rarely need to customize retry behavior
+
+### 9.4 KFP Metrics
+
+The component produces extended metrics via `Output[Metrics]`, visible in KFP UI.
+
+#### Metrics Reference
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| **Core Metrics** | | |
+| `input_rows` | int | Total input samples |
+| `output_rows` | int | Total output samples |
+| `execution_time_seconds` | float | Total wall-clock time |
+| **Checkpoint Metrics** | | |
+| `checkpoints_saved` | int | Number of checkpoint files written |
+| `samples_from_checkpoint` | int | Samples loaded from previous run |
+| `samples_newly_processed` | int | Samples processed in this run |
+| **Flow Metrics** | | |
+| `blocks_total` | int | Total blocks in flow |
+| `blocks_succeeded` | int | Blocks that completed successfully |
+| **LLM Metrics** *(if SDK exposes)* | | |
+| `llm_requests_total` | int | Total LLM API calls made |
+| `llm_requests_retried` | int | Requests that required retry |
+| `tokens_prompt_total` | int | Total prompt tokens used |
+| `tokens_completion_total` | int | Total completion tokens used |
+| **Per-Block Timing** | | |
+| `block_{name}_duration_seconds` | float | Execution time per block |
+
+**Note:** LLM token metrics depend on SDK exposing this data. If not available, they will be omitted.
+
+#### Metrics Usage Example
+
+```python
+# Inside component implementation
+from kfp.dsl import Metrics
+
+def log_metrics(metrics: Metrics, stats: dict):
+    # Core metrics
+    metrics.log_metric("input_rows", stats["input_rows"])
+    metrics.log_metric("output_rows", stats["output_rows"])
+    metrics.log_metric("execution_time_seconds", stats["duration"])
+
+    # Checkpoint metrics
+    metrics.log_metric("checkpoints_saved", stats["checkpoints_saved"])
+    metrics.log_metric("samples_from_checkpoint", stats["resumed_samples"])
+    metrics.log_metric("samples_newly_processed", stats["new_samples"])
+
+    # Flow metrics
+    metrics.log_metric("blocks_total", stats["blocks_total"])
+    metrics.log_metric("blocks_succeeded", stats["blocks_succeeded"])
+
+    # Per-block timing
+    for block_name, duration in stats["block_timings"].items():
+        metrics.log_metric(f"block_{block_name}_duration_seconds", duration)
+
+    # LLM metrics (if available)
+    if "tokens_prompt" in stats:
+        metrics.log_metric("tokens_prompt_total", stats["tokens_prompt"])
+        metrics.log_metric("tokens_completion_total", stats["tokens_completion"])
+```
+
+### 9.5 Logging Configuration
+
+The component uses **human-readable** log format for easy viewing in KFP UI.
+
+```
+# Log output example
+2025-01-21 14:30:52 INFO  [sdg] Starting flow: extractive-summary-qa
+2025-01-21 14:30:52 INFO  [sdg] Input: 1000 samples
+2025-01-21 14:30:52 INFO  [sdg] Loaded 500 samples from checkpoint
+2025-01-21 14:31:15 INFO  [sdg] Progress: 100/500 samples (20%)
+2025-01-21 14:31:38 INFO  [sdg] Progress: 200/500 samples (40%)
+2025-01-21 14:32:01 INFO  [sdg] Progress: 300/500 samples (60%)
+2025-01-21 14:32:24 INFO  [sdg] Progress: 400/500 samples (80%)
+2025-01-21 14:32:47 INFO  [sdg] Progress: 500/500 samples (100%)
+2025-01-21 14:32:48 INFO  [sdg] Flow completed: 1000 output samples
+2025-01-21 14:32:48 INFO  [sdg] Execution time: 116.2 seconds
+```
+
+**Why human-readable (not JSON):**
+- Easier to read in KFP task logs UI
+- Standard Python logging is familiar
+- JSON structured logs add complexity with minimal benefit for this use case
+
+### 9.6 Progress Reporting
+
+The component logs progress **periodically** during execution.
+
+**Progress log frequency:**
+- Log every `save_freq` samples (aligned with checkpointing)
+- Always log start and completion
+- Log errors with context
+
+```python
+# Progress logging implementation
+def log_progress(current: int, total: int, start_time: float):
+    elapsed = time.time() - start_time
+    percent = (current / total) * 100
+    rate = current / elapsed if elapsed > 0 else 0
+    eta = (total - current) / rate if rate > 0 else 0
+
+    logger.info(
+        f"Progress: {current}/{total} samples ({percent:.0f}%) "
+        f"[{rate:.1f} samples/sec, ETA: {eta:.0f}s]"
+    )
+```
+
+**Example output:**
+```
+Progress: 100/1000 samples (10%) [8.3 samples/sec, ETA: 108s]
+Progress: 200/1000 samples (20%) [8.5 samples/sec, ETA: 94s]
+```
+
+### 9.7 Error Messages
+
+When failures occur, the component provides actionable error messages:
+
+```
+# Error message examples
+ERROR [sdg] LLM API error: Rate limit exceeded (429).
+      Retried 3 times, giving up. Checkpoint saved at /mnt/checkpoints/checkpoint_0005.jsonl
+      Resume by re-running with same checkpoint_pvc_path.
+
+ERROR [sdg] Flow validation failed: Required column 'document' not found in input dataset.
+      Available columns: ['text', 'metadata', 'id']
+
+ERROR [sdg] Block 'generate_qa' failed: Invalid JSON in LLM response.
+      Sample ID: 42, Checkpoint saved with 400 completed samples.
+```
 
 ---
 
 ## 10. Container & Packaging
 
-*Status: Pending Design Discussion*
+### 10.1 Decision Summary
 
-### 10.1 Topics to Cover
+| Aspect | Decision |
+|--------|----------|
+| **Base Image** | UBI 9 Python 3.11 (`ubi9/python-311`) |
+| **Dependencies** | Pre-baked in image (no runtime install) |
+| **Versioning** | Match SDK semantic versioning |
+| **Distribution** | Python package + auto-generated YAML |
+| **Registry** | Mirror to Quay.io and GHCR |
 
-- Base image selection
-- Dependency management
-- Version strategy
-- Component YAML generation
+### 10.2 Base Image
+
+The component uses Red Hat Universal Base Image (UBI) for enterprise compatibility.
+
+```dockerfile
+FROM registry.access.redhat.com/ubi9/python-311:latest
+
+# Install SDG Hub with all dependencies
+COPY . /src
+RUN pip install --no-cache-dir /src
+
+# Set entrypoint for KFP
+ENTRYPOINT ["python", "-m", "sdg_hub.kfp"]
+```
+
+**Why UBI:**
+
+| Alternative | Why Not Selected |
+|-------------|------------------|
+| **Python slim** | No enterprise support, security scanning, or FIPS compliance |
+| **Custom base** | Extra maintenance; UBI provides what we need |
+
+**Selected: UBI 9** for:
+- Enterprise certification (OpenShift/RHOAI alignment)
+- Security scanning and CVE patching
+- FIPS compliance capability
+- Red Hat support
+
+### 10.3 Dependency Management
+
+All dependencies are **pre-baked** into the container image at build time.
+
+```mermaid
+flowchart LR
+    subgraph build["Build Time"]
+        A["Dockerfile"] --> B["pip install sdg-hub"]
+        B --> C["Image with all deps"]
+    end
+
+    subgraph runtime["Runtime"]
+        C --> D["Component executes immediately"]
+    end
+```
+
+**Why pre-baked (not runtime install):**
+
+| Alternative | Why Not Selected |
+|-------------|------------------|
+| **`packages_to_install`** | 30-60s pip install overhead per run; network dependency; version resolution risk |
+
+**Benefits of pre-baked:**
+- Fast startup (no download/install step)
+- No network dependency at runtime
+- Exact version reproducibility
+- Reliable in air-gapped environments
+
+### 10.4 Image Versioning
+
+Container images follow the **same semantic versioning as the SDK**.
+
+```
+quay.io/redhat-ai-innovation/sdg-hub-kfp:v1.0.0
+quay.io/redhat-ai-innovation/sdg-hub-kfp:v1.0.1
+quay.io/redhat-ai-innovation/sdg-hub-kfp:v1.1.0
+```
+
+**Tag strategy:**
+
+| Tag | Purpose |
+|-----|---------|
+| `v1.0.0` | Immutable release version |
+| `v1.0` | Points to latest patch in minor version |
+| `v1` | Points to latest minor in major version |
+| `latest` | Points to most recent release |
+| `sha-abc1234` | Git SHA for exact build traceability |
+
+**Why match SDK versioning:**
+- Clear compatibility: component `v1.2.0` uses SDK `v1.2.0`
+- Single version number to communicate
+- Aligned release process
+
+### 10.5 Component Distribution
+
+The component is distributed via **Python package** with **auto-generated YAML** for flexibility.
+
+```mermaid
+flowchart TB
+    subgraph source["Source of Truth"]
+        A["Python @component<br/>src/sdg_hub/kfp/component.py"]
+    end
+
+    subgraph distribution["Distribution Formats"]
+        B["Python Package<br/>pip install sdg-hub[kfp]"]
+        C["component.yaml<br/>Auto-generated"]
+    end
+
+    A --> B
+    A -->|"CI/CD generates"| C
+
+    style A fill:#90EE90
+```
+
+#### Python Package (Primary)
+
+Users install the package and import the component:
+
+```python
+# Install
+pip install sdg-hub[kfp]
+
+# Use in pipeline
+from sdg_hub.kfp import sdg
+
+@dsl.pipeline
+def my_pipeline():
+    sdg_task = sdg(
+        input_pvc_path="/data/input.jsonl",
+        flow_id="extractive-summary-qa",
+    )
+```
+
+**Benefits:**
+- IDE autocomplete and type hints
+- Docstring documentation
+- Version managed via pip
+- Modern KFP v2 native pattern
+
+#### Component YAML (Auto-Generated)
+
+YAML is automatically generated from the Python definition—no dual maintenance.
+
+```python
+# scripts/generate_component_yaml.py
+from kfp import compiler
+from sdg_hub.kfp import sdg
+
+compiler.Compiler().compile(
+    pipeline_func=sdg,
+    package_path="component.yaml"
+)
+```
+
+Users can load from YAML without installing the package:
+
+```python
+from kfp.components import load_component_from_url
+
+sdg = load_component_from_url(
+    "https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/releases/download/v1.0.0/component.yaml"
+)
+
+@dsl.pipeline
+def my_pipeline():
+    sdg_task = sdg(input_pvc_path="/data/input.jsonl", ...)
+```
+
+**CI/CD Integration:**
+
+```yaml
+# .github/workflows/release.yaml
+- name: Generate component YAML
+  run: python scripts/generate_component_yaml.py
+
+- name: Publish as release asset
+  uses: actions/upload-release-asset@v1
+  with:
+    asset_path: component.yaml
+    asset_name: component.yaml
+```
+
+### 10.6 Container Registry
+
+Images are mirrored to **both** Quay.io and GitHub Container Registry.
+
+| Registry | Image |
+|----------|-------|
+| **Quay.io** (primary) | `quay.io/redhat-ai-innovation/sdg-hub-kfp:v1.0.0` |
+| **GHCR** (mirror) | `ghcr.io/red-hat-ai-innovation-team/sdg-hub-kfp:v1.0.0` |
+
+**Why both:**
+- Quay.io: Red Hat ecosystem alignment, enterprise features
+- GHCR: GitHub integration, backup availability
+- Redundancy: if one registry has issues, users can pull from the other
+
+### 10.7 Dockerfile Structure
+
+```dockerfile
+# Dockerfile.kfp
+FROM registry.access.redhat.com/ubi9/python-311:latest
+
+LABEL maintainer="Red Hat AI Innovation Team"
+LABEL version="${VERSION}"
+
+# Install system dependencies (if any)
+USER root
+RUN dnf install -y --nodocs \
+    && dnf clean all
+
+# Install Python dependencies
+USER 1001
+WORKDIR /app
+
+# Copy and install sdg-hub
+COPY --chown=1001:0 . /app
+RUN pip install --no-cache-dir ".[kfp]"
+
+# Verify installation
+RUN python -c "from sdg_hub.kfp import sdg; print('Component loaded successfully')"
+
+# Default entrypoint (overridden by KFP)
+ENTRYPOINT ["python"]
+```
+
+### 10.8 Build & Release Process
+
+```mermaid
+flowchart TB
+    subgraph trigger["Release Trigger"]
+        A["Git tag: v1.0.0"]
+    end
+
+    subgraph ci["CI/CD Pipeline"]
+        B["Run tests"]
+        C["Build container image"]
+        D["Generate component.yaml"]
+        E["Push to Quay.io"]
+        F["Push to GHCR"]
+        G["Publish to PyPI"]
+        H["Create GitHub Release"]
+    end
+
+    A --> B
+    B --> C
+    B --> D
+    C --> E
+    C --> F
+    B --> G
+    D --> H
+    E --> H
+    F --> H
+    G --> H
+```
+
+**Release artifacts:**
+- Container image on Quay.io and GHCR
+- Python package on PyPI
+- `component.yaml` as GitHub Release asset
+- Release notes
 
 ---
 
@@ -1116,6 +1728,7 @@ def sdg(
     max_concurrency: int = 10,
     checkpoint_pvc_path: str = None,
     save_freq: int = 100,
+    log_level: str = "INFO",
 
     # ==================== COMPONENT-LEVEL LLM PARAMETERS ====================
     # Applied globally to all LLM blocks; overridable by runtime_params
@@ -1182,3 +1795,6 @@ def sdg(
 |---------|------|--------|---------|
 | 0.1 | 2025-01-16 | SDG Hub Team | Initial draft with Phases 1-6 |
 | 0.2 | 2025-01-16 | SDG Hub Team | Added Phase 7: Model/LLM Configuration |
+| 0.3 | 2025-01-21 | SDG Hub Team | Added Phase 8: Execution Configuration |
+| 0.4 | 2025-01-21 | SDG Hub Team | Added Phase 9: Error Handling & Observability |
+| 0.5 | 2025-01-21 | SDG Hub Team | Added Phase 10: Container & Packaging |
