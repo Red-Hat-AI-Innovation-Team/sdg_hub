@@ -18,8 +18,8 @@
 3. [Component Scope & Granularity](#3-component-scope--granularity)
 4. [Input Data Interface](#4-input-data-interface)
 5. [Output Data Interface](#5-output-data-interface)
-6. [Flow Selection & Configuration](#6-flow-selection--configuration) *(Pending)*
-7. [Model/LLM Configuration](#7-modelllm-configuration) *(Pending)*
+6. [Flow Selection & Configuration](#6-flow-selection--configuration)
+7. [Model/LLM Configuration](#7-modelllm-configuration)
 8. [Execution Configuration](#8-execution-configuration) *(Pending)*
 9. [Error Handling & Observability](#9-error-handling--observability) *(Pending)*
 10. [Container & Packaging](#10-container--packaging) *(Pending)*
@@ -508,28 +508,540 @@ sdg_task = sdg(
 
 ## 6. Flow Selection & Configuration
 
-*Status: Pending Design Discussion*
+### 6.1 Decision Summary
 
-### 6.1 Topics to Cover
+| Aspect | Decision |
+|--------|----------|
+| **Flow Selection** | Built-in flow ID or custom YAML path |
+| **Custom Flow Source** | Path-based (YAML mounted from ConfigMap) |
+| **Runtime Params Structure** | Flat dict (matches SDK) |
+| **Component-Level LLM Params** | Mirror SDK block-level params |
+| **Override Priority** | Flow YAML → Component-level → Block-level |
+| **Flow Validation** | No pre-validation; rely on generate() fail-fast |
 
-- Built-in flow selection via registry ID
-- Custom flow YAML source (PVC, ConfigMap, artifact)
-- Runtime parameters structure
-- Common LLM parameter elevation
-- Parameter override priority
+### 6.2 Flow Selection Modes
+
+The component supports two mutually exclusive modes for specifying which flow to run:
+
+```mermaid
+flowchart TB
+    subgraph selection["Flow Selection"]
+        A["Option A: Built-in Flow<br/>flow_id parameter"]
+        B["Option B: Custom Flow<br/>flow_yaml_path parameter"]
+    end
+
+    A --> C["FlowRegistry.get_flow_path(flow_id)"]
+    B --> D["Read from mounted path"]
+
+    C --> E["Flow.from_yaml()"]
+    D --> E
+
+    style A fill:#90EE90
+    style B fill:#87CEEB
+```
+
+| Mode | Parameter | Use Case |
+|------|-----------|----------|
+| **Built-in Flow** | `flow_id` | Use pre-packaged flows from SDG Hub registry |
+| **Custom Flow** | `flow_yaml_path` | Use custom flow YAML mounted from ConfigMap |
+
+**Priority:** If both provided, `flow_yaml_path` takes precedence.
+
+### 6.3 Custom Flow YAML from ConfigMap
+
+Custom flow YAML files are mounted into the container from Kubernetes ConfigMaps. This follows K8s-native configuration patterns.
+
+```mermaid
+sequenceDiagram
+    participant CM as ConfigMap
+    participant K8s as K8s Volume Mount
+    participant Pod as SDG Pod
+    participant Comp as SDG Component
+
+    CM->>K8s: flow.yaml content
+    K8s->>Pod: Mount at /etc/sdg/flow.yaml
+    Pod->>Comp: flow_yaml_path="/etc/sdg/flow.yaml"
+    Comp->>Comp: Flow.from_yaml(path)
+```
+
+**Why ConfigMap over other options:**
+
+| Alternative | Why Not Selected |
+|-------------|------------------|
+| **Inline YAML as string param** | Unwieldy for complex flows; hard to manage |
+| **KFP Artifact** | Flows are config, not data; ConfigMap is more appropriate |
+| **PVC only** | ConfigMap is more K8s-native for configuration |
+
+**Note:** PVC paths also work since the component just reads from a file path. ConfigMap is the recommended approach for K8s-native configuration management.
+
+#### ConfigMap Example
+
+```yaml
+# K8s ConfigMap definition
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: custom-qa-flow
+  namespace: ml-pipelines
+data:
+  flow.yaml: |
+    metadata:
+      name: "Custom QA Generation Flow"
+      version: "1.0.0"
+      description: "Organization-specific QA generation"
+
+    blocks:
+      - block_type: PromptBuilderBlock
+        block_config:
+          block_name: build_prompt
+          input_cols: ["document"]
+          output_cols: ["messages"]
+          prompt_config_path: prompt.yaml
+
+      - block_type: LLMChatBlock
+        block_config:
+          block_name: generate_qa
+          input_cols: ["messages"]
+          output_cols: ["response"]
+          max_tokens: 2048
+```
+
+#### Pipeline Usage with ConfigMap
+
+```python
+from kfp import dsl
+from kfp import kubernetes
+
+@dsl.pipeline
+def training_pipeline():
+    sdg_task = sdg(
+        input_pvc_path="/mnt/data/input.jsonl",
+        flow_yaml_path="/etc/sdg/flow.yaml",  # Mounted from ConfigMap
+        model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
+    )
+
+    # Mount ConfigMap as volume
+    kubernetes.use_config_map_as_volume(
+        sdg_task,
+        config_map_name="custom-qa-flow",
+        mount_path="/etc/sdg",
+    )
+```
+
+### 6.4 Parameter Override System
+
+The component implements a three-tier parameter override system that mirrors the SDK's behavior while adding a component-level tier for convenience.
+
+```mermaid
+flowchart LR
+    A["Flow YAML<br/>Block Defaults<br/>(Lowest Priority)"] --> B["Component-Level<br/>LLM Params<br/>(Medium Priority)"]
+    B --> C["runtime_params<br/>Block-Specific<br/>(Highest Priority)"]
+    C --> D["Final Block<br/>Configuration"]
+```
+
+**Override Priority (lowest to highest):**
+
+1. **Flow YAML Defaults**: Parameters defined in the flow's block configurations
+2. **Component-Level Params**: Global LLM parameters passed to the component
+3. **Block-Level Overrides**: Per-block settings in `runtime_params` dict
+
+### 6.5 Component-Level LLM Parameters
+
+The component exposes common LLM parameters at the component level for convenience. These are applied globally to all LLM blocks, then can be overridden per-block via `runtime_params`.
+
+**Parameters (mirroring SDK's LLMChatBlock):**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `temperature` | float | Generation randomness (0.0-2.0) |
+| `max_tokens` | int | Maximum response length |
+| `top_p` | float | Nucleus sampling threshold (0.0-1.0) |
+| `n` | int | Number of completions per input |
+| `presence_penalty` | float | Penalize new topics (-2.0 to 2.0) |
+| `frequency_penalty` | float | Penalize repetition (-2.0 to 2.0) |
+
+**Why expose at component level:**
+
+- **Convenience**: Common parameters don't require `runtime_params` dict
+- **Discoverability**: Visible in component interface documentation
+- **SDK Consistency**: Matches parameters available on SDK blocks
+
+### 6.6 Runtime Parameters (Block-Level Overrides)
+
+The `runtime_params` parameter accepts a flat dict matching the SDK's interface. Keys are block names, values are parameter dicts.
+
+```python
+runtime_params = {
+    # Block-specific overrides (keyed by block_name)
+    "gen_detailed_summary": {
+        "n": 50,
+        "max_tokens": 4096,
+        "temperature": 0.5,
+    },
+    "question_generation": {
+        "temperature": 0.9,
+        "max_tokens": 256,
+    },
+    "quality_filter": {
+        "filter_value": 0.85,
+    },
+}
+```
+
+**Why flat dict over structured list:**
+
+| Alternative | Why Not Selected |
+|-------------|------------------|
+| **Structured list** `[{block_name: ..., params: {...}}]` | More verbose; doesn't match SDK interface |
+
+**Selected: Flat dict** for SDK consistency and simplicity.
+
+### 6.7 Flow Validation
+
+The component does **not** perform pre-validation (dry_run) before execution.
+
+**Rationale:**
+
+- `flow.generate()` already validates inputs and fails fast with clear errors
+- Pre-validation adds latency without benefit in production
+- Flows used in production are pre-tested during development
+- Clear error messages from `generate()` are sufficient for debugging
+
+### 6.8 Component Interface (Flow & Params)
+
+```python
+@component
+def sdg(
+    # ... input/output params ...
+
+    # ==================== FLOW SELECTION ====================
+    flow_id: str = None,           # Built-in flow from registry
+    flow_yaml_path: str = None,    # Custom flow (mounted from ConfigMap)
+
+    # ==================== COMPONENT-LEVEL LLM PARAMS ====================
+    # Applied globally to all LLM blocks; overridable by runtime_params
+    temperature: float = None,
+    max_tokens: int = None,
+    top_p: float = None,
+    n: int = None,
+    presence_penalty: float = None,
+    frequency_penalty: float = None,
+
+    # ==================== BLOCK-LEVEL OVERRIDES ====================
+    runtime_params: dict = None,
+    # Example:
+    # {
+    #     "gen_detailed_summary": {"n": 50, "max_tokens": 4096},
+    #     "question_generation": {"temperature": 0.9},
+    # }
+):
+```
+
+### 6.9 Usage Examples
+
+#### Example 1: Built-in Flow with Component-Level Params
+
+```python
+sdg_task = sdg(
+    input_pvc_path="/mnt/data/input.jsonl",
+    flow_id="extractive-summary-qa",
+
+    # Component-level params (apply to all LLM blocks)
+    temperature=0.7,
+    max_tokens=2048,
+)
+```
+
+#### Example 2: Custom Flow from ConfigMap
+
+```python
+@dsl.pipeline
+def custom_flow_pipeline():
+    sdg_task = sdg(
+        input_pvc_path="/mnt/data/input.jsonl",
+        flow_yaml_path="/etc/sdg/flow.yaml",
+        temperature=0.7,
+    )
+
+    # Mount ConfigMap
+    kubernetes.use_config_map_as_volume(
+        sdg_task,
+        config_map_name="my-custom-flow",
+        mount_path="/etc/sdg",
+    )
+```
+
+#### Example 3: Component-Level + Block-Level Overrides
+
+```python
+sdg_task = sdg(
+    input_pvc_path="/mnt/data/input.jsonl",
+    flow_id="extractive-summary-qa",
+
+    # Component-level defaults
+    temperature=0.7,
+    max_tokens=2048,
+
+    # Block-specific overrides (highest priority)
+    runtime_params={
+        "gen_detailed_summary": {
+            "n": 50,
+            "temperature": 0.5,  # Overrides component-level 0.7
+            "max_tokens": 4096,  # Overrides component-level 2048
+        },
+        "question_generation": {
+            "temperature": 0.9,  # Overrides component-level 0.7
+        },
+    },
+)
+```
+
+In this example:
+- `gen_detailed_summary` uses temperature=0.5, max_tokens=4096
+- `question_generation` uses temperature=0.9, max_tokens=2048 (component default)
+- Other LLM blocks use temperature=0.7, max_tokens=2048 (component defaults)
 
 ---
 
 ## 7. Model/LLM Configuration
 
-*Status: Pending Design Discussion*
+### 7.1 Decision Summary
 
-### 7.1 Topics to Cover
+| Aspect | Decision |
+|--------|----------|
+| **Model Identifier** | Simple string parameter (LiteLLM format) |
+| **Credential Storage** | K8s Secret with dedicated keys |
+| **Secret Structure** | `api_key` and `api_base` keys |
+| **Multiple Models** | Not supported (SDK limitation) |
 
-- Model identifier handling (LiteLLM format)
-- K8s Secret structure for credentials
-- API endpoint configuration
-- Secret mounting and environment variables
+### 7.2 Model Identifier
+
+The `model` parameter accepts a LiteLLM format string that specifies both the provider and model.
+
+```python
+model = "hosted_vllm/meta-llama/Llama-3.3-70B-Instruct"
+#        ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#        provider     model name
+```
+
+**Common LiteLLM provider formats:**
+
+| Provider | Format | Example |
+|----------|--------|---------|
+| **vLLM** | `hosted_vllm/{model}` | `hosted_vllm/meta-llama/Llama-3.3-70B-Instruct` |
+| **OpenAI** | `openai/{model}` | `openai/gpt-4` |
+| **Azure OpenAI** | `azure/{deployment}` | `azure/gpt-4-deployment` |
+| **Anthropic** | `anthropic/{model}` | `anthropic/claude-3-opus` |
+
+**Why simple string (not structured dict):**
+- LiteLLM already encodes provider in the model string
+- Matches SDK interface
+- Simple and familiar
+
+### 7.3 Credential Storage with K8s Secrets
+
+Credentials are stored in Kubernetes Secrets and mounted as environment variables using KFP's native `kubernetes.use_secret_as_env()`.
+
+```mermaid
+flowchart TB
+    subgraph secret["K8s Secret: llm-credentials"]
+        A["api_key: sk-xxx..."]
+        B["api_base: https://api.example.com/v1"]
+    end
+
+    subgraph kfp["KFP kubernetes Extension"]
+        C["kubernetes.use_secret_as_env()"]
+    end
+
+    subgraph pod["SDG Pod"]
+        D["env: LLM_API_KEY=sk-xxx..."]
+        E["env: LLM_API_BASE=https://..."]
+    end
+
+    secret --> kfp
+    kfp --> pod
+
+    style secret fill:#FFE4B5
+    style pod fill:#90EE90
+```
+
+**Why K8s Secrets over other options:**
+
+| Alternative | Why Not Selected |
+|-------------|------------------|
+| **Inline parameters** | Credentials visible in pipeline definition and logs |
+| **ConfigMap** | Not designed for sensitive data; no encryption at rest |
+| **External vault** | Adds complexity; K8s Secrets sufficient for most cases |
+
+### 7.4 Secret Structure
+
+The secret uses **dedicated key names** (`api_key`, `api_base`) rather than LiteLLM environment variable names. The component maps these to the appropriate LiteLLM environment variables.
+
+```yaml
+# K8s Secret definition
+apiVersion: v1
+kind: Secret
+metadata:
+  name: llm-credentials
+  namespace: ml-pipelines
+type: Opaque
+stringData:
+  api_key: "sk-xxxxxxxxxxxxxxxxxxxx"
+  api_base: "https://api.example.com/v1"
+```
+
+**Why dedicated keys (not LiteLLM env var names like `OPENAI_API_KEY`):**
+
+| Alternative | Why Not Selected |
+|-------------|------------------|
+| **LiteLLM env var names** | Provider-specific; breaks if user changes model |
+| **Provider-prefixed keys** | Complex; requires multiple keys per provider |
+
+**Selected: Generic keys** that the component maps to the correct env vars based on the model provider.
+
+### 7.5 Secret Mounting in Pipelines
+
+The component leverages KFP's native Kubernetes extension for secret mounting.
+
+```python
+from kfp import dsl
+from kfp import kubernetes
+
+@dsl.pipeline
+def training_pipeline():
+    sdg_task = sdg(
+        input_pvc_path="/mnt/data/input.jsonl",
+        flow_id="extractive-summary-qa",
+        model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
+        model_secret_name="llm-credentials",
+    )
+
+    # Mount secret as environment variables
+    kubernetes.use_secret_as_env(
+        sdg_task,
+        secret_name="llm-credentials",
+        secret_key_to_env={
+            "api_key": "LLM_API_KEY",
+            "api_base": "LLM_API_BASE",
+        },
+    )
+```
+
+**Internal component logic:**
+
+```python
+# Inside component implementation
+import os
+
+api_key = os.environ.get("LLM_API_KEY")
+api_base = os.environ.get("LLM_API_BASE")
+
+# Configure LiteLLM with these credentials
+# (maps to appropriate provider-specific env vars internally)
+```
+
+### 7.6 Multiple Model Support
+
+The component supports **only a single model configuration** per execution.
+
+**Reason:** The SDK currently configures one LLM client globally for all blocks. Per-block model overrides are not supported in the SDK's `runtime_params`.
+
+**Workaround for multi-model workflows:**
+
+```mermaid
+flowchart LR
+    A[Input Data] --> B["SDG Task 1<br/>Model A"]
+    B --> C["SDG Task 2<br/>Model B"]
+    C --> D[Output Data]
+```
+
+Use separate SDG component instances in sequence, each with its own model configuration.
+
+### 7.7 Component Interface (Model Parameters)
+
+```python
+@component
+def sdg(
+    # ... other params ...
+
+    # ==================== MODEL CONFIGURATION ====================
+    model: str = None,
+    # LiteLLM format: "provider/model-name"
+    # Example: "hosted_vllm/meta-llama/Llama-3.3-70B-Instruct"
+
+    model_secret_name: str = None,
+    # K8s Secret name containing api_key and api_base
+    # Mounted via kubernetes.use_secret_as_env()
+):
+```
+
+### 7.8 Usage Examples
+
+#### Example 1: vLLM Endpoint
+
+```yaml
+# Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vllm-credentials
+stringData:
+  api_key: "token-abc123"
+  api_base: "https://vllm.internal.company.com/v1"
+```
+
+```python
+@dsl.pipeline
+def pipeline():
+    sdg_task = sdg(
+        input_pvc_path="/mnt/data/input.jsonl",
+        flow_id="extractive-summary-qa",
+        model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
+        model_secret_name="vllm-credentials",
+    )
+
+    kubernetes.use_secret_as_env(
+        sdg_task,
+        secret_name="vllm-credentials",
+        secret_key_to_env={
+            "api_key": "LLM_API_KEY",
+            "api_base": "LLM_API_BASE",
+        },
+    )
+```
+
+#### Example 2: OpenAI API
+
+```yaml
+# Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: openai-credentials
+stringData:
+  api_key: "sk-xxxxxxxxxxxxxxxxxxxx"
+  api_base: "https://api.openai.com/v1"
+```
+
+```python
+@dsl.pipeline
+def pipeline():
+    sdg_task = sdg(
+        input_pvc_path="/mnt/data/input.jsonl",
+        flow_id="extractive-summary-qa",
+        model="openai/gpt-4",
+        model_secret_name="openai-credentials",
+    )
+
+    kubernetes.use_secret_as_env(
+        sdg_task,
+        secret_name="openai-credentials",
+        secret_key_to_env={
+            "api_key": "LLM_API_KEY",
+            "api_base": "LLM_API_BASE",
+        },
+    )
+```
 
 ---
 
@@ -605,9 +1117,16 @@ def sdg(
     checkpoint_pvc_path: str = None,
     save_freq: int = 100,
 
-    # ==================== LLM PARAMETERS ====================
+    # ==================== COMPONENT-LEVEL LLM PARAMETERS ====================
+    # Applied globally to all LLM blocks; overridable by runtime_params
     temperature: float = None,
     max_tokens: int = None,
+    top_p: float = None,
+    n: int = None,
+    presence_penalty: float = None,
+    frequency_penalty: float = None,
+
+    # ==================== BLOCK-LEVEL OVERRIDES ====================
     runtime_params: dict = None,
 ):
     """
@@ -615,6 +1134,29 @@ def sdg(
 
     Runs a synthetic data generation flow on input data, producing
     enriched output suitable for model training.
+
+    Args:
+        input_artifact: KFP Dataset artifact from upstream component
+        input_pvc_path: Path to JSONL file on mounted PVC
+        hf_dataset_config: HuggingFace dataset configuration dict
+        output_artifact: KFP Dataset artifact for downstream components
+        output_metrics: KFP Metrics artifact with execution stats
+        export_to_pvc: Whether to also write output to PVC
+        export_path: Base path for PVC export
+        flow_id: Built-in flow ID from SDG Hub registry
+        flow_yaml_path: Path to custom flow YAML (mounted from ConfigMap)
+        model: LiteLLM model identifier
+        model_secret_name: K8s Secret containing api_key and api_base
+        max_concurrency: Maximum concurrent LLM requests
+        checkpoint_pvc_path: PVC path for checkpoints (enables resume)
+        save_freq: Checkpoint save frequency (samples)
+        temperature: LLM temperature (0.0-2.0)
+        max_tokens: Maximum response tokens
+        top_p: Nucleus sampling threshold (0.0-1.0)
+        n: Number of completions per input
+        presence_penalty: Presence penalty (-2.0 to 2.0)
+        frequency_penalty: Frequency penalty (-2.0 to 2.0)
+        runtime_params: Block-specific parameter overrides
     """
     pass
 ```
@@ -638,4 +1180,5 @@ def sdg(
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
-| 0.1 | 2025-01-16 | SDG Hub Team | Initial draft with Phases 1-5 |
+| 0.1 | 2025-01-16 | SDG Hub Team | Initial draft with Phases 1-6 |
+| 0.2 | 2025-01-16 | SDG Hub Team | Added Phase 7: Model/LLM Configuration |
