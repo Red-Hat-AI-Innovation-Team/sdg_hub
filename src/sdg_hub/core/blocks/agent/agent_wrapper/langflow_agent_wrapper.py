@@ -4,7 +4,7 @@
 from typing import Any, Optional
 import traceback
 
-import requests
+import httpx
 
 from ....utils.error_handling import BlockValidationError
 from ....utils.logger_config import setup_logger
@@ -145,6 +145,170 @@ class LangflowAgentWrapper(BaseAgentWrapper):
             headers["x-api-key"] = self.agent_api_key
         return headers
 
+    def _make_sync_request(
+        self,
+        payload: dict[str, Any],
+        headers: dict[str, str],
+    ) -> dict[str, Any]:
+        """Make synchronous HTTP request to Langflow.
+
+        Parameters
+        ----------
+        payload : dict[str, Any]
+            The request payload.
+        headers : dict[str, str]
+            The request headers.
+
+        Returns
+        -------
+        dict[str, Any]
+            The JSON response from Langflow.
+
+        Raises
+        ------
+        BlockValidationError
+            If HTTP request fails or response is invalid.
+        """
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(
+                    self.agent_url,
+                    json=payload,
+                    headers=headers,
+                )
+
+                logger.debug(
+                    "Received response with status_code=%d",
+                    response.status_code,
+                    extra={"status_code": response.status_code},
+                )
+
+                response.raise_for_status()
+                return response.json()
+
+        except httpx.HTTPStatusError as e:
+            # HTTP status errors (4xx, 5xx)
+            error_msg = f"Langflow HTTP request failed with status {e.response.status_code}: {str(e)}"
+            logger.error(
+                error_msg,
+                extra={
+                    "error_type": type(e).__name__,
+                    "status_code": e.response.status_code,
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                },
+            )
+            raise BlockValidationError(error_msg) from e
+
+        except httpx.TimeoutException as e:
+            # Timeout errors
+            error_msg = f"Langflow HTTP request timed out after {self.timeout}s: {str(e)}"
+            logger.error(
+                error_msg,
+                extra={
+                    "error_type": type(e).__name__,
+                    "timeout": self.timeout,
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                },
+            )
+            raise BlockValidationError(error_msg) from e
+
+        except httpx.RequestError as e:
+            # Network/connection errors
+            error_msg = f"Langflow HTTP request failed: {str(e)}"
+            logger.error(
+                error_msg,
+                extra={
+                    "error_type": type(e).__name__,
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                },
+            )
+            raise BlockValidationError(error_msg) from e
+
+    async def _make_async_request(
+        self,
+        payload: dict[str, Any],
+        headers: dict[str, str],
+    ) -> dict[str, Any]:
+        """Make asynchronous HTTP request to Langflow.
+
+        Parameters
+        ----------
+        payload : dict[str, Any]
+            The request payload.
+        headers : dict[str, str]
+            The request headers.
+
+        Returns
+        -------
+        dict[str, Any]
+            The JSON response from Langflow.
+
+        Raises
+        ------
+        BlockValidationError
+            If HTTP request fails or response is invalid.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    self.agent_url,
+                    json=payload,
+                    headers=headers,
+                )
+
+                logger.debug(
+                    "Received async response with status_code=%d",
+                    response.status_code,
+                    extra={"status_code": response.status_code},
+                )
+
+                response.raise_for_status()
+                return response.json()
+
+        except httpx.HTTPStatusError as e:
+            # HTTP status errors (4xx, 5xx)
+            error_msg = f"Langflow async HTTP request failed with status {e.response.status_code}: {str(e)}"
+            logger.error(
+                error_msg,
+                extra={
+                    "error_type": type(e).__name__,
+                    "status_code": e.response.status_code,
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                },
+            )
+            raise BlockValidationError(error_msg) from e
+
+        except httpx.TimeoutException as e:
+            # Timeout errors
+            error_msg = f"Langflow async HTTP request timed out after {self.timeout}s: {str(e)}"
+            logger.error(
+                error_msg,
+                extra={
+                    "error_type": type(e).__name__,
+                    "timeout": self.timeout,
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                },
+            )
+            raise BlockValidationError(error_msg) from e
+
+        except httpx.RequestError as e:
+            # Network/connection errors
+            error_msg = f"Langflow async HTTP request failed: {str(e)}"
+            logger.error(
+                error_msg,
+                extra={
+                    "error_type": type(e).__name__,
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                },
+            )
+            raise BlockValidationError(error_msg) from e
+
     def validate_response(self, response: dict[str, Any]) -> dict[str, Any]:
         """Validate and normalize the Langflow response.
 
@@ -204,7 +368,7 @@ class LangflowAgentWrapper(BaseAgentWrapper):
             If input validation, request, or response parsing fails.
         """
         logger.info(
-            "Sending request to Langflow with session_id=%s",
+            "Sending sync request to Langflow with session_id=%s",
             session_id,
             extra={
                 "session_id": session_id,
@@ -231,40 +395,11 @@ class LangflowAgentWrapper(BaseAgentWrapper):
             )
             raise BlockValidationError(error_msg) from e
 
-        # Step 2: Make HTTP request
+        # Step 2: Make HTTP request and get JSON response
+        response_data = self._make_sync_request(payload, headers)
+
+        # Step 3: Validate response
         try:
-            response = requests.post(
-                self.agent_url,
-                json=payload,
-                headers=headers,
-                timeout=self.timeout,
-            )
-
-            logger.debug(
-                "Received response with status_code=%d",
-                response.status_code,
-                extra={"status_code": response.status_code, "session_id": session_id},
-            )
-
-            response.raise_for_status()
-
-        except requests.exceptions.RequestException as e:
-            # HTTP/network errors (timeout, connection, HTTP status errors, etc.)
-            error_msg = f"Langflow HTTP request failed: {str(e)}"
-            logger.error(
-                error_msg,
-                extra={
-                    "session_id": session_id,
-                    "error_type": type(e).__name__,
-                    "error": str(e),
-                    "traceback": traceback.format_exc(),
-                },
-            )
-            raise BlockValidationError(error_msg) from e
-
-        # Step 3: Parse and validate response
-        try:
-            response_data = response.json()
             validated_response = self.validate_response(response_data)
 
             logger.info(
@@ -276,8 +411,87 @@ class LangflowAgentWrapper(BaseAgentWrapper):
             return validated_response
 
         except (ValueError, TypeError) as e:
-            # Response parsing or validation errors
-            error_msg = f"Failed to parse or validate Langflow response: {str(e)}"
+            # Response validation errors
+            error_msg = f"Failed to validate Langflow response: {str(e)}"
+            logger.error(
+                error_msg,
+                extra={
+                    "session_id": session_id,
+                    "error_type": type(e).__name__,
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                },
+            )
+            raise BlockValidationError(error_msg) from e
+
+    async def agenerate(
+        self, messages: list[dict[str, Any]], session_id: str
+    ) -> dict[str, Any]:
+        """Generate a response from Langflow asynchronously.
+
+        Parameters
+        ----------
+        messages : list[dict[str, Any]]
+            The messages to send to the agent.
+        session_id : str
+            The session ID to use for the agent.
+
+        Returns
+        -------
+        dict[str, Any]
+            The validated response from the agent.
+
+        Raises
+        ------
+        BlockValidationError
+            If input validation, request, or response parsing fails.
+        """
+        logger.info(
+            "Sending async request to Langflow with session_id=%s",
+            session_id,
+            extra={
+                "session_id": session_id,
+                "agent_url": self.agent_url,
+                "timeout": self.timeout,
+            },
+        )
+
+        # Step 1: Build payload and headers (input validation)
+        try:
+            payload = self._build_payload(messages, session_id)
+            headers = self._build_headers()
+        except (ValueError, TypeError) as e:
+            # Invalid input messages or payload construction errors
+            error_msg = f"Invalid input messages for Langflow: {str(e)}"
+            logger.error(
+                error_msg,
+                extra={
+                    "session_id": session_id,
+                    "error_type": type(e).__name__,
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                },
+            )
+            raise BlockValidationError(error_msg) from e
+
+        # Step 2: Make async HTTP request and get JSON response
+        response_data = await self._make_async_request(payload, headers)
+
+        # Step 3: Validate response
+        try:
+            validated_response = self.validate_response(response_data)
+
+            logger.info(
+                "Successfully received async response from Langflow for session_id=%s",
+                session_id,
+                extra={"session_id": session_id},
+            )
+
+            return validated_response
+
+        except (ValueError, TypeError) as e:
+            # Response validation errors
+            error_msg = f"Failed to validate Langflow response: {str(e)}"
             logger.error(
                 error_msg,
                 extra={

@@ -92,6 +92,30 @@ class BaseAgentWrapper(ABC):
         """
 
     @abstractmethod
+    async def agenerate(
+        self, messages: list[dict[str, Any]], session_id: str
+    ) -> dict[str, Any]:
+        """Generate a response from the agent asynchronously.
+
+        Parameters
+        ----------
+        messages : list[dict[str, Any]]
+            The messages to send to the agent. Format depends on the framework.
+        session_id : str
+            The session ID to use for conversation continuity.
+
+        Returns
+        -------
+        dict[str, Any]
+            The validated and normalized response from the agent.
+
+        Raises
+        ------
+        NotImplementedError
+            If the subclass doesn't implement this method.
+        """
+
+    @abstractmethod
     def validate_response(self, response: dict[str, Any]) -> dict[str, Any]:
         """Validate and normalize the agent response.
 

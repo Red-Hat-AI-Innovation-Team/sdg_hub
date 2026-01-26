@@ -2,6 +2,7 @@
 """Agent block for external agent framework integration."""
 
 from typing import Any, Optional
+import asyncio
 import uuid
 
 from pydantic import ConfigDict, Field, field_validator
@@ -73,6 +74,9 @@ class AgentBlock(BaseBlock):
     timeout: float = Field(
         120.0, exclude=True, description="Request timeout in seconds"
     )
+    async_mode: bool = Field(
+        False, exclude=True, description="Whether to use async processing for agent requests"
+    )
 
     # Private: agent wrapper instance (initialized once)
     _agent_wrapper: Optional[Any] = None
@@ -128,15 +132,17 @@ class AgentBlock(BaseBlock):
             self._agent_wrapper = self._create_agent_wrapper()
 
             logger.info(
-                "Initialized AgentBlock '%s' with framework '%s', timeout=%.1fs",
+                "Initialized AgentBlock '%s' with framework '%s', timeout=%.1fs, async_mode=%s",
                 self.block_name,
                 self.agent_framework,
                 self.timeout,
+                self.async_mode,
                 extra={
                     "block_name": self.block_name,
                     "agent_framework": self.agent_framework,
                     "agent_url": self.agent_url,
                     "timeout": self.timeout,
+                    "async_mode": self.async_mode,
                 },
             )
 
@@ -240,7 +246,7 @@ class AgentBlock(BaseBlock):
         samples : pd.DataFrame
             Input dataset containing the input column with messages.
         **kwargs : Any
-            Runtime parameters (currently unused).
+            Runtime parameters including _flow_max_concurrency for async mode.
 
         Returns
         -------
@@ -255,22 +261,104 @@ class AgentBlock(BaseBlock):
         # Get wrapper with current values (supports runtime overrides)
         wrapper = self._get_current_wrapper()
 
+        # Extract flow-specific parameters
+        flow_max_concurrency = kwargs.pop("_flow_max_concurrency", None)
+
         # Extract messages from DataFrame
         messages_list = samples[self.input_cols[0]].tolist()
 
         logger.info(
-            "Starting agent generation for %d samples using %s framework",
+            "Starting %s agent generation for %d samples using %s framework%s",
+            "async" if self.async_mode else "sync",
             len(messages_list),
             self.agent_framework,
+            (
+                f" (max_concurrency={flow_max_concurrency})"
+                if flow_max_concurrency
+                else ""
+            ),
             extra={
                 "block_name": self.block_name,
                 "agent_framework": self.agent_framework,
                 "batch_size": len(messages_list),
+                "async_mode": self.async_mode,
+                "flow_max_concurrency": flow_max_concurrency,
             },
         )
 
         # Generate responses
+        if self.async_mode:
+            try:
+                # Check if there's already a running event loop
+                loop = asyncio.get_running_loop()
+                # Check if nest_asyncio is applied (allows nested asyncio.run)
+                nest_asyncio_applied = (
+                    hasattr(loop, "_nest_patched")
+                    or getattr(asyncio.run, "__module__", "") == "nest_asyncio"
+                )
+
+                if nest_asyncio_applied:
+                    # nest_asyncio is applied, safe to use asyncio.run
+                    responses = asyncio.run(
+                        self._generate_async(
+                            wrapper, messages_list, flow_max_concurrency
+                        )
+                    )
+                else:
+                    # Running inside an event loop without nest_asyncio
+                    raise BlockValidationError(
+                        f"async_mode=True cannot be used from within a running event loop for '{self.block_name}'. "
+                        "Use an async entrypoint, set async_mode=False, or apply nest_asyncio.apply() in notebook environments."
+                    )
+            except RuntimeError:
+                # No running loop; safe to create one
+                responses = asyncio.run(
+                    self._generate_async(wrapper, messages_list, flow_max_concurrency)
+                )
+        else:
+            responses = self._generate_sync(wrapper, messages_list)
+
+        logger.info(
+            "Agent generation completed successfully for %d samples",
+            len(responses),
+            extra={
+                "block_name": self.block_name,
+                "agent_framework": self.agent_framework,
+                "batch_size": len(responses),
+            },
+        )
+
+        # Add responses as new column
+        result = samples.copy()
+        result[self.output_cols[0]] = responses
+        return result
+
+    def _generate_sync(
+        self,
+        wrapper: Any,
+        messages_list: list[Any],
+    ) -> list[dict[str, Any]]:
+        """Generate responses synchronously.
+
+        Parameters
+        ----------
+        wrapper : BaseAgentWrapper
+            The agent wrapper instance.
+        messages_list : list[Any]
+            List of messages to process.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            List of response dictionaries.
+
+        Raises
+        ------
+        BlockValidationError
+            If generation fails for any sample.
+        """
         responses = []
+
         for idx, message in enumerate(messages_list):
             session_id = self._generate_session_id()
 
@@ -292,6 +380,18 @@ class AgentBlock(BaseBlock):
                 )
                 responses.append(response)
 
+                # Log progress for large batches
+                if (idx + 1) % 10 == 0:
+                    logger.debug(
+                        "Generated %d/%d responses",
+                        idx + 1,
+                        len(messages_list),
+                        extra={
+                            "block_name": self.block_name,
+                            "progress": f"{idx + 1}/{len(messages_list)}",
+                        },
+                    )
+
             except BlockValidationError:
                 # Re-raise BlockValidationError as-is (already logged in wrapper)
                 raise
@@ -309,17 +409,120 @@ class AgentBlock(BaseBlock):
                 )
                 raise BlockValidationError(error_msg) from e
 
-        logger.info(
-            "Agent generation completed successfully for %d samples",
-            len(responses),
-            extra={
-                "block_name": self.block_name,
-                "agent_framework": self.agent_framework,
-                "batch_size": len(responses),
-            },
-        )
+        return responses
 
-        # Add responses as new column
-        result = samples.copy()
-        result[self.output_cols[0]] = responses
-        return result
+    async def _make_async_completion(
+        self,
+        wrapper: Any,
+        message: Any,
+        session_id: str,
+        semaphore: Optional[asyncio.Semaphore] = None,
+    ) -> dict[str, Any]:
+        """Make a single async agent completion with optional concurrency control.
+
+        Parameters
+        ----------
+        wrapper : BaseAgentWrapper
+            The agent wrapper instance.
+        message : Any
+            Message for this completion.
+        session_id : str
+            Session ID for this request.
+        semaphore : Optional[asyncio.Semaphore], optional
+            Semaphore for concurrency control.
+
+        Returns
+        -------
+        dict[str, Any]
+            Response dictionary.
+
+        Raises
+        ------
+        BlockValidationError
+            If generation fails.
+        """
+        if semaphore:
+            async with semaphore:
+                return await wrapper.agenerate(
+                    self._messages_to_dict(message), session_id
+                )
+        else:
+            return await wrapper.agenerate(
+                self._messages_to_dict(message), session_id
+            )
+
+    async def _generate_async(
+        self,
+        wrapper: Any,
+        messages_list: list[Any],
+        flow_max_concurrency: Optional[int] = None,
+    ) -> list[dict[str, Any]]:
+        """Generate responses asynchronously.
+
+        Parameters
+        ----------
+        wrapper : BaseAgentWrapper
+            The agent wrapper instance.
+        messages_list : list[Any]
+            List of messages to process.
+        flow_max_concurrency : Optional[int], optional
+            Maximum concurrency for async requests.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            List of response dictionaries.
+
+        Raises
+        ------
+        BlockValidationError
+            If generation fails.
+        """
+        try:
+            # Generate session IDs for all messages
+            session_ids = [self._generate_session_id() for _ in messages_list]
+
+            if flow_max_concurrency is not None:
+                # Validate max_concurrency parameter
+                if flow_max_concurrency < 1:
+                    raise ValueError(
+                        f"max_concurrency must be greater than 0, got {flow_max_concurrency}"
+                    )
+
+                logger.debug(
+                    "Using semaphore for concurrency control with max_concurrency=%d",
+                    flow_max_concurrency,
+                    extra={
+                        "block_name": self.block_name,
+                        "max_concurrency": flow_max_concurrency,
+                    },
+                )
+
+                # Use semaphore for concurrency control
+                semaphore = asyncio.Semaphore(flow_max_concurrency)
+                tasks = [
+                    self._make_async_completion(wrapper, message, session_id, semaphore)
+                    for message, session_id in zip(messages_list, session_ids)
+                ]
+            else:
+                # No concurrency limit
+                tasks = [
+                    self._make_async_completion(wrapper, message, session_id)
+                    for message, session_id in zip(messages_list, session_ids)
+                ]
+
+            responses = await asyncio.gather(*tasks)
+            return responses
+
+        except Exception as e:
+            logger.error(
+                "Failed to generate async responses: %s",
+                str(e),
+                extra={
+                    "block_name": self.block_name,
+                    "batch_size": len(messages_list),
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
+            raise
