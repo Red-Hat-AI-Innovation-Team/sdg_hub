@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for connector exceptions."""
 
-import pytest
 
 from sdg_hub.core.connectors.exceptions import (
     ConnectorConfigError,
@@ -54,9 +53,7 @@ class TestConnectorConnectionError:
 
     def test_error_message_with_details(self):
         """Test error message includes additional details."""
-        error = ConnectorConnectionError(
-            "http://localhost:7860", "Connection refused"
-        )
+        error = ConnectorConnectionError("http://localhost:7860", "Connection refused")
         assert "Connection refused" in str(error)
 
     def test_url_attribute(self):

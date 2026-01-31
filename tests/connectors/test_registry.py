@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from sdg_hub.core.connectors.base import BaseConnector, ConnectorConfig
+from sdg_hub.core.connectors.base import BaseConnector
 from sdg_hub.core.connectors.registry import ConnectorMetadata, ConnectorRegistry
 
 

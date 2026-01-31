@@ -159,10 +159,12 @@ class TestBaseAgentConnector:
         with patch.object(
             ConcreteAgentConnector, "send", return_value={"output": "result"}
         ) as mock_send:
-            result = connector.execute({
-                "messages": [{"role": "user", "content": "test"}],
-                "session_id": "session-1",
-            })
+            connector.execute(
+                {
+                    "messages": [{"role": "user", "content": "test"}],
+                    "session_id": "session-1",
+                }
+            )
 
             mock_send.assert_called_once_with(
                 messages=[{"role": "user", "content": "test"}],
@@ -177,9 +179,11 @@ class TestBaseAgentConnector:
         with patch.object(
             ConcreteAgentConnector, "send", return_value={"output": "result"}
         ) as mock_send:
-            connector.execute({
-                "messages": [{"role": "user", "content": "test"}],
-            })
+            connector.execute(
+                {
+                    "messages": [{"role": "user", "content": "test"}],
+                }
+            )
 
             mock_send.assert_called_once_with(
                 messages=[{"role": "user", "content": "test"}],

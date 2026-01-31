@@ -32,7 +32,7 @@ Example
 """
 
 # Import agent module to register connectors
-from . import agent as agent  # noqa: F401
+from .agent import BaseAgentConnector, LangflowConnector
 from .base import BaseConnector, ConnectorConfig
 from .exceptions import (
     ConnectorConfigError,
@@ -49,6 +49,9 @@ __all__ = [
     # Base classes
     "BaseConnector",
     "ConnectorConfig",
+    # Agent connectors
+    "BaseAgentConnector",
+    "LangflowConnector",
     # Registry
     "ConnectorRegistry",
     "ConnectorMetadata",

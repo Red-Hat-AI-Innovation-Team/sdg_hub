@@ -8,8 +8,6 @@ import pytest
 
 from sdg_hub.core.blocks.agent import AgentBlock
 from sdg_hub.core.blocks.registry import BlockRegistry
-from sdg_hub.core.connectors.base import ConnectorConfig
-from sdg_hub.core.connectors.registry import ConnectorRegistry
 
 
 class TestAgentBlockRegistration:
@@ -187,9 +185,11 @@ class TestAgentBlockGenerate:
             async_mode=False,
         )
 
-        df = pd.DataFrame({
-            "question": ["What is 2+2?", "What is 3+3?"],
-        })
+        df = pd.DataFrame(
+            {
+                "question": ["What is 2+2?", "What is 3+3?"],
+            }
+        )
 
         mock_connector = MagicMock()
         mock_connector.send.side_effect = [
@@ -216,10 +216,12 @@ class TestAgentBlockGenerate:
             session_id_col="session",
         )
 
-        df = pd.DataFrame({
-            "question": ["Hello"],
-            "session": ["session-123"],
-        })
+        df = pd.DataFrame(
+            {
+                "question": ["Hello"],
+                "session": ["session-123"],
+            }
+        )
 
         mock_connector = MagicMock()
         mock_connector.send.return_value = {"output": "Hi"}
@@ -241,9 +243,11 @@ class TestAgentBlockGenerate:
             output_cols=["answer"],
         )
 
-        df = pd.DataFrame({
-            "question": ["Hello"],
-        })
+        df = pd.DataFrame(
+            {
+                "question": ["Hello"],
+            }
+        )
 
         mock_connector = MagicMock()
         mock_connector.send.return_value = {"output": "Hi"}

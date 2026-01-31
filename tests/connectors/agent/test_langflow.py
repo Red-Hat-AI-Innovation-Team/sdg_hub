@@ -108,17 +108,7 @@ class TestLangflowConnector:
 
         response = {
             "outputs": [
-                {
-                    "outputs": [
-                        {
-                            "results": {
-                                "message": {
-                                    "text": "Hello back!"
-                                }
-                            }
-                        }
-                    ]
-                }
+                {"outputs": [{"results": {"message": {"text": "Hello back!"}}}]}
             ]
         }
 

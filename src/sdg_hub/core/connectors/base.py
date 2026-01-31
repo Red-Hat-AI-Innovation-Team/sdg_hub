@@ -146,8 +146,7 @@ class BaseConnector(BaseModel, ABC):
         """
         import asyncio
 
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self.execute, request)
+        return await asyncio.to_thread(self.execute, request)
 
     def _cleanup_client(self) -> None:
         """Release client resources - override in subclasses if needed."""

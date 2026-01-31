@@ -98,7 +98,9 @@ class TestHttpClient:
         with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
             mock_post.return_value = mock_response
             mock_response.raise_for_status = lambda: (_ for _ in ()).throw(
-                httpx.HTTPStatusError("Error", request=mock_request, response=mock_response)
+                httpx.HTTPStatusError(
+                    "Error", request=mock_request, response=mock_response
+                )
             )
 
             with pytest.raises(ConnectorHTTPError) as exc_info:
