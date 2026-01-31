@@ -1,9 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for ConnectorRegistry."""
 
-from sdg_hub.core.connectors.base import BaseConnector
-from sdg_hub.core.connectors.registry import ConnectorRegistry
 import pytest
+
+from sdg_hub.core.connectors.base import BaseConnector
+from sdg_hub.core.connectors.exceptions import ConnectorError
+from sdg_hub.core.connectors.registry import ConnectorRegistry
 
 
 class TestConnectorRegistry:
@@ -32,13 +34,13 @@ class TestConnectorRegistry:
 
     def test_register_validates_class(self):
         """Test registration validates connector class."""
-        with pytest.raises(ValueError, match="Expected a class"):
+        with pytest.raises(ConnectorError, match="Expected a class"):
 
             @ConnectorRegistry.register("invalid")
             def not_a_class():
                 pass
 
-        with pytest.raises(ValueError, match="must inherit from BaseConnector"):
+        with pytest.raises(ConnectorError, match="must inherit from BaseConnector"):
 
             @ConnectorRegistry.register("invalid")
             class NotAConnector:

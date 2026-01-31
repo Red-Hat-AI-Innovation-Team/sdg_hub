@@ -3,10 +3,11 @@
 
 from unittest.mock import AsyncMock, patch
 
-from sdg_hub.core.connectors.exceptions import ConnectorError, ConnectorHTTPError
-from sdg_hub.core.connectors.http.client import HttpClient
 import httpx
 import pytest
+
+from sdg_hub.core.connectors.exceptions import ConnectorError, ConnectorHTTPError
+from sdg_hub.core.connectors.http.client import HttpClient
 
 
 class TestHttpClient:
@@ -48,11 +49,13 @@ class TestHttpClient:
         # HTTP error
         mock_req = httpx.Request("POST", "http://test.com")
         mock_resp = httpx.Response(500, text="Error", request=mock_req)
+
+        def raise_status_error():
+            raise httpx.HTTPStatusError("Error", request=mock_req, response=mock_resp)
+
         with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock:
             mock.return_value = mock_resp
-            mock_resp.raise_for_status = lambda: (_ for _ in ()).throw(
-                httpx.HTTPStatusError("Error", request=mock_req, response=mock_resp)
-            )
+            mock_resp.raise_for_status = raise_status_error
             with pytest.raises(ConnectorHTTPError) as exc:
                 await client.post("http://test.com", {})
             assert exc.value.status_code == 500

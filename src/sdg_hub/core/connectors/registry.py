@@ -4,6 +4,7 @@
 import inspect
 
 from ..utils.logger_config import setup_logger
+from .exceptions import ConnectorError
 
 logger = setup_logger(__name__)
 
@@ -48,21 +49,21 @@ class ConnectorRegistry:
         def decorator(connector_class: type) -> type:
             # Validate the class
             if not inspect.isclass(connector_class):
-                raise ValueError(f"Expected a class, got {type(connector_class)}")
+                raise ConnectorError(f"Expected a class, got {type(connector_class)}")
 
             # Check for BaseConnector inheritance
             try:
                 from .base import BaseConnector
 
                 if not issubclass(connector_class, BaseConnector):
-                    raise ValueError(
+                    raise ConnectorError(
                         f"Connector class '{connector_class.__name__}' "
                         "must inherit from BaseConnector"
                     )
             except ImportError:
                 # BaseConnector not available, check for execute method
                 if not hasattr(connector_class, "execute"):
-                    raise ValueError(
+                    raise ConnectorError(
                         f"Connector class '{connector_class.__name__}' "
                         "must implement 'execute' method"
                     )
