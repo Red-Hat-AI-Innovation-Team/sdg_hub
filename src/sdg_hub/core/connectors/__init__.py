@@ -1,15 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """Connectors subsystem for external service integrations.
 
-This module provides a scalable, extensible system for integrating with
-third-party services including agent frameworks, vector databases,
-storage services, and APIs.
-
-Architecture Philosophy:
-- Connectors handle external service communication
-- Blocks handle DataFrame integration
-- Registry provides discovery and instantiation
-
 Example
 -------
 >>> from sdg_hub.core.connectors import (
@@ -34,16 +25,9 @@ Example
 # Import agent module to register connectors
 from .agent import BaseAgentConnector, LangflowConnector
 from .base import BaseConnector, ConnectorConfig
-from .exceptions import (
-    ConnectorConfigError,
-    ConnectorConnectionError,
-    ConnectorError,
-    ConnectorHTTPError,
-    ConnectorResponseError,
-    ConnectorTimeoutError,
-)
+from .exceptions import ConnectorError, ConnectorHTTPError
 from .http import HttpClient
-from .registry import ConnectorMetadata, ConnectorRegistry
+from .registry import ConnectorRegistry
 
 __all__ = [
     # Base classes
@@ -54,14 +38,9 @@ __all__ = [
     "LangflowConnector",
     # Registry
     "ConnectorRegistry",
-    "ConnectorMetadata",
     # HTTP utilities
     "HttpClient",
     # Exceptions
     "ConnectorError",
-    "ConnectorConfigError",
-    "ConnectorConnectionError",
-    "ConnectorTimeoutError",
     "ConnectorHTTPError",
-    "ConnectorResponseError",
 ]

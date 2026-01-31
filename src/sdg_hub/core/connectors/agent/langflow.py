@@ -1,22 +1,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """Langflow agent framework connector."""
 
-from typing import Any, ClassVar
+from typing import Any
 
 from ...utils.logger_config import setup_logger
-from ..exceptions import ConnectorResponseError
+from ..exceptions import ConnectorError
 from ..registry import ConnectorRegistry
 from .base import BaseAgentConnector
 
 logger = setup_logger(__name__)
 
 
-@ConnectorRegistry.register(
-    name="langflow",
-    category="agent",
-    description="Langflow agent framework connector",
-    supports_async=True,
-)
+@ConnectorRegistry.register("langflow")
 class LangflowConnector(BaseAgentConnector):
     """Connector for Langflow agent framework.
 
@@ -43,8 +38,6 @@ class LangflowConnector(BaseAgentConnector):
     ...     session_id="session-123",
     ... )
     """
-
-    supports_async: ClassVar[bool] = True
 
     def _build_headers(self) -> dict[str, str]:
         """Build headers for Langflow API.
@@ -108,13 +101,12 @@ class LangflowConnector(BaseAgentConnector):
 
         Raises
         ------
-        ConnectorResponseError
+        ConnectorError
             If response is not a valid dict.
         """
         if not isinstance(response, dict):
-            raise ConnectorResponseError(
-                f"Expected dict response, got {type(response).__name__}",
-                response=response,
+            raise ConnectorError(
+                f"Expected dict response, got {type(response).__name__}"
             )
         return response
 
