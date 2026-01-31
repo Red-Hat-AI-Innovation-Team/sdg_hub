@@ -11,6 +11,7 @@ import pandas as pd
 
 from ...connectors.agent.base import BaseAgentConnector
 from ...connectors.base import ConnectorConfig
+from ...connectors.exceptions import ConnectorError
 from ...connectors.registry import ConnectorRegistry
 from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
@@ -154,7 +155,7 @@ class AgentBlock(BaseBlock):
         elif isinstance(self.input_cols, list) and len(self.input_cols) > 0:
             return self.input_cols[0]
         else:
-            raise ValueError("input_cols must specify the messages column")
+            raise ConnectorError("input_cols must specify the messages column")
 
     def _get_output_col(self) -> str:
         """Get the output column name for responses.

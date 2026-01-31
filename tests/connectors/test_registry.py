@@ -53,7 +53,7 @@ class TestConnectorRegistry:
             def execute(self, request):
                 return {}
 
-        with pytest.raises(KeyError) as exc_info:
+        with pytest.raises(ConnectorError) as exc_info:
             ConnectorRegistry.get("unknown")
 
         assert "langflow" in str(exc_info.value)

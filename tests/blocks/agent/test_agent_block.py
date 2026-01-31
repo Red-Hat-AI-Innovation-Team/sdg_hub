@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from sdg_hub.core.blocks.agent import AgentBlock
 from sdg_hub.core.blocks.registry import BlockRegistry
+from sdg_hub.core.connectors.exceptions import ConnectorError
 import pandas as pd
 import pytest
 
@@ -328,7 +329,7 @@ class TestAgentBlockConnectorIntegration:
         assert connector1 is connector2
 
     def test_get_connector_invalid_framework_raises_error(self):
-        """Test that invalid framework raises KeyError."""
+        """Test that invalid framework raises ConnectorError."""
         block = AgentBlock(
             block_name="test",
             agent_framework="nonexistent",
@@ -337,5 +338,5 @@ class TestAgentBlockConnectorIntegration:
             output_cols=["response"],
         )
 
-        with pytest.raises(KeyError, match="not found"):
+        with pytest.raises(ConnectorError, match="not found"):
             block._get_connector()

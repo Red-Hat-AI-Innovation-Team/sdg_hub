@@ -45,7 +45,7 @@ class TestLangflowConnector:
     def test_build_request_no_user_message_raises(self):
         """Test error when no user message found."""
         connector = LangflowConnector(config=ConnectorConfig(url="http://test"))
-        with pytest.raises(ValueError, match="No user message"):
+        with pytest.raises(ConnectorError, match="No user message"):
             connector.build_request([{"role": "system", "content": "hi"}], "s1")
 
     def test_parse_response(self):

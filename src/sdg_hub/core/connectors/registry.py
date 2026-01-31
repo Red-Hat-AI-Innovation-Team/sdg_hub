@@ -52,21 +52,13 @@ class ConnectorRegistry:
                 raise ConnectorError(f"Expected a class, got {type(connector_class)}")
 
             # Check for BaseConnector inheritance
-            try:
-                from .base import BaseConnector
+            from .base import BaseConnector
 
-                if not issubclass(connector_class, BaseConnector):
-                    raise ConnectorError(
-                        f"Connector class '{connector_class.__name__}' "
-                        "must inherit from BaseConnector"
-                    )
-            except ImportError:
-                # BaseConnector not available, check for execute method
-                if not hasattr(connector_class, "execute"):
-                    raise ConnectorError(
-                        f"Connector class '{connector_class.__name__}' "
-                        "must implement 'execute' method"
-                    )
+            if not issubclass(connector_class, BaseConnector):
+                raise ConnectorError(
+                    f"Connector class '{connector_class.__name__}' "
+                    "must inherit from BaseConnector"
+                )
 
             cls._connectors[name] = connector_class
             logger.debug(f"Registered connector '{name}' ({connector_class.__name__})")
@@ -91,7 +83,7 @@ class ConnectorRegistry:
 
         Raises
         ------
-        KeyError
+        ConnectorError
             If the connector is not found.
         """
         if name not in cls._connectors:
@@ -99,7 +91,7 @@ class ConnectorRegistry:
             error_msg = f"Connector '{name}' not found."
             if available:
                 error_msg += f" Available: {', '.join(available)}"
-            raise KeyError(error_msg)
+            raise ConnectorError(error_msg)
 
         return cls._connectors[name]
 

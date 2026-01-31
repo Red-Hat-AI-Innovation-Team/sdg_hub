@@ -125,14 +125,14 @@ class LangflowConnector(BaseAgentConnector):
 
         Raises
         ------
-        ValueError
+        ConnectorError
             If no user message is found.
         """
         for msg in reversed(messages):
             if msg.get("role") == "user" and msg.get("content"):
                 return msg["content"]
 
-        raise ValueError(
+        raise ConnectorError(
             "No user message found in messages. "
             "Expected at least one message with role='user' and content."
         )
