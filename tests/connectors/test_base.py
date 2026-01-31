@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for BaseConnector and ConnectorConfig."""
 
-import pytest
-
 from sdg_hub.core.connectors.base import BaseConnector, ConnectorConfig
+import pytest
 
 
 class TestConnectorConfig:

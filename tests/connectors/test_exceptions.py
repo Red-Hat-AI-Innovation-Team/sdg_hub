@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for connector exceptions."""
 
-
 from sdg_hub.core.connectors.exceptions import (
     ConnectorConfigError,
     ConnectorConnectionError,

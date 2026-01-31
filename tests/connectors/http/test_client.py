@@ -3,15 +3,14 @@
 
 from unittest.mock import AsyncMock, patch
 
-import httpx
-import pytest
-
 from sdg_hub.core.connectors.exceptions import (
     ConnectorConnectionError,
     ConnectorHTTPError,
     ConnectorTimeoutError,
 )
 from sdg_hub.core.connectors.http.client import HttpClient
+import httpx
+import pytest
 
 
 class TestHttpClient:
