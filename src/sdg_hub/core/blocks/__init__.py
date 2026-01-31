@@ -4,6 +4,7 @@ This package provides various block implementations for data generation, process
 """
 
 # Local
+from .agent import AgentBlock
 from .base import BaseBlock
 from .filtering import ColumnValueFilterBlock
 from .llm import (
@@ -24,6 +25,7 @@ from .transform import (
 )
 
 __all__ = [
+    "AgentBlock",
     "BaseBlock",
     "BlockRegistry",
     "ColumnValueFilterBlock",

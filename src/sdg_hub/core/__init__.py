@@ -2,14 +2,26 @@
 """Core SDG Hub components."""
 
 # Local
-from .blocks import BaseBlock, BlockRegistry
+from .blocks import AgentBlock, BaseBlock, BlockRegistry
+from .connectors import (
+    BaseConnector,
+    ConnectorConfig,
+    ConnectorError,
+    ConnectorRegistry,
+)
 from .flow import Flow, FlowMetadata, FlowRegistry, FlowValidator
 from .utils import GenerateError, resolve_path
 
 __all__ = [
     # Block components
+    "AgentBlock",
     "BaseBlock",
     "BlockRegistry",
+    # Connector components
+    "BaseConnector",
+    "ConnectorConfig",
+    "ConnectorError",
+    "ConnectorRegistry",
     # Flow components
     "Flow",
     "FlowRegistry",
