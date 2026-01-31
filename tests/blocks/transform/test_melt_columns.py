@@ -84,7 +84,7 @@ def test_flatten_columns_with_missing_values():
 
     result = block.generate(dataset)
     assert len(result) == 6  # 3 rows * 2 columns to flatten
-    assert None in result["summary"].tolist()
+    assert result["summary"].isna().any()  # Check for null values (None or NaN)
 
 
 def test_flatten_columns_with_all_columns():
@@ -152,8 +152,8 @@ def test_flatten_columns_with_empty_columns():
 
     result = block.generate(dataset)
 
-    # Verify that None values are preserved
-    assert None in result["summary"].tolist()
+    # Verify that null values are preserved (None becomes NaN in pandas 3.0+)
+    assert result["summary"].isna().any()
     # Verify that the column with None values still appears in dataset_type
     assert "summary_detailed" in result["dataset_type"].tolist()
 
