@@ -2,7 +2,6 @@
 """HTTP client with tenacity retry."""
 
 from typing import Any, Optional
-import asyncio
 
 from tenacity import (
     retry,
@@ -70,7 +69,7 @@ class HttpClient:
         headers = headers or {}
 
         @retry(
-            stop=stop_after_attempt(self.max_retries),
+            stop=stop_after_attempt(self.max_retries + 1),  # 1 initial + retries
             wait=wait_exponential(multiplier=1, min=1, max=60),
             retry=retry_if_exception_type((httpx.TimeoutException, httpx.ConnectError)),
             reraise=True,
@@ -100,7 +99,7 @@ class HttpClient:
         payload: dict[str, Any],
         headers: Optional[dict[str, str]] = None,
     ) -> dict[str, Any]:
-        """Synchronous POST request.
+        """Synchronous POST request with retry logic.
 
         Parameters
         ----------
@@ -115,15 +114,37 @@ class HttpClient:
         -------
         dict
             The JSON response.
-        """
-        try:
-            asyncio.get_running_loop()
-            # Already in async context - use thread
-            import concurrent.futures
 
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(asyncio.run, self.post(url, payload, headers))
-                return future.result()
-        except RuntimeError:
-            # No event loop - create one
-            return asyncio.run(self.post(url, payload, headers))
+        Raises
+        ------
+        ConnectorError
+            If connection or timeout fails after all retries.
+        ConnectorHTTPError
+            If an HTTP error status is returned.
+        """
+        headers = headers or {}
+
+        @retry(
+            stop=stop_after_attempt(self.max_retries + 1),  # 1 initial + retries
+            wait=wait_exponential(multiplier=1, min=1, max=60),
+            retry=retry_if_exception_type((httpx.TimeoutException, httpx.ConnectError)),
+            reraise=True,
+        )
+        def _post_with_retry() -> dict[str, Any]:
+            with httpx.Client(timeout=self.timeout) as client:
+                logger.debug(f"POST request to {url}")
+                response = client.post(url, json=payload, headers=headers)
+                response.raise_for_status()
+                return response.json()
+
+        try:
+            return _post_with_retry()
+        except httpx.HTTPStatusError as e:
+            response_text = e.response.text[:500] if e.response.text else None
+            raise ConnectorHTTPError(url, e.response.status_code, response_text) from e
+        except httpx.TimeoutException as e:
+            raise ConnectorError(
+                f"Request to '{url}' timed out after {self.timeout}s"
+            ) from e
+        except httpx.ConnectError as e:
+            raise ConnectorError(f"Failed to connect to '{url}': {e}") from e

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for HttpClient."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from sdg_hub.core.connectors.exceptions import ConnectorError, ConnectorHTTPError
 from sdg_hub.core.connectors.http.client import HttpClient
@@ -60,15 +60,34 @@ class TestHttpClient:
             assert exc.value.status_code == 500
 
     def test_post_sync(self):
-        """Test synchronous POST wrapper."""
+        """Test synchronous POST request."""
         client = HttpClient()
-        mock_response = httpx.Response(
-            200,
-            json={"result": "ok"},
-            request=httpx.Request("POST", "http://test.com"),
-        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"result": "ok"}
+        mock_response.raise_for_status = MagicMock()
 
-        with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock:
-            mock.return_value = mock_response
+        with patch("httpx.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.__enter__ = MagicMock(return_value=mock_client)
+            mock_client.__exit__ = MagicMock(return_value=False)
+            mock_client.post.return_value = mock_response
+            mock_client_class.return_value = mock_client
+
             result = client.post_sync("http://test.com", {"data": "test"})
             assert result == {"result": "ok"}
+            mock_client.post.assert_called_once()
+
+    def test_post_sync_errors(self):
+        """Test error handling for sync POST."""
+        client = HttpClient(max_retries=0)
+
+        # Connection error
+        with patch("httpx.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.__enter__ = MagicMock(return_value=mock_client)
+            mock_client.__exit__ = MagicMock(return_value=False)
+            mock_client.post.side_effect = httpx.ConnectError("refused")
+            mock_client_class.return_value = mock_client
+
+            with pytest.raises(ConnectorError, match="Failed to connect"):
+                client.post_sync("http://test.com", {})
