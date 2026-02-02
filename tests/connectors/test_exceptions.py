@@ -22,3 +22,11 @@ class TestConnectorExceptions:
         assert "HTTP 500" in str(error)
         assert "Server error" in str(error)
         assert issubclass(ConnectorHTTPError, ConnectorError)
+
+    def test_http_error_without_message(self):
+        """Test HTTP error works without optional message."""
+        error = ConnectorHTTPError("http://localhost:7860", 404)
+        assert error.status_code == 404
+        assert error.url == "http://localhost:7860"
+        assert "HTTP 404" in str(error)
+        assert "http://localhost:7860" in str(error)

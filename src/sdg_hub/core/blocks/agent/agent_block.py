@@ -122,16 +122,27 @@ class AgentBlock(BaseBlock):
 
     # Private attributes
     _connector: Optional[BaseAgentConnector] = PrivateAttr(default=None)
+    _connector_config_key: Optional[tuple] = PrivateAttr(default=None)
 
     def _get_connector(self) -> BaseAgentConnector:
         """Get or create the connector instance.
+
+        Invalidates the cached connector if the config has changed (e.g., due
+        to runtime overrides).
 
         Returns
         -------
         BaseAgentConnector
             The configured connector instance.
         """
-        if self._connector is None:
+        config_key = (
+            self.agent_framework,
+            self.agent_url,
+            self.agent_api_key,
+            self.timeout,
+            self.max_retries,
+        )
+        if self._connector is None or self._connector_config_key != config_key:
             connector_class = ConnectorRegistry.get(self.agent_framework)
             config = ConnectorConfig(
                 url=self.agent_url,
@@ -140,6 +151,7 @@ class AgentBlock(BaseBlock):
                 max_retries=self.max_retries,
             )
             self._connector = connector_class(config=config)
+            self._connector_config_key = config_key
         return self._connector
 
     def _get_messages_col(self) -> str:

@@ -63,3 +63,54 @@ class TestBaseAgentConnector:
         client = connector._get_http_client()
         assert client is not None
         assert connector._get_http_client() is client  # Same instance
+
+    @pytest.mark.asyncio
+    async def test_asend(self):
+        """Test asend async method."""
+        connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
+
+        with patch.object(connector, "_send_async", new_callable=AsyncMock) as mock:
+            mock.return_value = {"output": "async_result"}
+            result = await connector.asend([{"role": "user", "content": "hi"}], "s1")
+            assert result == {"output": "async_result"}
+            mock.assert_called_once()
+
+    def test_execute(self):
+        """Test execute method (BaseConnector interface)."""
+        connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
+
+        with patch.object(connector, "_send_async", new_callable=AsyncMock) as mock:
+            mock.return_value = {"output": "executed"}
+            result = connector.execute(
+                {"messages": [{"role": "user", "content": "hi"}]}
+            )
+            assert result == {"output": "executed"}
+
+    def test_execute_with_session_id(self):
+        """Test execute uses session_id from request."""
+        connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
+
+        with patch.object(connector, "_send_async", new_callable=AsyncMock) as mock:
+            mock.return_value = {"output": "result"}
+            connector.execute(
+                {
+                    "messages": [{"role": "user", "content": "hi"}],
+                    "session_id": "custom-session",
+                }
+            )
+            # Verify the session_id was passed through
+            mock.assert_called_once()
+            call_args = mock.call_args
+            assert call_args[0][1] == "custom-session"
+
+    def test_send_returns_coroutine_in_async_mode(self):
+        """Test send returns coroutine when async_mode=True."""
+        connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
+        result = connector.send(
+            [{"role": "user", "content": "hi"}], "s1", async_mode=True
+        )
+        # Should return a coroutine
+        import asyncio
+
+        assert asyncio.iscoroutine(result)
+        result.close()  # Clean up the coroutine

@@ -57,3 +57,11 @@ class TestConnectorRegistry:
             ConnectorRegistry.get("unknown")
 
         assert "langflow" in str(exc_info.value)
+
+    def test_get_unknown_empty_registry(self):
+        """Test getting unknown connector when registry is empty."""
+        with pytest.raises(ConnectorError) as exc_info:
+            ConnectorRegistry.get("nonexistent")
+
+        assert "not found" in str(exc_info.value)
+        assert "Available" not in str(exc_info.value)

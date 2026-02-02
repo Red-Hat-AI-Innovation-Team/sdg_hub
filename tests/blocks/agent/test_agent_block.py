@@ -340,3 +340,23 @@ class TestAgentBlockConnectorIntegration:
 
         with pytest.raises(ConnectorError, match="not found"):
             block._get_connector()
+
+    def test_get_connector_invalidates_on_config_change(self):
+        """Test that _get_connector creates new connector when config changes."""
+        block = AgentBlock(
+            block_name="test",
+            agent_framework="langflow",
+            agent_url="http://localhost:7860",
+            input_cols=["messages"],
+            output_cols=["response"],
+        )
+
+        connector1 = block._get_connector()
+        assert connector1.config.url == "http://localhost:7860"
+
+        # Simulate runtime override by changing the URL
+        block.agent_url = "http://newhost:8080"
+        connector2 = block._get_connector()
+
+        assert connector1 is not connector2
+        assert connector2.config.url == "http://newhost:8080"
