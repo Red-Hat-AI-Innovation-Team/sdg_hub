@@ -103,6 +103,19 @@ class TestAgentBlockHelperMethods:
 
         assert block._get_messages_col() == "question"
 
+    def test_get_messages_col_invalid_raises_error(self):
+        """Test error when input_cols is invalid."""
+        block = AgentBlock(
+            block_name="test",
+            agent_framework="langflow",
+            agent_url="http://localhost:7860",
+            input_cols=[],  # Empty list
+            output_cols=["response"],
+        )
+
+        with pytest.raises(ConnectorError, match="input_cols must specify"):
+            block._get_messages_col()
+
     def test_get_output_col_from_list(self):
         """Test getting output column from list."""
         block = AgentBlock(
@@ -114,6 +127,18 @@ class TestAgentBlockHelperMethods:
         )
 
         assert block._get_output_col() == "agent_output"
+
+    def test_get_output_col_from_dict(self):
+        """Test getting output column from dict."""
+        block = AgentBlock(
+            block_name="test",
+            agent_framework="langflow",
+            agent_url="http://localhost:7860",
+            input_cols=["messages"],
+            output_cols={"response": "agent_response_col"},
+        )
+
+        assert block._get_output_col() == "response"
 
     def test_get_output_col_default(self):
         """Test default output column name."""

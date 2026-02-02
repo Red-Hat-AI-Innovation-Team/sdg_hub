@@ -114,3 +114,23 @@ class TestBaseAgentConnector:
 
         assert asyncio.iscoroutine(result)
         result.close()  # Clean up the coroutine
+
+    @pytest.mark.asyncio
+    async def test_send_async_full_flow(self):
+        """Test _send_async with mocked HTTP client."""
+        connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = {"result": "success"}
+
+        with patch.object(connector, "_get_http_client", return_value=mock_client):
+            result = await connector._send_async(
+                [{"role": "user", "content": "hello"}], "session-1"
+            )
+
+        assert result == {"result": "success"}
+        mock_client.post.assert_called_once()
+        call_kwargs = mock_client.post.call_args[1]
+        assert call_kwargs["url"] == "http://test"
+        assert call_kwargs["payload"]["input"] == "hello"
+        assert call_kwargs["payload"]["session_id"] == "session-1"
