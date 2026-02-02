@@ -116,6 +116,19 @@ class TestAgentBlockHelperMethods:
         with pytest.raises(ConnectorError, match="input_cols must specify"):
             block._get_messages_col()
 
+    def test_get_messages_col_empty_dict_raises_error(self):
+        """Test error when input_cols is empty dict."""
+        block = AgentBlock(
+            block_name="test",
+            agent_framework="langflow",
+            agent_url="http://localhost:7860",
+            input_cols={},  # Empty dict
+            output_cols=["response"],
+        )
+
+        with pytest.raises(ConnectorError, match="input_cols must specify"):
+            block._get_messages_col()
+
     def test_get_output_col_from_list(self):
         """Test getting output column from list."""
         block = AgentBlock(

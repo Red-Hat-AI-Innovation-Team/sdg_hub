@@ -163,7 +163,12 @@ class AgentBlock(BaseBlock):
             Column name containing messages.
         """
         if isinstance(self.input_cols, dict):
-            return self.input_cols.get("messages", list(self.input_cols.keys())[0])
+            if "messages" in self.input_cols:
+                return self.input_cols["messages"]
+            elif self.input_cols:
+                return list(self.input_cols.keys())[0]
+            else:
+                raise ConnectorError("input_cols must specify the messages column")
         elif isinstance(self.input_cols, list) and len(self.input_cols) > 0:
             return self.input_cols[0]
         else:
