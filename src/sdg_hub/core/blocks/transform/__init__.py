@@ -10,6 +10,7 @@ from .duplicate_columns import DuplicateColumnsBlock
 from .index_based_mapper import IndexBasedMapperBlock
 from .json_structure_block import JSONStructureBlock
 from .melt_columns import MeltColumnsBlock
+from .multiplier import MultiplierBlock
 from .rename_columns import RenameColumnsBlock
 from .text_concat import TextConcatBlock
 from .uniform_col_val_setter import UniformColumnValueSetter
@@ -19,6 +20,7 @@ __all__ = [
     "DuplicateColumnsBlock",
     "JSONStructureBlock",
     "MeltColumnsBlock",
+    "MultiplierBlock",
     "IndexBasedMapperBlock",
     "RenameColumnsBlock",
     "UniformColumnValueSetter",
