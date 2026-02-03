@@ -91,3 +91,33 @@ class TestHttpClient:
 
             with pytest.raises(ConnectorError, match="Failed to connect"):
                 client.post_sync("http://test.com", {})
+
+        # Timeout error (sync)
+        with patch("httpx.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.__enter__ = MagicMock(return_value=mock_client)
+            mock_client.__exit__ = MagicMock(return_value=False)
+            mock_client.post.side_effect = httpx.TimeoutException("timeout")
+            mock_client_class.return_value = mock_client
+
+            with pytest.raises(ConnectorError, match="timed out"):
+                client.post_sync("http://test.com", {})
+
+        # HTTP error (sync)
+        mock_req = httpx.Request("POST", "http://test.com")
+        mock_resp = httpx.Response(500, text="Error", request=mock_req)
+
+        def raise_status_error():
+            raise httpx.HTTPStatusError("Error", request=mock_req, response=mock_resp)
+
+        with patch("httpx.Client") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.__enter__ = MagicMock(return_value=mock_client)
+            mock_client.__exit__ = MagicMock(return_value=False)
+            mock_client.post.return_value = mock_resp
+            mock_resp.raise_for_status = raise_status_error
+            mock_client_class.return_value = mock_client
+
+            with pytest.raises(ConnectorHTTPError) as exc:
+                client.post_sync("http://test.com", {})
+            assert exc.value.status_code == 500
