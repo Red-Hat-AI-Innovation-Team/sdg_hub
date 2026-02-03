@@ -2,12 +2,12 @@
 """Tests for the DuplicateColumnsBlock."""
 
 # Third Party
-import pandas as pd
-import pytest
 from pydantic import ValidationError
 
 # First Party
 from sdg_hub.core.blocks.transform.duplicate_columns import DuplicateColumnsBlock
+import pandas as pd
+import pytest
 
 
 class TestDuplicateColumnsBlock:

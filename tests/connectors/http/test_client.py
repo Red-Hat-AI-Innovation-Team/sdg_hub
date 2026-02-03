@@ -9,6 +9,22 @@ import httpx
 import pytest
 
 
+class TestHttpClientInit:
+    """Test HttpClient initialization."""
+
+    def test_default_values(self):
+        """Test default timeout and max_retries."""
+        client = HttpClient()
+        assert client.timeout == 120.0
+        assert client.max_retries == 3
+
+    def test_custom_values(self):
+        """Test custom timeout and max_retries."""
+        client = HttpClient(timeout=60.0, max_retries=5)
+        assert client.timeout == 60.0
+        assert client.max_retries == 5
+
+
 class TestHttpClient:
     """Test HttpClient."""
 

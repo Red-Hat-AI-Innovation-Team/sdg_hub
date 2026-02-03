@@ -24,6 +24,13 @@ class TestLangflowConnector:
         assert headers["x-api-key"] == "secret"
         assert "Authorization" not in headers
 
+    def test_build_headers_without_api_key(self):
+        """Test Langflow headers without API key."""
+        connector = LangflowConnector(config=ConnectorConfig(url="http://test"))
+        headers = connector._build_headers()
+        assert headers == {"Content-Type": "application/json"}
+        assert "x-api-key" not in headers
+
     def test_build_request(self):
         """Test request building extracts last user message."""
         connector = LangflowConnector(config=ConnectorConfig(url="http://test"))

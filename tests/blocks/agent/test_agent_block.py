@@ -339,6 +339,35 @@ class TestAgentBlockGenerate:
         assert len(result) == 2
         assert "answer" in result.columns
 
+    @pytest.mark.asyncio
+    async def test_generate_async_mode_from_async_context(self):
+        """Test generate in async mode when called from within async context."""
+        from unittest.mock import AsyncMock
+
+        block = AgentBlock(
+            block_name="test",
+            agent_framework="langflow",
+            agent_url="http://localhost:7860",
+            input_cols=["question"],
+            output_cols=["answer"],
+            async_mode=True,
+            max_concurrency=2,
+        )
+
+        df = pd.DataFrame({"question": ["Q1", "Q2"]})
+
+        mock_connector = MagicMock()
+        mock_connector.asend = AsyncMock(
+            side_effect=[{"output": "A1"}, {"output": "A2"}]
+        )
+
+        with patch.object(block, "_get_connector", return_value=mock_connector):
+            # This is called from within an async context, testing ThreadPoolExecutor path
+            result = block.generate(df)
+
+        assert len(result) == 2
+        assert "answer" in result.columns
+
 
 class TestAgentBlockConnectorIntegration:
     """Test AgentBlock connector integration."""
