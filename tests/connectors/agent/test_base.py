@@ -134,3 +134,14 @@ class TestBaseAgentConnector:
         assert call_kwargs["url"] == "http://test"
         assert call_kwargs["payload"]["input"] == "hello"
         assert call_kwargs["payload"]["session_id"] == "session-1"
+
+    @pytest.mark.asyncio
+    async def test_send_sync_from_async_context(self):
+        """Test sync send when called from within async context uses ThreadPoolExecutor."""
+        connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
+
+        with patch.object(connector, "_send_async", new_callable=AsyncMock) as mock:
+            mock.return_value = {"output": "from_executor"}
+            # This is called from within an async context
+            result = connector.send([{"role": "user", "content": "hi"}], "s1")
+            assert result == {"output": "from_executor"}

@@ -91,6 +91,19 @@ class TestAgentBlockHelperMethods:
         # When input_cols is a dict, the value is the DataFrame column name
         assert block._get_messages_col() == "question"
 
+    def test_get_messages_col_from_dict_without_messages_key(self):
+        """Test getting messages column from dict without 'messages' key."""
+        block = AgentBlock(
+            block_name="test",
+            agent_framework="langflow",
+            agent_url="http://localhost:7860",
+            input_cols={"query": "user_query"},  # No "messages" key
+            output_cols=["response"],
+        )
+
+        # Should return first key when "messages" is not present
+        assert block._get_messages_col() == "query"
+
     def test_get_messages_col_from_list(self):
         """Test getting messages column from list input_cols."""
         block = AgentBlock(

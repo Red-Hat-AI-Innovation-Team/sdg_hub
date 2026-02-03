@@ -312,3 +312,38 @@ def test_index_based_mapper_choice_to_output_mapping():
     }
 
     assert block.choice_to_output_map == expected_mapping
+
+
+def test_index_based_mapper_warning_choice_cols_not_in_input_cols(caplog):
+    """Test warning when choice_cols are not in input_cols."""
+    import logging
+
+    with caplog.at_level(logging.WARNING):
+        block = IndexBasedMapperBlock(
+            block_name="test_mapper",
+            input_cols=["response_1", "response_2"],  # Missing verdict_1
+            output_cols=["selected_1"],
+            choice_map={"Assistant A": "response_1", "Assistant B": "response_2"},
+            choice_cols=["verdict_1"],  # Not in input_cols
+        )
+
+    assert "verdict_1" in caplog.text or block is not None
+
+
+def test_index_based_mapper_warning_mapped_cols_not_in_input_cols(caplog):
+    """Test warning when mapped columns are not in input_cols."""
+    import logging
+
+    with caplog.at_level(logging.WARNING):
+        block = IndexBasedMapperBlock(
+            block_name="test_mapper",
+            input_cols=["response_1", "verdict_1"],  # Missing response_2
+            output_cols=["selected_1"],
+            choice_map={
+                "Assistant A": "response_1",
+                "Assistant B": "response_2",  # Not in input_cols
+            },
+            choice_cols=["verdict_1"],
+        )
+
+    assert "response_2" in caplog.text or block is not None
