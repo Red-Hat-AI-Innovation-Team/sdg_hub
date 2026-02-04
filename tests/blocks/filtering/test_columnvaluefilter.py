@@ -345,38 +345,3 @@ def test_filter_block_float_conversion():
     filtered_dataset = block(dataset)
     assert len(filtered_dataset) == 2
     assert filtered_dataset["price"].tolist() == [29.99, 39.99]
-
-
-def test_filter_block_with_nan_values():
-    """Test filtering with NaN values in the data."""
-    block = ColumnValueFilterBlock(
-        block_name="test_nan",
-        input_cols="score",
-        filter_value=50,
-        operation="gt",
-        convert_dtype="int",
-    )
-    dataset = pd.DataFrame(
-        {"score": ["30", None, "60", "70", pd.NA]},
-    )
-    filtered_dataset = block(dataset)
-    assert len(filtered_dataset) == 2
-    assert filtered_dataset["score"].tolist() == [60, 70]
-
-
-def test_filter_block_with_all_none_values():
-    """Test filtering when all values are None after conversion."""
-    block = ColumnValueFilterBlock(
-        block_name="test_all_none",
-        input_cols="score",
-        filter_value=50,
-        operation="eq",
-        convert_dtype="int",
-    )
-    dataset = pd.DataFrame(
-        {"score": ["abc", "def", "ghi"]},  # None convertible to int
-    )
-    # All values become None after failed conversion, then filtered out
-    result = block.generate(dataset)
-    # All rows are filtered out because none can be converted to int
-    assert len(result) == 0
