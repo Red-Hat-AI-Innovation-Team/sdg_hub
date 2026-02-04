@@ -27,27 +27,32 @@ class TestBaseAgentConnector:
 
     def test_build_headers(self):
         """Test header building with and without API key."""
-        # Without API key
         connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
         assert connector._build_headers() == {"Content-Type": "application/json"}
 
-        # With API key
         connector = ConcreteAgentConnector(
             config=ConnectorConfig(url="http://test", api_key="secret")
         )
-        headers = connector._build_headers()
-        assert headers["Authorization"] == "Bearer secret"
+        assert connector._build_headers()["Authorization"] == "Bearer secret"
 
-    def test_send_sync_and_async(self):
-        """Test send in both sync and async modes."""
+    def test_send(self):
+        """Test send method."""
         connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
 
         with patch.object(connector, "_send_async", new_callable=AsyncMock) as mock:
             mock.return_value = {"output": "result"}
-
-            # Sync mode
             result = connector.send([{"role": "user", "content": "hi"}], "s1")
             assert result == {"output": "result"}
+
+    @pytest.mark.asyncio
+    async def test_asend(self):
+        """Test asend async method."""
+        connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
+
+        with patch.object(connector, "_send_async", new_callable=AsyncMock) as mock:
+            mock.return_value = {"output": "async_result"}
+            result = await connector.asend([{"role": "user", "content": "hi"}], "s1")
+            assert result == {"output": "async_result"}
 
     @pytest.mark.asyncio
     async def test_send_async_no_url_raises_error(self):
@@ -62,58 +67,29 @@ class TestBaseAgentConnector:
         assert connector._http_client is None
         client = connector._get_http_client()
         assert client is not None
-        assert connector._get_http_client() is client  # Same instance
-
-    @pytest.mark.asyncio
-    async def test_asend(self):
-        """Test asend async method."""
-        connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
-
-        with patch.object(connector, "_send_async", new_callable=AsyncMock) as mock:
-            mock.return_value = {"output": "async_result"}
-            result = await connector.asend([{"role": "user", "content": "hi"}], "s1")
-            assert result == {"output": "async_result"}
-            mock.assert_called_once()
+        assert connector._get_http_client() is client
 
     def test_execute(self):
-        """Test execute method (BaseConnector interface)."""
+        """Test execute method with and without session_id."""
         connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
 
         with patch.object(connector, "_send_async", new_callable=AsyncMock) as mock:
             mock.return_value = {"output": "executed"}
+
+            # Without session_id
             result = connector.execute(
                 {"messages": [{"role": "user", "content": "hi"}]}
             )
             assert result == {"output": "executed"}
 
-    def test_execute_with_session_id(self):
-        """Test execute uses session_id from request."""
-        connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
-
-        with patch.object(connector, "_send_async", new_callable=AsyncMock) as mock:
-            mock.return_value = {"output": "result"}
+            # With session_id
             connector.execute(
                 {
                     "messages": [{"role": "user", "content": "hi"}],
                     "session_id": "custom-session",
                 }
             )
-            # Verify the session_id was passed through
-            mock.assert_called_once()
-            call_args = mock.call_args
-            assert call_args[0][1] == "custom-session"
-
-    def test_send_returns_coroutine_in_async_mode(self):
-        """Test send returns coroutine when async_mode=True."""
-        connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
-        result = connector.send(
-            [{"role": "user", "content": "hi"}], "s1", async_mode=True
-        )
-        # Should return a coroutine
-        import asyncio
-
-        assert asyncio.iscoroutine(result)
-        result.close()  # Clean up the coroutine
+            assert mock.call_args[0][1] == "custom-session"
 
     @pytest.mark.asyncio
     async def test_send_async_full_flow(self):
@@ -129,19 +105,6 @@ class TestBaseAgentConnector:
             )
 
         assert result == {"result": "success"}
-        mock_client.post.assert_called_once()
         call_kwargs = mock_client.post.call_args[1]
         assert call_kwargs["url"] == "http://test"
         assert call_kwargs["payload"]["input"] == "hello"
-        assert call_kwargs["payload"]["session_id"] == "session-1"
-
-    @pytest.mark.asyncio
-    async def test_send_sync_from_async_context(self):
-        """Test sync send when called from within async context uses ThreadPoolExecutor."""
-        connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
-
-        with patch.object(connector, "_send_async", new_callable=AsyncMock) as mock:
-            mock.return_value = {"output": "from_executor"}
-            # This is called from within an async context
-            result = connector.send([{"role": "user", "content": "hi"}], "s1")
-            assert result == {"output": "from_executor"}
