@@ -70,6 +70,10 @@ dev = [
 integration = [
     "nest-asyncio",
 ]
+# Kubeflow Pipelines component dependencies
+kfp = [
+    "kfp>=2.0.0,<3.0.0",
+]
 # Heavy dependencies for example notebooks (knowledge_mixing.ipynb, etc.)
 # NOT required for core functionality testing or integration tests
 examples = [
