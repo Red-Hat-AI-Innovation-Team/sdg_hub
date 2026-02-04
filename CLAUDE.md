@@ -86,6 +86,7 @@ The framework is built around a modular block system with **composability at its
   - `transform/`: Data transformation blocks (column operations, text manipulation)
   - `filtering/`: Data filtering blocks with quality thresholds
   - `evaluation/`: Quality evaluation blocks (faithfulness, relevancy assessment)
+  - `agent/`: Agent framework integration blocks (Langflow, etc.)
 
 **Key Benefits**: Type-safe composition, automatic validation, rich logging, and high-performance async processing.
 
@@ -128,6 +129,39 @@ flows/qa_generation/document_grounded_qa/multi_summary_qa/instructlab/
 ├── detailed_summary.yaml
 └── generate_questions_responses.yaml
 ```
+
+### Connector System
+Connectors handle communication with external agent frameworks:
+
+- **BaseConnector** (`src/sdg_hub/core/connectors/base.py`): Abstract base for all connectors
+- **ConnectorRegistry** (`src/sdg_hub/core/connectors/registry.py`): Auto-discovery for connectors
+- **BaseAgentConnector** (`src/sdg_hub/core/connectors/agent/base.py`): Base class for agent framework connectors
+
+**Supported Agent Frameworks:**
+- **Langflow** (`src/sdg_hub/core/connectors/agent/langflow.py`): Visual LLM app builder
+
+**Using AgentBlock:**
+```python
+from sdg_hub.core.blocks.agent import AgentBlock
+
+block = AgentBlock(
+    block_name="my_agent",
+    agent_framework="langflow",  # Connector name from registry
+    agent_url="http://localhost:7860/api/v1/run/my-flow",
+    agent_api_key="your-api-key",  # Optional
+    input_cols=["question"],
+    output_cols=["response"],
+    extract_response=True,  # Extract text from response (Langflow-specific)
+)
+
+result = block.generate(dataset)
+```
+
+**Adding New Connectors:**
+1. Create a new file in `src/sdg_hub/core/connectors/agent/`
+2. Inherit from `BaseAgentConnector`
+3. Implement `build_request()` and `parse_response()` methods
+4. Register with `@ConnectorRegistry.register("name")`
 
 ## Key Patterns
 
