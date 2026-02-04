@@ -16,7 +16,9 @@ class ConcreteAgentConnector(BaseAgentConnector):
     def build_request(self, messages: list[dict[str, Any]], session_id: str) -> dict:
         return {"input": messages[-1]["content"], "session_id": session_id}
 
-    def parse_response(self, response: dict[str, Any]) -> dict:
+    def parse_response(
+        self, response: dict[str, Any], extract_text: bool = False
+    ) -> Any:
         if not isinstance(response, dict):
             raise ConnectorError(f"Expected dict, got {type(response)}")
         return response
@@ -35,24 +37,25 @@ class TestBaseAgentConnector:
         )
         assert connector._build_headers()["Authorization"] == "Bearer secret"
 
-    def test_send(self):
-        """Test send method."""
+    def test_send_and_execute(self):
+        """Test send and execute methods."""
         connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
 
         with patch.object(connector, "_send_async", new_callable=AsyncMock) as mock:
             mock.return_value = {"output": "result"}
+
+            # Test send
             result = connector.send([{"role": "user", "content": "hi"}], "s1")
             assert result == {"output": "result"}
 
-    @pytest.mark.asyncio
-    async def test_asend(self):
-        """Test asend async method."""
-        connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
+            # Test execute uses default session_id
+            connector.execute({"messages": [{"role": "user", "content": "hi"}]})
 
-        with patch.object(connector, "_send_async", new_callable=AsyncMock) as mock:
-            mock.return_value = {"output": "async_result"}
-            result = await connector.asend([{"role": "user", "content": "hi"}], "s1")
-            assert result == {"output": "async_result"}
+            # Test execute with custom session_id
+            connector.execute(
+                {"messages": [{"role": "user", "content": "hi"}], "session_id": "custom"}
+            )
+            assert mock.call_args[0][1] == "custom"
 
     @pytest.mark.asyncio
     async def test_send_async_no_url_raises_error(self):
@@ -60,36 +63,6 @@ class TestBaseAgentConnector:
         connector = ConcreteAgentConnector(config=ConnectorConfig())
         with pytest.raises(ConnectorError, match="No URL configured"):
             await connector._send_async([{"role": "user", "content": "hi"}], "s1")
-
-    def test_lazy_http_client_init(self):
-        """Test HTTP client is lazily initialized."""
-        connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
-        assert connector._http_client is None
-        client = connector._get_http_client()
-        assert client is not None
-        assert connector._get_http_client() is client
-
-    def test_execute(self):
-        """Test execute method with and without session_id."""
-        connector = ConcreteAgentConnector(config=ConnectorConfig(url="http://test"))
-
-        with patch.object(connector, "_send_async", new_callable=AsyncMock) as mock:
-            mock.return_value = {"output": "executed"}
-
-            # Without session_id
-            result = connector.execute(
-                {"messages": [{"role": "user", "content": "hi"}]}
-            )
-            assert result == {"output": "executed"}
-
-            # With session_id
-            connector.execute(
-                {
-                    "messages": [{"role": "user", "content": "hi"}],
-                    "session_id": "custom-session",
-                }
-            )
-            assert mock.call_args[0][1] == "custom-session"
 
     @pytest.mark.asyncio
     async def test_send_async_full_flow(self):

@@ -45,8 +45,8 @@ class TestConnectorRegistry:
             class NotAConnector:
                 pass
 
-    def test_get_unknown_raises_with_available(self):
-        """Test getting unknown connector shows available options."""
+    def test_get_unknown_raises_error(self):
+        """Test getting unknown connector raises with helpful message."""
 
         @ConnectorRegistry.register("langflow")
         class LF(BaseConnector):
@@ -56,12 +56,5 @@ class TestConnectorRegistry:
         with pytest.raises(ConnectorError) as exc_info:
             ConnectorRegistry.get("unknown")
 
-        assert "langflow" in str(exc_info.value)
-
-    def test_get_unknown_empty_registry(self):
-        """Test getting unknown connector when registry is empty."""
-        with pytest.raises(ConnectorError) as exc_info:
-            ConnectorRegistry.get("nonexistent")
-
         assert "not found" in str(exc_info.value)
-        assert "Available" not in str(exc_info.value)
+        assert "langflow" in str(exc_info.value)

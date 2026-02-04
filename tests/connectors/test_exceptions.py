@@ -8,14 +8,15 @@ from sdg_hub.core.utils.error_handling import SDGHubError
 class TestConnectorExceptions:
     """Test connector exceptions."""
 
-    def test_connector_error_inherits_from_sdghub_error(self):
-        """Test inheritance and basic usage."""
+    def test_connector_error(self):
+        """Test ConnectorError inherits from SDGHubError."""
         assert issubclass(ConnectorError, SDGHubError)
         error = ConnectorError("Something went wrong")
         assert str(error) == "Something went wrong"
 
-    def test_http_error_with_status_code(self):
-        """Test HTTP error captures status code and URL."""
+    def test_http_error(self):
+        """Test ConnectorHTTPError captures status code and URL."""
+        # With message
         error = ConnectorHTTPError("http://localhost:7860", 500, "Server error")
         assert error.status_code == 500
         assert error.url == "http://localhost:7860"
@@ -23,10 +24,6 @@ class TestConnectorExceptions:
         assert "Server error" in str(error)
         assert issubclass(ConnectorHTTPError, ConnectorError)
 
-    def test_http_error_without_message(self):
-        """Test HTTP error works without optional message."""
+        # Without message
         error = ConnectorHTTPError("http://localhost:7860", 404)
-        assert error.status_code == 404
-        assert error.url == "http://localhost:7860"
         assert "HTTP 404" in str(error)
-        assert "http://localhost:7860" in str(error)

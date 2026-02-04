@@ -15,8 +15,9 @@ class TestLangflowConnector:
         """Test connector is registered."""
         assert ConnectorRegistry.get("langflow") == LangflowConnector
 
-    def test_build_headers_uses_x_api_key(self):
-        """Test Langflow uses x-api-key header."""
+    def test_build_headers(self):
+        """Test Langflow uses x-api-key header (not Authorization)."""
+        # With API key
         connector = LangflowConnector(
             config=ConnectorConfig(url="http://test", api_key="secret")
         )
@@ -24,12 +25,9 @@ class TestLangflowConnector:
         assert headers["x-api-key"] == "secret"
         assert "Authorization" not in headers
 
-    def test_build_headers_without_api_key(self):
-        """Test Langflow headers without API key."""
+        # Without API key
         connector = LangflowConnector(config=ConnectorConfig(url="http://test"))
-        headers = connector._build_headers()
-        assert headers == {"Content-Type": "application/json"}
-        assert "x-api-key" not in headers
+        assert connector._build_headers() == {"Content-Type": "application/json"}
 
     def test_build_request(self):
         """Test request building extracts last user message."""
@@ -49,14 +47,12 @@ class TestLangflowConnector:
             "session_id": "session-1",
         }
 
-    def test_build_request_no_user_message_raises(self):
-        """Test error when no user message found."""
-        connector = LangflowConnector(config=ConnectorConfig(url="http://test"))
+        # No user message raises error
         with pytest.raises(ConnectorError, match="No user message"):
             connector.build_request([{"role": "system", "content": "hi"}], "s1")
 
     def test_parse_response(self):
-        """Test response parsing."""
+        """Test response parsing with and without extract_text."""
         connector = LangflowConnector(config=ConnectorConfig(url="http://test"))
 
         # Valid dict passes through
@@ -66,3 +62,28 @@ class TestLangflowConnector:
         # Non-dict raises error
         with pytest.raises(ConnectorError, match="Expected dict"):
             connector.parse_response(["not", "a", "dict"])
+
+    def test_parse_response_extract_text(self):
+        """Test extract_text extracts nested message text."""
+        connector = LangflowConnector(config=ConnectorConfig(url="http://test"))
+
+        response = {
+            "session_id": "abc123",
+            "outputs": [
+                {
+                    "outputs": [
+                        {"results": {"message": {"text": "The answer is 42."}}}
+                    ]
+                }
+            ],
+        }
+
+        # Without extract_text
+        assert connector.parse_response(response, extract_text=False) == response
+
+        # With extract_text
+        assert connector.parse_response(response, extract_text=True) == "The answer is 42."
+
+        # Missing path raises error
+        with pytest.raises(ConnectorError, match="Failed to extract text"):
+            connector.parse_response({"outputs": []}, extract_text=True)
