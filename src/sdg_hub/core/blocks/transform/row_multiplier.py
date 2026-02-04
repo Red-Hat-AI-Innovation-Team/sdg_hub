@@ -23,11 +23,11 @@ logger = setup_logger(__name__)
 
 
 @BlockRegistry.register(
-    "MultiplierBlock",
+    "RowMultiplierBlock",
     "transform",
     "Duplicates each row in the dataset a configurable number of times",
 )
-class MultiplierBlock(BaseBlock):
+class RowMultiplierBlock(BaseBlock):
     """Block for duplicating dataset rows.
 
     This block duplicates each row in the dataset a configurable number of times.

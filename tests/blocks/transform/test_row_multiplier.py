@@ -1,12 +1,12 @@
-"""Tests for the MultiplierBlock functionality.
+"""Tests for the RowMultiplierBlock functionality.
 
-This module contains tests that verify the correct behavior of the MultiplierBlock,
+This module contains tests that verify the correct behavior of the RowMultiplierBlock,
 including row duplication, index column generation, shuffling, and edge case handling.
 """
 
 # Third Party
 # First Party
-from sdg_hub.core.blocks.transform import MultiplierBlock
+from sdg_hub.core.blocks.transform import RowMultiplierBlock
 from sdg_hub.core.utils.error_handling import (
     EmptyDatasetError,
     OutputColumnCollisionError,
@@ -23,7 +23,7 @@ def test_basic_multiplication():
     }
     dataset = pd.DataFrame(data)
 
-    block = MultiplierBlock(
+    block = RowMultiplierBlock(
         block_name="test_multiply",
         num_samples=3,
     )
@@ -58,7 +58,7 @@ def test_num_samples_one_returns_equivalent():
     }
     dataset = pd.DataFrame(data)
 
-    block = MultiplierBlock(
+    block = RowMultiplierBlock(
         block_name="test_no_multiply",
         num_samples=1,
     )
@@ -77,7 +77,7 @@ def test_index_column_generation():
     }
     dataset = pd.DataFrame(data)
 
-    block = MultiplierBlock(
+    block = RowMultiplierBlock(
         block_name="test_index",
         num_samples=3,
         add_index_column=True,
@@ -98,7 +98,7 @@ def test_custom_index_column_name():
     }
     dataset = pd.DataFrame(data)
 
-    block = MultiplierBlock(
+    block = RowMultiplierBlock(
         block_name="test_custom_index",
         num_samples=2,
         add_index_column=True,
@@ -120,7 +120,7 @@ def test_index_column_collision_error():
     }
     dataset = pd.DataFrame(data)
 
-    block = MultiplierBlock(
+    block = RowMultiplierBlock(
         block_name="test_collision",
         num_samples=2,
         add_index_column=True,
@@ -137,14 +137,14 @@ def test_shuffle_with_reproducible_seed():
     }
     dataset = pd.DataFrame(data)
 
-    block1 = MultiplierBlock(
+    block1 = RowMultiplierBlock(
         block_name="test_shuffle1",
         num_samples=3,
         shuffle=True,
         random_seed=42,
     )
 
-    block2 = MultiplierBlock(
+    block2 = RowMultiplierBlock(
         block_name="test_shuffle2",
         num_samples=3,
         shuffle=True,
@@ -165,7 +165,7 @@ def test_shuffle_changes_order():
     }
     dataset = pd.DataFrame(data)
 
-    block = MultiplierBlock(
+    block = RowMultiplierBlock(
         block_name="test_shuffle_changes",
         num_samples=5,
         shuffle=True,
@@ -184,13 +184,13 @@ def test_shuffle_changes_order():
 def test_validation_error_num_samples_less_than_one():
     """Test that num_samples < 1 raises validation error."""
     with pytest.raises(ValueError):
-        MultiplierBlock(
+        RowMultiplierBlock(
             block_name="test_invalid",
             num_samples=0,
         )
 
     with pytest.raises(ValueError):
-        MultiplierBlock(
+        RowMultiplierBlock(
             block_name="test_invalid",
             num_samples=-1,
         )
@@ -199,7 +199,7 @@ def test_validation_error_num_samples_less_than_one():
 def test_validation_error_empty_index_column_name():
     """Test that empty index_column_name raises validation error."""
     with pytest.raises(ValueError, match="index_column_name cannot be empty"):
-        MultiplierBlock(
+        RowMultiplierBlock(
             block_name="test_empty_name",
             num_samples=2,
             add_index_column=True,
@@ -207,7 +207,7 @@ def test_validation_error_empty_index_column_name():
         )
 
     with pytest.raises(ValueError, match="index_column_name cannot be empty"):
-        MultiplierBlock(
+        RowMultiplierBlock(
             block_name="test_whitespace_name",
             num_samples=2,
             add_index_column=True,
@@ -220,7 +220,7 @@ def test_empty_dataset_error():
     data = {"config": [], "prompt": []}
     dataset = pd.DataFrame(data)
 
-    block = MultiplierBlock(
+    block = RowMultiplierBlock(
         block_name="test_empty",
         num_samples=3,
     )
@@ -239,7 +239,7 @@ def test_data_type_preservation():
     }
     dataset = pd.DataFrame(data)
 
-    block = MultiplierBlock(
+    block = RowMultiplierBlock(
         block_name="test_types",
         num_samples=2,
     )
@@ -260,7 +260,7 @@ def test_none_nan_value_preservation():
     }
     dataset = pd.DataFrame(data)
 
-    block = MultiplierBlock(
+    block = RowMultiplierBlock(
         block_name="test_nulls",
         num_samples=2,
     )
@@ -279,7 +279,7 @@ def test_single_row_multiplication():
     }
     dataset = pd.DataFrame(data)
 
-    block = MultiplierBlock(
+    block = RowMultiplierBlock(
         block_name="test_single",
         num_samples=5,
         add_index_column=True,
@@ -299,7 +299,7 @@ def test_large_num_samples():
     }
     dataset = pd.DataFrame(data)
 
-    block = MultiplierBlock(
+    block = RowMultiplierBlock(
         block_name="test_large",
         num_samples=100,
     )
@@ -317,7 +317,7 @@ def test_shuffle_with_index_column():
     }
     dataset = pd.DataFrame(data)
 
-    block = MultiplierBlock(
+    block = RowMultiplierBlock(
         block_name="test_shuffle_index",
         num_samples=3,
         add_index_column=True,
@@ -340,7 +340,7 @@ def test_no_index_column_by_default():
     }
     dataset = pd.DataFrame(data)
 
-    block = MultiplierBlock(
+    block = RowMultiplierBlock(
         block_name="test_no_index",
         num_samples=2,
     )
