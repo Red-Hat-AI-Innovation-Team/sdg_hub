@@ -70,11 +70,7 @@ class TestLangflowConnector:
         response = {
             "session_id": "abc123",
             "outputs": [
-                {
-                    "outputs": [
-                        {"results": {"message": {"text": "The answer is 42."}}}
-                    ]
-                }
+                {"outputs": [{"results": {"message": {"text": "The answer is 42."}}}]}
             ],
         }
 
@@ -82,7 +78,9 @@ class TestLangflowConnector:
         assert connector.parse_response(response, extract_text=False) == response
 
         # With extract_text
-        assert connector.parse_response(response, extract_text=True) == "The answer is 42."
+        assert (
+            connector.parse_response(response, extract_text=True) == "The answer is 42."
+        )
 
         # Missing path raises error
         with pytest.raises(ConnectorError, match="Failed to extract text"):

@@ -53,7 +53,10 @@ class TestBaseAgentConnector:
 
             # Test execute with custom session_id
             connector.execute(
-                {"messages": [{"role": "user", "content": "hi"}], "session_id": "custom"}
+                {
+                    "messages": [{"role": "user", "content": "hi"}],
+                    "session_id": "custom",
+                }
             )
             assert mock.call_args[0][1] == "custom"
 
