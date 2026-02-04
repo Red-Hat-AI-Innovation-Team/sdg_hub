@@ -1,11 +1,10 @@
 """Tests for the SamplerBlock functionality."""
 
 # Third Party
-import pandas as pd
-import pytest
-
 # First Party
 from sdg_hub.core.blocks.transform import SamplerBlock
+import pandas as pd
+import pytest
 
 
 def test_sampler_basic():
