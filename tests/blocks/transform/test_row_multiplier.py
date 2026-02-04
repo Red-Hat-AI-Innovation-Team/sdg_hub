@@ -348,3 +348,19 @@ def test_no_index_column_by_default():
     result = block(dataset)
 
     assert "sample_index" not in result.columns
+
+
+def test_duplicate_index_labels():
+    """Test that duplication works correctly with duplicate index labels."""
+    data = {"config": ["A", "B", "C"]}
+    dataset = pd.DataFrame(data, index=[0, 0, 1])  # Duplicate index labels
+
+    block = RowMultiplierBlock(
+        block_name="test_dup_index",
+        num_samples=2,
+    )
+
+    result = block(dataset)
+
+    assert len(result) == 6
+    assert result["config"].tolist() == ["A", "A", "B", "B", "C", "C"]

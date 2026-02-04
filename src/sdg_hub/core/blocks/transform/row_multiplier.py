@@ -114,9 +114,10 @@ class RowMultiplierBlock(BaseBlock):
         """
         original_row_count = len(samples)
 
-        # Efficient row duplication using index.repeat()
-        result = samples.loc[samples.index.repeat(self.num_samples)].copy()
-        result = result.reset_index(drop=True)
+        # Use iloc with RangeIndex to handle duplicate index labels
+        result = samples.iloc[
+            pd.RangeIndex(original_row_count).repeat(self.num_samples)
+        ].reset_index(drop=True)
 
         # Add index column if requested
         if self.add_index_column:
