@@ -1,16 +1,13 @@
 """Tests for the RowMultiplierBlock functionality.
 
 This module contains tests that verify the correct behavior of the RowMultiplierBlock,
-including row duplication, index column generation, shuffling, and edge case handling.
+including row duplication, shuffling, and edge case handling.
 """
 
 # Third Party
 # First Party
 from sdg_hub.core.blocks.transform import RowMultiplierBlock
-from sdg_hub.core.utils.error_handling import (
-    EmptyDatasetError,
-    OutputColumnCollisionError,
-)
+from sdg_hub.core.utils.error_handling import EmptyDatasetError
 import pandas as pd
 import pytest
 
@@ -68,66 +65,6 @@ def test_num_samples_one_returns_equivalent():
     assert len(result) == 3
     assert result["id"].tolist() == [1, 2, 3]
     assert result["value"].tolist() == ["a", "b", "c"]
-
-
-def test_index_column_generation():
-    """Test that index column is correctly generated."""
-    data = {
-        "config": ["A", "B"],
-    }
-    dataset = pd.DataFrame(data)
-
-    block = RowMultiplierBlock(
-        block_name="test_index",
-        num_samples=3,
-        add_index_column=True,
-    )
-
-    result = block(dataset)
-
-    assert len(result) == 6
-    assert "sample_index" in result.columns
-    # Index should be [0, 1, 2] for each original row
-    assert result["sample_index"].tolist() == [0, 1, 2, 0, 1, 2]
-
-
-def test_custom_index_column_name():
-    """Test custom index column name."""
-    data = {
-        "config": ["A", "B"],
-    }
-    dataset = pd.DataFrame(data)
-
-    block = RowMultiplierBlock(
-        block_name="test_custom_index",
-        num_samples=2,
-        add_index_column=True,
-        index_column_name="iteration",
-    )
-
-    result = block(dataset)
-
-    assert "iteration" in result.columns
-    assert "sample_index" not in result.columns
-    assert result["iteration"].tolist() == [0, 1, 0, 1]
-
-
-def test_index_column_collision_error():
-    """Test that index column collision raises error."""
-    data = {
-        "config": ["A", "B"],
-        "sample_index": [0, 1],  # Collision with default index column name
-    }
-    dataset = pd.DataFrame(data)
-
-    block = RowMultiplierBlock(
-        block_name="test_collision",
-        num_samples=2,
-        add_index_column=True,
-    )
-
-    with pytest.raises(OutputColumnCollisionError):
-        block(dataset)
 
 
 def test_shuffle_with_reproducible_seed():
@@ -193,25 +130,6 @@ def test_validation_error_num_samples_less_than_one():
         RowMultiplierBlock(
             block_name="test_invalid",
             num_samples=-1,
-        )
-
-
-def test_validation_error_empty_index_column_name():
-    """Test that empty index_column_name raises validation error."""
-    with pytest.raises(ValueError, match="index_column_name cannot be empty"):
-        RowMultiplierBlock(
-            block_name="test_empty_name",
-            num_samples=2,
-            add_index_column=True,
-            index_column_name="",
-        )
-
-    with pytest.raises(ValueError, match="index_column_name cannot be empty"):
-        RowMultiplierBlock(
-            block_name="test_whitespace_name",
-            num_samples=2,
-            add_index_column=True,
-            index_column_name="   ",
         )
 
 
@@ -282,14 +200,12 @@ def test_single_row_multiplication():
     block = RowMultiplierBlock(
         block_name="test_single",
         num_samples=5,
-        add_index_column=True,
     )
 
     result = block(dataset)
 
     assert len(result) == 5
     assert result["config"].tolist() == ["only_one"] * 5
-    assert result["sample_index"].tolist() == [0, 1, 2, 3, 4]
 
 
 def test_large_num_samples():
@@ -308,46 +224,6 @@ def test_large_num_samples():
 
     assert len(result) == 100
     assert all(result["id"] == 1)
-
-
-def test_shuffle_with_index_column():
-    """Test that shuffle works correctly with index column."""
-    data = {
-        "config": ["A", "B"],
-    }
-    dataset = pd.DataFrame(data)
-
-    block = RowMultiplierBlock(
-        block_name="test_shuffle_index",
-        num_samples=3,
-        add_index_column=True,
-        shuffle=True,
-        random_seed=42,
-    )
-
-    result = block(dataset)
-
-    assert len(result) == 6
-    assert "sample_index" in result.columns
-    # Values should still be valid (0, 1, or 2 for each)
-    assert set(result["sample_index"].tolist()) == {0, 1, 2}
-
-
-def test_no_index_column_by_default():
-    """Test that index column is not added by default."""
-    data = {
-        "config": ["A", "B"],
-    }
-    dataset = pd.DataFrame(data)
-
-    block = RowMultiplierBlock(
-        block_name="test_no_index",
-        num_samples=2,
-    )
-
-    result = block(dataset)
-
-    assert "sample_index" not in result.columns
 
 
 def test_duplicate_index_labels():
