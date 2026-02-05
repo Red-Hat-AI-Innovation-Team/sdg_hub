@@ -184,3 +184,95 @@ def test_sampler_weighted_dict():
 
     result = block.generate(dataset)
     assert len(result["sampled"].iloc[0]) == 2
+
+
+def test_sampler_num_samples_validation():
+    """Test that num_samples must be at least 1."""
+    with pytest.raises(ValueError, match="num_samples must be at least 1"):
+        SamplerBlock(
+            block_name="test",
+            input_cols=["items"],
+            output_cols=["sampled"],
+            num_samples=0,
+        )
+
+
+def test_sampler_negative_weights():
+    """Test that negative weights raise an error."""
+    data = {"items": [{"a": 1, "b": -1}]}
+    dataset = pd.DataFrame(data)
+
+    block = SamplerBlock(
+        block_name="test_sampler",
+        input_cols=["items"],
+        output_cols=["sampled"],
+        num_samples=1,
+    )
+
+    with pytest.raises(ValueError, match="Weights must be finite and non-negative"):
+        block.generate(dataset)
+
+
+def test_sampler_empty_dict():
+    """Test that empty dict returns empty list."""
+    data = {"items": [{}]}
+    dataset = pd.DataFrame(data)
+
+    block = SamplerBlock(
+        block_name="test_sampler",
+        input_cols=["items"],
+        output_cols=["sampled"],
+        num_samples=1,
+    )
+
+    result = block.generate(dataset)
+    assert result["sampled"].iloc[0] == []
+
+
+def test_sampler_all_zero_weights():
+    """Test that all zero weights returns empty list."""
+    data = {"items": [{"a": 0, "b": 0}]}
+    dataset = pd.DataFrame(data)
+
+    block = SamplerBlock(
+        block_name="test_sampler",
+        input_cols=["items"],
+        output_cols=["sampled"],
+        num_samples=1,
+    )
+
+    result = block.generate(dataset)
+    assert result["sampled"].iloc[0] == []
+
+
+def test_sampler_unsortable_set():
+    """Test sampling from set with unsortable mixed types."""
+    data = {"items": [{1, "a", 2, "b"}]}
+    dataset = pd.DataFrame(data)
+
+    block = SamplerBlock(
+        block_name="test_sampler",
+        input_cols=["items"],
+        output_cols=["sampled"],
+        num_samples=2,
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+    assert len(result["sampled"].iloc[0]) == 2
+
+
+def test_sampler_non_iterable():
+    """Test that non-iterable values return empty list."""
+    data = {"items": [42]}  # Integer is not iterable
+    dataset = pd.DataFrame(data)
+
+    block = SamplerBlock(
+        block_name="test_sampler",
+        input_cols=["items"],
+        output_cols=["sampled"],
+        num_samples=1,
+    )
+
+    result = block.generate(dataset)
+    assert result["sampled"].iloc[0] == []
