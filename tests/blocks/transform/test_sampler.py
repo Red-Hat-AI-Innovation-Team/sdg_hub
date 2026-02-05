@@ -3,6 +3,7 @@
 # Third Party
 # First Party
 from sdg_hub.core.blocks.transform import SamplerBlock
+from sdg_hub.core.utils.error_handling import MissingColumnError
 import pandas as pd
 import pytest
 
@@ -164,7 +165,7 @@ def test_sampler_missing_input_column():
         num_samples=3,
     )
 
-    with pytest.raises(Exception):
+    with pytest.raises(MissingColumnError):
         block(dataset)
 
 

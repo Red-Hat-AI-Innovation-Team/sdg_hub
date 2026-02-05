@@ -9,17 +9,14 @@ from list or set columns in each row of a dataset.
 from typing import Any, Optional
 
 from pydantic import Field, field_validator
-import numpy as np
 
 # Third Party
+import numpy as np
 import pandas as pd
 
 # Local
-from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
 from ..registry import BlockRegistry
-
-logger = setup_logger(__name__)
 
 
 @BlockRegistry.register(
@@ -72,6 +69,14 @@ class SamplerBlock(BaseBlock):
             raise ValueError("SamplerBlock requires exactly one output column")
         return v
 
+    @field_validator("num_samples", mode="after")
+    @classmethod
+    def validate_num_samples(cls, v: int) -> int:
+        """Validate that num_samples is at least 1."""
+        if v < 1:
+            raise ValueError("num_samples must be at least 1")
+        return v
+
     def _sample_values(self, values: Any, rng: np.random.Generator) -> list[Any]:
         """Sample values from a list or set.
 
@@ -96,6 +101,15 @@ class SamplerBlock(BaseBlock):
                 return []
             items = list(values.keys())
             weights = np.array(list(values.values()), dtype=float)
+            # Validate weights are finite and non-negative
+            if not np.all(np.isfinite(weights)) or np.any(weights < 0):
+                raise ValueError("Weights must be finite and non-negative")
+            # Filter out zero weights
+            mask = weights > 0
+            items = [items[i] for i in range(len(items)) if mask[i]]
+            weights = weights[mask]
+            if len(items) == 0:
+                return []
             p = weights / weights.sum()
             n = min(self.num_samples, len(items))
             indices = rng.choice(len(items), size=n, replace=False, p=p)
@@ -103,7 +117,10 @@ class SamplerBlock(BaseBlock):
 
         # Convert to list if it's a set or other iterable
         if isinstance(values, set):
-            values = list(values)
+            try:
+                values = sorted(values)
+            except TypeError:
+                values = list(values)
         elif not isinstance(values, (list, np.ndarray)):
             try:
                 values = list(values)
