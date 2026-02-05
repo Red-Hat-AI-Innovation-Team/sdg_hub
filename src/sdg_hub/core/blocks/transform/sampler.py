@@ -90,6 +90,17 @@ class SamplerBlock(BaseBlock):
         if values is None:
             return []
 
+        # Handle dictionary input (weighted sampling)
+        if isinstance(values, dict):
+            if len(values) == 0:
+                return []
+            items = list(values.keys())
+            weights = np.array(list(values.values()), dtype=float)
+            p = weights / weights.sum()
+            n = min(self.num_samples, len(items))
+            indices = rng.choice(len(items), size=n, replace=False, p=p)
+            return [items[i] for i in indices]
+
         # Convert to list if it's a set or other iterable
         if isinstance(values, set):
             values = list(values)

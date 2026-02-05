@@ -166,3 +166,20 @@ def test_sampler_missing_input_column():
 
     with pytest.raises(Exception):
         block(dataset)
+
+
+def test_sampler_weighted_dict():
+    """Test weighted sampling from dictionary."""
+    data = {"items": [{"a": 100, "b": 1, "c": 1, "d": 1, "e": 1}]}
+    dataset = pd.DataFrame(data)
+
+    block = SamplerBlock(
+        block_name="test_sampler",
+        input_cols=["items"],
+        output_cols=["sampled"],
+        num_samples=2,
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+    assert len(result["sampled"].iloc[0]) == 2
