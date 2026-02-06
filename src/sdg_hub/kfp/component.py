@@ -57,6 +57,8 @@ def sdg(
     """
     import json
     import logging
+    import os
+    import time
 
     import pandas as pd
 
@@ -67,8 +69,10 @@ def sdg(
     )
     logger = logging.getLogger(__name__)
 
+    start_time = time.time()
+
     logger.info("=" * 60)
-    logger.info("SDG Hub KFP Component - Skeleton Implementation")
+    logger.info("SDG Hub KFP Component")
     logger.info("=" * 60)
 
     # Log configuration
@@ -80,26 +84,52 @@ def sdg(
     logger.info(f"Temperature: {temperature}")
     logger.info(f"Max Tokens: {max_tokens}")
 
-    # For skeleton: create dummy output
-    logger.info("Creating dummy output dataset...")
-    df = pd.DataFrame(
-        {
-            "message": ["Hello from SDG Hub KFP Component!"],
-            "flow_id": [flow_id or "skeleton"],
-            "status": ["success"],
-        }
-    )
+    # =========================================================================
+    # INPUT HANDLING
+    # =========================================================================
+    df = None
+    input_rows = 0
 
-    # Write output artifact
-    df.to_json(output_artifact.path, orient="records", lines=True)
+    if input_pvc_path:
+        logger.info(f"Loading input from: {input_pvc_path}")
+
+        if not os.path.exists(input_pvc_path):
+            raise FileNotFoundError(f"Input file not found: {input_pvc_path}")
+
+        df = pd.read_json(input_pvc_path, lines=True)
+        input_rows = len(df)
+        logger.info(f"Loaded {input_rows} rows with columns: {list(df.columns)}")
+    else:
+        logger.warning("No input_pvc_path provided, creating dummy dataset")
+        df = pd.DataFrame(
+            {
+                "message": ["No input provided - dummy data"],
+                "flow_id": [flow_id or "none"],
+            }
+        )
+        input_rows = len(df)
+
+    # =========================================================================
+    # FLOW EXECUTION (placeholder - to be implemented in next iteration)
+    # =========================================================================
+    logger.info("Flow execution not yet implemented - passing through input data")
+    output_df = df.copy()
+    output_rows = len(output_df)
+
+    # =========================================================================
+    # OUTPUT HANDLING
+    # =========================================================================
+    output_df.to_json(output_artifact.path, orient="records", lines=True)
     logger.info(f"Output written to: {output_artifact.path}")
+    logger.info(f"Output: {output_rows} rows with columns: {list(output_df.columns)}")
 
     # Write metrics
+    execution_time = time.time() - start_time
     metrics_data = {
         "metrics": [
-            {"name": "input_rows", "numberValue": 1},
-            {"name": "output_rows", "numberValue": 1},
-            {"name": "execution_time_seconds", "numberValue": 0.1},
+            {"name": "input_rows", "numberValue": input_rows},
+            {"name": "output_rows", "numberValue": output_rows},
+            {"name": "execution_time_seconds", "numberValue": round(execution_time, 2)},
         ]
     }
     with open(output_metrics.path, "w") as f:
@@ -107,5 +137,5 @@ def sdg(
     logger.info(f"Metrics written to: {output_metrics.path}")
 
     logger.info("=" * 60)
-    logger.info("SDG Hub KFP Component completed successfully!")
+    logger.info(f"SDG Hub KFP Component completed in {execution_time:.2f}s")
     logger.info("=" * 60)

@@ -27,8 +27,10 @@ podman machine list
 ### 2. Install Python Dependencies
 
 ```bash
-uv pip install ".[kfp]" docker
+uv pip install ".[kfp]" docker pip
 ```
+
+Note: `pip` is required because KFP's SubprocessRunner uses `python -m pip` internally.
 
 ### 3. Build the Component Image
 
