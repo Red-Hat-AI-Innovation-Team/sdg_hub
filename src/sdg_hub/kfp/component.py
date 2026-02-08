@@ -5,9 +5,8 @@ This module contains the main KFP component for running SDG Hub flows.
 It is designed to be self-contained and extractable to a separate repository.
 """
 
-from kfp.dsl import Dataset, Metrics, Output
-
 from kfp import dsl
+from kfp.dsl import Dataset, Metrics, Output
 
 # Component image - update this for production
 # Use localhost/ prefix for local podman images
