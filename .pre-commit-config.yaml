@@ -14,3 +14,9 @@ repos:
         - id: ruff
         # Run the formatter.
         - id: ruff-format
+    - repo: https://github.com/compilerla/conventional-pre-commit
+      rev: v3.6.0
+      hooks:
+        - id: conventional-pre-commit
+          stages: [commit-msg]
+          args: [feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert]
