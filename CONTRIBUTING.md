@@ -164,9 +164,10 @@ fix(flows): correct parameter validation in QA generation flow
 docs(blocks): update LLM block examples with new model config
 ```
 
-To enable the commit-msg hook locally:
+To enable pre-commit hooks locally:
 ```bash
-pre-commit install --hook-type commit-msg
+pre-commit install                         # Linting hooks (isort, ruff)
+pre-commit install --hook-type commit-msg  # Commit message validation
 ```
 
 **Pull Request Process:**
