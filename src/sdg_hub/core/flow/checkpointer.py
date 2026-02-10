@@ -12,7 +12,7 @@ import uuid
 import pandas as pd
 
 # Local
-from ..utils.datautils import safe_concatenate_with_validation
+from ..utils.datautils import _make_hashable, safe_concatenate_with_validation
 from ..utils.logger_config import setup_logger
 
 logger = setup_logger(__name__)
@@ -275,13 +275,18 @@ class FlowCheckpointer:
         completed_df = completed_dataset[common_columns]
 
         # Find rows that haven't been completed
-        # Use tuple representation for comparison
-        input_tuples = set(input_df.apply(tuple, axis=1))
-        completed_tuples = set(completed_df.apply(tuple, axis=1))
-        remaining_tuples = input_tuples - completed_tuples
+        # Use hashable tuple representation for comparison (handles numpy arrays, lists, etc.)
+        # Cache the hashable Series to avoid computing twice (once for set, once for mask)
+        input_hashable = input_df.apply(
+            lambda row: tuple(_make_hashable(x) for x in row), axis=1
+        )
+        completed_hashable = completed_df.apply(
+            lambda row: tuple(_make_hashable(x) for x in row), axis=1
+        )
+        remaining_tuples = set(input_hashable) - set(completed_hashable)
 
         # Filter input dataset to only remaining samples
-        remaining_mask = input_df.apply(tuple, axis=1).isin(remaining_tuples)
+        remaining_mask = input_hashable.isin(remaining_tuples)
         remaining_indices = input_df[remaining_mask].index.tolist()
 
         if not remaining_indices:

@@ -329,3 +329,142 @@ class TestFlowCheckpointer:
         if completed is not None:
             assert len(completed) >= 1
             assert "test1" in completed["input"].tolist()
+
+    def test_find_remaining_samples_with_list_columns(self):
+        """Test finding remaining samples when columns contain lists (unhashable types).
+
+        This test demonstrates the fix for handling unhashable types like lists and
+        numpy arrays in DataFrame columns. Without _make_hashable(), this would fail
+        with: TypeError: unhashable type: 'list' or 'numpy.ndarray'.
+
+        This is a common scenario in SDG flows where columns contain lists of strings or other similar items.
+        """
+        checkpointer = FlowCheckpointer(
+            checkpoint_dir=self.temp_dir, save_freq=2, flow_id=self.flow_id
+        )
+
+        # Create input dataset with list column (common in SDG flows)
+        # This simulates columns like 'icl_document' that contain list of examples
+        input_dataset = pd.DataFrame(
+            {
+                "document": ["doc1", "doc2", "doc3"],
+                "icl_examples": [
+                    ["example1", "example2"],  # List - unhashable without fix
+                    ["example3", "example4"],
+                    ["example5", "example6"],
+                ],
+                "domain": ["type1", "type2", "type3"],
+            }
+        )
+
+        # Create completed dataset with same schema but only first 2 samples
+        # When loaded from JSONL and converted to DataFrame, lists may become numpy arrays
+        completed_dataset = pd.DataFrame(
+            {
+                "document": ["doc1", "doc2"],
+                "icl_examples": [
+                    ["example1", "example2"],
+                    ["example3", "example4"],
+                ],
+                "domain": ["type1", "type2"],
+                "output": [
+                    "result1",
+                    "result2",
+                ],  # Output columns added during processing
+            }
+        )
+
+        # This would previously fail with: TypeError: unhashable type: 'list'
+        # The _make_hashable() fix converts lists to tuples for comparison
+        remaining = checkpointer._find_remaining_samples(
+            input_dataset, completed_dataset
+        )
+
+        # Should correctly identify that doc1 and doc2 are completed, doc3 is remaining
+        assert len(remaining) == 1
+        assert remaining["document"].tolist() == ["doc3"]
+        assert remaining["icl_examples"].tolist() == [["example5", "example6"]]
+        assert remaining["domain"].tolist() == ["type3"]
+
+    def test_resumption_with_unhashable_columns(self):
+        """Test full checkpoint save and load cycle with unhashable columns.
+
+        This integration test verifies that the checkpointer can:
+        1. Save checkpoints with list/array columns
+        2. Load those checkpoints back
+        3. Correctly identify remaining work when comparing datasets with list columns
+
+        This simulates a real SDG workflow where flows are interrupted and resumed.
+        """
+        # Step 1: Create initial checkpointer and save some progress
+        checkpointer1 = FlowCheckpointer(
+            checkpoint_dir=self.temp_dir, save_freq=2, flow_id=self.flow_id
+        )
+
+        # Simulate completed work with list columns (like icl_document, icl_queries)
+        completed_data = pd.DataFrame(
+            {
+                "document_outline": ["Article 1", "Article 2"],
+                "icl_document": [
+                    ["Context for article 1"],
+                    ["Context for article 2"],
+                ],
+                "icl_query": [
+                    ["Question 1 for article 1", "Question 2 for article 1"],
+                    ["Question 1 for article 2"],
+                ],
+                "domain": ["science", "technology"],
+                "output_summary": ["Summary 1", "Summary 2"],
+            }
+        )
+
+        checkpointer1.add_completed_samples(completed_data)
+
+        # Verify checkpoint was saved
+        checkpoint_files = list(Path(self.temp_dir).glob("checkpoint_*.jsonl"))
+        assert len(checkpoint_files) == 1
+
+        # Step 2: Simulate resuming the flow with a new checkpointer
+        checkpointer2 = FlowCheckpointer(
+            checkpoint_dir=self.temp_dir, flow_id=self.flow_id
+        )
+
+        # Input dataset for resumption (contains all original + new samples)
+        input_dataset = pd.DataFrame(
+            {
+                "document_outline": [
+                    "Article 1",
+                    "Article 2",
+                    "Article 3",
+                    "Article 4",
+                ],
+                "icl_document": [
+                    ["Context for article 1"],
+                    ["Context for article 2"],
+                    ["Context for article 3"],
+                    ["Context for article 4"],
+                ],
+                "icl_query": [
+                    ["Question 1 for article 1", "Question 2 for article 1"],
+                    ["Question 1 for article 2"],
+                    ["Question 1 for article 3", "Question 2 for article 3"],
+                    ["Question 1 for article 4"],
+                ],
+                "domain": ["science", "technology", "engineering", "mathematics"],
+            }
+        )
+
+        # Load progress - this would fail without _make_hashable() fix
+        remaining, completed = checkpointer2.load_existing_progress(input_dataset)
+
+        # Verify correct resumption
+        assert len(completed) == 2, "Should have loaded 2 completed samples"
+        assert len(remaining) == 2, "Should have 2 remaining samples"
+        assert remaining["document_outline"].tolist() == ["Article 3", "Article 4"]
+        assert remaining["domain"].tolist() == ["engineering", "mathematics"]
+
+        # Verify the list columns are correctly preserved
+        assert remaining["icl_document"].tolist() == [
+            ["Context for article 3"],
+            ["Context for article 4"],
+        ]
