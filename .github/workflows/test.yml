@@ -62,6 +62,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          # Full history needed for setuptools_scm to determine version from git tags
           fetch-depth: 0
 
       - name: Free disk space
@@ -95,7 +96,7 @@ jobs:
             -m "not (examples or slow)"
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@0f8570b1a125f4937846a11fcfa3bcd548bd8c97 # v4.6.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.xml

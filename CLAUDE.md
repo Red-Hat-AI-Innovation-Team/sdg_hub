@@ -37,35 +37,33 @@ uv pip install .[examples]
 
 ### Testing
 ```bash
-# Run all tests
-tox -e py3-unit
+# Run all unit tests
+uv run pytest tests/blocks tests/connectors tests/flow tests/utils -m "not (examples or slow)"
 
 # Run tests with coverage
-tox -e py3-unitcov
+uv run pytest --cov=sdg_hub --cov-report=term tests/blocks tests/connectors tests/flow tests/utils
 
 # Run specific test file
-pytest tests/test_specific_file.py
+uv run pytest tests/test_specific_file.py
 
 # Run tests matching pattern
-pytest -k "test_pattern"
+uv run pytest -k "test_pattern"
+
+# Run integration tests (requires API keys)
+uv run pytest tests/integration -v -s
 ```
 
 ### Linting and Formatting
 ```bash
-# Run full verification (lint, mypy, ruff)
-make verify
+# Run ruff linter with auto-fix
+uv run ruff check --fix src/ tests/
 
-# Individual lint commands
-tox -e lint        # Full pylint check
-tox -e fastlint    # Fast pylint (without 3rd party)
-tox -e ruff        # Ruff formatting and fixes
-tox -e mypy        # Type checking
+# Run ruff formatter
+uv run ruff format src/ tests/
 
-# Format code with ruff
-tox -e ruff fix
-
-# Check code formatting
-tox -e ruff check
+# Check only (no fixes) - same as CI
+uv run ruff check src/ tests/
+uv run ruff format --check src/ tests/
 ```
 
 ### Other Make targets

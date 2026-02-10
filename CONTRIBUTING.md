@@ -34,7 +34,6 @@ uv sync --extra dev
 # Install pre-commit hooks (required for all contributors)
 uv run pre-commit install                      # Runs ruff on commit
 uv run pre-commit install --hook-type commit-msg  # Validates commit messages
-uv run pre-commit install --hook-type pre-push    # Runs ruff before push
 ```
 
 ## Development Tools
@@ -193,7 +192,6 @@ Pre-commit hooks run automatically to ensure code quality. Install them once aft
 ```bash
 uv run pre-commit install                      # Ruff linting on commit
 uv run pre-commit install --hook-type commit-msg  # Commit message validation
-uv run pre-commit install --hook-type pre-push    # Ruff linting before push
 ```
 
 **What the hooks do:**
@@ -201,8 +199,8 @@ uv run pre-commit install --hook-type pre-push    # Ruff linting before push
 | Hook | Stage | Description |
 |------|-------|-------------|
 | `uv-lock` | commit | Keeps `uv.lock` in sync with `pyproject.toml` |
-| `ruff` | commit, push | Lints Python code with auto-fix |
-| `ruff-format` | commit, push | Formats Python code |
+| `ruff` | commit | Lints Python code with auto-fix |
+| `ruff-format` | commit | Formats Python code |
 | `conventional-pre-commit` | commit-msg | Validates commit message format |
 
 **Pull Request Process:**

@@ -45,15 +45,12 @@ check: ## Check git diff between this repo and the CLI generator directory
 	@echo "==="
 	@git diff $(SDG_IMPORT_REF)..instructlab_repo/main -- src/instructlab/generator/ | cat
 
-.PHONY: check-tox
-check-tox:
-	@command -v tox &> /dev/null || (echo "'tox' is not installed" && exit 1)
-
 .PHONY: md-lint
 md-lint: ## Lint markdown files
 	$(ECHO_PREFIX) printf "  %-12s ./...\n" "[MD LINT]"
 	$(CMD_PREFIX) podman run --rm -v $(CURDIR):/workdir --security-opt label=disable docker.io/davidanson/markdownlint-cli2:latest > /dev/null
 
 .PHONY: verify
-verify: check-tox ## Run linting, typing, and formatting checks via tox
-	tox p -e fastlint,mypy,ruff
+verify: ## Run linting and formatting checks via ruff
+	uv run ruff check src/ tests/
+	uv run ruff format --check src/ tests/
