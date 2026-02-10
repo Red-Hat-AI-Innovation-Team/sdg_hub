@@ -31,8 +31,6 @@ concurrency:
 
 env:
   LC_ALL: en_US.UTF-8
-  # Use PyTorch CPU build instead of CUDA build. Reduces deps from 5.7 GB to 1.5 GB.
-  UV_EXTRA_INDEX_URL: https://download.pytorch.org/whl/cpu
 
 defaults:
   run:

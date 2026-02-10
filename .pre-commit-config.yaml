@@ -1,22 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0
 
 repos:
-    - repo: https://github.com/PyCQA/isort
-      rev: 5.11.5
-      hooks:
-          - id: isort
-            exclude: imports
-    - repo: https://github.com/astral-sh/ruff-pre-commit
-      # Ruff version.
-      rev: v0.3.4
-      hooks:
-        # Run the linter (most fixers are disabled for now).
-        - id: ruff
-        # Run the formatter.
-        - id: ruff-format
-    - repo: https://github.com/compilerla/conventional-pre-commit
-      rev: v3.6.0
-      hooks:
-        - id: conventional-pre-commit
-          stages: [commit-msg]
-          args: [feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.4
+    hooks:
+      # Run the linter
+      - id: ruff
+        args: [--fix]
+      # Run the formatter
+      - id: ruff-format
+
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.6.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert]
