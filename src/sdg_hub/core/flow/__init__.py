@@ -11,6 +11,12 @@ from .metadata import FlowMetadata
 from .registry import FlowRegistry
 from .validation import FlowValidator
 
+# Import submodules to make them available for patching in tests
+from . import display  # noqa: F401
+from . import execution  # noqa: F401
+from . import model_config  # noqa: F401
+from . import serialization  # noqa: F401
+
 __all__ = [
     "Flow",
     "FlowMetadata",

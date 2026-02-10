@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 
 # First Party
 from sdg_hub import Flow, FlowMetadata, FlowRegistry
+from sdg_hub.core.flow import serialization  # noqa: F401 - needed for patching
 
 # Third Party
 import pandas as pd
@@ -62,7 +63,7 @@ class TestFlowIntegration:
             yaml.dump(flow_config, f)
 
         # Mock the block registry
-        with patch("sdg_hub.core.flow.base.BlockRegistry") as mock_registry:
+        with patch("sdg_hub.core.flow.serialization.BlockRegistry") as mock_registry:
 
             def mock_get(block_type):
                 mock_class = Mock()
@@ -344,7 +345,7 @@ class TestFlowIntegration:
             yaml.dump(flow_config, f)
 
         # Mock the block registry
-        with patch("sdg_hub.core.flow.base.BlockRegistry") as mock_registry:
+        with patch("sdg_hub.core.flow.serialization.BlockRegistry") as mock_registry:
 
             def mock_get(block_type):
                 mock_class = Mock()

@@ -17,6 +17,7 @@ import yaml
 from sdg_hub import Flow, FlowMetadata
 from sdg_hub.core.flow.metadata import DatasetRequirements
 from sdg_hub.core.utils.error_handling import EmptyDatasetError, FlowValidationError
+from sdg_hub.core.flow import serialization  # noqa: F401 - needed for patching
 
 
 class TestFlow:
@@ -120,7 +121,7 @@ class TestFlow:
             yaml.dump(flow_config, f)
 
         # Mock the block creation
-        with patch("sdg_hub.core.flow.base.BlockRegistry._get") as mock_get:
+        with patch("sdg_hub.core.flow.serialization.BlockRegistry._get") as mock_get:
             mock_block_class = Mock()
             mock_block_instance = self.create_mock_block("test_block")
             mock_block_class.return_value = mock_block_instance
@@ -176,7 +177,7 @@ class TestFlow:
             yaml.dump(flow_config, f)
 
         # Mock the block creation
-        with patch("sdg_hub.core.flow.base.BlockRegistry._get") as mock_get:
+        with patch("sdg_hub.core.flow.serialization.BlockRegistry._get") as mock_get:
             mock_block_class = Mock()
             mock_block_instance = self.create_mock_block("test_block")
             mock_block_class.return_value = mock_block_instance
@@ -1277,9 +1278,9 @@ class TestFlow:
 
         # Mock BlockRegistry to simulate available blocks
         with (
-            patch("sdg_hub.core.flow.base.BlockRegistry._get") as mock_get,
+            patch("sdg_hub.core.flow.serialization.BlockRegistry._get") as mock_get,
             patch(
-                "sdg_hub.core.flow.base.BlockRegistry.list_blocks"
+                "sdg_hub.core.flow.serialization.BlockRegistry.list_blocks"
             ) as mock_list_blocks,
         ):
             # Configure mocks
@@ -1301,7 +1302,7 @@ class TestFlow:
 
             # Test that FlowValidationError is raised with helpful message
             with pytest.raises(FlowValidationError) as exc_info:
-                Flow._create_block_from_config(block_config, yaml_dir)
+                serialization.create_block_from_config(block_config, yaml_dir)
 
             error_message = str(exc_info.value)
 
@@ -1470,7 +1471,7 @@ class TestFlow:
         )
         flow = Flow(metadata=self.test_metadata, blocks=[llm_block])
 
-        with caplog.at_level(logging.INFO, logger="sdg_hub.core.flow.base"):
+        with caplog.at_level(logging.INFO, logger="sdg_hub.core.flow.model_config"):
             flow.set_model_config(
                 model="openai/gpt-4",
                 api_key="sk-secret-key",
