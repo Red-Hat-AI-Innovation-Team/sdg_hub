@@ -9,7 +9,7 @@ on:
     paths:
       - '**.py'
       - 'pyproject.toml'
-      - 'requirements*.txt'
+      - 'uv.lock'
       - 'tox.ini'
       - 'scripts/*.sh'
       - '.github/**'
@@ -19,7 +19,7 @@ on:
     paths:
       - '**.py'
       - 'pyproject.toml'
-      - 'requirements*.txt'
+      - 'uv.lock'
       - 'tox.ini'
       - 'scripts/*.sh'
       - '.github/**'
@@ -38,20 +38,20 @@ jobs:
           fetch-depth: 0
           submodules: true
 
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
+      - name: Setup uv
+        uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7.3.0
         with:
-          python-version: 3.11
-          cache: pip
-          cache-dependency-path: |
+          version: "0.10.1"
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: |
             **/pyproject.toml
-            **/requirements*.txt
+            **/uv.lock
 
-      - name: Install dependencies
+      - name: Install tox with tox-uv
         id: deps
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install tox
+          uv tool install tox --with tox-uv
 
       - name: Run Ruff check
         run: |
@@ -69,3 +69,6 @@ jobs:
       #   if: ${{ !cancelled() && (steps.deps.outcome == 'success') }}
       #   run: |
       #     tox -e mypy
+
+      - name: Prune uv cache
+        run: uv cache prune --ci

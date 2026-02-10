@@ -44,6 +44,7 @@ jobs:
               # Standard integration test triggers, DONT CHANGE THIS
               - 'tests/integration/**/*.py'
               - 'pyproject.toml'
+              - 'uv.lock'
               - 'tox.ini'
               - '.github/workflows/integration-test.yml'
 
@@ -101,15 +102,15 @@ jobs:
         run: |
           sudo apt-get install -y expect
 
-      - name: Setup Python ${{ matrix.python }}
-        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5.5.0
+      - name: Setup uv
+        uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7.3.0
         with:
+          version: "0.10.1"
           python-version: ${{ matrix.python }}
-          cache: pip
-          cache-dependency-path: |
+          enable-cache: true
+          cache-dependency-glob: |
             **/pyproject.toml
-            **/requirements*.txt
-
+            **/uv.lock
 
       - name: Cache huggingface datasets
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
@@ -118,10 +119,9 @@ jobs:
           # Invalidate cache when any example notebook changes (may affect dataset downloads)
           key: huggingface-${{ hashFiles('examples/**/*.ipynb') }}
 
-      - name: Install dependencies
+      - name: Install tox with tox-uv
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install tox tox-gh>=1.2
+          uv tool install tox --with tox-uv --with tox-gh
 
       - name: Run integration tests with tox
         env:
@@ -149,6 +149,9 @@ jobs:
             coverage-py3-integrationcov.xml
             durations/py3-integrationcov.html
           retention-days: 30
+
+      - name: Prune uv cache
+        run: uv cache prune --ci
 
   integration-test-workflow-complete:
     needs: ["integration-test"]

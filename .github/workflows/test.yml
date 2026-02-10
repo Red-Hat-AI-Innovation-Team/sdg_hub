@@ -12,7 +12,7 @@ on:
       - 'src/**/*.py'
       - 'tests/**/*.py'
       - 'pyproject.toml'
-      - 'requirements*.txt'
+      - 'uv.lock'
       - 'tox.ini'
       - '.github/workflows/test.yml' # This workflow
   pull_request:
@@ -23,7 +23,7 @@ on:
       - 'src/**/*.py'
       - 'tests/**/*.py'
       - 'pyproject.toml'
-      - 'requirements*.txt'
+      - 'uv.lock'
       - 'tox.ini'
       - '.github/workflows/test.yml' # This workflow
 
@@ -77,21 +77,19 @@ jobs:
         run: |
           brew install expect coreutils bash
 
-      - name: Setup Python ${{ matrix.python }}
-        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55 # v5.5.0
+      - name: Setup uv
+        uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7.3.0
         with:
+          version: "0.10.1"
           python-version: ${{ matrix.python }}
-          cache: pip
-          cache-dependency-path: |
+          enable-cache: true
+          cache-dependency-glob: |
             **/pyproject.toml
-            **/requirements*.txt
+            **/uv.lock
 
-
-
-      - name: Install dependencies
+      - name: Install tox with tox-uv
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install tox tox-gh>=1.2
+          uv tool install tox --with tox-uv --with tox-gh
 
       - name: Run unit tests with tox
         run: |
@@ -104,7 +102,10 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.xml
-          fail_ci_if_error: true 
+          fail_ci_if_error: true
+
+      - name: Prune uv cache
+        run: uv cache prune --ci
 
   test-workflow-complete:
     needs: ["test"]
