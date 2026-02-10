@@ -2,48 +2,25 @@
 """Pydantic-based Flow class for managing data generation pipelines."""
 
 # Standard
-from datetime import datetime
-from pathlib import Path
 from typing import Any, Optional, Union
-import time
-import uuid
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
     PrivateAttr,
-    SecretStr,
     field_validator,
     model_validator,
 )
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
-from rich.tree import Tree
 import datasets
 
 # Third Party
 import pandas as pd
-import yaml
 
 # Local
 from ..blocks.base import BaseBlock
-from ..blocks.registry import BlockRegistry
-from ..utils.datautils import safe_concatenate_with_validation, validate_no_duplicates
-from ..utils.error_handling import EmptyDatasetError, FlowValidationError
-from ..utils.flow_metrics import (
-    display_metrics_summary,
-    display_time_estimation_summary,
-    save_metrics_to_json,
-)
 from ..utils.logger_config import setup_logger
-from ..utils.path_resolution import resolve_path
-from ..utils.time_estimator import estimate_execution_time
-from ..utils.yaml_utils import save_flow_yaml
-from .checkpointer import FlowCheckpointer
 from .metadata import DatasetRequirements, FlowMetadata
-from .validation import FlowValidator
 
 logger = setup_logger(__name__)
 
@@ -113,226 +90,28 @@ class Flow(BaseModel):
 
     @classmethod
     def from_yaml(cls, yaml_path: str) -> "Flow":
-        """Load flow from YAML configuration file.
+        """Load flow from YAML configuration file."""
+        from .serialization import load_flow_from_yaml
 
-        Parameters
-        ----------
-        yaml_path : str
-            Path to the YAML flow configuration file.
-
-        Returns
-        -------
-        Flow
-            Validated Flow instance.
-
-        Raises
-        ------
-        FlowValidationError
-            If yaml_path is None or the file doesn't exist.
-        """
-        if yaml_path is None:
-            raise FlowValidationError(
-                "Flow path cannot be None. Please provide a valid YAML file path or check that the flow exists in the registry."
-            )
-
-        yaml_path = resolve_path(yaml_path, [])
-        yaml_dir = Path(yaml_path).parent
-
-        logger.info(f"Loading flow from: {yaml_path}")
-
-        # Load YAML file
-        try:
-            with open(yaml_path, encoding="utf-8") as f:
-                flow_config = yaml.safe_load(f)
-        except FileNotFoundError as exc:
-            raise FileNotFoundError(f"Flow file not found: {yaml_path}") from exc
-        except yaml.YAMLError as exc:
-            raise FlowValidationError(f"Invalid YAML in {yaml_path}: {exc}") from exc
-
-        # Validate YAML structure
-        validator = FlowValidator()
-        validation_errors = validator.validate_yaml_structure(flow_config)
-        if validation_errors:
-            raise FlowValidationError(
-                "Invalid flow configuration:\n" + "\n".join(validation_errors)
-            )
-
-        # Extract and validate metadata
-        metadata_dict = flow_config.get("metadata", {})
-        if "name" not in metadata_dict:
-            metadata_dict["name"] = Path(yaml_path).stem
-
-        # Note: Old format compatibility removed - only new RecommendedModels format supported
-
-        try:
-            metadata = FlowMetadata(**metadata_dict)
-        except Exception as exc:
-            raise FlowValidationError(f"Invalid metadata configuration: {exc}") from exc
-
-        # Create blocks with validation
-        blocks = []
-        block_configs = flow_config.get("blocks", [])
-
-        for i, block_config in enumerate(block_configs):
-            try:
-                block = cls._create_block_from_config(block_config, yaml_dir)
-                blocks.append(block)
-            except Exception as exc:
-                raise FlowValidationError(
-                    f"Failed to create block at index {i}: {exc}"
-                ) from exc
-
-        # Create and validate the flow
-        try:
-            flow = cls(blocks=blocks, metadata=metadata)
-            # Persist generated id back to the YAML file (only on initial load)
-            # If the file had no metadata.id originally, update and rewrite
-            if not flow_config.get("metadata", {}).get("id"):
-                flow_config.setdefault("metadata", {})["id"] = flow.metadata.id
-                save_flow_yaml(
-                    yaml_path,
-                    flow_config,
-                    f"added generated id: {flow.metadata.id}",
-                )
-            else:
-                logger.debug(f"Flow already had id: {flow.metadata.id}")
-            # Check if this is a flow without LLM blocks
-            llm_blocks = flow._detect_llm_blocks()
-            if not llm_blocks:
-                # No LLM blocks, so no model config needed
-                flow._model_config_set = True
-            else:
-                # LLM blocks present - user must call set_model_config()
-                flow._model_config_set = False
-
-            return flow
-        except Exception as exc:
-            raise FlowValidationError(f"Flow validation failed: {exc}") from exc
-
-    @classmethod
-    def _create_block_from_config(
-        cls,
-        block_config: dict[str, Any],
-        yaml_dir: Path,
-    ) -> BaseBlock:
-        """Create a block instance from configuration with validation.
-
-        Parameters
-        ----------
-        block_config : Dict[str, Any]
-            Block configuration from YAML.
-        yaml_dir : Path
-            Directory containing the flow YAML file.
-
-        Returns
-        -------
-        BaseBlock
-            Validated block instance.
-
-        Raises
-        ------
-        FlowValidationError
-            If block creation fails.
-        """
-        # Validate block configuration structure
-        if not isinstance(block_config, dict):
-            raise FlowValidationError("Block configuration must be a dictionary")
-
-        block_type_name = block_config.get("block_type")
-        if not block_type_name:
-            raise FlowValidationError("Block configuration missing 'block_type'")
-
-        # Get block class from registry
-        try:
-            block_class = BlockRegistry._get(block_type_name)
-        except KeyError as exc:
-            # Get all available blocks from all categories
-            all_blocks = BlockRegistry.list_blocks()
-            available_blocks = ", ".join(all_blocks)
-            raise FlowValidationError(
-                f"Block type '{block_type_name}' not found in registry. "
-                f"Available blocks: {available_blocks}"
-            ) from exc
-
-        # Process block configuration
-        config = block_config.get("block_config", {})
-        if not isinstance(config, dict):
-            raise FlowValidationError("'block_config' must be a dictionary")
-
-        config = config.copy()
-
-        # Resolve config file paths relative to YAML directory
-        for path_key in ["config_path", "config_paths", "prompt_config_path"]:
-            if path_key in config:
-                config[path_key] = cls._resolve_config_paths(config[path_key], yaml_dir)
-
-        # Create block instance with Pydantic validation
-        try:
-            return block_class(**config)
-        except Exception as exc:
-            raise FlowValidationError(
-                f"Failed to create block '{block_type_name}' with config {config}: {exc}"
-            ) from exc
-
-    @classmethod
-    def _resolve_config_paths(
-        cls, paths: Union[str, list[str], dict[str, str]], yaml_dir: Path
-    ) -> Union[str, list[str], dict[str, str]]:
-        """Resolve configuration file paths relative to YAML directory."""
-        if isinstance(paths, str):
-            return str(yaml_dir / paths)
-        elif isinstance(paths, list):
-            return [str(yaml_dir / path) for path in paths]
-        elif isinstance(paths, dict):
-            return {key: str(yaml_dir / path) for key, path in paths.items()}
-        return paths
+        return load_flow_from_yaml(cls, yaml_path)
 
     @staticmethod
     def _convert_to_dataframe(
         dataset: Union[pd.DataFrame, datasets.Dataset],
     ) -> tuple[pd.DataFrame, bool]:
-        """Convert datasets.Dataset to pd.DataFrame if needed (backwards compatibility).
+        """Convert datasets.Dataset to pd.DataFrame if needed. Returns (df, was_dataset)."""
+        from .execution import convert_to_dataframe
 
-        Parameters
-        ----------
-        dataset : Union[pd.DataFrame, datasets.Dataset]
-            Input dataset in either format.
-
-        Returns
-        -------
-        tuple[pd.DataFrame, bool]
-            Tuple of (converted DataFrame, was_dataset flag).
-            was_dataset is True if input was a datasets.Dataset, False if it was already a DataFrame.
-        """
-        if isinstance(dataset, datasets.Dataset):
-            logger.info("Converting datasets.Dataset to pd.DataFrame for processing")
-            return dataset.to_pandas(), True
-        return dataset, False
+        return convert_to_dataframe(dataset)
 
     @staticmethod
     def _convert_from_dataframe(
         df: pd.DataFrame, should_convert: bool
     ) -> Union[pd.DataFrame, datasets.Dataset]:
-        """Convert pd.DataFrame back to datasets.Dataset if needed (backwards compatibility).
+        """Convert pd.DataFrame back to datasets.Dataset if should_convert is True."""
+        from .execution import convert_from_dataframe
 
-        Parameters
-        ----------
-        df : pd.DataFrame
-            DataFrame to potentially convert.
-        should_convert : bool
-            If True, convert to datasets.Dataset. If False, return as-is.
-
-        Returns
-        -------
-        Union[pd.DataFrame, datasets.Dataset]
-            Original DataFrame or converted Dataset, matching the input type.
-        """
-        if should_convert:
-            logger.info(
-                "Converting pd.DataFrame back to datasets.Dataset to match input type"
-            )
-            return datasets.Dataset.from_pandas(df)
-        return df
+        return convert_from_dataframe(df, should_convert)
 
     def generate(
         self,
@@ -345,389 +124,21 @@ class Flow(BaseModel):
     ) -> Union[pd.DataFrame, datasets.Dataset]:
         """Execute the flow blocks in sequence to generate data.
 
-        Note: For flows with LLM blocks, set_model_config() must be called first
-        to configure model settings before calling generate().
+        For flows with LLM blocks, set_model_config() must be called first.
 
-        Parameters
-        ----------
-        dataset : Union[pd.DataFrame, datasets.Dataset]
-            Input dataset to process. Can be either pandas DataFrame or HuggingFace Dataset
-            (will be automatically converted to DataFrame for backwards compatibility).
-        runtime_params : Optional[Dict[str, Dict[str, Any]]], optional
-            Runtime parameters organized by block name. Format:
-            {
-                "block_name": {"param1": value1, "param2": value2},
-                "other_block": {"param3": value3}
-            }
-        checkpoint_dir : Optional[str], optional
-            Directory to save/load checkpoints. If provided, enables checkpointing.
-        save_freq : Optional[int], optional
-            Number of completed samples after which to save a checkpoint.
-            If None, only saves final results when checkpointing is enabled.
-        log_dir : Optional[str], optional
-            Directory to save execution logs. If provided, logs will be written to both
-            console and a log file in this directory. Maintains backward compatibility
-            when None.
-        max_concurrency : Optional[int], optional
-            Maximum number of concurrent requests across all blocks.
-            Controls async request concurrency to prevent overwhelming servers.
-
-        Returns
-        -------
-        Union[pd.DataFrame, datasets.Dataset]
-            Processed dataset after all blocks have been executed.
-            Return type matches the input type (DataFrame in -> DataFrame out, Dataset in -> Dataset out).
-
-        Raises
-        ------
-        EmptyDatasetError
-            If input dataset is empty or any block produces an empty dataset.
-        FlowValidationError
-            If flow validation fails or if model configuration is required but not set.
+        See execution.execute_flow for full parameter documentation.
         """
-        # Convert to DataFrame if needed (backwards compatibility)
-        dataset, was_dataset = self._convert_to_dataframe(dataset)
+        from .execution import execute_flow
 
-        # Validate save_freq parameter early to prevent range() errors
-        if save_freq is not None and save_freq <= 0:
-            raise FlowValidationError(
-                f"save_freq must be greater than 0, got {save_freq}"
-            )
-
-        # Set up file logging if log_dir is provided
-        flow_logger = logger  # Use global logger by default
-        if log_dir is not None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            flow_name = self.metadata.name.replace(" ", "_").lower()
-            log_filename = f"{flow_name}_{timestamp}.log"
-
-            # Create a flow-specific logger for this execution
-            unique_id = str(uuid.uuid4())[:8]  # Short unique ID
-            flow_logger_name = f"{__name__}.flow_{flow_name}_{timestamp}_{unique_id}"
-            flow_logger = setup_logger(
-                flow_logger_name, log_dir=log_dir, log_filename=log_filename
-            )
-            flow_logger.propagate = False
-            flow_logger.info(
-                f"Flow logging enabled - logs will be saved to: {log_dir}/{log_filename}"
-            )
-        # Validate max_concurrency parameter
-        if max_concurrency is not None:
-            # Explicitly reject boolean values (bool is a subclass of int in Python)
-            if isinstance(max_concurrency, bool) or not isinstance(
-                max_concurrency, int
-            ):
-                raise FlowValidationError(
-                    f"max_concurrency must be an int, got {type(max_concurrency).__name__}"
-                )
-            if max_concurrency <= 0:
-                raise FlowValidationError(
-                    f"max_concurrency must be greater than 0, got {max_concurrency}"
-                )
-
-        # Validate preconditions
-        if not self.blocks:
-            raise FlowValidationError("Cannot generate with empty flow")
-
-        if len(dataset) == 0:
-            raise EmptyDatasetError("Input dataset is empty")
-
-        validate_no_duplicates(dataset)
-
-        # Check if model configuration has been set for flows with LLM blocks
-        llm_blocks = self._detect_llm_blocks()
-        if llm_blocks and not self._model_config_set:
-            raise FlowValidationError(
-                f"Model configuration required before generate(). "
-                f"Found {len(llm_blocks)} LLM blocks: {sorted(llm_blocks)}. "
-                f"Call flow.set_model_config() first."
-            )
-
-        # Validate dataset requirements
-        dataset_errors = self.validate_dataset(dataset)
-        if dataset_errors:
-            raise FlowValidationError(
-                "Dataset validation failed:\n" + "\n".join(dataset_errors)
-            )
-
-        # Log concurrency control if specified
-        if max_concurrency is not None:
-            logger.info(f"Using max_concurrency={max_concurrency} for LLM requests")
-
-        # Initialize checkpointer if enabled
-        checkpointer = None
-        completed_dataset = None
-        if checkpoint_dir:
-            checkpointer = FlowCheckpointer(
-                checkpoint_dir=checkpoint_dir,
-                save_freq=save_freq,
-                flow_id=self.metadata.id,
-            )
-
-            # Load existing progress
-            remaining_dataset, completed_dataset = checkpointer.load_existing_progress(
-                dataset
-            )
-
-            if len(remaining_dataset) == 0:
-                flow_logger.info(
-                    "All samples already completed, returning existing results"
-                )
-                if log_dir is not None and flow_logger is not logger:
-                    for h in list(getattr(flow_logger, "handlers", [])):
-                        try:
-                            h.flush()
-                            h.close()
-                        except Exception:
-                            pass
-                        finally:
-                            flow_logger.removeHandler(h)
-
-                return self._convert_from_dataframe(completed_dataset, was_dataset)
-
-            dataset = remaining_dataset
-            flow_logger.info(f"Resuming with {len(dataset)} remaining samples")
-
-        flow_logger.info(
-            f"Starting flow '{self.metadata.name}' v{self.metadata.version} "
-            f"with {len(dataset)} samples across {len(self.blocks)} blocks"
-            + (f" (max_concurrency={max_concurrency})" if max_concurrency else "")
+        return execute_flow(
+            self,
+            dataset,
+            runtime_params,
+            checkpoint_dir,
+            save_freq,
+            log_dir,
+            max_concurrency,
         )
-
-        # Reset metrics for this execution
-        self._block_metrics = []
-        run_start = time.perf_counter()
-
-        # Execute flow with metrics capture, ensuring metrics are always displayed/saved
-        final_dataset = None
-        execution_successful = False
-
-        try:
-            # Process dataset in chunks if checkpointing with save_freq
-            if checkpointer and save_freq:
-                all_processed = []
-
-                # Process in chunks of save_freq
-                for i in range(0, len(dataset), save_freq):
-                    chunk_end = min(i + save_freq, len(dataset))
-                    chunk_dataset = dataset.iloc[i:chunk_end]
-
-                    flow_logger.info(
-                        f"Processing chunk {i // save_freq + 1}: samples {i} to {chunk_end - 1}"
-                    )
-
-                    # Execute all blocks on this chunk
-                    processed_chunk = self._execute_blocks_on_dataset(
-                        chunk_dataset, runtime_params, flow_logger, max_concurrency
-                    )
-                    all_processed.append(processed_chunk)
-
-                    # Save checkpoint after chunk completion
-                    checkpointer.add_completed_samples(processed_chunk)
-
-                # Save final checkpoint for any remaining samples
-                checkpointer.save_final_checkpoint()
-
-                # Combine all processed chunks
-                final_dataset = safe_concatenate_with_validation(
-                    all_processed, "processed chunks from flow execution"
-                )
-
-                # Combine with previously completed samples if any
-                if (
-                    checkpointer
-                    and completed_dataset is not None
-                    and not completed_dataset.empty
-                ):
-                    final_dataset = safe_concatenate_with_validation(
-                        [completed_dataset, final_dataset],
-                        "completed checkpoint data with newly processed data",
-                    )
-
-            else:
-                # Process entire dataset at once
-                final_dataset = self._execute_blocks_on_dataset(
-                    dataset, runtime_params, flow_logger, max_concurrency
-                )
-
-                # Save final checkpoint if checkpointing enabled
-                if checkpointer:
-                    checkpointer.add_completed_samples(final_dataset)
-                    checkpointer.save_final_checkpoint()
-
-                    # Combine with previously completed samples if any
-                    if completed_dataset is not None and not completed_dataset.empty:
-                        final_dataset = safe_concatenate_with_validation(
-                            [completed_dataset, final_dataset],
-                            "completed checkpoint data with newly processed data",
-                        )
-
-            execution_successful = True
-
-        finally:
-            # Always display metrics and save JSON, even if execution failed
-            display_metrics_summary(
-                self._block_metrics, self.metadata.name, final_dataset
-            )
-
-            # Save metrics to JSON if log_dir is provided
-            if log_dir is not None:
-                # Ensure necessary variables exist
-                if "timestamp" not in locals() or "flow_name" not in locals():
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    flow_name = self.metadata.name.replace(" ", "_").lower()
-
-                save_metrics_to_json(
-                    self._block_metrics,
-                    self.metadata.name,
-                    self.metadata.version,
-                    execution_successful,
-                    run_start,
-                    log_dir,
-                    timestamp,
-                    flow_name,
-                    flow_logger,
-                )
-
-        # Keep a basic log entry for file logs (only if execution was successful)
-        if execution_successful and final_dataset is not None:
-            flow_logger.info(
-                f"Flow '{self.metadata.name}' completed successfully: "
-                f"{len(final_dataset)} final samples, "
-                f"{len(final_dataset.columns)} final columns"
-            )
-
-        # Close file handlers if we opened a flow-specific logger
-        if log_dir is not None and flow_logger is not logger:
-            for h in list(getattr(flow_logger, "handlers", [])):
-                try:
-                    h.flush()
-                    h.close()
-                except Exception:
-                    pass
-                finally:
-                    flow_logger.removeHandler(h)
-
-        return self._convert_from_dataframe(final_dataset, was_dataset)
-
-    def _execute_blocks_on_dataset(
-        self,
-        dataset: pd.DataFrame,
-        runtime_params: dict[str, dict[str, Any]],
-        flow_logger=None,
-        max_concurrency: Optional[int] = None,
-    ) -> pd.DataFrame:
-        """Execute all blocks in sequence on the given dataset.
-
-        Parameters
-        ----------
-        dataset : pd.DataFrame
-            Dataset to process through all blocks.
-        runtime_params : Dict[str, Dict[str, Any]]
-            Runtime parameters for block execution.
-        flow_logger : logging.Logger, optional
-            Logger to use for this execution. Falls back to global logger if None.
-        max_concurrency : Optional[int], optional
-            Maximum concurrency for LLM requests across blocks.
-
-        Returns
-        -------
-        pd.DataFrame
-            Dataset after processing through all blocks.
-        """
-        # Use provided logger or fall back to global logger
-        exec_logger = flow_logger if flow_logger is not None else logger
-        current_dataset = dataset
-
-        # Execute blocks in sequence
-        for i, block in enumerate(self.blocks):
-            exec_logger.info(
-                f"Executing block {i + 1}/{len(self.blocks)}: "
-                f"{block.block_name} ({block.__class__.__name__})"
-            )
-
-            # Prepare block execution parameters
-            block_kwargs = self._prepare_block_kwargs(block, runtime_params)
-
-            # Add max_concurrency to block kwargs if provided
-            if max_concurrency is not None:
-                block_kwargs["_flow_max_concurrency"] = max_concurrency
-
-            # Capture metrics before execution
-            start_time = time.perf_counter()
-            input_rows = len(current_dataset)
-            input_cols = set(current_dataset.columns)
-
-            try:
-                # Execute block with validation and logging
-                current_dataset = block(current_dataset, **block_kwargs)
-
-                # Validate output
-                if len(current_dataset) == 0:
-                    raise EmptyDatasetError(
-                        f"Block '{block.block_name}' produced empty dataset"
-                    )
-
-                # Capture metrics after successful execution
-                execution_time = time.perf_counter() - start_time
-                output_rows = len(current_dataset)
-                output_cols = set(current_dataset.columns)
-                added_cols = output_cols - input_cols
-                removed_cols = input_cols - output_cols
-
-                # Store block metrics
-                self._block_metrics.append(
-                    {
-                        "block_name": block.block_name,
-                        "block_class": block.__class__.__name__,
-                        "execution_time": execution_time,
-                        "input_rows": input_rows,
-                        "output_rows": output_rows,
-                        "added_cols": list(added_cols),
-                        "removed_cols": list(removed_cols),
-                        "status": "success",
-                    }
-                )
-
-                exec_logger.info(
-                    f"Block '{block.block_name}' completed successfully: "
-                    f"{len(current_dataset)} samples, "
-                    f"{len(current_dataset.columns)} columns"
-                )
-
-            except Exception as exc:
-                # Capture metrics for failed execution
-                execution_time = time.perf_counter() - start_time
-                self._block_metrics.append(
-                    {
-                        "block_name": block.block_name,
-                        "block_class": block.__class__.__name__,
-                        "execution_time": execution_time,
-                        "input_rows": input_rows,
-                        "output_rows": 0,
-                        "added_cols": [],
-                        "removed_cols": [],
-                        "status": "failed",
-                        "error": str(exc),
-                    }
-                )
-
-                exec_logger.error(
-                    f"Block '{block.block_name}' failed during execution: {exc}"
-                )
-                raise FlowValidationError(
-                    f"Block '{block.block_name}' execution failed: {exc}"
-                ) from exc
-
-        return current_dataset
-
-    def _prepare_block_kwargs(
-        self, block: BaseBlock, runtime_params: Optional[dict[str, dict[str, Any]]]
-    ) -> dict[str, Any]:
-        """Prepare execution parameters for a block."""
-        if runtime_params is None:
-            return {}
-        return runtime_params.get(block.block_name, {})
 
     def set_model_config(
         self,
@@ -739,272 +150,59 @@ class Flow(BaseModel):
     ) -> None:
         """Configure model settings for LLM blocks in this flow (in-place).
 
-        This method is designed to work with model-agnostic flow definitions where
-        LLM blocks don't have hardcoded model configurations in the YAML. Instead,
-        model settings are configured at runtime using this method.
-
-        Based on LiteLLM's basic usage pattern, this method focuses on the core
-        parameters (model, api_base, api_key) with additional parameters passed via kwargs.
-
-        By default, auto-detects all LLM blocks in the flow and applies configuration to them.
-        Optionally allows targeting specific blocks only.
-
-        Parameters
-        ----------
-        model : Optional[str]
-            Model name to configure (e.g., "hosted_vllm/openai/gpt-oss-120b").
-        api_base : Optional[str]
-            API base URL to configure (e.g., "http://localhost:8101/v1").
-        api_key : Optional[str]
-            API key to configure.
-        blocks : Optional[List[str]]
-            Specific block names to target. If None, auto-detects all LLM blocks.
-        **kwargs : Any
-            Additional model parameters (e.g., temperature, max_tokens, top_p, etc.).
-
-        Examples
-        --------
-        >>> # Recommended workflow: discover -> initialize -> set_model_config -> generate
-        >>> flow = Flow.from_yaml("path/to/flow.yaml")  # Initialize flow
-        >>> flow.set_model_config(  # Configure model settings
-        ...     model="hosted_vllm/openai/gpt-oss-120b",
-        ...     api_base="http://localhost:8101/v1",
-        ...     api_key="your_key",
-        ...     temperature=0.7,
-        ...     max_tokens=2048
-        ... )
-        >>> result = flow.generate(dataset)  # Generate data
-
-        >>> # Configure only specific blocks
-        >>> flow.set_model_config(
-        ...     model="hosted_vllm/openai/gpt-oss-120b",
-        ...     api_base="http://localhost:8101/v1",
-        ...     blocks=["gen_detailed_summary", "knowledge_generation"]
-        ... )
-
-        Raises
-        ------
-        ValueError
-            If no configuration parameters are provided or if specified blocks don't exist.
+        Auto-detects LLM blocks and applies configuration. See model_config.set_model_config
+        for full parameter documentation.
         """
-        # Build the configuration parameters dictionary
-        config_params = {}
-        if model is not None:
-            config_params["model"] = model
-        if api_base is not None:
-            config_params["api_base"] = api_base
-        if api_key is not None:
-            # Convert string api_key to SecretStr for automatic redaction in logs
-            config_params["api_key"] = (
-                SecretStr(api_key) if isinstance(api_key, str) else api_key
-            )
+        from .model_config import set_model_config
 
-        # Add any additional kwargs (temperature, max_tokens, etc.)
-        config_params.update(kwargs)
-
-        # Validate that at least one parameter is provided
-        if not config_params:
-            raise ValueError(
-                "At least one configuration parameter must be provided "
-                "(model, api_base, api_key, or **kwargs)"
-            )
-
-        # Determine target blocks
-        if blocks is not None:
-            # Validate that specified blocks exist in the flow
-            existing_block_names = {block.block_name for block in self.blocks}
-            invalid_blocks = set(blocks) - existing_block_names
-            if invalid_blocks:
-                raise ValueError(
-                    f"Specified blocks not found in flow: {sorted(invalid_blocks)}. "
-                    f"Available blocks: {sorted(existing_block_names)}"
-                )
-            target_block_names = set(blocks)
-            logger.info(
-                f"Targeting specific blocks for configuration: {sorted(target_block_names)}"
-            )
-        else:
-            # Auto-detect LLM blocks
-            target_block_names = set(self._detect_llm_blocks())
-            logger.info(
-                f"Auto-detected {len(target_block_names)} LLM blocks for configuration: {sorted(target_block_names)}"
-            )
-
-        # Apply configuration to target blocks
-        modified_count = 0
-        for block in self.blocks:
-            if block.block_name in target_block_names:
-                for param_name, param_value in config_params.items():
-                    if hasattr(block, param_name):
-                        old_value = getattr(block, param_name)
-                        setattr(block, param_name, param_value)
-                        logger.debug(
-                            f"Block '{block.block_name}': {param_name} "
-                            f"'{old_value}' -> '{param_value}'"
-                        )
-                    ## check if allow extra
-                    elif block.model_config["extra"] == "allow":
-                        setattr(block, param_name, param_value)
-                        logger.debug(
-                            f"Block '{block.block_name}': {param_name} "
-                            f"'{old_value}' -> '{param_value}'"
-                        )
-                    else:
-                        logger.warning(
-                            f"Block '{block.block_name}' ({block.__class__.__name__}) "
-                            f"does not have attribute '{param_name}' - skipping"
-                        )
-
-                modified_count += 1
-
-        if modified_count > 0:
-            # Enhanced logging showing what was configured
-            # Note: SecretStr values automatically display as '**********' in logs
-            param_summary = []
-            for param_name, param_value in config_params.items():
-                if param_name == "model":
-                    param_summary.append(f"model: '{param_value}'")
-                elif param_name == "api_base":
-                    param_summary.append(f"api_base: '{param_value}'")
-                else:
-                    param_summary.append(f"{param_name}: {param_value}")
-
-            logger.info(
-                f"Successfully configured {modified_count} LLM blocks with: {', '.join(param_summary)}"
-            )
-            logger.info(f"Configured blocks: {sorted(target_block_names)}")
-
-            # Mark that model configuration has been set
-            self._model_config_set = True
-        else:
-            logger.warning(
-                "No blocks were modified - check block names or LLM block detection"
-            )
+        set_model_config(self, model, api_base, api_key, blocks, **kwargs)
 
     def _detect_llm_blocks(self) -> list[str]:
-        """Detect blocks with block_type='llm'.
+        """Detect blocks with block_type='llm'. Returns list of block names."""
+        from .model_config import detect_llm_blocks
 
-        Returns
-        -------
-        List[str]
-            List of block names that are LLM blocks.
-        """
-        return [block.block_name for block in self.blocks if block.block_type == "llm"]
+        return detect_llm_blocks(self)
 
     def is_model_config_required(self) -> bool:
-        """Check if model configuration is required for this flow.
+        """Check if model configuration is required (True if flow has LLM blocks)."""
+        from .model_config import is_model_config_required
 
-        Returns
-        -------
-        bool
-            True if flow has LLM blocks and needs model configuration.
-        """
-        return len(self._detect_llm_blocks()) > 0
+        return is_model_config_required(self)
 
     def is_model_config_set(self) -> bool:
-        """Check if model configuration has been set.
+        """Check if model configuration has been set or is not required."""
+        from .model_config import is_model_config_set
 
-        Returns
-        -------
-        bool
-            True if model configuration has been set or is not required.
-        """
-        return self._model_config_set
+        return is_model_config_set(self)
 
     def reset_model_config(self) -> None:
         """Reset model configuration flag (useful for testing or reconfiguration).
 
         After calling this, set_model_config() must be called again before generate().
         """
-        if self.is_model_config_required():
-            self._model_config_set = False
-            logger.info(
-                "Model configuration flag reset - call set_model_config() before generate()"
-            )
+        from .model_config import reset_model_config
+
+        reset_model_config(self)
 
     def get_default_model(self) -> Optional[str]:
-        """Get the default recommended model for this flow.
+        """Get the default recommended model for this flow, or None if unspecified."""
+        from .model_config import get_default_model
 
-        Returns
-        -------
-        Optional[str]
-            Default model name, or None if no models specified.
-
-        Examples
-        --------
-        >>> flow = Flow.from_yaml("path/to/flow.yaml")
-        >>> default_model = flow.get_default_model()
-        >>> print(f"Default model: {default_model}")
-        """
-        if not self.metadata.recommended_models:
-            return None
-        return self.metadata.recommended_models.default
+        return get_default_model(self)
 
     def get_model_recommendations(self) -> dict[str, Any]:
-        """Get a clean summary of model recommendations for this flow.
+        """Get model recommendations dict with 'default', 'compatible', 'experimental' keys."""
+        from .model_config import get_model_recommendations
 
-        Returns
-        -------
-        Dict[str, Any]
-            Dictionary with model recommendations in user-friendly format.
-
-        Examples
-        --------
-        >>> flow = Flow.from_yaml("path/to/flow.yaml")
-        >>> recommendations = flow.get_model_recommendations()
-        >>> print("Model recommendations:")
-        >>> print(f"  Default: {recommendations['default']}")
-        >>> print(f"  Compatible: {recommendations['compatible']}")
-        >>> print(f"  Experimental: {recommendations['experimental']}")
-        """
-        if not self.metadata.recommended_models:
-            return {
-                "default": None,
-                "compatible": [],
-                "experimental": [],
-            }
-
-        return {
-            "default": self.metadata.recommended_models.default,
-            "compatible": self.metadata.recommended_models.compatible,
-            "experimental": self.metadata.recommended_models.experimental,
-        }
+        return get_model_recommendations(self)
 
     def validate_dataset(
         self, dataset: Union[pd.DataFrame, datasets.Dataset]
     ) -> list[str]:
-        """Validate dataset against flow requirements.
+        """Validate dataset against flow requirements. Returns list of error messages."""
+        from .execution import validate_flow_dataset
 
-        Parameters
-        ----------
-        dataset : Union[pd.DataFrame, datasets.Dataset]
-            Dataset to validate. Can be either pandas DataFrame or HuggingFace Dataset
-            (will be automatically converted to DataFrame for backwards compatibility).
-
-        Returns
-        -------
-        list[str]
-            List of validation error messages (empty if valid).
-        """
-        # Convert to DataFrame if needed (backwards compatibility)
-        dataset, _ = self._convert_to_dataframe(dataset)
-
-        errors = []
-
-        if len(dataset) == 0:
-            errors.append("Dataset is empty")
-
-        if self.metadata.dataset_requirements:
-            # Get column names
-            columns = dataset.columns.tolist()
-
-            errors.extend(
-                self.metadata.dataset_requirements.validate_dataset(
-                    columns, len(dataset)
-                )
-            )
-
-        return errors
+        return validate_flow_dataset(self, dataset)
 
     def dry_run(
         self,
@@ -1016,285 +214,21 @@ class Flow(BaseModel):
     ) -> dict[str, Any]:
         """Perform a dry run of the flow with a subset of data.
 
-        Parameters
-        ----------
-        dataset : Union[pd.DataFrame, datasets.Dataset]
-            Input dataset to test with. Can be either pandas DataFrame or HuggingFace Dataset
-            (will be automatically converted to DataFrame for backwards compatibility).
-        sample_size : int, default=2
-            Number of samples to use for dry run testing.
-        runtime_params : Optional[Dict[str, Dict[str, Any]]], optional
-            Runtime parameters organized by block name.
-        max_concurrency : Optional[int], optional
-            Maximum concurrent requests for LLM blocks. If None, no limit is applied.
-        enable_time_estimation : bool, default=False
-            If True, estimates execution time for the full dataset and displays it
-            in a Rich table. Automatically runs a second dry run if needed for
-            accurate scaling analysis.
-
-        Returns
-        -------
-        Dict[str, Any]
-            Dry run results with execution info and sample outputs.
-            Time estimation is displayed in a table but not included in return value.
-
-        Raises
-        ------
-        EmptyDatasetError
-            If input dataset is empty.
-        FlowValidationError
-            If any block fails during dry run execution.
+        See execution.run_dry_run for full parameter documentation.
         """
-        # Convert to DataFrame if needed (backwards compatibility)
-        dataset, _ = self._convert_to_dataframe(dataset)
+        from .execution import run_dry_run
 
-        # Validate preconditions
-        if not self.blocks:
-            raise FlowValidationError("Cannot dry run empty flow")
-
-        if len(dataset) == 0:
-            raise EmptyDatasetError("Input dataset is empty")
-
-        validate_no_duplicates(dataset)
-
-        # Validate max_concurrency parameter
-        if max_concurrency is not None:
-            if isinstance(max_concurrency, bool) or not isinstance(
-                max_concurrency, int
-            ):
-                raise FlowValidationError(
-                    f"max_concurrency must be an int, got {type(max_concurrency).__name__}"
-                )
-            if max_concurrency <= 0:
-                raise FlowValidationError(
-                    f"max_concurrency must be greater than 0, got {max_concurrency}"
-                )
-
-        # Use smaller sample size if dataset is smaller
-        actual_sample_size = min(sample_size, len(dataset))
-
-        logger.info(
-            f"Starting dry run for flow '{self.metadata.name}' "
-            f"with {actual_sample_size} samples"
+        return run_dry_run(
+            self,
+            dataset,
+            sample_size,
+            runtime_params,
+            max_concurrency,
+            enable_time_estimation,
         )
-
-        # Create subset dataset
-        sample_dataset = dataset.iloc[:actual_sample_size]
-
-        # Initialize dry run results
-        dry_run_results = {
-            "flow_name": self.metadata.name,
-            "flow_version": self.metadata.version,
-            "sample_size": actual_sample_size,
-            "original_dataset_size": len(dataset),
-            "max_concurrency": max_concurrency,
-            "input_columns": dataset.columns.tolist(),
-            "blocks_executed": [],
-            "final_dataset": None,
-            "execution_successful": True,
-            "execution_time_seconds": 0,
-        }
-
-        start_time = time.perf_counter()
-
-        try:
-            # Execute the flow with sample data
-            current_dataset = sample_dataset
-            runtime_params = runtime_params or {}
-
-            for i, block in enumerate(self.blocks):
-                block_start_time = time.perf_counter()
-                input_rows = len(current_dataset)
-
-                logger.info(
-                    f"Dry run executing block {i + 1}/{len(self.blocks)}: "
-                    f"{block.block_name} ({block.__class__.__name__})"
-                )
-
-                # Prepare block execution parameters
-                block_kwargs = self._prepare_block_kwargs(block, runtime_params)
-
-                # Add max_concurrency to block kwargs if provided
-                if max_concurrency is not None:
-                    block_kwargs["_flow_max_concurrency"] = max_concurrency
-
-                # Execute block with validation and logging
-                current_dataset = block(current_dataset, **block_kwargs)
-
-                block_execution_time = (
-                    time.perf_counter() - block_start_time
-                )  # Fixed: use perf_counter consistently
-
-                # Record block execution info
-                block_info = {
-                    "block_name": block.block_name,
-                    "block_class": block.__class__.__name__,
-                    "execution_time_seconds": block_execution_time,
-                    "input_rows": input_rows,
-                    "output_rows": len(current_dataset),
-                    "output_columns": current_dataset.columns.tolist(),
-                    "parameters_used": block_kwargs,
-                }
-
-                dry_run_results["blocks_executed"].append(block_info)
-
-                logger.info(
-                    f"Dry run block '{block.block_name}' completed: "
-                    f"{len(current_dataset)} samples, "
-                    f"{len(current_dataset.columns)} columns, "
-                    f"{block_execution_time:.2f}s"
-                )
-
-            # Store final results
-            dry_run_results["final_dataset"] = {
-                "rows": len(current_dataset),
-                "columns": current_dataset.columns.tolist(),
-                "sample_data": current_dataset.to_dict()
-                if len(current_dataset) > 0
-                else {},
-            }
-
-            execution_time = time.perf_counter() - start_time
-            dry_run_results["execution_time_seconds"] = execution_time
-
-            logger.info(
-                f"Dry run completed successfully for flow '{self.metadata.name}' "
-                f"in {execution_time:.2f}s"
-            )
-
-            # Perform time estimation if requested (displays table but doesn't store in results)
-            if enable_time_estimation:
-                self._estimate_total_time(
-                    dry_run_results, dataset, runtime_params, max_concurrency
-                )
-
-            return dry_run_results
-
-        except Exception as exc:
-            execution_time = time.perf_counter() - start_time
-            dry_run_results["execution_successful"] = False
-            dry_run_results["execution_time_seconds"] = execution_time
-            dry_run_results["error"] = str(exc)
-
-            logger.error(f"Dry run failed for flow '{self.metadata.name}': {exc}")
-
-            raise FlowValidationError(f"Dry run failed: {exc}") from exc
-
-    def _estimate_total_time(
-        self,
-        first_run_results: dict[str, Any],
-        dataset: pd.DataFrame,
-        runtime_params: Optional[dict[str, dict[str, Any]]],
-        max_concurrency: Optional[int],
-    ) -> dict[str, Any]:
-        """Estimate execution time using 2 dry runs (private method).
-
-        This method contains all the estimation logic. It determines if a second
-        dry run is needed, executes it, and calls estimate_execution_time.
-
-        Parameters
-        ----------
-        first_run_results : dict
-            Results from the first dry run.
-        dataset : pd.DataFrame
-            Full dataset for estimation.
-        runtime_params : Optional[dict]
-            Runtime parameters.
-        max_concurrency : Optional[int]
-            Maximum concurrency.
-
-        Returns
-        -------
-        dict
-            Estimation results with estimated_time_seconds, total_estimated_requests, etc.
-        """
-        first_sample_size = first_run_results["sample_size"]
-
-        # Check if we need a second dry run
-        has_async_blocks = any(
-            getattr(block, "async_mode", False) for block in self.blocks
-        )
-
-        # For sequential or no async blocks, single run is sufficient
-        if max_concurrency == 1 or not has_async_blocks:
-            estimation = estimate_execution_time(
-                dry_run_1=first_run_results,
-                dry_run_2=None,
-                total_dataset_size=len(dataset),
-                max_concurrency=max_concurrency,
-            )
-        else:
-            # Need second measurement - always use canonical (1, 5) pair
-            if first_sample_size == 1:
-                # Already have 1, need 5
-                logger.info("Running second dry run with 5 samples for time estimation")
-                second_run = self.dry_run(
-                    dataset,
-                    5,
-                    runtime_params,
-                    max_concurrency,
-                    enable_time_estimation=False,
-                )
-                dry_run_1, dry_run_2 = first_run_results, second_run
-            elif first_sample_size == 5:
-                # Already have 5, need 1
-                logger.info("Running second dry run with 1 sample for time estimation")
-                second_run = self.dry_run(
-                    dataset,
-                    1,
-                    runtime_params,
-                    max_concurrency,
-                    enable_time_estimation=False,
-                )
-                dry_run_1, dry_run_2 = second_run, first_run_results
-            else:
-                # For other sizes: run both 1 and 5 for canonical pair
-                logger.info("Running dry runs with 1 and 5 samples for time estimation")
-                dry_run_1 = self.dry_run(
-                    dataset,
-                    1,
-                    runtime_params,
-                    max_concurrency,
-                    enable_time_estimation=False,
-                )
-                dry_run_2 = self.dry_run(
-                    dataset,
-                    5,
-                    runtime_params,
-                    max_concurrency,
-                    enable_time_estimation=False,
-                )
-
-            estimation = estimate_execution_time(
-                dry_run_1=dry_run_1,
-                dry_run_2=dry_run_2,
-                total_dataset_size=len(dataset),
-                max_concurrency=max_concurrency,
-            )
-
-        # Display estimation summary
-        display_time_estimation_summary(estimation, len(dataset), max_concurrency)
-
-        return estimation
 
     def add_block(self, block: BaseBlock) -> "Flow":
-        """Add a block to the flow, returning a new Flow instance.
-
-        Parameters
-        ----------
-        block : BaseBlock
-            Block to add to the flow.
-
-        Returns
-        -------
-        Flow
-            New Flow instance with the added block.
-
-        Raises
-        ------
-        ValueError
-            If the block is invalid or creates naming conflicts.
-        """
+        """Add a block to the flow, returning a new Flow instance."""
         if not isinstance(block, BaseBlock):
             raise ValueError(f"Block must be a BaseBlock instance, got: {type(block)}")
 
@@ -1313,189 +247,27 @@ class Flow(BaseModel):
 
     def get_info(self) -> dict[str, Any]:
         """Get information about the flow."""
-        return {
-            "metadata": self.metadata.model_dump(),
-            "blocks": [
-                {
-                    "block_class": block.__class__.__name__,
-                    "block_name": block.block_name,
-                    "input_cols": getattr(block, "input_cols", None),
-                    "output_cols": getattr(block, "output_cols", None),
-                }
-                for block in self.blocks
-            ],
-            "total_blocks": len(self.blocks),
-            "block_names": [block.block_name for block in self.blocks],
-        }
+        from .display import get_flow_info
+
+        return get_flow_info(self)
 
     def get_dataset_requirements(self) -> Optional[DatasetRequirements]:
-        """Get the dataset requirements for this flow.
+        """Get the dataset requirements for this flow, or None if not defined."""
+        from .display import get_dataset_requirements
 
-        Returns
-        -------
-        Optional[DatasetRequirements]
-            Dataset requirements object or None if not defined.
-
-        Examples
-        --------
-        >>> flow = Flow.from_yaml("path/to/flow.yaml")
-        >>> requirements = flow.get_dataset_requirements()
-        >>> if requirements:
-        ...     print(f"Required columns: {requirements.required_columns}")
-        """
-        return self.metadata.dataset_requirements
+        return get_dataset_requirements(self)
 
     def get_dataset_schema(self) -> pd.DataFrame:
-        """Get an empty dataset with the correct schema for this flow.
+        """Get an empty DataFrame with the correct schema for this flow."""
+        from .display import get_dataset_schema
 
-        Returns
-        -------
-        pd.DataFrame
-            Empty DataFrame with the correct schema/features for this flow.
-            Users can add data to this dataset or use it to validate their own dataset schema.
-
-        Examples
-        --------
-        >>> flow = Flow.from_yaml("path/to/flow.yaml")
-        >>> schema_dataset = flow.get_dataset_schema()
-        >>>
-        >>> # Add your data
-        >>> schema_dataset = schema_dataset.add_item({
-        ...     "document": "Your document text",
-        ...     "domain": "Computer Science",
-        ...     "icl_document": "Example document"
-        ... })
-        >>>
-        >>> # Or validate your existing dataset schema
-        >>> my_dataset = pd.DataFrame(my_data)
-        >>> if my_dataset.dtypes.equals(schema_dataset.dtypes):
-        ...     print("Schema matches!")
-        """
-
-        requirements = self.get_dataset_requirements()
-
-        if requirements is None:
-            # Return empty dataframe with no schema requirements
-            return pd.DataFrame({})
-
-        # Build schema with column names and dtypes
-        schema = {}
-
-        # Process required columns
-        for col_name in requirements.required_columns:
-            col_type = requirements.column_types.get(col_name, "string")
-            schema[col_name] = self._map_column_type_to_dtype(col_type)
-
-        # Process optional columns
-        for col_name in requirements.optional_columns:
-            col_type = requirements.column_types.get(col_name, "string")
-            schema[col_name] = self._map_column_type_to_dtype(col_type)
-
-        # Create empty dataframe with the correct dtypes
-        empty_data = {
-            col_name: pd.Series([], dtype=dtype) for col_name, dtype in schema.items()
-        }
-
-        return pd.DataFrame(empty_data)
-
-    def _map_column_type_to_dtype(self, col_type: str):
-        """Map column type string to pandas dtype."""
-        # Map common type names to pandas dtypes
-        if col_type in ["str", "string", "text"]:
-            return "object"  # pandas uses 'object' for strings
-        elif col_type in ["int", "integer"]:
-            return "Int64"  # nullable integer
-        elif col_type in ["float", "number"]:
-            return "float64"
-        elif col_type in ["bool", "boolean"]:
-            return "boolean"  # nullable boolean
-        else:
-            # Default to object (string) for unknown types
-            return "object"
+        return get_dataset_schema(self)
 
     def print_info(self) -> None:
-        """
-        Print an interactive summary of the Flow in the console.
+        """Print an interactive summary of the Flow in the console using rich."""
+        from .display import print_flow_info
 
-        The summary contains:
-        1. Flow metadata (name, version, author, description)
-        2. A table of all blocks with their input and output columns
-
-        Notes
-        -----
-        Uses the `rich` library for colourised output; install with
-        `pip install rich` if not already present.
-
-        Returns
-        -------
-        None
-        """
-
-        console = Console()
-
-        # Create main tree structure
-        flow_tree = Tree(
-            f"[bold bright_blue]{self.metadata.name}[/bold bright_blue] Flow"
-        )
-
-        # Metadata section
-        metadata_branch = flow_tree.add(
-            "[bold bright_green]Metadata[/bold bright_green]"
-        )
-        metadata_branch.add(
-            f"Version: [bright_cyan]{self.metadata.version}[/bright_cyan]"
-        )
-        metadata_branch.add(
-            f"Author: [bright_cyan]{self.metadata.author}[/bright_cyan]"
-        )
-        if self.metadata.description:
-            metadata_branch.add(
-                f"Description: [white]{self.metadata.description}[/white]"
-            )
-
-        # Blocks overview
-        flow_tree.add(
-            f"[bold bright_magenta]Blocks[/bold bright_magenta] ({len(self.blocks)} total)"
-        )
-
-        # Create blocks table
-        blocks_table = Table(show_header=True, header_style="bold bright_white")
-        blocks_table.add_column("Block Name", style="bright_cyan")
-        blocks_table.add_column("Type", style="bright_green")
-        blocks_table.add_column("Input Cols", style="bright_yellow")
-        blocks_table.add_column("Output Cols", style="bright_red")
-
-        for block in self.blocks:
-            input_cols = getattr(block, "input_cols", None)
-            output_cols = getattr(block, "output_cols", None)
-
-            blocks_table.add_row(
-                block.block_name,
-                block.__class__.__name__,
-                str(input_cols) if input_cols else "[bright_black]None[/bright_black]",
-                str(output_cols)
-                if output_cols
-                else "[bright_black]None[/bright_black]",
-            )
-
-        # Print everything
-        console.print()
-        console.print(
-            Panel(
-                flow_tree,
-                title="[bold bright_white]Flow Information[/bold bright_white]",
-                border_style="bright_blue",
-            )
-        )
-        console.print()
-        console.print(
-            Panel(
-                blocks_table,
-                title="[bold bright_white]Block Details[/bold bright_white]",
-                border_style="bright_magenta",
-            )
-        )
-        console.print()
+        print_flow_info(self)
 
     def to_yaml(self, output_path: str) -> None:
         """Save flow configuration to YAML file.
@@ -1503,18 +275,9 @@ class Flow(BaseModel):
         Note: This creates a basic YAML structure. For exact reproduction
         of original YAML, save the original file separately.
         """
-        config = {
-            "metadata": self.metadata.model_dump(),
-            "blocks": [
-                {
-                    "block_type": block.__class__.__name__,
-                    "block_config": block.model_dump(),
-                }
-                for block in self.blocks
-            ],
-        }
+        from .serialization import save_flow_to_yaml
 
-        save_flow_yaml(output_path, config)
+        save_flow_to_yaml(self, output_path)
 
     def __len__(self) -> int:
         """Number of blocks in the flow."""
