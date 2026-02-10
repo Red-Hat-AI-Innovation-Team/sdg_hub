@@ -23,6 +23,51 @@ def get_avg_summaries_per_raw_doc(df: pl.DataFrame) -> float:
     return avg_summaries
 
 
+def sample_docs(
+    df: pl.DataFrame, n_docs_per_raw: int = 50
+) -> pl.DataFrame:
+    """
+    Sample unique summaries (documents) per raw document.
+
+    Args:
+        df: Input dataframe with 'document', 'raw_document', 'document_outline' columns
+        n_docs_per_raw: Maximum number of unique summaries to sample per raw document (cut size)
+
+    Returns:
+        Sampled dataframe with 'document', 'raw_document', 'document_outline'
+    """
+    # Validate required columns
+    required_cols = [
+        "document",
+        "raw_document",
+        "document_outline",
+    ]
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Missing required columns: {missing_cols}")
+
+    # Check if cut size is feasible
+    avg_summaries = get_avg_summaries_per_raw_doc(df)
+    if avg_summaries < n_docs_per_raw:
+        print(
+            f"⚠️ Warning: Cut size {n_docs_per_raw} exceeds available summaries (avg: {avg_summaries:.1f} per raw document)"
+        )
+
+    # For uniqueness, group by document
+    df_unique = df.group_by("document").agg(
+        [
+            pl.col("raw_document").first().alias("raw_document"),
+            pl.col("document_outline").first().alias("document_outline"),
+        ]
+    )
+
+    # Sample unique summaries per raw document
+    sampled_docs = df_unique.group_by("raw_document").map_groups(
+        lambda g: g.sample(n=min(n_docs_per_raw, g.height))
+    )
+
+    return sampled_docs
+
 def sample_doc_qa(
     df: pl.DataFrame, n_docs_per_raw: int = 50, qa_per_doc: int = 3
 ) -> pl.DataFrame:
@@ -310,9 +355,17 @@ def count_len_in_tokens(
         """Count tokens in text."""
         return len(tokenizer.encode(text))
 
-    return df.with_columns(
-        pl.col(column_name)
-        .map_elements(apply_chat_template, return_dtype=pl.String)
-        .map_elements(count_tokens, return_dtype=pl.Int32)
-        .alias("token_length")
-    )
+    if column_name == "messages":
+        expr = (
+            pl.col(column_name)
+            .map_elements(apply_chat_template, return_dtype=pl.String)
+            .map_elements(count_tokens, return_dtype=pl.Int32)
+            .alias("token_length")
+        )
+    else:
+        expr = (
+            pl.col(column_name)
+            .map_elements(count_tokens, return_dtype=pl.Int32)
+            .alias("token_length")
+        )
+    return df.with_columns(expr)
