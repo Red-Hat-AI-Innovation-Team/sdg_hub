@@ -9,14 +9,18 @@ on:
     paths:
       - '**/*.md'
       - '.markdownlint-cli2.yaml'
-      - '.github/workflows/docs.yml' # This workflow
+      - '.github/workflows/docs.yml'
   pull_request:
     branches:
       - "main"
     paths:
       - '**/*.md'
       - '.markdownlint-cli2.yaml'
-      - '.github/workflows/docs.yml' # This workflow
+      - '.github/workflows/docs.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   LC_ALL: en_US.UTF-8

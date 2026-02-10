@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 name: Integration Test
+
 on:
   workflow_dispatch:
   push:
@@ -12,6 +13,10 @@ on:
       - "main"
       - "release-**"
     types: [opened, synchronize, reopened, labeled]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   LC_ALL: en_US.UTF-8
@@ -30,9 +35,16 @@ jobs:
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
     steps:
-      - uses: actions/checkout@v4
+      - name: "Harden Runner"
+        uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
+        with:
+          egress-policy: audit
 
-      - uses: dorny/paths-filter@v3
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Check paths
+        uses: dorny/paths-filter@v3
         id: filter
         if: github.event_name == 'pull_request'
         with:
@@ -41,11 +53,10 @@ jobs:
               # Only trigger on changes to relevant flows and examples (EXTEND THIS):
               - 'src/sdg_hub/flows/qa_generation/document_grounded_qa/enhanced_multi_summary_qa/**'
               - 'examples/knowledge_tuning/enhanced_summary_knowledge_tuning/**'
-              # Standard integration test triggers, DONT CHANGE THIS
+              # Standard integration test triggers
               - 'tests/integration/**/*.py'
               - 'pyproject.toml'
               - 'uv.lock'
-              - 'tox.ini'
               - '.github/workflows/integration-test.yml'
 
       - name: Determine if tests should run
@@ -71,11 +82,10 @@ jobs:
           fi
 
   integration-test:
-    name: "Integration Tests - ${{ matrix.python }} on ${{ matrix.platform }}"
+    name: "Integration Tests - Python ${{ matrix.python }} on ${{ matrix.platform }}"
     runs-on: "${{ matrix.platform }}"
     needs: check-trigger
     if: needs.check-trigger.outputs.should_run == 'true'
-    # Require manual approval before running (via GitHub Environment)
     environment: integration-tests
     strategy:
       matrix:
@@ -87,71 +97,60 @@ jobs:
       - name: "Harden Runner"
         uses: step-security/harden-runner@0634a2670c59f64b4a01f0f96f84700a4088b9f0 # v2.12.0
         with:
-          egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
+          egress-policy: audit
 
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          # https://github.com/actions/checkout/issues/249
           fetch-depth: 0
 
       - name: Free disk space
         uses: ./.github/actions/free-disk-space
 
       - name: Install the expect package
-        run: |
-          sudo apt-get install -y expect
+        run: sudo apt-get install -y expect
 
       - name: Setup uv
         uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7.3.0
         with:
-          version: "0.10.1"
           python-version: ${{ matrix.python }}
           enable-cache: true
-          cache-dependency-glob: |
-            **/pyproject.toml
-            **/uv.lock
 
       - name: Cache huggingface datasets
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/huggingface
-          # Invalidate cache when any example notebook changes (may affect dataset downloads)
           key: huggingface-${{ hashFiles('examples/**/*.ipynb') }}
 
-      - name: Install tox with tox-uv
-        run: |
-          uv tool install tox --with tox-uv --with tox-gh
+      - name: Install dependencies
+        run: uv sync --extra dev --extra integration
 
-      - name: Run integration tests with tox
+      - name: Run integration tests
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          # Uses .[dev,integration] - lightweight, no torch/transformers
-          tox -e py3-integrationcov
+          uv run pytest \
+            --cov=sdg_hub \
+            --cov-report=term \
+            --cov-report=xml:coverage-integration.xml \
+            tests/integration \
+            -v -s
 
-
-      - name: Upload integration test coverage to Codecov
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./coverage-py3-integrationcov.xml
+          file: ./coverage-integration.xml
           fail_ci_if_error: false
           flags: integration
 
       - name: Upload integration test artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: integration-test-results-${{ matrix.python }}-${{ matrix.platform }}
-          path: |
-            coverage-py3-integrationcov/
-            coverage-py3-integrationcov.xml
-            durations/py3-integrationcov.html
+          path: coverage-integration.xml
           retention-days: 30
-
-      - name: Prune uv cache
-        run: uv cache prune --ci
 
   integration-test-workflow-complete:
     needs: ["integration-test"]

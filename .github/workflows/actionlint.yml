@@ -7,13 +7,17 @@ on:
       - "main"
     paths:
       - '.github/workflows/*.ya?ml'
-      - '.github/workflows/actionlint.*' # This workflow
+      - '.github/workflows/actionlint.*'
   pull_request:
     branches:
       - "main"
     paths:
       - '.github/workflows/*.ya?ml'
-      - '.github/workflows/actionlint.*' # This workflow
+      - '.github/workflows/actionlint.*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   LC_ALL: en_US.UTF-8

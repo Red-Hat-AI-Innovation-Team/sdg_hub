@@ -18,6 +18,10 @@ on:
       - 'pyproject.toml'
       - '.github/workflows/lint.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   LC_ALL: en_US.UTF-8
   RUFF_VERSION: "0.3.4"
@@ -43,8 +47,6 @@ jobs:
 
       - name: Setup uv
         uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7.3.0
-        with:
-          version: "0.10.1"
 
       - name: Run Ruff format check
         run: uvx ruff@${{ env.RUFF_VERSION }} format --check src/ tests/

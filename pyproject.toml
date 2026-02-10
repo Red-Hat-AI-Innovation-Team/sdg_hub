@@ -53,18 +53,15 @@ issues = "https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/issues"
 [project.optional-dependencies]
 # Development and testing dependencies (lightweight, no ML libraries)
 dev = [
+    "coverage>=7.0.0",
+    "nbconvert>=7.0.0",
     "pre-commit>=3.0.4,<4.0",
-    "pylint>=2.16.2,<4.0",
-    "pylint-pydantic",
     "pytest",
     "pytest-asyncio",
     "pytest-cov",
-    "pytest-html",
-    "tox>=4.4.2,<5",
-    "ruff",
     "pytest-env",
-    # Integration testing dependencies
-    "nbconvert>=7.0.0",
+    "pytest-html",
+    "ruff>=0.3.4",
 ]
 # Minimal dependencies for integration testing only
 # Integration tests run knowledge_generation.ipynb which only needs nest-asyncio
@@ -88,6 +85,9 @@ examples = [
     "fastapi",
     "ipykernel",
 ]
+
+[tool.uv]
+required-version = ">=0.10.0"
 
 [tool.setuptools_scm]
 version_file = "src/sdg_hub/_version.py"
