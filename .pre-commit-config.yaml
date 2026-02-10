@@ -1,6 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 repos:
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.10.1
+    hooks:
+      # Keep uv.lock in sync with pyproject.toml
+      - id: uv-lock
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.3.4
     hooks:
