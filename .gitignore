@@ -123,8 +123,8 @@ ipython_config.py
 .pdm-build/
 
 # UV
+#   uv.lock is tracked in version control for reproducible builds
 .uv_cache/
-.python-version
 
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
 __pypackages__/
