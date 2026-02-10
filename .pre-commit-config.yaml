@@ -10,13 +10,11 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.3.4
     hooks:
-      # Run the linter on commit and push
+      # Run the linter with auto-fix
       - id: ruff
         args: [--fix]
-        stages: [pre-commit, pre-push]
-      # Run the formatter on commit and push
+      # Run the formatter
       - id: ruff-format
-        stages: [pre-commit, pre-push]
 
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v3.6.0
