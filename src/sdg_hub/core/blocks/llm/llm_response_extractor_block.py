@@ -328,22 +328,3 @@ class LLMResponseExtractorBlock(BaseBlock):
             new_data.extend(self._generate(sample))
 
         return pd.DataFrame(new_data)
-
-
-# Backwards compatibility alias (deprecated)
-# Register deprecated alias in BlockRegistry so old YAML flows still work
-@BlockRegistry.register(
-    "LLMParserBlock",
-    "llm",
-    "Deprecated: Use LLMResponseExtractorBlock instead",
-    deprecated=True,
-    replacement="LLMResponseExtractorBlock",
-)
-class LLMParserBlock(LLMResponseExtractorBlock):
-    """Deprecated alias for LLMResponseExtractorBlock.
-
-    This class exists for backwards compatibility with existing code and YAML flows.
-    Use LLMResponseExtractorBlock instead.
-    """
-
-    pass

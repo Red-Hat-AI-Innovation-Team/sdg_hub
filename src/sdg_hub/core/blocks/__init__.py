@@ -9,7 +9,6 @@ from .base import BaseBlock
 from .filtering import ColumnValueFilterBlock
 from .llm import (
     LLMChatBlock,
-    LLMParserBlock,
     LLMResponseExtractorBlock,
     PromptBuilderBlock,
     TextParserBlock,
@@ -36,7 +35,6 @@ __all__ = [
     "TextConcatBlock",
     "UniformColumnValueSetter",
     "LLMChatBlock",
-    "LLMParserBlock",  # Deprecated alias for LLMResponseExtractorBlock
     "LLMResponseExtractorBlock",
     "TextParserBlock",
     "PromptBuilderBlock",
