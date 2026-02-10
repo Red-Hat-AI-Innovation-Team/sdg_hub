@@ -33,7 +33,7 @@ from sdg_hub.core.flow import FlowRegistry, Flow
 from datasets import Dataset
 
 # Load a pre-built flow
-flow_name = "Advanced Document Grounded Question-Answer Generation Flow for Knowledge Tuning"
+flow_name = "Extractive Summary Knowledge Tuning Dataset Generation Flow"
 flow_path = FlowRegistry.get_flow_path(flow_name)
 flow = Flow.from_yaml(flow_path)
 
@@ -55,11 +55,8 @@ dataset = Dataset.from_dict({
     'domain': ['Computer Science'],
     'icl_document': ['Java is an object-oriented programming language that runs on the Java Virtual Machine.'],
     'icl_query_1': ['What type of language is Java?'],
-    'icl_response_1': ['Java is an object-oriented programming language.'],
     'icl_query_2': ['Where does Java run?'],
-    'icl_response_2': ['Java runs on the Java Virtual Machine.'],
-    'icl_query_3': ['What are the benefits of Java?'],
-    'icl_response_3': ['Java provides platform independence and strong object-oriented features.']
+    'icl_query_3': ['What are the benefits of Java?']
 })
 
 # Test with a small sample AND get time estimate (recommended!)
@@ -94,7 +91,6 @@ print(f"\n📈 Generated {len(result)} QA pairs!")
 print(f"📝 Sample Question: {result['question'][0]}")
 print(f"💬 Sample Answer: {result['response'][0]}")
 print(f"🎯 Faithfulness Score: {result['faithfulness_judgment'][0]}")
-print(f"📏 Relevancy Score: {result['relevancy_score'][0]}")
 ```
 
 ## 🔧 Step 5: Search and Filter Components

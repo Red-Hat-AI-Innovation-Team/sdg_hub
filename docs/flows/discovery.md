@@ -26,11 +26,12 @@ The discovery system searches these locations:
 src/sdg_hub/flows/                    # Built-in flows
 ├── qa_generation/                    # Question-answer generation
 │   ├── document_grounded_qa/
+│   │   ├── enhanced_multi_summary_qa/
+│   │   │   └── flow.yaml
 │   │   └── multi_summary_qa/
-│   │       └── instructlab/
-│   │           ├── flow.yaml
-│   │           ├── atomic_facts.yaml
-│   │           └── detailed_summary.yaml
+│   │       └── multilingual/
+│   │           └── japanese/
+│   │               └── flow.yaml
 │   └── simple_qa/
 │       └── flow.yaml
 ├── text_processing/                  # Text manipulation flows
@@ -60,7 +61,7 @@ for flow_name in all_flows:
 
 # Output:
 # Found 3 flows:
-#   • Advanced Document Grounded Question-Answer Generation Flow for Knowledge Tuning
+#   • Extractive Summary Knowledge Tuning Dataset Generation Flow
 #   • Simple QA Generation Flow
 #   • Document Summarization Flow
 ```
@@ -73,7 +74,7 @@ Access detailed flow metadata and configuration:
 from sdg_hub.core.flow import FlowRegistry, Flow
 
 # Get metadata for a specific flow
-flow_name = "Advanced Document Grounded Question-Answer Generation Flow for Knowledge Tuning"
+flow_name = "Extractive Summary Knowledge Tuning Dataset Generation Flow"
 metadata = FlowRegistry.get_flow_metadata(flow_name)
 
 if metadata:
@@ -157,9 +158,9 @@ flows/
 │   ├── conversational_qa/
 │   └── multi_turn_dialogue/
 └── variant/             # By implementation variant
-    ├── instructlab/     # InstructLab-specific
     ├── simple/          # Simplified version
-    └── advanced/        # Feature-rich version
+    ├── advanced/        # Feature-rich version
+    └── multilingual/    # Language-specific variants
 ```
 
 ### Flow Naming Conventions
@@ -169,8 +170,8 @@ Follow consistent naming patterns:
 ```yaml
 # Good naming examples
 metadata:
-  name: "Advanced Document Grounded Question-Answer Generation Flow for Knowledge Tuning"
-  name: "Simple Text Summarization Flow"  
+  name: "Extractive Summary Knowledge Tuning Dataset Generation Flow"
+  name: "Simple Text Summarization Flow"
   name: "Multi-Turn Dialogue Generation with Context Tracking"
 
 ```
@@ -182,13 +183,15 @@ Organize flows logically:
 ```
 qa_generation/                           # Primary domain
 ├── document_grounded_qa/                # Specific approach
-│   ├── multi_summary_qa/                # Implementation variant
-│   │   ├── instructlab/                 # Framework-specific
-│   │   │   ├── flow.yaml               # Main flow definition
-│   │   │   ├── README.md               # Flow documentation
-│   │   │   ├── atomic_facts.yaml       # Supporting templates
-│   │   │   ├── detailed_summary.yaml
-│   │   │   └── generate_questions_responses.yaml
+│   ├── enhanced_multi_summary_qa/       # Enhanced implementation
+│   │   ├── flow.yaml                   # Main flow definition
+│   │   └── README.md                   # Flow documentation
+│   └── multi_summary_qa/               # Multi-summary variant
+│       └── multilingual/               # Language-specific
+│           └── japanese/               # Japanese language support
+│               ├── flow.yaml
+│               ├── atomic_facts_ja.yaml
+│               └── detailed_summary_ja.yaml
 ```
 
 ## 🏷️ Flow Categorization and Tagging

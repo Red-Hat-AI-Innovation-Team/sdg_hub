@@ -22,7 +22,6 @@ All flows support:
 | Flow Category | Flow Count | Primary Use Case | Tags |
 |---------------|------------|------------------|------|
 | [Enhanced Multi-Summary QA](#enhanced-multi-summary-qa-flows) | 4 | Knowledge tuning dataset generation | `knowledge-tuning`, `document-internalization` |
-| [InstructLab QA](#instructlab-multi-summary-qa-flow) | 1 | High-quality QA with extensive evaluation | `question-generation`, `educational` |
 | [Multilingual QA](#japanese-multilingual-multi-summary-qa-flow) | 1 | Japanese language QA generation | `multilingual`, `japanese` |
 | [Text Analysis](#structured-text-insights-extraction-flow) | 1 | NLP insights extraction | `text-analysis`, `nlp` |
 
@@ -536,13 +535,13 @@ Generation Complete:
 
 ---
 
-## InstructLab Multi-Summary QA Flow
+## Japanese Multilingual Multi-Summary QA Flow
 
-**Name:** `Advanced Document Grounded Question-Answer Generation Flow for Knowledge Tuning`
+**Name:** `Advanced Japanese Document Grounded Question-Answer Generation Flow for Knowledge Tuning`
 
-**Purpose:** Generate highest-quality QA pairs with comprehensive three-stage evaluation (faithfulness, relevancy, question verification).
+**Purpose:** Generate high-quality Japanese QA pairs with comprehensive three-stage evaluation (faithfulness, relevancy, question verification) for Japanese language training data generation.
 
-**Location:** `src/sdg_hub/flows/qa_generation/document_grounded_qa/multi_summary_qa/instructlab/`
+**Location:** `src/sdg_hub/flows/qa_generation/document_grounded_qa/multi_summary_qa/multilingual/japanese/`
 
 ### Architecture
 
@@ -555,156 +554,10 @@ Triple Evaluation (faithfulness, relevancy, verification) →
 Filtered High-Quality QA
 ```
 
-**Key Differences from Enhanced Flows:**
-
-1. **Combined Approach**: Generates all 3 summary types in one flow
-2. **Triple Evaluation**:
-   - Faithfulness: Is answer grounded in document?
-   - Relevancy: Does answer address the question? (score ≥ 2.0)
-   - Verification: Is question well-formed? (rating ≥ 1.0)
-3. **Lower n Parameter**: `n=2` for detailed summaries (quality over quantity)
-4. **MeltColumnsBlock**: Combines summary types into unified dataset
-
-### Input Requirements
-
-| Column | Description | Required |
-|--------|-------------|----------|
-| `document` | Full document text | Yes |
-| `document_outline` | Document title/outline | Yes |
-| `domain` | Content domain | Yes |
-| `icl_document` | Example document for in-context learning | Yes |
-| `icl_query_1-3` | Example questions | Yes |
-| `icl_response_1-3` | Example responses | Yes |
-
-Note: Requires example **responses** (not just queries like enhanced flows)
-
-### Output Columns
-
-- `question` - Generated question
-- `response` - Generated answer
-- `raw_document` - Original document
-- `dataset_type` - Source summary type (detailed/extractive/atomic/document)
-- `faithfulness_explanation`, `faithfulness_judgment`
-- `relevancy_explanation`, `relevancy_score`
-- `verification_explanation`, `verification_rating`
-
-### Key Parameters
-
-```python
-runtime_params = {
-    "gen_detailed_summary": {
-        "n": 2,              # Only 2 detailed summaries (vs 50 in enhanced)
-        "max_tokens": 2048
-    },
-    "knowledge_generation": {
-        "temperature": 0.0,  # Deterministic for consistency
-        "max_tokens": 2048
-    }
-}
-```
-
-### When to Use
-- Need high-volume generation (50+ QAs per document)
-- Want specific augmentation types separately
-
-### Performance Characteristics
-
-| Metric | InstructLab | Enhanced Flows |
-|--------|-------------|----------------|
-| QA per Document | ~10-20 | ~50-100+ |
-| Evaluation Stages | 3 | 1 |
-| Processing Time | High | Medium |
-| Output Quality | Highest | High |
-| Failure Rate | Higher (stricter) | Lower |
-
-### Example Usage
-
-```python
-from sdg_hub.core.flow import Flow, FlowRegistry
-from datasets import Dataset
-
-# Load flow
-FlowRegistry.discover_flows()
-flow_path = FlowRegistry.get_flow_path(
-    "Advanced Document Grounded Question-Answer Generation Flow for Knowledge Tuning"
-)
-flow = Flow.from_yaml(flow_path)
-
-# Configure model
-flow.set_model_config(
-    model="meta-llama/Llama-3.3-70B-Instruct",
-    api_key="your_key"
-)
-
-# Prepare input (note: includes icl_response fields)
-dataset = Dataset.from_dict({
-    "document": ["Your document..."],
-    "document_outline": ["Title"],
-    "domain": ["educational"],
-    "icl_document": ["Example doc..."],
-    "icl_query_1": ["Example question 1?"],
-    "icl_response_1": ["Example answer 1"],
-    "icl_query_2": ["Example question 2?"],
-    "icl_response_2": ["Example answer 2"],
-    "icl_query_3": ["Example question 3?"],
-    "icl_response_3": ["Example answer 3"]
-})
-
-# Generate with triple evaluation
-result = flow.generate(dataset, max_concurrency=10)
-
-# Filter only highest quality
-high_quality = result.filter(
-    lambda x: (x['faithfulness_judgment'] == 'YES' and
-               x['relevancy_score'] >= 2.0 and
-               x['verification_rating'] >= 1.0)
-)
-
-print(f"Generated {len(result)} total, {len(high_quality)} high-quality QA pairs")
-```
-
-### Evaluation Details
-
-**1. Faithfulness Evaluation:**
-```yaml
-Prompt: "Is this answer faithful to the document?"
-Output: [Start of Explanation]...[End of Explanation]
-        [Start of Answer]YES/NO[End of Answer]
-Filter: Keep only "YES"
-```
-
-**2. Relevancy Evaluation:**
-```yaml
-Prompt: "Rate how well the answer addresses the question (0.0-2.0)"
-Output: [Start of Feedback]...[End of Feedback]
-        [Start of Score]2.0[End of Score]
-Filter: Keep score ≥ 2.0
-```
-
-**3. Question Verification:**
-```yaml
-Prompt: "Rate question quality (-1.0 to 1.0)"
-Output: [Start of Explanation]...[End of Explanation]
-        [Start of Rating]1.0[End of Rating]
-Filter: Keep rating ≥ 1.0
-```
-
----
-
-## Japanese Multilingual Multi-Summary QA Flow
-
-**Name:** `Advanced Japanese Document Grounded Question-Answer Generation Flow for Knowledge Tuning`
-
-**Purpose:** Localized version of InstructLab flow for Japanese language training data generation.
-
-**Location:** `src/sdg_hub/flows/qa_generation/document_grounded_qa/multi_summary_qa/multilingual/japanese/`
-
-### Architecture
-
-Same as InstructLab flow but with:
+**Key Features:**
 - Augmented prompts for Japanese text output
 - Japanese prompt YAML files (suffixed with `_ja.yaml`)
-- Same block structure and evaluation stages
+- Three-stage evaluation for quality filtering
 
 ### Files
 
@@ -719,7 +572,14 @@ japanese/
 
 ### Input Requirements
 
-Same structure as InstructLab, but with **Japanese text** in document fields:
+| Column | Description | Required |
+|--------|-------------|----------|
+| `document` | Full document text (in Japanese) | Yes |
+| `document_outline` | Document title/outline | Yes |
+| `domain` | Content domain | Yes |
+| `icl_document` | Example document for in-context learning | Yes |
+| `icl_query_1-3` | Example questions | Yes |
+| `icl_response_1-3` | Example responses | Yes |
 
 ```python
 dataset = Dataset.from_dict({
@@ -735,9 +595,13 @@ dataset = Dataset.from_dict({
 
 ### Output Columns
 
-Same as InstructLab flow:
-- Japanese question and response
-- Evaluation metrics (faithfulness, relevancy, verification)
+- `question` - Generated question (in Japanese)
+- `response` - Generated answer (in Japanese)
+- `raw_document` - Original document
+- `dataset_type` - Source summary type (detailed/extractive/atomic/document)
+- `faithfulness_explanation`, `faithfulness_judgment`
+- `relevancy_explanation`, `relevancy_score`
+- `verification_explanation`, `verification_rating`
 
 ### When to Use
 
@@ -793,7 +657,7 @@ To create a new language variant:
    ```
 
 2. **Copy and translate prompts:**
-   - Start from `instructlab/*.yaml` or `japanese/*_ja.yaml`
+   - Start from `japanese/*_ja.yaml` as a template
    - Translate system and user messages
    - Preserve formatting tags and structure
 

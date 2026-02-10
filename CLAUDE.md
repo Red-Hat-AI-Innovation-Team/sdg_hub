@@ -141,11 +141,15 @@ blocks:
 ### Built-in Flow Discovery
 The framework includes auto-discovery for flows in `src/sdg_hub/flows/`. Example flow structure:
 ```
-flows/qa_generation/document_grounded_qa/multi_summary_qa/instructlab/
-├── flow.yaml                    # Main flow definition
-├── atomic_facts.yaml           # Sub-flow configurations
-├── detailed_summary.yaml
-└── generate_questions_responses.yaml
+flows/qa_generation/document_grounded_qa/enhanced_multi_summary_qa/
+├── extractive_summary/
+│   └── flow.yaml               # Extractive summary flow
+├── detailed_summary/
+│   └── flow.yaml               # Detailed summary flow
+├── key_facts/
+│   └── flow.yaml               # Key facts flow
+└── document_based/
+    └── flow.yaml               # Document-based flow
 ```
 
 ### Connector System
