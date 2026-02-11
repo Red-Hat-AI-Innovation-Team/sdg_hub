@@ -7,6 +7,10 @@ coverage:
     project:
       default:
         target: 80%
+        paths:
+          - src/sdg_hub/core
     patch:
       default:
         target: 80%
+        paths:
+          - src/sdg_hub/core
