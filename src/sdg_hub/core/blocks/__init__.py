@@ -6,6 +6,7 @@ This package provides various block implementations for data generation, process
 # Local
 from .agent import AgentBlock, AgentResponseExtractorBlock
 from .base import BaseBlock
+from .code import PythonInterpreterBlock
 from .filtering import ColumnValueFilterBlock
 from .llm import (
     LLMChatBlock,
@@ -42,6 +43,7 @@ __all__ = [
     "MCPAgentBlock",
     "MeltColumnsBlock",
     "PromptBuilderBlock",
+    "PythonInterpreterBlock",
     "RegexParserBlock",
     "RenameColumnsBlock",
     "RowMultiplierBlock",
