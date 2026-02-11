@@ -16,7 +16,7 @@ import yaml
 # First Party
 from sdg_hub import Flow, FlowMetadata
 from sdg_hub.core.flow.metadata import DatasetRequirements
-from sdg_hub.core.utils.error_handling import FlowValidationError
+from sdg_hub.core.utils.error_handling import EmptyDatasetError, FlowValidationError
 from sdg_hub.core.flow import serialization  # noqa: F401 - needed for patching
 
 
@@ -1501,3 +1501,90 @@ class TestFlow:
         # Verify that the api_key was actually set as a SecretStr on the block
         assert llm_block.api_key is not None
         assert llm_block.api_key.get_secret_value() == "sk-secret-key"
+
+    def test_block_produces_empty_dataset_raises_empty_dataset_error(self):
+        """Test that EmptyDatasetError is raised (not wrapped) when block produces empty dataset."""
+
+        def empty_output(df, **kwargs):
+            return pd.DataFrame()
+
+        block = self.create_mock_block("test_block")
+        block.side_effect = None
+        block.return_value = pd.DataFrame()
+
+        # Create a real mock that returns empty DataFrame
+        mock_block = Mock()
+        mock_block.block_name = "empty_producer"
+        mock_block.block_type = "transform"
+        mock_block.__class__.__name__ = "MockBlock"
+        mock_block.return_value = pd.DataFrame()
+        mock_block.side_effect = lambda df, **kwargs: pd.DataFrame()
+
+        flow = Flow(blocks=[mock_block], metadata=self.test_metadata)
+        dataset = pd.DataFrame({"input": ["test1", "test2"]})
+
+        with pytest.raises(EmptyDatasetError) as exc_info:
+            flow.generate(dataset)
+
+        # Verify it's the EmptyDatasetError type, not wrapped
+        assert isinstance(exc_info.value, EmptyDatasetError)
+        assert "empty_producer" in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        "content,expected_type",
+        [
+            ("- item1\n- item2\n", "list"),  # list root
+            ("", "NoneType"),  # empty file
+        ],
+    )
+    def test_from_yaml_invalid_root(self, content, expected_type):
+        """Test that loading YAML with non-dict root raises FlowValidationError."""
+        yaml_path = Path(self.temp_dir) / "invalid.yaml"
+        with open(yaml_path, "w") as f:
+            f.write(content)
+
+        with pytest.raises(FlowValidationError) as exc_info:
+            Flow.from_yaml(str(yaml_path))
+
+        assert "expected a YAML mapping at root" in str(exc_info.value)
+        assert expected_type in str(exc_info.value)
+
+    def test_dry_run_reraises_flow_validation_error(self):
+        """Test that dry_run re-raises FlowValidationError without wrapping."""
+        block = self.create_mock_block("failing_block")
+        block.side_effect = FlowValidationError("Original error message")
+
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset = pd.DataFrame({"input": ["test1", "test2"]})
+
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.dry_run(dataset)
+
+        # Verify the error message is preserved (not wrapped as "Dry run failed:")
+        assert "Original error message" in str(exc_info.value)
+
+    def test_generate_with_log_dir_closes_logger_on_exception(self):
+        """Test that flow logger is closed even when exception occurs."""
+        # Standard
+        import os
+
+        log_dir = Path(self.temp_dir) / "logs"
+        os.makedirs(log_dir, exist_ok=True)
+
+        block = self.create_mock_block("failing_block")
+        block.side_effect = RuntimeError("Test failure")
+
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
+        dataset = pd.DataFrame({"input": ["test1", "test2"]})
+
+        with pytest.raises(FlowValidationError):
+            flow.generate(dataset, log_dir=str(log_dir))
+
+        # Check that a log file was created
+        log_files = list(log_dir.glob("*.log"))
+        assert len(log_files) == 1
+
+        # The log file should be closed and readable
+        with open(log_files[0]) as f:
+            log_content = f.read()
+            assert "Test Flow" in log_content or "test_flow" in log_content
