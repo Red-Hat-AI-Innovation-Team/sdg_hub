@@ -244,32 +244,49 @@ def set_model_config(
             f"Auto-detected {len(target_block_names)} LLM blocks for configuration: {sorted(target_block_names)}"
         )
 
+    # Sensitive parameter names that should not be logged
+    sensitive_params = {"api_key", "token", "password", "secret"}
+
     # Apply configuration to target blocks
     modified_count = 0
     for block in flow.blocks:
         if block.block_name in target_block_names:
+            block_modified = False
             for param_name, param_value in config_params.items():
                 if hasattr(block, param_name):
-                    old_value = getattr(block, param_name)
                     setattr(block, param_name, param_value)
-                    logger.debug(
-                        f"Block '{block.block_name}': {param_name} "
-                        f"'{old_value}' -> '{param_value}'"
-                    )
+                    block_modified = True
+                    # Don't log sensitive values
+                    if param_name in sensitive_params:
+                        logger.debug(
+                            f"Block '{block.block_name}': {param_name} set (redacted)"
+                        )
+                    else:
+                        logger.debug(
+                            f"Block '{block.block_name}': {param_name} "
+                            f"set to '{param_value}'"
+                        )
                 # check if allow extra
                 elif block.model_config.get("extra") == "allow":
                     setattr(block, param_name, param_value)
-                    logger.debug(
-                        f"Block '{block.block_name}': {param_name} "
-                        f"set to '{param_value}'"
-                    )
+                    block_modified = True
+                    if param_name in sensitive_params:
+                        logger.debug(
+                            f"Block '{block.block_name}': {param_name} set (redacted)"
+                        )
+                    else:
+                        logger.debug(
+                            f"Block '{block.block_name}': {param_name} "
+                            f"set to '{param_value}'"
+                        )
                 else:
                     logger.warning(
                         f"Block '{block.block_name}' ({block.__class__.__name__}) "
                         f"does not have attribute '{param_name}' - skipping"
                     )
 
-            modified_count += 1
+            if block_modified:
+                modified_count += 1
 
     if modified_count > 0:
         # Enhanced logging showing what was configured

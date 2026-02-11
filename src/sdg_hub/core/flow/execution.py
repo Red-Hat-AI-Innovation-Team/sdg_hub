@@ -71,6 +71,8 @@ def _close_flow_logger(flow_logger, module_logger) -> None:
                 h.flush()
                 h.close()
             except Exception:
+                # Ignore errors during cleanup - handler may already be closed
+                # or in an invalid state. We still want to remove it.
                 pass
             finally:
                 flow_logger.removeHandler(h)

@@ -66,6 +66,13 @@ def load_flow_from_yaml(flow_cls: type["Flow"], yaml_path: str) -> "Flow":
     except yaml.YAMLError as exc:
         raise FlowValidationError(f"Invalid YAML in {yaml_path}: {exc}") from exc
 
+    # Check that YAML root is a dict (not None, list, or scalar)
+    if not isinstance(flow_config, dict):
+        raise FlowValidationError(
+            f"Invalid flow configuration in {yaml_path}: "
+            f"expected a YAML mapping at root, got {type(flow_config).__name__}"
+        )
+
     # Validate YAML structure
     validator = FlowValidator()
     validation_errors = validator.validate_yaml_structure(flow_config)
@@ -188,8 +195,10 @@ def create_block_from_config(
     try:
         return block_class(**config)
     except Exception as exc:
+        # Don't include full config in error - it may contain secrets
         raise FlowValidationError(
-            f"Failed to create block '{block_type_name}' with config {config}: {exc}"
+            f"Failed to create block '{block_type_name}' "
+            f"with config keys {list(config.keys())}: {exc}"
         ) from exc
 
 
