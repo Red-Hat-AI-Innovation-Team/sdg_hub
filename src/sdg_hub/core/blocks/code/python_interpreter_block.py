@@ -4,7 +4,7 @@
 from typing import Any, Optional
 import asyncio
 
-from pydantic import Field, PrivateAttr
+from pydantic import Field, PrivateAttr, field_validator
 from tqdm import tqdm
 import pandas as pd
 
@@ -13,7 +13,6 @@ from ...connectors.code_interpreter.base import (
     BaseCodeInterpreterConnector,
     CodeExecutionResult,
 )
-from ...connectors.exceptions import ConnectorError
 from ...connectors.registry import ConnectorRegistry
 from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
@@ -39,6 +38,10 @@ class PythonInterpreterBlock(BaseBlock):
 
     Parameters
     ----------
+    input_cols : list[str]
+        Single-element list with the column name containing code to execute.
+    output_cols : list[str]
+        Single-element list with the column name for execution results.
     interpreter_framework : str
         Name of the interpreter connector to use. Default is 'monty'.
     timeout : float
@@ -110,6 +113,22 @@ class PythonInterpreterBlock(BaseBlock):
     _connector: Optional[BaseCodeInterpreterConnector] = PrivateAttr(default=None)
     _connector_config_key: Optional[tuple] = PrivateAttr(default=None)
 
+    @field_validator("input_cols", mode="after")
+    @classmethod
+    def validate_single_input_col(cls, v):
+        """Validate that exactly one input column is specified."""
+        if not isinstance(v, list) or len(v) != 1:
+            raise ValueError("input_cols must be a list with exactly one column name")
+        return v
+
+    @field_validator("output_cols", mode="after")
+    @classmethod
+    def validate_single_output_col(cls, v):
+        """Validate that exactly one output column is specified."""
+        if not isinstance(v, list) or len(v) != 1:
+            raise ValueError("output_cols must be a list with exactly one column name")
+        return v
+
     def _get_connector(self) -> BaseCodeInterpreterConnector:
         """Get or create the interpreter connector instance.
 
@@ -132,43 +151,6 @@ class PythonInterpreterBlock(BaseBlock):
             self._connector_config_key = config_key
 
         return self._connector
-
-    def _get_code_col(self) -> str:
-        """Get the input column name containing code.
-
-        Returns
-        -------
-        str
-            Column name containing code to execute.
-
-        Raises
-        ------
-        ConnectorError
-            If input_cols is not properly configured.
-        """
-        if isinstance(self.input_cols, dict) and self.input_cols:
-            return list(self.input_cols.keys())[0]
-        elif isinstance(self.input_cols, list) and len(self.input_cols) > 0:
-            return self.input_cols[0]
-        else:
-            raise ConnectorError(
-                "input_cols must specify the column containing code to execute"
-            )
-
-    def _get_output_col(self) -> str:
-        """Get the output column name for results.
-
-        Returns
-        -------
-        str
-            Column name for storing execution results.
-        """
-        if isinstance(self.output_cols, dict) and self.output_cols:
-            return list(self.output_cols.keys())[0]
-        elif isinstance(self.output_cols, list) and len(self.output_cols) > 0:
-            return self.output_cols[0]
-        else:
-            return "execution_result"
 
     def _execute_row(
         self,
@@ -296,8 +278,8 @@ class PythonInterpreterBlock(BaseBlock):
         """
         df = samples.copy()
         connector = self._get_connector()
-        code_col = self._get_code_col()
-        output_col = self._get_output_col()
+        code_col = self.input_cols[0]
+        output_col = self.output_cols[0]
 
         if self.async_mode:
             # Async execution
