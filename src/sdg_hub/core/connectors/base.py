@@ -30,10 +30,6 @@ class ConnectorConfig(BaseModel):
     api_key: Optional[str] = Field(None, description="API key for authentication")
     timeout: float = Field(120.0, description="Request timeout in seconds", gt=0)
     max_retries: int = Field(3, description="Maximum retry attempts", ge=0)
-    extract_text: bool = Field(
-        False,
-        description="Extract just the text content from agent response",
-    )
 
     model_config = ConfigDict(extra="allow")
 

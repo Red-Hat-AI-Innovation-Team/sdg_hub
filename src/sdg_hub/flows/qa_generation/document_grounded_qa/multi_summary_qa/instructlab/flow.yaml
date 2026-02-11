@@ -62,7 +62,7 @@ blocks:
       extract_content: true
       extract_reasoning_content: true
 
-  - block_type: TextParserBlock
+  - block_type: TagParserBlock
     block_config:
       block_name: parse_detailed_summary
       input_cols: detailed_summary_content
@@ -91,7 +91,7 @@ blocks:
       input_cols: raw_atomic_facts
       extract_content: true
 
-  - block_type: TextParserBlock
+  - block_type: TagParserBlock
     block_config:
       block_name: parse_atomic_facts
       input_cols: atomic_facts_content
@@ -120,7 +120,7 @@ blocks:
       input_cols: raw_summary_extractive
       extract_content: true
 
-  - block_type: TextParserBlock
+  - block_type: TagParserBlock
     block_config:
       block_name: parse_extractive_summary
       input_cols: extractive_summary_content
@@ -166,7 +166,7 @@ blocks:
       input_cols: raw_knowledge_generation
       extract_content: true
 
-  - block_type: TextParserBlock
+  - block_type: TagParserBlock
     block_config:
       block_name: parse_knowledge_generation
       input_cols: get_knowledge_generation_content
@@ -197,7 +197,7 @@ blocks:
       input_cols: eval_faithful_response_dict
       extract_content: true
       
-  - block_type: TextParserBlock
+  - block_type: TagParserBlock
     block_config:
       block_name: parse_eval_faithful
       input_cols: extract_eval_faithful_content
@@ -242,7 +242,7 @@ blocks:
       input_cols: eval_relevancy_response_dict
       extract_content: true
       
-  - block_type: TextParserBlock
+  - block_type: TagParserBlock
     block_config:
       block_name: parse_eval_relevancy
       input_cols: extract_eval_relevancy_content
@@ -286,7 +286,7 @@ blocks:
       input_cols: verify_question_response_dict
       extract_content: true
       
-  - block_type: TextParserBlock
+  - block_type: TagParserBlock
     block_config:
       block_name: parse_verify_question
       input_cols: extract_verify_question_content

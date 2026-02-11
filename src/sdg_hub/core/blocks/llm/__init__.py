@@ -11,7 +11,6 @@ from .error_handler import ErrorCategory, LLMErrorHandler
 from .llm_chat_block import LLMChatBlock
 from .llm_response_extractor_block import LLMResponseExtractorBlock
 from .prompt_builder_block import PromptBuilderBlock
-from .text_parser_block import TextParserBlock
 
 __all__ = [
     "LLMErrorHandler",
@@ -19,5 +18,4 @@ __all__ = [
     "LLMChatBlock",
     "LLMResponseExtractorBlock",
     "PromptBuilderBlock",
-    "TextParserBlock",
 ]

@@ -52,7 +52,7 @@ class TestLangflowConnector:
             connector.build_request([{"role": "system", "content": "hi"}], "s1")
 
     def test_parse_response(self):
-        """Test response parsing with and without extract_text."""
+        """Test response parsing returns raw dict."""
         connector = LangflowConnector(config=ConnectorConfig(url="http://test"))
 
         # Valid dict passes through
@@ -62,26 +62,3 @@ class TestLangflowConnector:
         # Non-dict raises error
         with pytest.raises(ConnectorError, match="Expected dict"):
             connector.parse_response(["not", "a", "dict"])
-
-    def test_parse_response_extract_text(self):
-        """Test extract_text extracts nested message text."""
-        connector = LangflowConnector(config=ConnectorConfig(url="http://test"))
-
-        response = {
-            "session_id": "abc123",
-            "outputs": [
-                {"outputs": [{"results": {"message": {"text": "The answer is 42."}}}]}
-            ],
-        }
-
-        # Without extract_text
-        assert connector.parse_response(response, extract_text=False) == response
-
-        # With extract_text
-        assert (
-            connector.parse_response(response, extract_text=True) == "The answer is 42."
-        )
-
-        # Missing path raises error
-        with pytest.raises(ConnectorError, match="Failed to extract text"):
-            connector.parse_response({"outputs": []}, extract_text=True)

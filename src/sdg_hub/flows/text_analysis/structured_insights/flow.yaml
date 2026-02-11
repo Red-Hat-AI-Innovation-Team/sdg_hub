@@ -55,7 +55,7 @@ blocks:
       input_cols: "raw_summary"
       extract_content: true
       expand_lists: true
-  - block_type: "TextParserBlock"
+  - block_type: "TagParserBlock"
     block_config:
       block_name: "parse_summary"
       input_cols: "extract_summary_content"
@@ -87,7 +87,7 @@ blocks:
       input_cols: "raw_keywords"
       extract_content: true
       expand_lists: true
-  - block_type: "TextParserBlock"
+  - block_type: "TagParserBlock"
     block_config:
       block_name: "parse_keywords"
       input_cols: "extract_keywords_content"
@@ -119,7 +119,7 @@ blocks:
       input_cols: "raw_entities"
       extract_content: true
       expand_lists: true
-  - block_type: "TextParserBlock"
+  - block_type: "TagParserBlock"
     block_config:
       block_name: "parse_entities"
       input_cols: "extract_entities_content"
@@ -151,7 +151,7 @@ blocks:
       input_cols: "raw_sentiment"
       extract_content: true
       expand_lists: true
-  - block_type: "TextParserBlock"
+  - block_type: "TagParserBlock"
     block_config:
       block_name: "parse_sentiment"
       input_cols: "extract_sentiment_content"

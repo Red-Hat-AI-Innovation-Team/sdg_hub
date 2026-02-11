@@ -11,8 +11,8 @@ from .llm import (
     LLMChatBlock,
     LLMResponseExtractorBlock,
     PromptBuilderBlock,
-    TextParserBlock,
 )
+from .parsing import RegexParserBlock, TagParserBlock, TextParserBlock
 from .registry import BlockRegistry
 from .transform import (
     DuplicateColumnsBlock,
@@ -31,11 +31,13 @@ __all__ = [
     "DuplicateColumnsBlock",
     "IndexBasedMapperBlock",
     "MeltColumnsBlock",
+    "PromptBuilderBlock",
+    "RegexParserBlock",
     "RenameColumnsBlock",
+    "TagParserBlock",
     "TextConcatBlock",
+    "TextParserBlock",
     "UniformColumnValueSetter",
     "LLMChatBlock",
     "LLMResponseExtractorBlock",
-    "TextParserBlock",
-    "PromptBuilderBlock",
 ]

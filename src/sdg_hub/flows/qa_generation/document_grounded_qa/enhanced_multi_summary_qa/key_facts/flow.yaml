@@ -55,7 +55,7 @@ blocks:
     input_cols: raw_summary
     extract_content: true
     expand_lists: true
-- block_type: TextParserBlock
+- block_type: TagParserBlock
   block_config:
     block_name: parse_atomic_facts
     input_cols: extract_atomic_facts_content
@@ -64,7 +64,7 @@ blocks:
     - '### Key Facts With Context'
     end_tags:
     - ''
-- block_type: TextParserBlock
+- block_type: TagParserBlock
   block_config:
     block_name: parse_atomic_facts_to_individual_facts
     input_cols: atomic_facts
@@ -104,7 +104,7 @@ blocks:
     input_cols: raw_key_fact_qa
     extract_content: true
     expand_lists: true
-- block_type: TextParserBlock
+- block_type: TagParserBlock
   block_config:
     block_name: parse_key_fact_qa
     input_cols: extract_key_fact_qa_content

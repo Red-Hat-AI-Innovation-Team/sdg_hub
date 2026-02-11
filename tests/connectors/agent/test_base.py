@@ -16,9 +16,7 @@ class ConcreteAgentConnector(BaseAgentConnector):
     def build_request(self, messages: list[dict[str, Any]], session_id: str) -> dict:
         return {"input": messages[-1]["content"], "session_id": session_id}
 
-    def parse_response(
-        self, response: dict[str, Any], extract_text: bool = False
-    ) -> Any:
+    def parse_response(self, response: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(response, dict):
             raise ConnectorError(f"Expected dict, got {type(response)}")
         return response

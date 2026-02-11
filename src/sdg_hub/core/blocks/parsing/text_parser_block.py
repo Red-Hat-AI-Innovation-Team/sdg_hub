@@ -1,0 +1,129 @@
+# SPDX-License-Identifier: Apache-2.0
+"""Deprecated TextParserBlock for backwards compatibility."""
+
+from itertools import chain
+from typing import Any, Optional
+import re
+import warnings
+
+from pydantic import Field, field_validator, model_validator
+import pandas as pd
+
+from ...utils.logger_config import setup_logger
+from ..base import BaseBlock
+from ..registry import BlockRegistry
+
+logger = setup_logger(__name__)
+
+
+@BlockRegistry.register(
+    "TextParserBlock",
+    "parsing",
+    "DEPRECATED: Use TagParserBlock or RegexParserBlock",
+)
+class TextParserBlock(BaseBlock):
+    """Deprecated. Use TagParserBlock or RegexParserBlock instead."""
+
+    _flow_requires_jsonl_tmp: bool = True
+    block_type: str = "parser"
+
+    start_tags: list[str] = Field(default_factory=list)
+    end_tags: list[str] = Field(default_factory=list)
+    parsing_pattern: Optional[str] = Field(default=None)
+    parser_cleanup_tags: Optional[list[str]] = Field(default=None)
+
+    def __init__(self, **kwargs):
+        warnings.warn(
+            "TextParserBlock is deprecated. Use TagParserBlock or RegexParserBlock.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(**kwargs)
+
+    @field_validator("start_tags", "end_tags", mode="before")
+    @classmethod
+    def normalize_tags(cls, v):
+        if v is None:
+            return []
+        return [v] if isinstance(v, str) else v
+
+    @model_validator(mode="after")
+    def validate_config(self):
+        has_tags = bool(self.start_tags) or bool(self.end_tags)
+        if not self.parsing_pattern and not has_tags:
+            raise ValueError("Requires parsing_pattern or start_tags/end_tags")
+        if has_tags and len(self.start_tags) != len(self.end_tags):
+            raise ValueError("start_tags and end_tags must have same length")
+        return self
+
+    def _validate_custom(self, dataset: pd.DataFrame) -> None:
+        if len(self.input_cols) != 1:
+            raise ValueError("TextParserBlock expects at least one input column")
+        if self.start_tags and len(self.start_tags) != len(self.output_cols):
+            raise ValueError(
+                "When using tag-based parsing, the number of tag pairs must match output_cols. "
+                f"Got {len(self.start_tags)} tag pairs and {len(self.output_cols)} output columns"
+            )
+
+    def _clean(self, value: str) -> str:
+        for tag in self.parser_cleanup_tags or []:
+            value = value.replace(tag, "")
+        return value
+
+    def _extract_tags(self, text: str, start: str, end: str) -> list[str]:
+        if not text:
+            return []
+        pattern = re.escape(start) + r"(.*?)" + re.escape(end)
+        return [m.strip() for m in re.findall(pattern, text, re.DOTALL)]
+
+    def _parse_row(self, sample: dict) -> list[dict]:
+        text = sample[self.input_cols[0]]
+        if not isinstance(text, str) or not text:
+            return []
+
+        if self.parsing_pattern:
+            matches = re.findall(self.parsing_pattern, text, re.DOTALL)
+            if not matches:
+                return []
+            if matches and isinstance(matches[0], tuple):
+                return [
+                    {
+                        **sample,
+                        **{
+                            col: self._clean(val.strip())
+                            for col, val in zip(self.output_cols, m)
+                        },
+                    }
+                    for m in matches
+                ]
+            return [
+                {**sample, self.output_cols[0]: self._clean(m.strip())} for m in matches
+            ]
+        else:
+            parsed = {
+                col: [self._clean(v) for v in self._extract_tags(text, start, end)]
+                for col, start, end in zip(
+                    self.output_cols, self.start_tags, self.end_tags
+                )
+            }
+            if not any(parsed.values()):
+                return []
+            max_len = max(len(v) for v in parsed.values())
+            return [
+                {
+                    **sample,
+                    **{
+                        col: parsed[col][i] if i < len(parsed[col]) else ""
+                        for col in self.output_cols
+                    },
+                }
+                for i in range(max_len)
+            ]
+
+    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
+        if samples.empty:
+            return pd.DataFrame()
+        rows = list(
+            chain.from_iterable(map(self._parse_row, samples.to_dict("records")))
+        )
+        return pd.DataFrame(rows) if rows else pd.DataFrame()

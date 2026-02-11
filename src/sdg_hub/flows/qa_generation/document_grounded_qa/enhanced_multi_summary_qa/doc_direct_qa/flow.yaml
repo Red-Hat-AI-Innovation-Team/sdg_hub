@@ -70,7 +70,7 @@ blocks:
     input_cols: question_list
     extract_content: true
     expand_lists: true
-- block_type: TextParserBlock
+- block_type: TagParserBlock
   block_config:
     block_name: parse_question_list
     input_cols: extract_questions_content
@@ -104,7 +104,7 @@ blocks:
     input_cols: response_dict
     extract_content: true
     expand_lists: true
-- block_type: TextParserBlock
+- block_type: TagParserBlock
   block_config:
     block_name: parse_response_dict
     input_cols: extract_answer_content
@@ -136,7 +136,7 @@ blocks:
     input_cols: eval_faithful_response_dict
     extract_content: true
     
-- block_type: TextParserBlock
+- block_type: TagParserBlock
   block_config:
     block_name: parse_eval_faithful
     input_cols: extract_eval_faithful_content

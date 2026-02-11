@@ -90,22 +90,18 @@ class BaseAgentConnector(BaseConnector):
         pass
 
     @abstractmethod
-    def parse_response(
-        self, response: dict[str, Any], extract_text: bool = False
-    ) -> Any:
+    def parse_response(self, response: dict[str, Any]) -> dict[str, Any]:
         """Parse and validate framework response.
 
         Parameters
         ----------
         response : dict
             Raw response from the framework.
-        extract_text : bool
-            If True, extract just the text content. Default False returns full response.
 
         Returns
         -------
-        dict or str
-            Full response dict, or just the text if extract_text=True.
+        dict
+            Validated response dict.
 
         Raises
         ------
@@ -118,7 +114,7 @@ class BaseAgentConnector(BaseConnector):
         self,
         messages: list[dict[str, Any]],
         session_id: str,
-    ) -> Any:
+    ) -> dict[str, Any]:
         """Core async implementation.
 
         Parameters
@@ -130,8 +126,8 @@ class BaseAgentConnector(BaseConnector):
 
         Returns
         -------
-        Any
-            Parsed response from the agent (dict or str if extract_text=True).
+        dict
+            Parsed response from the agent.
         """
         if not self.config.url:
             raise ConnectorError("No URL configured for connector")
@@ -148,8 +144,7 @@ class BaseAgentConnector(BaseConnector):
         )
         logger.debug(f"Received response from {self.config.url}")
 
-        extract_text = getattr(self.config, "extract_text", False)
-        return self.parse_response(raw_response, extract_text=extract_text)
+        return self.parse_response(raw_response)
 
     def send(
         self,
@@ -197,7 +192,7 @@ class BaseAgentConnector(BaseConnector):
         self,
         messages: list[dict[str, Any]],
         session_id: str,
-    ) -> Any:
+    ) -> dict[str, Any]:
         """Async send - convenience wrapper.
 
         Parameters
@@ -209,8 +204,8 @@ class BaseAgentConnector(BaseConnector):
 
         Returns
         -------
-        Any
-            Response from the agent (dict or str if extract_text=True).
+        dict
+            Response from the agent.
         """
         return await self._send_async(messages, session_id)
 

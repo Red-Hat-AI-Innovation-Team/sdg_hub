@@ -119,10 +119,6 @@ class AgentBlock(BaseBlock):
         description="Maximum concurrent requests in async mode",
         gt=0,
     )
-    extract_response: bool = Field(
-        False,
-        description="Extract just the text content from agent response",
-    )
 
     # Private attributes
     _connector: Optional[BaseAgentConnector] = PrivateAttr(default=None)
@@ -145,7 +141,6 @@ class AgentBlock(BaseBlock):
             self.agent_api_key,
             self.timeout,
             self.max_retries,
-            self.extract_response,
         )
         if self._connector is None or self._connector_config_key != config_key:
             connector_class = ConnectorRegistry.get(self.agent_framework)
@@ -154,7 +149,6 @@ class AgentBlock(BaseBlock):
                 api_key=self.agent_api_key,
                 timeout=self.timeout,
                 max_retries=self.max_retries,
-                extract_text=self.extract_response,
             )
             self._connector = connector_class(config=config)
             self._connector_config_key = config_key

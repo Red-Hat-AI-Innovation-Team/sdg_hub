@@ -74,31 +74,6 @@ class TestAgentBlockConfiguration:
         assert block.async_mode
         assert block.max_concurrency == 20
 
-    def test_extract_response_defaults_to_false(self):
-        """Test extract_response defaults to False."""
-        block = AgentBlock(
-            block_name="test",
-            agent_framework="langflow",
-            agent_url="http://localhost:7860",
-            input_cols=["messages"],
-            output_cols=["response"],
-        )
-
-        assert not block.extract_response
-
-    def test_extract_response_can_be_set(self):
-        """Test extract_response can be set to True."""
-        block = AgentBlock(
-            block_name="test",
-            agent_framework="langflow",
-            agent_url="http://localhost:7860",
-            input_cols=["messages"],
-            output_cols=["response"],
-            extract_response=True,
-        )
-
-        assert block.extract_response
-
 
 class TestAgentBlockHelperMethods:
     """Test AgentBlock helper methods."""
@@ -465,38 +440,3 @@ class TestAgentBlockConnectorIntegration:
 
         assert connector1 is not connector2
         assert connector2.config.url == "http://newhost:8080"
-
-    def test_get_connector_passes_extract_text(self):
-        """Test that _get_connector passes extract_text to config."""
-        block = AgentBlock(
-            block_name="test",
-            agent_framework="langflow",
-            agent_url="http://localhost:7860",
-            input_cols=["messages"],
-            output_cols=["response"],
-            extract_response=True,
-        )
-
-        connector = block._get_connector()
-        assert connector.config.extract_text is True
-
-    def test_get_connector_invalidates_on_extract_response_change(self):
-        """Test that _get_connector invalidates cache when extract_response changes."""
-        block = AgentBlock(
-            block_name="test",
-            agent_framework="langflow",
-            agent_url="http://localhost:7860",
-            input_cols=["messages"],
-            output_cols=["response"],
-            extract_response=False,
-        )
-
-        connector1 = block._get_connector()
-        assert connector1.config.extract_text is False
-
-        # Change extract_response
-        block.extract_response = True
-        connector2 = block._get_connector()
-
-        assert connector1 is not connector2
-        assert connector2.config.extract_text is True

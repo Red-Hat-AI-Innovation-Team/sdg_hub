@@ -86,40 +86,28 @@ class LangflowConnector(BaseAgentConnector):
             "session_id": session_id,
         }
 
-    def parse_response(
-        self, response: dict[str, Any], extract_text: bool = False
-    ) -> Any:
+    def parse_response(self, response: dict[str, Any]) -> dict[str, Any]:
         """Parse Langflow response.
 
         Parameters
         ----------
         response : dict
             Raw response from Langflow API.
-        extract_text : bool
-            If True, extract just the text content. Default False returns full response.
 
         Returns
         -------
-        dict or str
-            Full response dict, or just the text if extract_text=True.
+        dict
+            Validated response dict.
 
         Raises
         ------
         ConnectorError
-            If response is not a valid dict or text extraction fails.
+            If response is not a valid dict.
         """
         if not isinstance(response, dict):
             raise ConnectorError(
                 f"Expected dict response, got {type(response).__name__}"
             )
-
-        if extract_text:
-            try:
-                return response["outputs"][0]["outputs"][0]["results"]["message"][
-                    "text"
-                ]
-            except (KeyError, IndexError, TypeError) as e:
-                raise ConnectorError(f"Failed to extract text from response: {e}")
 
         return response
 
