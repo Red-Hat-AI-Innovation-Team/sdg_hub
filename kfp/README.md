@@ -27,7 +27,7 @@ podman machine list
 ### 2. Install Python Dependencies
 
 ```bash
-uv pip install ".[kfp]" docker pip
+uv pip install ".[kfp]" docker pip kfp-kubernetes
 ```
 
 Note: `pip` is required because KFP's SubprocessRunner uses `python -m pip` internally.
@@ -44,35 +44,55 @@ podman images | grep sdg-hub-kfp
 ### 4. Run Tests
 
 ```bash
-# Test hello world component
-python kfp/test_local_runner.py
+# Unit tests (29 tests)
+uv run python -m pytest tests/kfp/ -v
 
-# Test SDG skeleton component
-python kfp/test_sdg_skeleton.py
+# E2E test with real transform flow
+uv run python kfp/test_e2e.py
 
 # Clean up outputs
 rm -rf local_outputs/
 ```
 
+### 5. Compile Pipeline
+
+```bash
+# Compile pipeline definition to YAML
+uv run python kfp/pipeline.py
+
+# Output: kfp/pipeline.yaml (uploadable to a KFP instance)
+```
+
 ## Development Workflow
 
 1. Edit code in `src/sdg_hub/kfp/`
-2. Rebuild image: `podman build -t sdg-hub-kfp:dev -f kfp/Dockerfile .`
-3. Run test: `python kfp/test_sdg_skeleton.py`
+2. Run unit tests: `uv run python -m pytest tests/kfp/ -v`
+3. Run E2E test: `uv run python kfp/test_e2e.py`
+4. Clean up: `rm -rf local_outputs/`
 
 ## File Structure
 
 ```
 kfp/
-├── ARCHITECTURE.md        # Component design documentation
-├── README.md              # This file
-├── Dockerfile             # Container image definition
-├── test_local_runner.py   # Hello world test
-└── test_sdg_skeleton.py   # SDG component test
+├── ARCHITECTURE.md                    # Component design documentation
+├── README.md                          # This file
+├── PROGRESS.md                        # Development progress tracking
+├── Dockerfile                         # Container image definition
+├── pipeline.py                        # Sample pipeline definition
+├── test_local_runner.py               # Hello world test
+├── test_sdg_skeleton.py               # SubprocessRunner test
+├── test_e2e.py                        # E2E test with real flow
+└── testdata/
+    ├── sample_input.jsonl             # Test input data (3 rows)
+    └── transform_test_flow.yaml       # Transform-only test flow
 
 src/sdg_hub/kfp/
-├── __init__.py            # Package exports
-└── component.py           # Main SDG component
+├── __init__.py                        # Package exports
+└── component.py                       # Main SDG component
+
+tests/kfp/
+├── __init__.py                        # Test package
+└── test_component.py                  # Unit + E2E tests (29 tests)
 ```
 
 ## Architecture Note

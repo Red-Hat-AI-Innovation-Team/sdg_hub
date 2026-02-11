@@ -1,0 +1,29 @@
+metadata:
+  name: Transform Test Flow
+  description: Minimal transform-only flow for KFP component testing. No LLM blocks.
+  version: 1.0.0
+  author: SDG Hub Team
+  tags:
+  - testing
+  license: Apache-2.0
+  dataset_requirements:
+    required_columns:
+    - document
+    - domain
+    description: Requires document and domain columns.
+  id: fair-star-934
+blocks:
+- block_type: DuplicateColumnsBlock
+  block_config:
+    block_name: duplicate_document
+    input_cols:
+      document: document_copy
+- block_type: TextConcatBlock
+  block_config:
+    block_name: concat_fields
+    input_cols:
+    - document
+    - domain
+    output_cols:
+    - combined
+    separator: ' | '

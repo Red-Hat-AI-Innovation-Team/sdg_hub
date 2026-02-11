@@ -753,3 +753,59 @@ class TestFlowExecution:
                 input_pvc_path=sample_input_file,
                 flow_id="failing-flow-id",
             )
+
+
+# =============================================================================
+# E2E TESTS WITH REAL FLOW (no mocking)
+# =============================================================================
+
+# Path to the transform-only test flow
+_TEST_FLOW_YAML = os.path.join(
+    os.path.dirname(__file__),
+    "..",
+    "..",
+    "kfp",
+    "testdata",
+    "transform_test_flow.yaml",
+)
+
+
+class TestE2EWithRealFlow:
+    """E2E tests using a real transform-only flow (no LLM, no mocking)."""
+
+    def test_transform_flow_e2e(
+        self, output_artifact, output_metrics, sample_input_file
+    ):
+        """Component runs a real transform flow and produces expected output."""
+        _call_sdg(
+            output_artifact,
+            output_metrics,
+            input_pvc_path=sample_input_file,
+            flow_yaml_path=_TEST_FLOW_YAML,
+        )
+
+        result = pd.read_json(output_artifact.path, lines=True)
+        assert len(result) == 3
+        assert "document_copy" in result.columns
+        assert "combined" in result.columns
+        assert result["document_copy"].tolist() == result["document"].tolist()
+        assert "Doc one. | science" == result["combined"].iloc[0]
+
+    def test_transform_flow_metrics(
+        self, output_artifact, output_metrics, sample_input_file
+    ):
+        """Metrics are correct after real flow execution."""
+        _call_sdg(
+            output_artifact,
+            output_metrics,
+            input_pvc_path=sample_input_file,
+            flow_yaml_path=_TEST_FLOW_YAML,
+        )
+
+        with open(output_metrics.path) as f:
+            metrics = json.load(f)
+
+        by_name = {m["name"]: m["numberValue"] for m in metrics["metrics"]}
+        assert by_name["input_rows"] == 3
+        assert by_name["output_rows"] == 3
+        assert by_name["execution_time_seconds"] >= 0
