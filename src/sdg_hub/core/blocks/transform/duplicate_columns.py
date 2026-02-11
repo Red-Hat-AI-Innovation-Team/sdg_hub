@@ -6,7 +6,7 @@ according to a mapping specification.
 """
 
 # Standard
-from typing import Any
+from typing import Any, cast
 
 from pydantic import field_validator
 
@@ -61,9 +61,11 @@ class DuplicateColumnsBlock(BaseBlock):
             super(), "model_post_init"
         ) else None
 
+        input_cols_dict = cast(dict[str, str], self.input_cols)
+
         # Set output_cols to the new column names being created
         if self.output_cols is None:
-            self.output_cols = list(self.input_cols.values())
+            self.output_cols = list(input_cols_dict.values())
 
     def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         """Generate a dataset with duplicated columns.
@@ -78,11 +80,13 @@ class DuplicateColumnsBlock(BaseBlock):
         pd.DataFrame
             Dataset with additional duplicated columns.
         """
+        input_cols_dict = cast(dict[str, str], self.input_cols)
+
         # Create a copy to avoid modifying the original
         result = samples.copy()
 
         # Duplicate each column as specified in the mapping
-        for source_col, target_col in self.input_cols.items():
+        for source_col, target_col in input_cols_dict.items():
             if source_col not in result.columns.tolist():
                 raise ValueError(f"Source column '{source_col}' not found in dataset")
 

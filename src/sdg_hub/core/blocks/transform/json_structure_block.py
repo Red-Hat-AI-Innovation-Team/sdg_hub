@@ -6,7 +6,7 @@ containing a structured JSON object with specified field names.
 """
 
 # Standard
-from typing import Any, Dict
+from typing import Any, Dict, cast
 import json
 
 from pydantic import Field, field_validator
@@ -109,7 +109,8 @@ class JSONStructureBlock(BaseBlock):
         if not self.output_cols:
             raise ValueError("output_cols must be specified")
 
-        output_col = self.output_cols[0]
+        output_cols = cast(list[str], self.output_cols)
+        output_col = output_cols[0]
         field_mapping = self._get_field_mapping()
 
         def _create_json_structure(row):

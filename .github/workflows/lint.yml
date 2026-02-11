@@ -53,3 +53,14 @@ jobs:
 
       - name: Run Ruff linter
         run: uvx ruff@${{ env.RUFF_VERSION }} check src/ tests/
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run mypy type checker
+        run: uv run mypy src/sdg_hub --show-error-codes

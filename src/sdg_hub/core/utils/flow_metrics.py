@@ -29,9 +29,12 @@ def aggregate_block_metrics(entries: list[dict[str, Any]]) -> list[dict[str, Any
     list[dict[str, Any]]
         Aggregated metrics with combined execution times and data changes.
     """
-    agg: dict[tuple[str, str], dict[str, Any]] = {}
+    agg: dict[tuple[Optional[str], Optional[str]], dict[str, Any]] = {}
     for m in entries:
-        key = (m.get("block_name"), m.get("block_class"))
+        key: tuple[Optional[str], Optional[str]] = (
+            m.get("block_name"),
+            m.get("block_class"),
+        )
         a = agg.setdefault(
             key,
             {

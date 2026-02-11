@@ -2,7 +2,7 @@
 """Unified LLM chat block supporting all providers via LiteLLM."""
 
 # Standard
-from typing import Any, Optional
+from typing import Any, Optional, cast
 import asyncio
 
 from litellm import acompletion, completion
@@ -206,8 +206,10 @@ class LLMChatBlock(BaseBlock):
         # Build completion kwargs from ALL fields + runtime overrides
         completion_kwargs = self._build_completion_kwargs(**kwargs)
 
+        input_cols = cast(list[str], self.input_cols)
+
         # Extract messages from pandas DataFrame
-        messages_list = samples[self.input_cols[0]].tolist()
+        messages_list = samples[input_cols[0]].tolist()
 
         # Log generation start
         logger.info(
@@ -273,9 +275,11 @@ class LLMChatBlock(BaseBlock):
             },
         )
 
+        output_cols = cast(list[str], self.output_cols)
+
         # Add responses as new column
         result = samples.copy()
-        result[self.output_cols[0]] = responses
+        result[output_cols[0]] = responses
         return result
 
     def _build_completion_kwargs(self, **overrides) -> dict[str, Any]:
@@ -537,7 +541,8 @@ class LLMChatBlock(BaseBlock):
         BlockValidationError
             If message format validation fails.
         """
-        messages_col = dataset[self.input_cols[0]]
+        input_cols = cast(list[str], self.input_cols)
+        messages_col = dataset[input_cols[0]]
 
         # avoid using pd iterrows() when possible, it is notoriously slow: https://github.com/pandas-dev/pandas/issues/7683
         # Vectorized check: all values must be lists
@@ -546,7 +551,7 @@ class LLMChatBlock(BaseBlock):
             invalid_idx = is_list[~is_list].index[0]
             invalid_value = messages_col.loc[invalid_idx]
             raise BlockValidationError(
-                f"Messages column '{self.input_cols[0]}' must contain a list, "
+                f"Messages column '{input_cols[0]}' must contain a list, "
                 f"got {type(invalid_value)} in row {invalid_idx}",
                 details=f"Block: {self.block_name}, Row: {invalid_idx}, Value: {invalid_value}",
             )

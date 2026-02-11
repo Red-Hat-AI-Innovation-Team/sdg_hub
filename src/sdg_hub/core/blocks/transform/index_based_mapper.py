@@ -6,7 +6,7 @@ to another based on a choice column's value.
 """
 
 # Standard
-from typing import Any
+from typing import Any, cast
 
 from pydantic import Field, field_validator, model_validator
 
@@ -103,8 +103,11 @@ class IndexBasedMapperBlock(BaseBlock):
 
     def model_post_init(self, __context: Any) -> None:
         """Initialize derived attributes after Pydantic validation."""
+        output_cols = cast(list[str], self.output_cols)
         # Create mapping from choice_col to output_col for easy access
-        self.choice_to_output_map = dict(zip(self.choice_cols, self.output_cols))
+        self.choice_to_output_map: dict[str, str] = dict(
+            zip(self.choice_cols, output_cols)
+        )
 
     def _validate_custom(self, samples: pd.DataFrame) -> None:
         """Validate that required columns exist in the dataset.
@@ -211,10 +214,12 @@ class IndexBasedMapperBlock(BaseBlock):
         # Create a copy to avoid modifying the input
         result = samples.copy()
 
+        output_cols = cast(list[str], self.output_cols)
+
         # Handle empty DataFrame case
         if len(result) == 0:
             # Add empty output columns
-            for output_col in self.output_cols:
+            for output_col in output_cols:
                 result[output_col] = []
         else:
             # Apply the mapping for each choice column and output column pair

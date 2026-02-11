@@ -1,3 +1,6 @@
+# Standard
+from typing import Any
+
 # Third Party
 import numpy as np
 import pandas as pd
@@ -6,7 +9,7 @@ import pandas as pd
 from .error_handling import FlowValidationError
 
 
-def _is_hashable(x):
+def _is_hashable(x: Any) -> bool:
     """Check if a value is hashable."""
     try:
         hash(x)
@@ -15,7 +18,7 @@ def _is_hashable(x):
         return False
 
 
-def _make_hashable(x):
+def _make_hashable(x: Any) -> Any:
     """Convert any value to a hashable representation for duplicate detection.
 
     Handles numpy arrays, dicts, sets, lists, and other complex types by

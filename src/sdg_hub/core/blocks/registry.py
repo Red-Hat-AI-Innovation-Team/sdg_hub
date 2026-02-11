@@ -298,7 +298,7 @@ class BlockRegistry:
             return result
 
         # Flat list of all block names (across all categories)
-        all_block_names = []
+        all_block_names: list[str] = []
         for blocks in cls._categories.values():
             all_block_names.extend(blocks)
         filtered = filter_deprecated(sorted(all_block_names))

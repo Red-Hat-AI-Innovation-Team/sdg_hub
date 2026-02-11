@@ -6,7 +6,7 @@ using a specified separator.
 """
 
 # Standard
-from typing import Any
+from typing import Any, cast
 
 from pydantic import Field, field_validator
 
@@ -84,10 +84,12 @@ class TextConcatBlock(BaseBlock):
         if not self.output_cols:
             raise ValueError("output_cols must be specified")
 
-        output_col = self.output_cols[0]
+        output_cols = cast(list[str], self.output_cols)
+        input_cols = cast(list[str], self.input_cols)
+        output_col = output_cols[0]
 
         # Validate that all input columns exist in the dataset
-        for col in self.input_cols:
+        for col in input_cols:
             if col not in samples.columns:
                 raise ValueError(f"Input column '{col}' not found in sample")
 
@@ -97,7 +99,7 @@ class TextConcatBlock(BaseBlock):
         # Combine columns using vectorized string operations
         # Convert all input columns to strings and concatenate with separator
         result[output_col] = (
-            result[self.input_cols].astype(str).agg(self.separator.join, axis=1)
+            result[input_cols].astype(str).agg(self.separator.join, axis=1)
         )
 
         return result

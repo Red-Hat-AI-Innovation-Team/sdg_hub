@@ -6,7 +6,7 @@ start/end tags, custom regex patterns, and cleanup operations.
 """
 
 # Standard
-from typing import Any, Optional
+from typing import Any, Optional, cast
 import re
 
 from pydantic import Field, field_validator, model_validator
@@ -135,21 +135,24 @@ class TextParserBlock(BaseBlock):
         ValueError
             If TextParserBlock requirements are not met.
         """
+        input_cols = cast(list[str], self.input_cols)
+        output_cols = cast(list[str], self.output_cols)
+
         # Validate that we have exactly one input column
-        if len(self.input_cols) == 0:
+        if len(input_cols) == 0:
             raise ValueError("TextParserBlock expects at least one input column")
-        if len(self.input_cols) > 1:
+        if len(input_cols) > 1:
             logger.warning(
-                f"TextParserBlock expects exactly one input column, but got {len(self.input_cols)}. "
-                f"Using the first column: {self.input_cols[0]}"
+                f"TextParserBlock expects exactly one input column, but got {len(input_cols)}. "
+                f"Using the first column: {input_cols[0]}"
             )
 
         # Validate tag parsing against output columns (can only be done after model creation)
         has_tags = bool(self.start_tags) or bool(self.end_tags)
-        if has_tags and len(self.start_tags) != len(self.output_cols):
+        if has_tags and len(self.start_tags) != len(output_cols):
             raise ValueError(
                 f"When using tag-based parsing, the number of tag pairs must match output_cols. "
-                f"Got {len(self.start_tags)} tag pairs and {len(self.output_cols)} output columns"
+                f"Got {len(self.start_tags)} tag pairs and {len(output_cols)} output columns"
             )
 
     def _extract_matches(
@@ -180,11 +183,10 @@ class TextParserBlock(BaseBlock):
         """Parse using regex pattern."""
         if self.parsing_pattern is None:
             raise ValueError("parsing_pattern is required for regex parsing")
+        output_cols = cast(list[str], self.output_cols)
         pattern = re.compile(self.parsing_pattern, re.DOTALL)
         all_matches = pattern.findall(generated_string)
-        matches: dict[str, list[str]] = {
-            column_name: [] for column_name in self.output_cols
-        }
+        matches: dict[str, list[str]] = {column_name: [] for column_name in output_cols}
 
         logger.debug(
             f"Regex parsing found {len(all_matches)} matches with pattern: {self.parsing_pattern}"
@@ -196,12 +198,11 @@ class TextParserBlock(BaseBlock):
 
     def _parse_with_tags(self, generated_string: str) -> dict[str, list[str]]:
         """Parse using start/end tags."""
-        matches: dict[str, list[str]] = {
-            column_name: [] for column_name in self.output_cols
-        }
+        output_cols = cast(list[str], self.output_cols)
+        matches: dict[str, list[str]] = {column_name: [] for column_name in output_cols}
 
         for start_tag, end_tag, output_col in zip(
-            self.start_tags, self.end_tags, self.output_cols
+            self.start_tags, self.end_tags, output_cols
         ):
             extracted = self._extract_matches(generated_string, start_tag, end_tag)
             matches[output_col] = extracted
@@ -215,8 +216,9 @@ class TextParserBlock(BaseBlock):
         self, all_matches: list, matches: dict[str, list[str]]
     ) -> dict[str, list[str]]:
         """Process regex matches that are tuples."""
+        output_cols = cast(list[str], self.output_cols)
         for match in all_matches:
-            for column_name, value in zip(self.output_cols, match):
+            for column_name, value in zip(output_cols, match):
                 value = self._clean_value(value.strip())
                 matches[column_name].append(value)
         return matches
@@ -225,8 +227,9 @@ class TextParserBlock(BaseBlock):
         self, all_matches: list, matches: dict[str, list[str]]
     ) -> dict[str, list[str]]:
         """Process regex matches that are single values."""
+        output_cols = cast(list[str], self.output_cols)
         cleaned_matches = [self._clean_value(match.strip()) for match in all_matches]
-        matches[self.output_cols[0]] = cleaned_matches
+        matches[output_cols[0]] = cleaned_matches
         return matches
 
     def _clean_value(self, value: str) -> str:
@@ -237,7 +240,9 @@ class TextParserBlock(BaseBlock):
         return value
 
     def _generate(self, sample: dict) -> list[dict]:
-        input_column = self.input_cols[0]
+        input_cols = cast(list[str], self.input_cols)
+        output_cols = cast(list[str], self.output_cols)
+        input_column = input_cols[0]
         raw_output = sample[input_column]
 
         # Handle list inputs (e.g., multiple text strings to process)
@@ -247,7 +252,7 @@ class TextParserBlock(BaseBlock):
                 return []
 
             # Parse each text string in the list and collect results as lists
-            all_parsed_outputs = {col: [] for col in self.output_cols}
+            all_parsed_outputs: dict[str, list[str]] = {col: [] for col in output_cols}
             valid_responses = 0
 
             for i, message in enumerate(raw_output):
@@ -276,7 +281,7 @@ class TextParserBlock(BaseBlock):
 
                 valid_responses += 1
                 # Collect all parsed values for each column as lists
-                for col in self.output_cols:
+                for col in output_cols:
                     all_parsed_outputs[col].extend(parsed_outputs.get(col, []))
 
             if valid_responses == 0:

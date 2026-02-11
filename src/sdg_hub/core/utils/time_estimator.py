@@ -271,7 +271,7 @@ def estimate_execution_time(
             }
 
         # Calculate time for each block and sum them
-        total_estimated_time = 0
+        total_estimated_time: float = 0.0
         for block in blocks_executed:
             block_time = block.get("execution_time_seconds", 0)
             input_rows = block.get("input_rows", samples_1)

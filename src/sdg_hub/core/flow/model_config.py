@@ -202,16 +202,17 @@ def set_model_config(
         If no configuration parameters are provided or if specified blocks don't exist.
     """
     # Build the configuration parameters dictionary
-    config_params = {}
+    config_params: dict[str, Any] = {}
     if model is not None:
         config_params["model"] = model
     if api_base is not None:
         config_params["api_base"] = api_base
     if api_key is not None:
         # Convert string api_key to SecretStr for automatic redaction in logs
-        config_params["api_key"] = (
+        api_key_secret: SecretStr = (
             SecretStr(api_key) if isinstance(api_key, str) else api_key
         )
+        config_params["api_key"] = api_key_secret
 
     # Add any additional kwargs (temperature, max_tokens, etc.)
     config_params.update(kwargs)

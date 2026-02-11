@@ -6,7 +6,7 @@ to a mapping specification.
 """
 
 # Standard
-from typing import Any
+from typing import Any, cast
 
 from pydantic import field_validator
 
@@ -62,8 +62,9 @@ class RenameColumnsBlock(BaseBlock):
         ) else None
 
         # Set output_cols to the new column names being created
+        input_cols_dict = cast(dict[str, str], self.input_cols)
         if self.output_cols is None:
-            self.output_cols = list(self.input_cols.values())
+            self.output_cols = list(input_cols_dict.values())
 
     def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         """Generate a dataset with renamed columns.
@@ -84,9 +85,11 @@ class RenameColumnsBlock(BaseBlock):
             If attempting to rename to a column name that already exists,
             or if the original column names don't exist in the dataset.
         """
+        input_cols_dict = cast(dict[str, str], self.input_cols)
+
         # Check that all original column names exist in the dataset
         existing_cols = set(samples.columns.tolist())
-        original_cols = set(self.input_cols.keys())
+        original_cols = set(input_cols_dict.keys())
 
         missing_cols = original_cols - existing_cols
         if missing_cols:
@@ -97,7 +100,7 @@ class RenameColumnsBlock(BaseBlock):
         # Check for column name collisions
         # Strict validation: no target column name can be an existing column name
         # This prevents chained/circular renames which can be confusing
-        target_cols = set(self.input_cols.values())
+        target_cols = set(input_cols_dict.values())
 
         collision = target_cols & existing_cols
         if collision:
@@ -108,4 +111,4 @@ class RenameColumnsBlock(BaseBlock):
             )
 
         # Rename columns using pandas method
-        return samples.rename(columns=self.input_cols)
+        return samples.rename(columns=input_cols_dict)

@@ -6,7 +6,7 @@ This module provides the LLMResponseExtractorBlock for extracting specific field
 """
 
 # Standard
-from typing import Any
+from typing import Any, cast
 
 from pydantic import Field, model_validator
 
@@ -120,15 +120,17 @@ class LLMResponseExtractorBlock(BaseBlock):
         ValueError
             If LLMResponseExtractorBlock requirements are not met.
         """
+        input_cols = cast(list[str], self.input_cols)
+
         # Validate that we have exactly one input column
-        if len(self.input_cols) == 0:
+        if len(input_cols) == 0:
             raise ValueError(
                 "LLMResponseExtractorBlock expects at least one input column"
             )
-        if len(self.input_cols) > 1:
+        if len(input_cols) > 1:
             logger.warning(
-                f"LLMResponseExtractorBlock expects exactly one input column, but got {len(self.input_cols)}. "
-                f"Using the first column: {self.input_cols[0]}"
+                f"LLMResponseExtractorBlock expects exactly one input column, but got {len(input_cols)}. "
+                f"Using the first column: {input_cols[0]}"
             )
 
     def _extract_fields_from_response(self, response: dict) -> dict[str, Any]:
@@ -185,7 +187,7 @@ class LLMResponseExtractorBlock(BaseBlock):
                 if response["tool_calls"] is None:
                     ## skip this field
                     logger.warning("Tool calls field is None, using empty list instead")
-                    extracted[self._tool_calls_field] = []
+                    extracted[self._tool_calls_field] = []  # type: ignore[assignment]
                 else:
                     extracted[self._tool_calls_field] = response["tool_calls"]
 
@@ -212,7 +214,8 @@ class LLMResponseExtractorBlock(BaseBlock):
         return columns
 
     def _generate(self, sample: dict) -> list[dict]:
-        input_column = self.input_cols[0]
+        input_cols = cast(list[str], self.input_cols)
+        input_column = input_cols[0]
         raw_output = sample[input_column]
 
         # Handle list inputs (e.g., from LLMChatBlock with n > 1)
@@ -252,7 +255,7 @@ class LLMResponseExtractorBlock(BaseBlock):
     ) -> list[dict]:
         """Process list input while preserving list structure."""
         output_columns = self._get_output_columns()
-        all_extracted = {col: [] for col in output_columns}
+        all_extracted: dict[str, list[Any]] = {col: [] for col in output_columns}
         valid_responses = 0
 
         for i, response in enumerate(raw_output):

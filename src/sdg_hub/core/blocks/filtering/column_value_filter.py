@@ -6,7 +6,7 @@ using various operations with optional data type conversion.
 """
 
 # Standard
-from typing import Any, Optional, Union
+from typing import Any, Callable, Optional, Union, cast
 import operator
 
 from pydantic import Field, field_validator
@@ -22,7 +22,7 @@ from ..registry import BlockRegistry
 logger = setup_logger(__name__)
 
 # Supported operations mapping
-OPERATION_MAP = {
+OPERATION_MAP: dict[str, Callable[[Any, Any], bool]] = {
     "eq": operator.eq,
     "ne": operator.ne,
     "lt": operator.lt,
@@ -117,6 +117,8 @@ class ColumnValueFilterBlock(BaseBlock):
             super(), "model_post_init"
         ) else None
 
+        input_cols = cast(list[str], self.input_cols)
+
         # Ensure output_cols is empty list for filtering operations (doesn't create new columns)
         if self.output_cols is None:
             self.output_cols = []
@@ -127,13 +129,13 @@ class ColumnValueFilterBlock(BaseBlock):
             if isinstance(self.filter_value, list)
             else [self.filter_value]
         )
-        self.column_name = self.input_cols[0]  # Use first input column for filtering
+        self.column_name: str = input_cols[0]  # Use first input column for filtering
 
         # Convert string operation to actual callable
-        self._operation_func = OPERATION_MAP[self.operation]
+        self._operation_func: Callable[[Any, Any], bool] = OPERATION_MAP[self.operation]
 
         # Convert string dtype to actual type if specified
-        self._convert_dtype_func = (
+        self._convert_dtype_func: Optional[Callable[[Any], Any]] = (
             DTYPE_MAP[self.convert_dtype] if self.convert_dtype else None
         )
 
@@ -150,6 +152,8 @@ class ColumnValueFilterBlock(BaseBlock):
         Dict[str, Any]
             The sample with converted column value.
         """
+        if self._convert_dtype_func is None:
+            return sample
         try:
             sample[self.column_name] = self._convert_dtype_func(
                 sample[self.column_name]

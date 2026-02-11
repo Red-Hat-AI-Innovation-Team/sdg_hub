@@ -7,7 +7,9 @@ import os
 from rich.logging import RichHandler
 
 
-def setup_logger(name, log_dir=None, log_filename="sdg_hub.log"):
+def setup_logger(
+    name: str, log_dir: str | None = None, log_filename: str = "sdg_hub.log"
+) -> logging.Logger:
     """
     Set up a logger with optional file logging.
 

@@ -64,6 +64,8 @@ class FlowCheckpointer:
     @property
     def metadata_path(self) -> str:
         """Path to the flow metadata file."""
+        if self.checkpoint_dir is None:
+            raise ValueError("checkpoint_dir is not set")
         return os.path.join(self.checkpoint_dir, "flow_metadata.json")
 
     def load_existing_progress(
@@ -159,7 +161,7 @@ class FlowCheckpointer:
 
     def _save_checkpoint(self) -> None:
         """Save current pending samples to a checkpoint file."""
-        if not self._pending_samples:
+        if not self._pending_samples or self.checkpoint_dir is None:
             return
 
         self._checkpoint_counter += 1
@@ -209,7 +211,10 @@ class FlowCheckpointer:
 
     def _load_completed_samples(self) -> Optional[pd.DataFrame]:
         """Load all completed samples from checkpoint files."""
-        checkpoint_files = []
+        if self.checkpoint_dir is None:
+            return None
+
+        checkpoint_files: list[str] = []
         checkpoint_dir = Path(self.checkpoint_dir)
 
         # Find all checkpoint files
@@ -223,15 +228,17 @@ class FlowCheckpointer:
         checkpoint_files.sort()
 
         # Load and concatenate all checkpoint dataframes
-        dataframes = []
-        for file_path in checkpoint_files:
+        dataframes: list[pd.DataFrame] = []
+        for checkpoint_file in checkpoint_files:
             try:
-                df = pd.read_json(file_path, lines=True)
+                df = pd.read_json(checkpoint_file, lines=True)
                 if len(df) > 0:
                     dataframes.append(df)
-                    logger.debug(f"Loaded checkpoint: {file_path} ({len(df)} samples)")
+                    logger.debug(
+                        f"Loaded checkpoint: {checkpoint_file} ({len(df)} samples)"
+                    )
             except Exception as exc:
-                logger.warning(f"Failed to load checkpoint {file_path}: {exc}")
+                logger.warning(f"Failed to load checkpoint {checkpoint_file}: {exc}")
 
         if not dataframes:
             return None
@@ -315,7 +322,7 @@ class FlowCheckpointer:
 
     def cleanup_checkpoints(self) -> None:
         """Remove all checkpoint files and metadata."""
-        if not self.is_enabled:
+        if not self.is_enabled or self.checkpoint_dir is None:
             return
 
         checkpoint_dir = Path(self.checkpoint_dir)

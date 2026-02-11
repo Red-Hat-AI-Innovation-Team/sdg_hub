@@ -6,7 +6,7 @@ including conversion to OpenAI Messages format and template rendering.
 """
 
 # Standard
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, cast
 
 from jinja2 import Template, meta
 from pydantic import BaseModel, Field, field_validator
@@ -283,7 +283,7 @@ class PromptBuilderBlock(BaseBlock):
         self.prompt_renderer = PromptRenderer(message_templates)
 
     def _validate_custom(self, dataset: pd.DataFrame) -> None:
-        if len(dataset) > 0:
+        if len(dataset) > 0 and self.prompt_renderer is not None:
             # Get required variables from all message templates
             required_vars = self.prompt_renderer.get_required_variables()
 
@@ -319,7 +319,13 @@ class PromptBuilderBlock(BaseBlock):
         Dict[str, Any]
             Sample with formatted output added to specified output column.
         """
-        output_col = self.output_cols[0]
+        output_cols = cast(list[str], self.output_cols)
+        output_col = output_cols[0]
+
+        if self.prompt_renderer is None:
+            logger.error("prompt_renderer is not initialized")
+            sample[output_col] = [] if self.format_as_messages else ""
+            return sample
 
         try:
             # Step 1: Resolve template variables from dataset columns

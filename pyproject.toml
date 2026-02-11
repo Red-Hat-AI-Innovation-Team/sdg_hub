@@ -54,6 +54,7 @@ issues = "https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/issues"
 # Development and testing dependencies (lightweight, no ML libraries)
 dev = [
     "coverage>=7.0.0",
+    "mypy>=1.0.0",
     "nbconvert>=7.0.0",
     "pre-commit>=3.0.4,<4.0",
     "pytest",

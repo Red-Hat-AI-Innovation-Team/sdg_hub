@@ -132,7 +132,7 @@ class FlowRegistry:
                         flow_config["metadata"]["id"] = metadata.id
 
                         save_flow_yaml(
-                            yaml_file,
+                            str(yaml_file),
                             flow_config,
                             f"updated with generated id: {metadata.id}",
                         )
@@ -316,7 +316,7 @@ class FlowRegistry:
         cls._ensure_initialized()
         cls._discover_flows()
 
-        categories = {}
+        categories: dict[str, list[dict[str, str]]] = {}
 
         for entry in cls._entries.values():
             metadata = entry.metadata

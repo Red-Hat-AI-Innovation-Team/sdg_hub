@@ -6,7 +6,7 @@ mode, min, max, mean, or median.
 """
 
 # Standard
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from pydantic import field_validator
 import numpy as np
@@ -61,13 +61,15 @@ class UniformColumnValueSetter(BaseBlock):
         if hasattr(super(), "model_post_init"):
             super().model_post_init(__context)
 
+        input_cols = cast(list[str], self.input_cols)
+
         if self.output_cols and len(self.output_cols) > 0:
             logger.warning(
                 f"UniformColumnValueSetter modifies columns in-place. "
                 f"Specified output_cols {self.output_cols} will be ignored."
             )
         self.output_cols = []
-        self.col_name = self.input_cols[0]
+        self.col_name: str = input_cols[0]
 
     def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         df = samples.copy()

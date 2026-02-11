@@ -6,7 +6,7 @@ from list or set columns in each row of a dataset.
 """
 
 # Standard
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from pydantic import Field, field_validator
 
@@ -147,8 +147,10 @@ class SamplerBlock(BaseBlock):
         pd.DataFrame
             Dataset with sampled values in output column.
         """
-        input_col = self.input_cols[0]
-        output_col = self.output_cols[0]
+        input_cols = cast(list[str], self.input_cols)
+        output_cols = cast(list[str], self.output_cols)
+        input_col = input_cols[0]
+        output_col = output_cols[0]
 
         result = samples.copy()
 

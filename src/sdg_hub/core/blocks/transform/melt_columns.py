@@ -6,7 +6,7 @@ by melting specified columns into rows.
 """
 
 # Standard
-from typing import Any
+from typing import Any, cast
 
 from pydantic import field_validator
 
@@ -73,14 +73,15 @@ class MeltColumnsBlock(BaseBlock):
             super(), "model_post_init"
         ) else None
 
+        output_cols = cast(list[str], self.output_cols)
+        input_cols = cast(list[str], self.input_cols)
+
         # Derive value and variable column names from output_cols
-        self.value_name = self.output_cols[0]  # First output column is value
-        self.var_name = self.output_cols[1]  # Second output column is variable
+        self.value_name: str = output_cols[0]  # First output column is value
+        self.var_name: str = output_cols[1]  # Second output column is variable
 
         # input_cols contains the columns to be melted (what was var_cols)
-        self.var_cols = (
-            self.input_cols if isinstance(self.input_cols, list) else [self.input_cols]
-        )
+        self.var_cols: list[str] = input_cols
 
     def _validate_custom(self, samples: pd.DataFrame) -> None:
         """Validate that required columns exist in the dataset.
