@@ -51,10 +51,8 @@ class Flow(BaseModel):
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
     # Private attributes (not serialized)
-    _model_config_set: bool = False  # Track if model configuration has been set
-    _block_metrics: list[dict[str, Any]] = PrivateAttr(
-        default_factory=list
-    )  # Track block execution metrics
+    _model_config_set: bool = PrivateAttr(default=False)
+    _block_metrics: list[dict[str, Any]] = PrivateAttr(default_factory=list)
 
     @field_validator("blocks")
     @classmethod

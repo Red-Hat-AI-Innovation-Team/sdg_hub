@@ -30,6 +30,52 @@ if TYPE_CHECKING:
 logger = setup_logger(__name__)
 
 
+def _validate_max_concurrency(max_concurrency: Optional[int]) -> None:
+    """Validate the max_concurrency parameter.
+
+    Parameters
+    ----------
+    max_concurrency : Optional[int]
+        Maximum concurrency value to validate.
+
+    Raises
+    ------
+    FlowValidationError
+        If max_concurrency is invalid (not an int, bool, or <= 0).
+    """
+    if max_concurrency is not None:
+        # Explicitly reject boolean values (bool is a subclass of int in Python)
+        if isinstance(max_concurrency, bool) or not isinstance(max_concurrency, int):
+            raise FlowValidationError(
+                f"max_concurrency must be an int, got {type(max_concurrency).__name__}"
+            )
+        if max_concurrency <= 0:
+            raise FlowValidationError(
+                f"max_concurrency must be greater than 0, got {max_concurrency}"
+            )
+
+
+def _close_flow_logger(flow_logger, module_logger) -> None:
+    """Close file handlers on a flow-specific logger.
+
+    Parameters
+    ----------
+    flow_logger : logging.Logger
+        The flow-specific logger to close.
+    module_logger : logging.Logger
+        The module-level logger (to check if flow_logger is different).
+    """
+    if flow_logger is not module_logger:
+        for h in list(getattr(flow_logger, "handlers", [])):
+            try:
+                h.flush()
+                h.close()
+            except Exception:
+                pass
+            finally:
+                flow_logger.removeHandler(h)
+
+
 def convert_to_dataframe(
     dataset: Union[pd.DataFrame, datasets.Dataset],
 ) -> tuple[pd.DataFrame, bool]:
@@ -309,12 +355,20 @@ def execute_flow(
     # Convert to DataFrame if needed (backwards compatibility)
     dataset, was_dataset = convert_to_dataframe(dataset)
 
+    # Normalize runtime_params early
+    runtime_params = runtime_params or {}
+
     # Validate save_freq parameter early to prevent range() errors
     if save_freq is not None and save_freq <= 0:
         raise FlowValidationError(f"save_freq must be greater than 0, got {save_freq}")
 
+    # Validate max_concurrency parameter
+    _validate_max_concurrency(max_concurrency)
+
     # Set up file logging if log_dir is provided
     flow_logger = logger  # Use global logger by default
+    timestamp = None
+    flow_name = None
     if log_dir is not None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         flow_name = flow.metadata.name.replace(" ", "_").lower()
@@ -330,17 +384,6 @@ def execute_flow(
         flow_logger.info(
             f"Flow logging enabled - logs will be saved to: {log_dir}/{log_filename}"
         )
-    # Validate max_concurrency parameter
-    if max_concurrency is not None:
-        # Explicitly reject boolean values (bool is a subclass of int in Python)
-        if isinstance(max_concurrency, bool) or not isinstance(max_concurrency, int):
-            raise FlowValidationError(
-                f"max_concurrency must be an int, got {type(max_concurrency).__name__}"
-            )
-        if max_concurrency <= 0:
-            raise FlowValidationError(
-                f"max_concurrency must be greater than 0, got {max_concurrency}"
-            )
 
     # Validate preconditions
     if not flow.blocks:
@@ -369,7 +412,7 @@ def execute_flow(
 
     # Log concurrency control if specified
     if max_concurrency is not None:
-        logger.info(f"Using max_concurrency={max_concurrency} for LLM requests")
+        flow_logger.info(f"Using max_concurrency={max_concurrency} for LLM requests")
 
     # Initialize checkpointer if enabled
     checkpointer = None
@@ -390,15 +433,8 @@ def execute_flow(
             flow_logger.info(
                 "All samples already completed, returning existing results"
             )
-            if log_dir is not None and flow_logger is not logger:
-                for h in list(getattr(flow_logger, "handlers", [])):
-                    try:
-                        h.flush()
-                        h.close()
-                    except Exception:
-                        pass
-                    finally:
-                        flow_logger.removeHandler(h)
+            if log_dir is not None:
+                _close_flow_logger(flow_logger, logger)
 
             return convert_from_dataframe(completed_dataset, was_dataset)
 
@@ -487,11 +523,6 @@ def execute_flow(
 
         # Save metrics to JSON if log_dir is provided
         if log_dir is not None:
-            # Ensure necessary variables exist
-            if "timestamp" not in locals() or "flow_name" not in locals():
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                flow_name = flow.metadata.name.replace(" ", "_").lower()
-
             save_metrics_to_json(
                 flow._block_metrics,
                 flow.metadata.name,
@@ -513,15 +544,8 @@ def execute_flow(
         )
 
     # Close file handlers if we opened a flow-specific logger
-    if log_dir is not None and flow_logger is not logger:
-        for h in list(getattr(flow_logger, "handlers", [])):
-            try:
-                h.flush()
-                h.close()
-            except Exception:
-                pass
-            finally:
-                flow_logger.removeHandler(h)
+    if log_dir is not None:
+        _close_flow_logger(flow_logger, logger)
 
     return convert_from_dataframe(final_dataset, was_dataset)
 
@@ -580,15 +604,7 @@ def run_dry_run(
     validate_no_duplicates(dataset)
 
     # Validate max_concurrency parameter
-    if max_concurrency is not None:
-        if isinstance(max_concurrency, bool) or not isinstance(max_concurrency, int):
-            raise FlowValidationError(
-                f"max_concurrency must be an int, got {type(max_concurrency).__name__}"
-            )
-        if max_concurrency <= 0:
-            raise FlowValidationError(
-                f"max_concurrency must be greater than 0, got {max_concurrency}"
-            )
+    _validate_max_concurrency(max_concurrency)
 
     # Use smaller sample size if dataset is smaller
     actual_sample_size = min(sample_size, len(dataset))

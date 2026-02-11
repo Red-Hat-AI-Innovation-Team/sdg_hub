@@ -123,6 +123,8 @@ def load_flow_from_yaml(flow_cls: type["Flow"], yaml_path: str) -> "Flow":
             flow._model_config_set = False
 
         return flow
+    except FlowValidationError:
+        raise
     except Exception as exc:
         raise FlowValidationError(f"Flow validation failed: {exc}") from exc
 

@@ -90,16 +90,17 @@ def get_dataset_schema(flow: "Flow") -> pd.DataFrame:
     >>> flow = Flow.from_yaml("path/to/flow.yaml")
     >>> schema_dataset = flow.get_dataset_schema()
     >>>
-    >>> # Add your data
-    >>> schema_dataset = schema_dataset.add_item({
+    >>> # Add your data using pandas concat
+    >>> new_row = pd.DataFrame([{
     ...     "document": "Your document text",
     ...     "domain": "Computer Science",
     ...     "icl_document": "Example document"
-    ... })
+    ... }])
+    >>> schema_dataset = pd.concat([schema_dataset, new_row], ignore_index=True)
     >>>
     >>> # Or validate your existing dataset schema
     >>> my_dataset = pd.DataFrame(my_data)
-    >>> if my_dataset.dtypes.equals(schema_dataset.dtypes):
+    >>> if set(my_dataset.columns) == set(schema_dataset.columns):
     ...     print("Schema matches!")
     """
     requirements = get_dataset_requirements(flow)
