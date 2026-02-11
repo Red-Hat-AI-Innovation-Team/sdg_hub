@@ -1513,8 +1513,8 @@ class TestFlow:
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = pd.DataFrame({"input": ["test1", "test2"]})
 
-        # Patch the block's __call__ to return empty DataFrame
-        with patch.object(block, "__call__", return_value=pd.DataFrame()):
+        # Patch at class level (dunder methods are looked up on the class)
+        with patch.object(MockBlock, "__call__", return_value=pd.DataFrame()):
             with pytest.raises(EmptyDatasetError) as exc_info:
                 flow.generate(dataset)
 
@@ -1543,13 +1543,18 @@ class TestFlow:
 
     def test_dry_run_reraises_flow_validation_error(self):
         """Test that dry_run re-raises FlowValidationError without wrapping."""
+        # First Party
+        from tests.flow.conftest import MockBlock
+
         block = self.create_mock_block("failing_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = pd.DataFrame({"input": ["test1", "test2"]})
 
-        # Patch the block's __call__ to raise FlowValidationError
+        # Patch at class level (dunder methods are looked up on the class)
         with patch.object(
-            block, "__call__", side_effect=FlowValidationError("Original error message")
+            MockBlock,
+            "__call__",
+            side_effect=FlowValidationError("Original error message"),
         ):
             with pytest.raises(FlowValidationError) as exc_info:
                 flow.dry_run(dataset)
@@ -1562,6 +1567,9 @@ class TestFlow:
         # Standard
         import os
 
+        # First Party
+        from tests.flow.conftest import MockBlock
+
         log_dir = Path(self.temp_dir) / "logs"
         os.makedirs(log_dir, exist_ok=True)
 
@@ -1569,8 +1577,10 @@ class TestFlow:
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = pd.DataFrame({"input": ["test1", "test2"]})
 
-        # Patch the block's __call__ to raise an error
-        with patch.object(block, "__call__", side_effect=RuntimeError("Test failure")):
+        # Patch at class level (dunder methods are looked up on the class)
+        with patch.object(
+            MockBlock, "__call__", side_effect=RuntimeError("Test failure")
+        ):
             with pytest.raises(FlowValidationError):
                 flow.generate(dataset, log_dir=str(log_dir))
 
