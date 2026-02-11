@@ -42,7 +42,9 @@ def load_flow_from_yaml(flow_cls: type["Flow"], yaml_path: str) -> "Flow":
     Raises
     ------
     FlowValidationError
-        If yaml_path is None or the file doesn't exist.
+        If ``yaml_path`` is None or the flow configuration/metadata is invalid.
+    FileNotFoundError
+        If the YAML file does not exist at the given path.
     """
     # Import here to avoid circular imports
     from .model_config import detect_llm_blocks

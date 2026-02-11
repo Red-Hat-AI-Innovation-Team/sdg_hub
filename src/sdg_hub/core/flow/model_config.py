@@ -61,7 +61,7 @@ def is_model_config_set(flow: "Flow") -> bool:
     bool
         True if model configuration has been set or is not required.
     """
-    return flow._model_config_set
+    return (not is_model_config_required(flow)) or flow._model_config_set
 
 
 def reset_model_config(flow: "Flow") -> None:
