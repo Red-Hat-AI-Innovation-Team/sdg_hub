@@ -290,15 +290,13 @@ def set_model_config(
 
     if modified_count > 0:
         # Enhanced logging showing what was configured
-        # Note: SecretStr values automatically display as '**********' in logs
+        # Apply same redaction rules as per-block logging
         param_summary = []
         for param_name, param_value in config_params.items():
-            if param_name == "model":
-                param_summary.append(f"model: '{param_value}'")
-            elif param_name == "api_base":
-                param_summary.append(f"api_base: '{param_value}'")
+            if param_name in sensitive_params:
+                param_summary.append(f"{param_name}: (redacted)")
             else:
-                param_summary.append(f"{param_name}: {param_value}")
+                param_summary.append(f"{param_name}: '{param_value}'")
 
         logger.info(
             f"Successfully configured {modified_count} LLM blocks with: {', '.join(param_summary)}"

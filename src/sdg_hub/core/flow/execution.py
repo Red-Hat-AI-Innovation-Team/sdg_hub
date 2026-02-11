@@ -240,9 +240,7 @@ def execute_blocks_on_dataset(
 
             # Validate output
             if len(current_dataset) == 0:
-                raise EmptyDatasetError(
-                    f"Block '{block.block_name}' produced empty dataset"
-                )
+                raise EmptyDatasetError(block.block_name)
 
             # Capture metrics after successful execution
             execution_time = time.perf_counter() - start_time
@@ -271,6 +269,9 @@ def execute_blocks_on_dataset(
                 f"{len(current_dataset.columns)} columns"
             )
 
+        except EmptyDatasetError:
+            # Re-raise EmptyDatasetError directly without wrapping
+            raise
         except Exception as exc:
             # Capture metrics for failed execution
             execution_time = time.perf_counter() - start_time
@@ -347,9 +348,10 @@ def execute_flow(
     Raises
     ------
     EmptyDatasetError
-        If input dataset is empty or any block produces an empty dataset.
+        If any block produces an empty dataset.
     FlowValidationError
-        If flow validation fails or if model configuration is required but not set.
+        If flow validation fails, input dataset is empty, or model configuration
+        is required but not set.
     """
     # Import here to avoid circular imports
     from .model_config import detect_llm_blocks
@@ -392,7 +394,7 @@ def execute_flow(
         raise FlowValidationError("Cannot generate with empty flow")
 
     if len(dataset) == 0:
-        raise EmptyDatasetError("Input dataset is empty")
+        raise FlowValidationError("Input dataset is empty")
 
     validate_no_duplicates(dataset)
 
@@ -588,10 +590,8 @@ def run_dry_run(
 
     Raises
     ------
-    EmptyDatasetError
-        If input dataset is empty.
     FlowValidationError
-        If any block fails during dry run execution.
+        If input dataset is empty or any block fails during dry run execution.
     """
     # Convert to DataFrame if needed (backwards compatibility)
     dataset, _ = convert_to_dataframe(dataset)
@@ -601,7 +601,7 @@ def run_dry_run(
         raise FlowValidationError("Cannot dry run empty flow")
 
     if len(dataset) == 0:
-        raise EmptyDatasetError("Input dataset is empty")
+        raise FlowValidationError("Input dataset is empty")
 
     validate_no_duplicates(dataset)
 

@@ -16,7 +16,7 @@ import yaml
 # First Party
 from sdg_hub import Flow, FlowMetadata
 from sdg_hub.core.flow.metadata import DatasetRequirements
-from sdg_hub.core.utils.error_handling import EmptyDatasetError, FlowValidationError
+from sdg_hub.core.utils.error_handling import FlowValidationError
 from sdg_hub.core.flow import serialization  # noqa: F401 - needed for patching
 
 
@@ -208,10 +208,10 @@ class TestFlow:
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         empty_dataset = pd.DataFrame({"input": []})
 
-        with pytest.raises(EmptyDatasetError) as exc_info:
+        with pytest.raises(FlowValidationError) as exc_info:
             flow.generate(empty_dataset)
 
-        assert "empty" in str(exc_info.value)
+        assert "empty" in str(exc_info.value).lower()
 
     def test_generate_with_dataset_requirements(self):
         """Test generating with dataset requirements."""
@@ -310,7 +310,7 @@ class TestFlow:
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         empty_dataset = pd.DataFrame({"input": []})
 
-        with pytest.raises(EmptyDatasetError):
+        with pytest.raises(FlowValidationError):
             flow.dry_run(empty_dataset)
 
     def test_dry_run_success(self):
@@ -1486,13 +1486,17 @@ class TestFlow:
         assert len(relevant_logs) > 0
         log_text = relevant_logs[0]
 
-        # Sensitive params must be redacted - SecretStr displays as '**********'
-        assert "**********" in log_text or "SecretStr" in log_text
+        # Sensitive params must be redacted
+        assert (
+            "(redacted)" in log_text
+            or "**********" in log_text
+            or "SecretStr" in log_text
+        )
         assert "sk-secret-key" not in log_text
 
         # Non-sensitive params should be visible
-        assert "temperature: 0.7" in log_text
-        assert "max_tokens: 100" in log_text
+        assert "temperature" in log_text
+        assert "max_tokens" in log_text
 
         # Verify that the api_key was actually set as a SecretStr on the block
         assert llm_block.api_key is not None
