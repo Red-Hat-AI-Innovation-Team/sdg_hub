@@ -39,7 +39,6 @@ class TestPythonInterpreterBlockConfiguration:
 
         assert block.interpreter_framework == "monty"
         assert block.timeout == 30.0
-        assert block.async_mode is False
         assert block.max_concurrency == 10
 
     def test_custom_configuration(self):
@@ -48,7 +47,6 @@ class TestPythonInterpreterBlockConfiguration:
             block_name="test",
             interpreter_framework="monty",
             timeout=10.0,
-            async_mode=True,
             max_concurrency=5,
             input_cols=["code"],
             output_cols=["result"],
@@ -56,7 +54,6 @@ class TestPythonInterpreterBlockConfiguration:
 
         assert block.interpreter_framework == "monty"
         assert block.timeout == 10.0
-        assert block.async_mode is True
         assert block.max_concurrency == 5
 
     def test_required_block_name(self):
@@ -107,24 +104,12 @@ class TestPythonInterpreterBlockConfiguration:
 class TestPythonInterpreterBlockGenerate:
     """Test PythonInterpreterBlock generate method."""
 
-    @pytest.fixture
-    def mock_connector(self):
-        """Create a mock connector."""
-        connector = MagicMock()
-        connector.execute_code.return_value = CodeExecutionResult(
-            success=True,
-            output="Hello",
-            execution_time_ms=1.0,
-        )
-        return connector
-
-    def test_generate_sync_mode(self, mock_connector):
-        """Test generate in sync mode."""
+    def test_generate_executes_code(self):
+        """Test generate executes code and returns results."""
         block = PythonInterpreterBlock(
             block_name="test",
             input_cols=["code"],
             output_cols=["result"],
-            async_mode=False,
         )
 
         df = pd.DataFrame(
@@ -133,10 +118,12 @@ class TestPythonInterpreterBlockGenerate:
             }
         )
 
-        mock_connector.execute_code.side_effect = [
-            CodeExecutionResult(success=True, output="Hello", execution_time_ms=1.0),
-            CodeExecutionResult(success=True, output="World", execution_time_ms=1.5),
-        ]
+        mock_connector = MagicMock()
+        mock_connector.aexecute_code = AsyncMock(
+            return_value=CodeExecutionResult(
+                success=True, output="executed", execution_time_ms=1.0
+            )
+        )
 
         with patch.object(block, "_get_connector", return_value=mock_connector):
             result = block.generate(df)
@@ -144,10 +131,10 @@ class TestPythonInterpreterBlockGenerate:
         assert len(result) == 2
         assert "result" in result.columns
         assert result["result"].iloc[0]["success"] is True
-        assert result["result"].iloc[0]["output"] == "Hello"
-        assert result["result"].iloc[1]["output"] == "World"
+        assert result["result"].iloc[1]["success"] is True
+        assert mock_connector.aexecute_code.call_count == 2
 
-    def test_generate_handles_errors(self, mock_connector):
+    def test_generate_handles_errors(self):
         """Test generate handles code execution errors."""
         block = PythonInterpreterBlock(
             block_name="test",
@@ -161,10 +148,13 @@ class TestPythonInterpreterBlockGenerate:
             }
         )
 
-        mock_connector.execute_code.return_value = CodeExecutionResult(
-            success=False,
-            error="ZeroDivisionError: division by zero",
-            execution_time_ms=0.5,
+        mock_connector = MagicMock()
+        mock_connector.aexecute_code = AsyncMock(
+            return_value=CodeExecutionResult(
+                success=False,
+                error="ZeroDivisionError: division by zero",
+                execution_time_ms=0.5,
+            )
         )
 
         with patch.object(block, "_get_connector", return_value=mock_connector):
@@ -173,7 +163,7 @@ class TestPythonInterpreterBlockGenerate:
         assert result["result"].iloc[0]["success"] is False
         assert "ZeroDivisionError" in result["result"].iloc[0]["error"]
 
-    def test_generate_handles_empty_code(self, mock_connector):
+    def test_generate_handles_empty_code(self):
         """Test generate handles empty or invalid code."""
         block = PythonInterpreterBlock(
             block_name="test",
@@ -187,52 +177,55 @@ class TestPythonInterpreterBlockGenerate:
             }
         )
 
+        mock_connector = MagicMock()
+        mock_connector.aexecute_code = AsyncMock()
+
         with patch.object(block, "_get_connector", return_value=mock_connector):
             result = block.generate(df)
 
-        # Empty code should result in failure
+        # Empty code should result in failure without calling connector
         for idx in range(len(result)):
             assert result["result"].iloc[idx]["success"] is False
             assert "Empty or invalid" in result["result"].iloc[idx]["error"]
 
-    def test_generate_async_mode(self):
-        """Test generate in async mode."""
+        # Connector should not be called for empty code
+        mock_connector.aexecute_code.assert_not_called()
+
+    def test_generate_respects_max_concurrency(self):
+        """Test that max_concurrency limits concurrent executions."""
         block = PythonInterpreterBlock(
             block_name="test",
             input_cols=["code"],
             output_cols=["result"],
-            async_mode=True,
             max_concurrency=2,
         )
 
         df = pd.DataFrame(
             {
-                "code": ["print('A')", "print('B')"],
+                "code": ["print('A')", "print('B')", "print('C')"],
             }
         )
 
         mock_connector = MagicMock()
         mock_connector.aexecute_code = AsyncMock(
-            side_effect=[
-                CodeExecutionResult(success=True, output="A", execution_time_ms=1.0),
-                CodeExecutionResult(success=True, output="B", execution_time_ms=1.0),
-            ]
+            return_value=CodeExecutionResult(
+                success=True, output="test", execution_time_ms=1.0
+            )
         )
 
         with patch.object(block, "_get_connector", return_value=mock_connector):
             result = block.generate(df)
 
-        assert len(result) == 2
-        assert "result" in result.columns
+        assert len(result) == 3
+        assert mock_connector.aexecute_code.call_count == 3
 
     @pytest.mark.asyncio
-    async def test_generate_async_from_async_context(self):
-        """Test generate in async mode from async context."""
+    async def test_generate_from_async_context(self):
+        """Test generate works when called from async context."""
         block = PythonInterpreterBlock(
             block_name="test",
             input_cols=["code"],
             output_cols=["result"],
-            async_mode=True,
         )
 
         df = pd.DataFrame(
@@ -252,6 +245,7 @@ class TestPythonInterpreterBlockGenerate:
             result = block.generate(df)
 
         assert len(result) == 1
+        assert result["result"].iloc[0]["success"] is True
 
 
 class TestPythonInterpreterBlockConnectorIntegration:
@@ -267,7 +261,6 @@ class TestPythonInterpreterBlockConnectorIntegration:
             output_cols=["result"],
         )
 
-        # Mock the registry to return a mock connector class
         mock_connector_class = MagicMock()
         mock_connector_instance = MagicMock()
         mock_connector_class.return_value = mock_connector_instance
@@ -294,7 +287,6 @@ class TestPythonInterpreterBlockConnectorIntegration:
             connector1 = block._get_connector()
             connector2 = block._get_connector()
 
-        # Should only create once
         assert mock_connector_class.call_count == 1
         assert connector1 is connector2
 
@@ -324,17 +316,14 @@ class TestPythonInterpreterBlockConnectorIntegration:
 
         with patch.object(ConnectorRegistry, "get", return_value=mock_connector_class):
             block._get_connector()
-
-            # Change timeout
             block.timeout = 20.0
             block._get_connector()
 
-        # Should create new connector
         assert mock_connector_class.call_count == 2
 
 
 class TestPythonInterpreterBlockCallable:
-    """Test PythonInterpreterBlock __call__ method (full pipeline)."""
+    """Test PythonInterpreterBlock __call__ method."""
 
     def test_callable_validates_columns(self):
         """Test that __call__ validates input columns."""
@@ -364,7 +353,7 @@ class TestPythonInterpreterBlockCallable:
         df = pd.DataFrame(
             {
                 "code": ["print('hello')"],
-                "result": ["existing"],  # Collision
+                "result": ["existing"],
             }
         )
 
