@@ -7,8 +7,8 @@ from unittest.mock import Mock, patch
 
 # First Party
 from sdg_hub import Flow
-from sdg_hub.core.flow.metadata import DatasetRequirements
 from sdg_hub.core.flow import serialization  # noqa: F401 - needed for patching
+from sdg_hub.core.flow.metadata import DatasetRequirements
 
 # Third Party
 import pandas as pd
