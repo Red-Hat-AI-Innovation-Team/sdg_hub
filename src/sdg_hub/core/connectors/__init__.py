@@ -25,6 +25,11 @@ Example
 # Import agent module to register connectors
 from .agent import BaseAgentConnector, LangflowConnector, LangGraphConnector
 from .base import BaseConnector, ConnectorConfig
+from .code_interpreter import (
+    BaseCodeInterpreterConnector,
+    CodeExecutionResult,
+    MontyConnector,
+)
 from .exceptions import ConnectorError, ConnectorHTTPError
 from .http import HttpClient
 from .registry import ConnectorRegistry
@@ -37,6 +42,10 @@ __all__ = [
     "BaseAgentConnector",
     "LangflowConnector",
     "LangGraphConnector",
+    # Code interpreter connectors
+    "BaseCodeInterpreterConnector",
+    "CodeExecutionResult",
+    "MontyConnector",
     # Registry
     "ConnectorRegistry",
     # HTTP utilities
