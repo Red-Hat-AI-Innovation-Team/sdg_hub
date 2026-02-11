@@ -539,17 +539,17 @@ def execute_flow(
                 flow_logger,
             )
 
-    # Keep a basic log entry for file logs (only if execution was successful)
+        # Close file handlers if we opened a flow-specific logger
+        if log_dir is not None:
+            _close_flow_logger(flow_logger, logger)
+
+    # Keep a basic log entry (only if execution was successful)
     if execution_successful and final_dataset is not None:
-        flow_logger.info(
+        logger.info(
             f"Flow '{flow.metadata.name}' completed successfully: "
             f"{len(final_dataset)} final samples, "
             f"{len(final_dataset.columns)} final columns"
         )
-
-    # Close file handlers if we opened a flow-specific logger
-    if log_dir is not None:
-        _close_flow_logger(flow_logger, logger)
 
     return convert_from_dataframe(final_dataset, was_dataset)
 
@@ -708,6 +708,9 @@ def run_dry_run(
 
         return dry_run_results
 
+    except (EmptyDatasetError, FlowValidationError):
+        # Re-raise these errors directly without wrapping
+        raise
     except Exception as exc:
         execution_time = time.perf_counter() - start_time
         dry_run_results["execution_successful"] = False
