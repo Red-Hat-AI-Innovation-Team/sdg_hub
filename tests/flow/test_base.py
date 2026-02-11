@@ -1504,31 +1504,23 @@ class TestFlow:
 
     def test_block_produces_empty_dataset_raises_empty_dataset_error(self):
         """Test that EmptyDatasetError is raised (not wrapped) when block produces empty dataset."""
+        # First Party
+        from tests.flow.conftest import MockBlock
 
-        def empty_output(df, **kwargs):
-            return pd.DataFrame()
+        # Create a block that returns empty dataset
+        block = MockBlock(block_name="empty_producer")
 
-        block = self.create_mock_block("test_block")
-        block.side_effect = None
-        block.return_value = pd.DataFrame()
-
-        # Create a real mock that returns empty DataFrame
-        mock_block = Mock()
-        mock_block.block_name = "empty_producer"
-        mock_block.block_type = "transform"
-        mock_block.__class__.__name__ = "MockBlock"
-        mock_block.return_value = pd.DataFrame()
-        mock_block.side_effect = lambda df, **kwargs: pd.DataFrame()
-
-        flow = Flow(blocks=[mock_block], metadata=self.test_metadata)
+        flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = pd.DataFrame({"input": ["test1", "test2"]})
 
-        with pytest.raises(EmptyDatasetError) as exc_info:
-            flow.generate(dataset)
+        # Patch the block's __call__ to return empty DataFrame
+        with patch.object(block, "__call__", return_value=pd.DataFrame()):
+            with pytest.raises(EmptyDatasetError) as exc_info:
+                flow.generate(dataset)
 
-        # Verify it's the EmptyDatasetError type, not wrapped
-        assert isinstance(exc_info.value, EmptyDatasetError)
-        assert "empty_producer" in str(exc_info.value)
+            # Verify it's the EmptyDatasetError type, not wrapped
+            assert isinstance(exc_info.value, EmptyDatasetError)
+            assert "empty_producer" in str(exc_info.value)
 
     @pytest.mark.parametrize(
         "content,expected_type",
@@ -1552,16 +1544,18 @@ class TestFlow:
     def test_dry_run_reraises_flow_validation_error(self):
         """Test that dry_run re-raises FlowValidationError without wrapping."""
         block = self.create_mock_block("failing_block")
-        block.side_effect = FlowValidationError("Original error message")
-
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = pd.DataFrame({"input": ["test1", "test2"]})
 
-        with pytest.raises(FlowValidationError) as exc_info:
-            flow.dry_run(dataset)
+        # Patch the block's __call__ to raise FlowValidationError
+        with patch.object(
+            block, "__call__", side_effect=FlowValidationError("Original error message")
+        ):
+            with pytest.raises(FlowValidationError) as exc_info:
+                flow.dry_run(dataset)
 
-        # Verify the error message is preserved (not wrapped as "Dry run failed:")
-        assert "Original error message" in str(exc_info.value)
+            # Verify the error message is preserved (not wrapped as "Dry run failed:")
+            assert "Original error message" in str(exc_info.value)
 
     def test_generate_with_log_dir_closes_logger_on_exception(self):
         """Test that flow logger is closed even when exception occurs."""
@@ -1572,13 +1566,13 @@ class TestFlow:
         os.makedirs(log_dir, exist_ok=True)
 
         block = self.create_mock_block("failing_block")
-        block.side_effect = RuntimeError("Test failure")
-
         flow = Flow(blocks=[block], metadata=self.test_metadata)
         dataset = pd.DataFrame({"input": ["test1", "test2"]})
 
-        with pytest.raises(FlowValidationError):
-            flow.generate(dataset, log_dir=str(log_dir))
+        # Patch the block's __call__ to raise an error
+        with patch.object(block, "__call__", side_effect=RuntimeError("Test failure")):
+            with pytest.raises(FlowValidationError):
+                flow.generate(dataset, log_dir=str(log_dir))
 
         # Check that a log file was created
         log_files = list(log_dir.glob("*.log"))
