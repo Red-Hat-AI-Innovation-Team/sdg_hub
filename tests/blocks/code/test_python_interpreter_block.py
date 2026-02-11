@@ -67,70 +67,41 @@ class TestPythonInterpreterBlockConfiguration:
                 output_cols=["result"],
             )
 
+    def test_input_cols_must_have_exactly_one(self):
+        """Test that input_cols must have exactly one element."""
+        with pytest.raises(ValueError, match="exactly one"):
+            PythonInterpreterBlock(
+                block_name="test",
+                input_cols=["code1", "code2"],
+                output_cols=["result"],
+            )
 
-class TestPythonInterpreterBlockHelperMethods:
-    """Test PythonInterpreterBlock helper methods."""
+    def test_input_cols_cannot_be_empty(self):
+        """Test that input_cols cannot be empty."""
+        with pytest.raises(ValueError, match="exactly one"):
+            PythonInterpreterBlock(
+                block_name="test",
+                input_cols=[],
+                output_cols=["result"],
+            )
 
-    def test_get_code_col_from_list(self):
-        """Test getting code column from list input_cols."""
-        block = PythonInterpreterBlock(
-            block_name="test",
-            input_cols=["generated_code"],
-            output_cols=["result"],
-        )
+    def test_output_cols_must_have_exactly_one(self):
+        """Test that output_cols must have exactly one element."""
+        with pytest.raises(ValueError, match="exactly one"):
+            PythonInterpreterBlock(
+                block_name="test",
+                input_cols=["code"],
+                output_cols=["result1", "result2"],
+            )
 
-        assert block._get_code_col() == "generated_code"
-
-    def test_get_code_col_from_dict(self):
-        """Test getting code column from dict input_cols."""
-        block = PythonInterpreterBlock(
-            block_name="test",
-            input_cols={"code_column": "alias"},
-            output_cols=["result"],
-        )
-
-        assert block._get_code_col() == "code_column"
-
-    def test_get_code_col_empty_raises_error(self):
-        """Test error when input_cols is empty."""
-        block = PythonInterpreterBlock(
-            block_name="test",
-            input_cols=[],
-            output_cols=["result"],
-        )
-
-        with pytest.raises(ConnectorError, match="input_cols must specify"):
-            block._get_code_col()
-
-    def test_get_output_col_from_list(self):
-        """Test getting output column from list."""
-        block = PythonInterpreterBlock(
-            block_name="test",
-            input_cols=["code"],
-            output_cols=["execution_result"],
-        )
-
-        assert block._get_output_col() == "execution_result"
-
-    def test_get_output_col_from_dict(self):
-        """Test getting output column from dict."""
-        block = PythonInterpreterBlock(
-            block_name="test",
-            input_cols=["code"],
-            output_cols={"result": "alias"},
-        )
-
-        assert block._get_output_col() == "result"
-
-    def test_get_output_col_default(self):
-        """Test default output column name."""
-        block = PythonInterpreterBlock(
-            block_name="test",
-            input_cols=["code"],
-            output_cols=[],
-        )
-
-        assert block._get_output_col() == "execution_result"
+    def test_output_cols_cannot_be_empty(self):
+        """Test that output_cols cannot be empty."""
+        with pytest.raises(ValueError, match="exactly one"):
+            PythonInterpreterBlock(
+                block_name="test",
+                input_cols=["code"],
+                output_cols=[],
+            )
 
 
 class TestPythonInterpreterBlockGenerate:
