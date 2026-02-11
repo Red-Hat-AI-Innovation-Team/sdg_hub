@@ -39,8 +39,6 @@ def sdg(
     Runs a synthetic data generation flow on input data, producing
     enriched output suitable for model training.
 
-    This is currently a skeleton implementation for testing the KFP setup.
-
     Args:
         output_artifact: KFP Dataset artifact for downstream components
         output_metrics: KFP Metrics artifact with execution stats
@@ -61,6 +59,10 @@ def sdg(
     import time
 
     import pandas as pd
+
+    from sdg_hub.core.flow.base import Flow
+    from sdg_hub.core.flow.registry import FlowRegistry
+    from sdg_hub.core.utils.error_handling import FlowValidationError
 
     # Configure logging
     logging.basicConfig(
@@ -110,10 +112,117 @@ def sdg(
         input_rows = len(df)
 
     # =========================================================================
-    # FLOW EXECUTION (placeholder - to be implemented in next iteration)
+    # FLOW SELECTION
     # =========================================================================
-    logger.info("Flow execution not yet implemented - passing through input data")
-    output_df = df.copy()
+    if not flow_id and not flow_yaml_path:
+        raise ValueError(
+            "Either 'flow_id' or 'flow_yaml_path' must be provided. "
+            "Use 'flow_id' for built-in flows or 'flow_yaml_path' for custom YAML."
+        )
+
+    if flow_id and flow_yaml_path:
+        logger.warning(
+            "Both 'flow_id' and 'flow_yaml_path' provided. "
+            "Using 'flow_yaml_path' (takes precedence)."
+        )
+
+    if flow_yaml_path:
+        yaml_path = flow_yaml_path
+        logger.info(f"Using custom flow YAML: {yaml_path}")
+        if not os.path.exists(yaml_path):
+            raise FileNotFoundError(
+                f"Custom flow YAML not found: {yaml_path}. "
+                "Ensure the file is mounted (e.g., via ConfigMap or PVC)."
+            )
+    else:
+        logger.info(f"Looking up built-in flow: {flow_id}")
+        try:
+            yaml_path = FlowRegistry.get_flow_path_safe(flow_id)
+        except ValueError as exc:
+            raise ValueError(f"Flow lookup failed for '{flow_id}': {exc}") from exc
+        logger.info(f"Found flow at: {yaml_path}")
+
+    # =========================================================================
+    # FLOW LOADING
+    # =========================================================================
+    logger.info(f"Loading flow from: {yaml_path}")
+    try:
+        flow = Flow.from_yaml(yaml_path)
+    except FlowValidationError as exc:
+        raise FlowValidationError(
+            f"Failed to load flow from '{yaml_path}': {exc}"
+        ) from exc
+
+    logger.info(
+        f"Flow loaded: '{flow.metadata.name}' v{flow.metadata.version} "
+        f"with {len(flow.blocks)} blocks"
+    )
+
+    # =========================================================================
+    # MODEL CONFIGURATION
+    # =========================================================================
+    if flow.is_model_config_required():
+        if not model:
+            raise ValueError(
+                f"Flow '{flow.metadata.name}' contains LLM blocks and requires "
+                "a 'model' parameter. Provide a LiteLLM model identifier "
+                "(e.g., 'hosted_vllm/meta-llama/Llama-3.3-70B-Instruct')."
+            )
+
+        api_key = os.environ.get("LLM_API_KEY", "")
+        api_base = os.environ.get("LLM_API_BASE", "")
+
+        model_kwargs = {
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+
+        logger.info(f"Configuring model: {model}")
+        if api_base:
+            logger.info(f"Using API base: {api_base}")
+
+        flow.set_model_config(
+            model=model,
+            api_key=api_key if api_key else None,
+            api_base=api_base if api_base else None,
+            **model_kwargs,
+        )
+        logger.info("Model configuration applied to LLM blocks")
+    else:
+        logger.info("Flow has no LLM blocks - skipping model configuration")
+
+    # =========================================================================
+    # DATASET VALIDATION
+    # =========================================================================
+    validation_errors = flow.validate_dataset(df)
+    if validation_errors:
+        raise FlowValidationError(
+            f"Dataset validation failed for flow '{flow.metadata.name}':\n"
+            + "\n".join(f"  - {err}" for err in validation_errors)
+        )
+    logger.info("Dataset validation passed")
+
+    # =========================================================================
+    # FLOW EXECUTION
+    # =========================================================================
+    logger.info(
+        f"Starting flow execution: {len(df)} samples, "
+        f"max_concurrency={max_concurrency}"
+    )
+
+    generate_kwargs = {
+        "max_concurrency": max_concurrency,
+    }
+
+    if checkpoint_pvc_path:
+        generate_kwargs["checkpoint_dir"] = checkpoint_pvc_path
+        generate_kwargs["save_freq"] = save_freq
+        logger.info(
+            f"Checkpointing enabled: dir={checkpoint_pvc_path}, "
+            f"save_freq={save_freq}"
+        )
+
+    output_df = flow.generate(df, **generate_kwargs)
     output_rows = len(output_df)
 
     # =========================================================================
