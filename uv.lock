@@ -5594,6 +5594,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+code = [
+    { name = "pydantic-monty" },
+]
 dev = [
     { name = "coverage" },
     { name = "mypy" },
@@ -5625,9 +5628,6 @@ examples = [
 integration = [
     { name = "nest-asyncio" },
 ]
-monty = [
-    { name = "pydantic-monty" },
-]
 
 [package.metadata]
 requires-dist = [
@@ -5652,7 +5652,7 @@ requires-dist = [
     { name = "polars", marker = "extra == 'examples'" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.0.4,<5.0" },
     { name = "pydantic", specifier = ">=2.0.0,<3.0.0" },
-    { name = "pydantic-monty", marker = "extra == 'monty'", specifier = ">=0.0.3" },
+    { name = "pydantic-monty", marker = "extra == 'code'", specifier = ">=0.0.3" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-asyncio", marker = "extra == 'dev'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
@@ -5669,7 +5669,7 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.66.2,<5.0.0" },
     { name = "transformers", marker = "extra == 'examples'", specifier = ">=4.37.0" },
 ]
-provides-extras = ["dev", "monty", "integration", "examples"]
+provides-extras = ["dev", "code", "integration", "examples"]
 
 [[package]]
 name = "semchunk"
