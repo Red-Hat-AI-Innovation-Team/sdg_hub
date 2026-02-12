@@ -167,7 +167,7 @@ blocks:
       input_cols: raw_knowledge_generation
       extract_content: true
 
-  - block_type: TagParserBlock
+  - block_type: RegexParserBlock
     block_config:
       block_name: parse_knowledge_generation
       input_cols: get_knowledge_generation_content

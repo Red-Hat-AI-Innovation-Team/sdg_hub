@@ -60,7 +60,7 @@ class TextParserBlock(BaseBlock):
         input_cols = cast(list[str], self.input_cols)
         output_cols = cast(list[str], self.output_cols)
         if len(input_cols) != 1:
-            raise ValueError("TextParserBlock expects at least one input column")
+            raise ValueError("TextParserBlock requires exactly one input column")
         if self.start_tags and len(self.start_tags) != len(output_cols):
             raise ValueError(
                 "When using tag-based parsing, the number of tag pairs must match output_cols. "

@@ -62,6 +62,9 @@ class TagParserBlock(BaseBlock):
     def _extract(self, text: str, start: str, end: str) -> list[str]:
         if not text:
             return []
+        if not start and not end:
+            # No tags = passthrough: return entire text as single match
+            return [text.strip()] if text.strip() else []
         pattern = re.escape(start) + r"(.*?)" + re.escape(end)
         return [m.strip() for m in re.findall(pattern, text, re.DOTALL)]
 

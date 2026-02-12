@@ -64,7 +64,7 @@ blocks:
     - '### Key Facts With Context'
     end_tags:
     - ''
-- block_type: TagParserBlock
+- block_type: RegexParserBlock
   block_config:
     block_name: parse_atomic_facts_to_individual_facts
     input_cols: atomic_facts
