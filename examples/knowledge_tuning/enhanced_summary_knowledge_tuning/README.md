@@ -107,3 +107,7 @@ We performed continued pre-training (CPT) using next-token prediction on augment
 | 25                          | 42,904,412   | 56.77        | CPT        |
 | 50                          | 83,750,884   | 57.49        | CPT        |
 </table>
+
+Notes:
+- CPT shows signs of overfitting at higher token count (number of summaries) on knowledge data.
+- We use red pajama mix to prevent some of this overfitting.
