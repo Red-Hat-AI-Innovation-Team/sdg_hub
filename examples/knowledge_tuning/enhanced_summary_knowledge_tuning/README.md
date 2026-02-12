@@ -60,7 +60,10 @@ Only claims passing this check are retained. This process filters out **hallucin
 
 For each document, we generate three augmentation types—detailed summaries, extractive summaries, and atomic facts. Each “cut” on the table below represents the total number of summary augmentations per document (i.e., how many times each augmentation process is run).
 
-| Cut (NUMBER\_OF\_SUMMARIES = 3) | Token Count   |
+<table>
+  <caption><b>Table 1: Token count statistics for different numbers ("cuts") of summary augmentations per document.</b></caption>
+  
+| Cut (NUMBER\_OF\_SUMMARIES) | Token Count   |
 | ------------------------------- | ------------- |
 | Input Corpus                    | 1,517,465     |
 | 10                              | 87,248,889    |
@@ -68,6 +71,8 @@ For each document, we generate three augmentation types—detailed summaries, ex
 | 30                              | 230,306,195   |
 | 40                              | 301,805,906   |
 | 50                              | 373,183,414   |
+</table>
+
 
 ---
 
@@ -78,8 +83,25 @@ For each document, we generate three augmentation types—detailed summaries, ex
 - **Student model:** meta-llama/Llama-3.1-8B-Instruct (after SFT on generated/augmented summaries)
 - **Performance metric:** Model accuracy
 
-![Quality Benchmark Accuracy](imgs/quality_benchmark_accuracy.png)
+<p align="center">
+  <img src="imgs/quality_benchmark_accuracy.png" alt="Quality Benchmark Accuracy" />
+</p>
 
-*Figure: Model accuracy across the QuALITY benchmark datasets, comparing SFT training on enhanced document summaries with the original model performance.*
+<p align="center">
+  <em>Figure: Model accuracy across the QuALITY benchmark datasets, comparing SFT training on enhanced document summaries with the original model performance.</em>
+</p>
 
 ---
+
+### Continued Pre-training (CPT): Data Generation and Accuracy
+
+We performed continued pre-training (CPT) using next-token prediction on augmented documents, without applying any chat template for the model input. To improve generalization and mitigate overfitting, we incorporated **RedPajama v2** data as a replay buffer, constituting 10% of the total input tokens.
+
+<table>
+  <caption><b>Table 2: CPT data scaling and resulting model accuracy. Higher augmentation "cuts" correspond to increased training data and performance.</b></caption>
+  
+| Cut (NUMBER\_OF\_SUMMARIES) | Token Count   | Accuracy (%) |
+|-----------------------------|--------------|--------------|
+| 25                          | 42,904,412   | 56.77        |
+| 50                          | 83,750,884   | 57.49        |
+</table>
