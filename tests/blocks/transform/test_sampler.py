@@ -276,3 +276,118 @@ def test_sampler_non_iterable():
 
     result = block.generate(dataset)
     assert result["sampled"].iloc[0] == []
+
+
+def test_sampler_return_scalar():
+    """Test return_scalar=True with num_samples=1 returns scalar values."""
+    data = {
+        "items": [
+            ["a", "b", "c", "d", "e"],
+            ["x", "y", "z"],
+        ],
+    }
+    dataset = pd.DataFrame(data)
+
+    block = SamplerBlock(
+        block_name="test_sampler_scalar",
+        input_cols=["items"],
+        output_cols=["sampled"],
+        num_samples=1,
+        return_scalar=True,
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+
+    # Should return scalar values, not lists
+    assert not isinstance(result["sampled"].iloc[0], list)
+    assert not isinstance(result["sampled"].iloc[1], list)
+    assert result["sampled"].iloc[0] in ["a", "b", "c", "d", "e"]
+    assert result["sampled"].iloc[1] in ["x", "y", "z"]
+
+
+def test_sampler_return_scalar_with_empty_list():
+    """Test return_scalar=True with empty list returns None."""
+    data = {
+        "items": [
+            [],
+            None,
+        ],
+    }
+    dataset = pd.DataFrame(data)
+
+    block = SamplerBlock(
+        block_name="test_sampler_scalar_empty",
+        input_cols=["items"],
+        output_cols=["sampled"],
+        num_samples=1,
+        return_scalar=True,
+    )
+
+    result = block.generate(dataset)
+
+    # Empty list and None should return None
+    assert result["sampled"].iloc[0] is None
+    assert result["sampled"].iloc[1] is None
+
+
+def test_sampler_return_scalar_default_false():
+    """Test that return_scalar defaults to False."""
+    data = {"items": [["a", "b", "c"]]}
+    dataset = pd.DataFrame(data)
+
+    block = SamplerBlock(
+        block_name="test_sampler_default",
+        input_cols=["items"],
+        output_cols=["sampled"],
+        num_samples=1,
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+
+    # Should return a list by default
+    assert isinstance(result["sampled"].iloc[0], list)
+    assert len(result["sampled"].iloc[0]) == 1
+
+
+def test_sampler_return_scalar_ignored_when_num_samples_greater_than_1():
+    """Test that return_scalar is ignored when num_samples > 1."""
+    data = {"items": [["a", "b", "c", "d", "e"]]}
+    dataset = pd.DataFrame(data)
+
+    block = SamplerBlock(
+        block_name="test_sampler_multi",
+        input_cols=["items"],
+        output_cols=["sampled"],
+        num_samples=3,
+        return_scalar=True,  # Should be ignored since num_samples > 1
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+
+    # Should still return a list since num_samples > 1
+    assert isinstance(result["sampled"].iloc[0], list)
+    assert len(result["sampled"].iloc[0]) == 3
+
+
+def test_sampler_return_scalar_with_dict():
+    """Test return_scalar=True works with dictionary (weighted) input."""
+    data = {"items": [{"a": 10, "b": 1, "c": 1}]}
+    dataset = pd.DataFrame(data)
+
+    block = SamplerBlock(
+        block_name="test_sampler_scalar_dict",
+        input_cols=["items"],
+        output_cols=["sampled"],
+        num_samples=1,
+        return_scalar=True,
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+
+    # Should return scalar value
+    assert not isinstance(result["sampled"].iloc[0], list)
+    assert result["sampled"].iloc[0] in ["a", "b", "c"]

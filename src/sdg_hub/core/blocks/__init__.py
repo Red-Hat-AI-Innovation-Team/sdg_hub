@@ -12,7 +12,7 @@ from .llm import (
     LLMResponseExtractorBlock,
     PromptBuilderBlock,
 )
-from .parsing import RegexParserBlock, TagParserBlock, TextParserBlock
+from .parsing import JSONParserBlock, RegexParserBlock, TagParserBlock, TextParserBlock
 from .registry import BlockRegistry
 from .transform import (
     DuplicateColumnsBlock,
@@ -30,6 +30,7 @@ __all__ = [
     "ColumnValueFilterBlock",
     "DuplicateColumnsBlock",
     "IndexBasedMapperBlock",
+    "JSONParserBlock",
     "MeltColumnsBlock",
     "PromptBuilderBlock",
     "RegexParserBlock",
