@@ -102,6 +102,7 @@ We performed continued pre-training (CPT) using next-token prediction on augment
   
 | Cut (NUMBER\_OF\_SUMMARIES) | Token Count   | Accuracy (%) |
 |-----------------------------|--------------|--------------|
+| Input Corpus                    | 1,517,465     |
 | 25                          | 42,904,412   | 56.77        |
 | 50                          | 83,750,884   | 57.49        |
 </table>
