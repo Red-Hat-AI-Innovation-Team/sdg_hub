@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Requirements:** Python 3.9+
+**Requirements:** Python 3.10+
 
 SDG Hub is a Python framework for synthetic data generation using composable blocks and flows. Transform datasets through **building-block composition** - mix and match LLM-powered and traditional processing blocks like Lego pieces to create sophisticated data generation workflows.
 
@@ -19,12 +19,16 @@ SDG Hub is a Python framework for synthetic data generation using composable blo
 
 ### Setup and Installation
 ```bash
-# Install core dependencies
-uv pip install .
-
-# Install with development dependencies
+# Install with development dependencies (required for contributing)
 uv pip install .[dev]
 # Alternative: uv sync --extra dev
+
+# IMPORTANT: Always install pre-commit hooks after cloning
+uv run pre-commit install
+uv run pre-commit install --hook-type commit-msg
+
+# Install core dependencies only (minimal install)
+uv pip install .
 
 # Install with optional vLLM support
 uv pip install .[vllm]
@@ -64,7 +68,19 @@ uv run ruff format src/ tests/
 # Check only (no fixes) - same as CI
 uv run ruff check src/ tests/
 uv run ruff format --check src/ tests/
+
+# Type checking
+uv run mypy src/
 ```
+
+### Pre-commit Hooks
+Pre-commit hooks run automatically on commit:
+- **uv-lock**: Keeps `uv.lock` in sync with `pyproject.toml`
+- **ruff**: Linter with auto-fix
+- **ruff-format**: Code formatter
+- **conventional-pre-commit**: Enforces [Conventional Commits](https://www.conventionalcommits.org/) format
+
+Commit message prefixes: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
 
 ### Other Make targets
 ```bash
@@ -83,7 +99,6 @@ The framework is built around a modular block system with **composability at its
   - `llm/`: LLM-powered blocks (chat, prompt building, text parsing) with async execution
   - `transform/`: Data transformation blocks (column operations, text manipulation)
   - `filtering/`: Data filtering blocks with quality thresholds
-  - `evaluation/`: Quality evaluation blocks (faithfulness, relevancy assessment)
   - `agent/`: Agent framework integration blocks (Langflow, etc.)
 
 **Key Benefits**: Type-safe composition, automatic validation, rich logging, and high-performance async processing.
@@ -91,7 +106,12 @@ The framework is built around a modular block system with **composability at its
 ### Flow System
 Flows orchestrate multiple blocks into data processing pipelines:
 
-- **Flow** (`src/sdg_hub/core/flow/base.py`): Main flow execution class with Pydantic validation
+- **Flow** (`src/sdg_hub/core/flow/base.py`): Core Flow class with Pydantic validation
+- **FlowExecution** (`src/sdg_hub/core/flow/execution.py`): Flow execution logic (`generate()`, `run_dry_run()`)
+- **FlowSerialization** (`src/sdg_hub/core/flow/serialization.py`): YAML loading/saving (`from_yaml()`)
+- **FlowDisplay** (`src/sdg_hub/core/flow/display.py`): Rich console display (`info()` methods)
+- **FlowModelConfig** (`src/sdg_hub/core/flow/model_config.py`): LLM model configuration helpers
+- **FlowCheckpointer** (`src/sdg_hub/core/flow/checkpointer.py`): Flow checkpointing for resumable execution
 - **FlowRegistry** (`src/sdg_hub/core/flow/registry.py`): Registry for flow discovery
 - **FlowMetadata** (`src/sdg_hub/core/flow/metadata.py`): Metadata and parameter definitions
 - **FlowValidator** (`src/sdg_hub/core/flow/validation.py`): YAML structure validation
@@ -189,6 +209,7 @@ All blocks operate on HuggingFace `datasets.Dataset` objects:
 
 ## Important Notes
 
+- **First-time setup**: Always run `uv run pre-commit install && uv run pre-commit install --hook-type commit-msg` after cloning
 - Always use `uv` for Python package management
 - The framework uses Pydantic extensively for validation and configuration
 - LLM clients are managed through the `client_manager.py` system
