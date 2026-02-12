@@ -215,3 +215,18 @@ All blocks operate on HuggingFace `datasets.Dataset` objects:
 - LLM clients are managed through the `client_manager.py` system
 - Path resolution is handled centrally in `utils/path_resolution.py`
 - Error handling follows custom exception patterns in `utils/error_handling.py`
+
+## CI Requirements
+
+All PRs must pass these checks before merging:
+
+| Check | Command | Workflow |
+|-------|---------|----------|
+| Conventional Commits | `commitlint` | commitlint.yml |
+| Ruff formatting | `ruff format --check src/ tests/` | lint.yml |
+| Ruff linting | `ruff check src/ tests/` | lint.yml |
+| Type checking | `mypy src/sdg_hub` | lint.yml |
+| Unit tests | `pytest tests/blocks tests/connectors tests/flow tests/utils` | test.yml |
+| Lock file sync | `uv lock --check` | lock.yml |
+| Markdown linting | `markdownlint-cli2` | docs.yml |
+| GitHub Actions lint | `actionlint` | actionlint.yml |
