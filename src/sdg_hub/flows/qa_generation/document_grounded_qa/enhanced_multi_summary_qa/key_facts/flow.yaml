@@ -80,6 +80,12 @@ blocks:
     block_name: rename_to_document_column
     input_cols:
       atomic_facts: document
+- block_type: TextParserBlock
+  block_config:
+    block_name: parse_atomic_facts_to_individual_facts
+    input_cols: document
+    output_cols: key_fact
+    parsing_pattern: '(?:^|\n)\s*\d+\.\s+(.*?)(?=\n\s*\d+\.\s+|\Z)'
 - block_type: PromptBuilderBlock
   block_config:
     block_name: key_fact_qa
