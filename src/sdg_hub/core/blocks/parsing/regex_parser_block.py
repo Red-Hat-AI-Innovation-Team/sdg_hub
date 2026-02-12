@@ -2,7 +2,7 @@
 """Regex-based text parser block."""
 
 from itertools import chain
-from typing import Any, Optional
+from typing import Any, Optional, cast
 import re
 
 from pydantic import Field
@@ -32,7 +32,8 @@ class RegexParserBlock(BaseBlock):
     )
 
     def _validate_custom(self, dataset: pd.DataFrame) -> None:
-        if len(self.input_cols) != 1:
+        input_cols = cast(list[str], self.input_cols)
+        if len(input_cols) != 1:
             raise ValueError("RegexParserBlock requires exactly one input column")
 
     def _clean(self, value: str) -> str:
@@ -41,7 +42,9 @@ class RegexParserBlock(BaseBlock):
         return value
 
     def _parse_row(self, sample: dict) -> list[dict]:
-        text = sample[self.input_cols[0]]
+        input_cols = cast(list[str], self.input_cols)
+        output_cols = cast(list[str], self.output_cols)
+        text = sample[input_cols[0]]
         if not isinstance(text, str) or not text:
             return []
 
@@ -56,14 +59,14 @@ class RegexParserBlock(BaseBlock):
                     **sample,
                     **{
                         col: self._clean(val.strip())
-                        for col, val in zip(self.output_cols, match)
+                        for col, val in zip(output_cols, match)
                     },
                 }
                 for match in matches
             ]
         else:
             return [
-                {**sample, self.output_cols[0]: self._clean(match.strip())}
+                {**sample, output_cols[0]: self._clean(match.strip())}
                 for match in matches
             ]
 

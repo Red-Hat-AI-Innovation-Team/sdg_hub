@@ -5,7 +5,7 @@ This module provides the AgentResponseExtractorBlock for extracting text content
 and other fields from agent framework response objects (e.g., Langflow responses).
 """
 
-from typing import Any
+from typing import Any, cast
 
 from pydantic import Field, model_validator
 import pandas as pd
@@ -127,14 +127,15 @@ class AgentResponseExtractorBlock(BaseBlock):
         ValueError
             If AgentResponseExtractorBlock requirements are not met.
         """
-        if len(self.input_cols) == 0:
+        input_cols = cast(list[str], self.input_cols)
+        if len(input_cols) == 0:
             raise ValueError(
                 "AgentResponseExtractorBlock expects at least one input column"
             )
-        if len(self.input_cols) > 1:
+        if len(input_cols) > 1:
             logger.warning(
-                f"AgentResponseExtractorBlock expects exactly one input column, but got {len(self.input_cols)}. "
-                f"Using the first column: {self.input_cols[0]}"
+                f"AgentResponseExtractorBlock expects exactly one input column, but got {len(input_cols)}. "
+                f"Using the first column: {input_cols[0]}"
             )
 
     def _extract_langflow_fields(self, response: dict) -> dict[str, Any]:
@@ -246,7 +247,8 @@ class AgentResponseExtractorBlock(BaseBlock):
         return columns
 
     def _generate(self, sample: dict) -> list[dict]:
-        input_column = self.input_cols[0]
+        input_cols = cast(list[str], self.input_cols)
+        input_column = input_cols[0]
         raw_output = sample[input_column]
 
         # Handle list inputs (e.g., from batch agent responses)
@@ -284,7 +286,7 @@ class AgentResponseExtractorBlock(BaseBlock):
     ) -> list[dict]:
         """Process list input while preserving list structure."""
         output_columns = self._get_output_columns()
-        all_extracted = {col: [] for col in output_columns}
+        all_extracted: dict[str, list[Any]] = {col: [] for col in output_columns}
         valid_responses = 0
 
         for i, response in enumerate(raw_output):

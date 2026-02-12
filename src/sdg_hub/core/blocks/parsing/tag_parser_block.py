@@ -2,7 +2,7 @@
 """Tag-based text parser block."""
 
 from itertools import chain
-from typing import Any, Optional
+from typing import Any, Optional, cast
 import re
 
 from pydantic import Field, field_validator, model_validator
@@ -49,12 +49,14 @@ class TagParserBlock(BaseBlock):
         return self
 
     def _validate_custom(self, dataset: pd.DataFrame) -> None:
-        if len(self.input_cols) != 1:
+        input_cols = cast(list[str], self.input_cols)
+        output_cols = cast(list[str], self.output_cols)
+        if len(input_cols) != 1:
             raise ValueError("TagParserBlock requires exactly one input column")
-        if len(self.start_tags) != len(self.output_cols):
+        if len(self.start_tags) != len(output_cols):
             raise ValueError(
                 f"Number of tag pairs ({len(self.start_tags)}) must match "
-                f"output_cols ({len(self.output_cols)})"
+                f"output_cols ({len(output_cols)})"
             )
 
     def _extract(self, text: str, start: str, end: str) -> list[str]:
@@ -69,13 +71,15 @@ class TagParserBlock(BaseBlock):
         return value
 
     def _parse_row(self, sample: dict) -> list[dict]:
-        text = sample[self.input_cols[0]]
+        input_cols = cast(list[str], self.input_cols)
+        output_cols = cast(list[str], self.output_cols)
+        text = sample[input_cols[0]]
         if not isinstance(text, str) or not text:
             return []
 
         parsed = {
             col: [self._clean(v) for v in self._extract(text, start, end)]
-            for col, start, end in zip(self.output_cols, self.start_tags, self.end_tags)
+            for col, start, end in zip(output_cols, self.start_tags, self.end_tags)
         }
 
         if not any(parsed.values()):
@@ -87,7 +91,7 @@ class TagParserBlock(BaseBlock):
                 **sample,
                 **{
                     col: parsed[col][i] if i < len(parsed[col]) else ""
-                    for col in self.output_cols
+                    for col in output_cols
                 },
             }
             for i in range(max_len)

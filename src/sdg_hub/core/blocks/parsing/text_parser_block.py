@@ -2,7 +2,7 @@
 """Deprecated TextParserBlock for backwards compatibility."""
 
 from itertools import chain
-from typing import Any, Optional
+from typing import Any, Optional, cast
 import re
 import warnings
 
@@ -57,12 +57,14 @@ class TextParserBlock(BaseBlock):
         return self
 
     def _validate_custom(self, dataset: pd.DataFrame) -> None:
-        if len(self.input_cols) != 1:
+        input_cols = cast(list[str], self.input_cols)
+        output_cols = cast(list[str], self.output_cols)
+        if len(input_cols) != 1:
             raise ValueError("TextParserBlock expects at least one input column")
-        if self.start_tags and len(self.start_tags) != len(self.output_cols):
+        if self.start_tags and len(self.start_tags) != len(output_cols):
             raise ValueError(
                 "When using tag-based parsing, the number of tag pairs must match output_cols. "
-                f"Got {len(self.start_tags)} tag pairs and {len(self.output_cols)} output columns"
+                f"Got {len(self.start_tags)} tag pairs and {len(output_cols)} output columns"
             )
 
     def _clean(self, value: str) -> str:
@@ -77,7 +79,9 @@ class TextParserBlock(BaseBlock):
         return [m.strip() for m in re.findall(pattern, text, re.DOTALL)]
 
     def _parse_row(self, sample: dict) -> list[dict]:
-        text = sample[self.input_cols[0]]
+        input_cols = cast(list[str], self.input_cols)
+        output_cols = cast(list[str], self.output_cols)
+        text = sample[input_cols[0]]
         if not isinstance(text, str) or not text:
             return []
 
@@ -91,20 +95,16 @@ class TextParserBlock(BaseBlock):
                         **sample,
                         **{
                             col: self._clean(val.strip())
-                            for col, val in zip(self.output_cols, m)
+                            for col, val in zip(output_cols, m)
                         },
                     }
                     for m in matches
                 ]
-            return [
-                {**sample, self.output_cols[0]: self._clean(m.strip())} for m in matches
-            ]
+            return [{**sample, output_cols[0]: self._clean(m.strip())} for m in matches]
         else:
             parsed = {
                 col: [self._clean(v) for v in self._extract_tags(text, start, end)]
-                for col, start, end in zip(
-                    self.output_cols, self.start_tags, self.end_tags
-                )
+                for col, start, end in zip(output_cols, self.start_tags, self.end_tags)
             }
             if not any(parsed.values()):
                 return []
@@ -114,7 +114,7 @@ class TextParserBlock(BaseBlock):
                     **sample,
                     **{
                         col: parsed[col][i] if i < len(parsed[col]) else ""
-                        for col in self.output_cols
+                        for col in output_cols
                     },
                 }
                 for i in range(max_len)
