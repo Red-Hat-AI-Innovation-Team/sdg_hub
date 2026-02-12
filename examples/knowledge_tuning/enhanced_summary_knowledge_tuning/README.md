@@ -100,9 +100,10 @@ We performed continued pre-training (CPT) using next-token prediction on augment
 <table>
   <caption><b>Table 2: CPT data scaling and resulting model accuracy. Higher augmentation "cuts" correspond to increased training data and performance.</b></caption>
   
-| Cut (NUMBER\_OF\_SUMMARIES) | Token Count  | Accuracy (%) |
-|-----------------------------|--------------|--------------|
-| Input Corpus                | 1,517,465    | 43.67        |
-| 25                          | 42,904,412   | 56.77        |
-| 50                          | 83,750,884   | 57.49        |
+| Cut (NUMBER\_OF\_SUMMARIES) | Token Count  | Accuracy (%) | Method     |
+|-----------------------------|--------------|--------------|------------|
+| Input Corpus                | 1,517,465    | 43.67        | Baseline   |
+| 50                          | 373,183,414  | 51.64        | SFT        |
+| 25                          | 42,904,412   | 56.77        | CPT        |
+| 50                          | 83,750,884   | 57.49        | CPT        |
 </table>
