@@ -63,7 +63,7 @@ class RenameColumnsBlock(BaseBlock):
 
         # Set output_cols to the new column names being created
         input_cols_dict = cast(dict[str, str], self.input_cols)
-        if self.output_cols is None:
+        if not self.output_cols:
             self.output_cols = list(input_cols_dict.values())
 
     def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:

@@ -209,9 +209,7 @@ def set_model_config(
         config_params["api_base"] = api_base
     if api_key is not None:
         # Convert string api_key to SecretStr for automatic redaction in logs
-        api_key_secret: SecretStr = (
-            SecretStr(api_key) if isinstance(api_key, str) else api_key
-        )
+        api_key_secret = SecretStr(api_key)
         config_params["api_key"] = api_key_secret
 
     # Add any additional kwargs (temperature, max_tokens, etc.)

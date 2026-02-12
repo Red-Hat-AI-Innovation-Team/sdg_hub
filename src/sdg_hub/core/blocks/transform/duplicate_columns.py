@@ -64,7 +64,8 @@ class DuplicateColumnsBlock(BaseBlock):
         input_cols_dict = cast(dict[str, str], self.input_cols)
 
         # Set output_cols to the new column names being created
-        if self.output_cols is None:
+        # Treat an empty or missing output_cols the same as unspecified
+        if not self.output_cols:
             self.output_cols = list(input_cols_dict.values())
 
     def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
