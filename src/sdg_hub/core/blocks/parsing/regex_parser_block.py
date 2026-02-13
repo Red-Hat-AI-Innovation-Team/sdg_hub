@@ -41,19 +41,13 @@ class RegexParserBlock(BaseBlock):
             value = value.replace(tag, "")
         return value
 
-    def _parse_row(self, sample: dict) -> list[dict]:
-        input_cols = cast(list[str], self.input_cols)
+    def _parse_single_text(self, sample: dict, text: str) -> list[dict]:
         output_cols = cast(list[str], self.output_cols)
-        text = sample[input_cols[0]]
-        if not isinstance(text, str) or not text:
-            return []
-
         matches = re.findall(self.parsing_pattern, text, re.DOTALL)
         if not matches:
             return []
 
-        # Handle tuple matches (multiple capture groups) vs single matches
-        if matches and isinstance(matches[0], tuple):
+        if isinstance(matches[0], tuple):
             return [
                 {
                     **sample,
@@ -69,6 +63,36 @@ class RegexParserBlock(BaseBlock):
                 {**sample, output_cols[0]: self._clean(match.strip())}
                 for match in matches
             ]
+
+    def _parse_row(self, sample: dict) -> list[dict]:
+        input_cols = cast(list[str], self.input_cols)
+        output_cols = cast(list[str], self.output_cols)
+        text = sample[input_cols[0]]
+
+        if isinstance(text, list):
+            if not text:
+                logger.warning(f"Input column '{input_cols[0]}' contains empty list")
+                return []
+            all_parsed: dict[str, list[str]] = {col: [] for col in output_cols}
+            valid = 0
+            for item in text:
+                if not isinstance(item, str) or not item:
+                    continue
+                rows = self._parse_single_text(sample, item)
+                if rows:
+                    valid += 1
+                    for row in rows:
+                        for col in output_cols:
+                            if col in row:
+                                all_parsed[col].append(row[col])
+            if valid == 0:
+                return []
+            return [{**sample, **all_parsed}]
+
+        if not isinstance(text, str) or not text:
+            return []
+
+        return self._parse_single_text(sample, text)
 
     def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         if samples.empty:

@@ -86,6 +86,36 @@ class TestExtraction:
         assert "line1\nline2" in result.iloc[0]["content"]
 
 
+class TestEdgeCases:
+    def test_list_input(self, regex_parser):
+        """List of strings should be parsed and collected as lists."""
+        df = pd.DataFrame([{"text": ["Answer: first\n", "Answer: second\n"]}])
+        result = regex_parser.generate(df)
+        assert len(result) == 1
+        assert result.iloc[0]["answer"] == ["first", "second"]
+
+    def test_list_input_with_unparseable_items(self, regex_parser):
+        """Unparseable items in list should be skipped."""
+        df = pd.DataFrame(
+            [{"text": ["Answer: good\n", "no match", "Answer: also good\n"]}]
+        )
+        result = regex_parser.generate(df)
+        assert len(result) == 1
+        assert result.iloc[0]["answer"] == ["good", "also good"]
+
+    def test_empty_list_input(self, regex_parser):
+        """Empty list should return empty result."""
+        df = pd.DataFrame([{"text": []}])
+        result = regex_parser.generate(df)
+        assert len(result) == 0
+
+    def test_non_string_input(self, regex_parser):
+        """Non-string, non-list input should return empty result."""
+        df = pd.DataFrame([{"text": {"key": "val"}}])
+        result = regex_parser.generate(df)
+        assert len(result) == 0
+
+
 class TestValidation:
     def test_multiple_input_cols_rejected(self):
         parser = RegexParserBlock(

@@ -75,21 +75,28 @@ class TextParserBlock(BaseBlock):
     def _extract_tags(self, text: str, start: str, end: str) -> list[str]:
         if not text:
             return []
-        pattern = re.escape(start) + r"(.*?)" + re.escape(end)
+        if not start and not end:
+            return [text.strip()] if text.strip() else []
+
+        pattern = ""
+        if start:
+            pattern += re.escape(start)
+        pattern += r"(.*?)"
+        if end:
+            pattern += re.escape(end)
+        elif start:
+            pattern += "$"
+
         return [m.strip() for m in re.findall(pattern, text, re.DOTALL)]
 
-    def _parse_row(self, sample: dict) -> list[dict]:
-        input_cols = cast(list[str], self.input_cols)
+    def _parse_single_text(self, sample: dict, text: str) -> list[dict]:
         output_cols = cast(list[str], self.output_cols)
-        text = sample[input_cols[0]]
-        if not isinstance(text, str) or not text:
-            return []
 
         if self.parsing_pattern:
             matches = re.findall(self.parsing_pattern, text, re.DOTALL)
             if not matches:
                 return []
-            if matches and isinstance(matches[0], tuple):
+            if isinstance(matches[0], tuple):
                 return [
                     {
                         **sample,
@@ -108,17 +115,40 @@ class TextParserBlock(BaseBlock):
             }
             if not any(parsed.values()):
                 return []
-            max_len = max(len(v) for v in parsed.values())
             return [
-                {
-                    **sample,
-                    **{
-                        col: parsed[col][i] if i < len(parsed[col]) else ""
-                        for col in output_cols
-                    },
-                }
-                for i in range(max_len)
+                {**sample, **dict(zip(output_cols, values))}
+                for values in zip(*(parsed[col] for col in output_cols))
             ]
+
+    def _parse_row(self, sample: dict) -> list[dict]:
+        input_cols = cast(list[str], self.input_cols)
+        output_cols = cast(list[str], self.output_cols)
+        text = sample[input_cols[0]]
+
+        if isinstance(text, list):
+            if not text:
+                logger.warning(f"Input column '{input_cols[0]}' contains empty list")
+                return []
+            all_parsed: dict[str, list[str]] = {col: [] for col in output_cols}
+            valid = 0
+            for item in text:
+                if not isinstance(item, str) or not item:
+                    continue
+                rows = self._parse_single_text(sample, item)
+                if rows:
+                    valid += 1
+                    for row in rows:
+                        for col in output_cols:
+                            if col in row:
+                                all_parsed[col].append(row[col])
+            if valid == 0:
+                return []
+            return [{**sample, **all_parsed}]
+
+        if not isinstance(text, str) or not text:
+            return []
+
+        return self._parse_single_text(sample, text)
 
     def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         if samples.empty:

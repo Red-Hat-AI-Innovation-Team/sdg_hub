@@ -88,6 +88,81 @@ class TestExtraction:
         assert "line1\nline2" in result.iloc[0]["output"]
 
 
+class TestEdgeCases:
+    def test_start_only_tag(self):
+        """Start tag with empty end tag should match to end of string."""
+        parser = TagParserBlock(
+            block_name="test",
+            input_cols="text",
+            output_cols=["output"],
+            start_tags=["### Key Facts"],
+            end_tags=[""],
+        )
+        df = pd.DataFrame([{"text": "Intro\n### Key Facts\n1. Fact one\n2. Fact two"}])
+        result = parser.generate(df)
+        assert len(result) == 1
+        assert "Fact one" in result.iloc[0]["output"]
+        assert "Fact two" in result.iloc[0]["output"]
+
+    def test_end_only_tag(self):
+        """Empty start tag with end tag should match from beginning to end tag."""
+        parser = TagParserBlock(
+            block_name="test",
+            input_cols="text",
+            output_cols=["output"],
+            start_tags=[""],
+            end_tags=["[END]"],
+        )
+        df = pd.DataFrame([{"text": "some content here[END] trailing"}])
+        result = parser.generate(df)
+        assert len(result) == 1
+        assert result.iloc[0]["output"] == "some content here"
+
+    def test_both_tags_empty_passthrough(self):
+        """Both tags empty should pass through the entire text."""
+        parser = TagParserBlock(
+            block_name="test",
+            input_cols="text",
+            output_cols=["output"],
+            start_tags=[""],
+            end_tags=[""],
+        )
+        df = pd.DataFrame([{"text": "full text passthrough"}])
+        result = parser.generate(df)
+        assert len(result) == 1
+        assert result.iloc[0]["output"] == "full text passthrough"
+
+    def test_list_input(self, tag_parser):
+        """List of strings should be parsed and collected as lists."""
+        df = pd.DataFrame(
+            [{"text": ["<out>first</out>", "<out>second</out>", "<out>third</out>"]}]
+        )
+        result = tag_parser.generate(df)
+        assert len(result) == 1
+        assert result.iloc[0]["output"] == ["first", "second", "third"]
+
+    def test_list_input_with_unparseable_items(self, tag_parser):
+        """Unparseable items in list should be skipped."""
+        df = pd.DataFrame(
+            [{"text": ["<out>good</out>", "no tags", "<out>also good</out>"]}]
+        )
+        result = tag_parser.generate(df)
+        assert len(result) == 1
+        assert result.iloc[0]["output"] == ["good", "also good"]
+
+    def test_empty_list_input(self, tag_parser):
+        """Empty list should return empty result."""
+        df = pd.DataFrame([{"text": []}])
+        result = tag_parser.generate(df)
+        assert len(result) == 0
+
+    def test_non_string_input(self, tag_parser):
+        """Non-string, non-list input should return empty result."""
+        df = pd.DataFrame([{"text": 42}])
+        result = tag_parser.generate(df)
+        assert len(result) == 0
+
+
 class TestValidation:
     def test_mismatched_tag_lengths(self):
         with pytest.raises(ValueError, match="same length"):
