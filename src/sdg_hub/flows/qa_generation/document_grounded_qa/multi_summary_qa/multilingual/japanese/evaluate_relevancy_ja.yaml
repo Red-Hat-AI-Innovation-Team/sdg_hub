@@ -1,0 +1,81 @@
+- role: system
+  content: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+- role: user
+  content: |
+    Your task is to assess the relevance of a given response to a specific query. This evaluation should be conducted methodically by answering two key questions:
+
+    1. Subject Matter Relevance: Does the provided response accurately match the subject matter of the user's query? This question aims to determine if the response is directly related to the main topic or issue presented in the query.
+    2. Focus and Perspective Addressing: Does the provided response effectively address the focus or perspective on the subject matter as outlined in the user's query? This question seeks to evaluate whether the response not only matches the subject matter but also aligns with the specific angle or concern raised by the user.
+
+    For each question, assign a score of 1 point if the response meets the criteria, and 0 points if it does not. After evaluating each question, provide detailed feedback explaining your reasoning behind the scores awarded.
+
+    Conclude your evaluation with a total score as a final result. The total score should represent the sum of points assigned for each question, with a maximum possible score of 2 points.
+    Only evaluate the response based on the above criteria, do not create new questions.
+
+    Example 1:
+    [Start of Question]
+    What is the impact of global warming on polar bears?
+    [End of Question]
+
+    [Start of Response]
+    Global warming leads to melting ice caps, reducing the habitat of polar bears and negatively impacting their hunting grounds.
+    [End of Response]
+
+    [Start of Feedback]
+    - Subject Matter Relevance Score: 1 (The response is directly related to the impact of global warming on polar bears.)
+    - Alignment with Query's Focus Score: 1 (The response specifically addresses how global warming affects polar bears' habitat and hunting grounds.)
+    [End of Feedback]
+
+    [Start of Score]
+    2
+    [End of Score]
+
+    Example 2:
+    [Start of Question]
+    How does photosynthesis work?
+    [End of Question]
+
+    [Start of Response]
+    Plants require sunlight and water to grow.
+    [End of Response]
+
+    [Start of Feedback]
+    - Subject Matter Relevance Score: 0 (The response is related to plant growth, but does not specifically address the process of photosynthesis.)
+    - Alignment with Query's Focus Score: 0 (The response fails to detail the photosynthesis process, missing the specific focus of the query.)
+    [End of Feedback]
+
+    [Start of Score]
+    0
+    [End of Score]
+
+    Example 3:
+    [Start of Question]
+    What are the benefits of electric vehicles?
+    [End of Question]
+
+    [Start of Response]
+    Electric vehicles reduce dependency on fossil fuels and decrease greenhouse gas emissions.
+    [End of Response]
+
+    [Start of Feedback]
+    - Subject Matter Relevance Score: 1 (The response matches the query's subject on the benefits of electric vehicles.)
+    - Alignment with Query's Focus Score: 1 (The response effectively addresses the environmental benefits of electric vehicles, aligning with the query's focus.)
+    [End of Feedback]
+
+    [Start of Score]
+    2
+    [End of Score]
+
+    Begin your response by providing the feedback followed by the score. Be as objective as possible.
+
+    [Start of Question]
+    {{question}}
+    [End of Question]
+
+    [Start of Response]
+    {{response}}
+    [End of Response]
+
+    * Return the feedback within the [Start of Feedback] and [End of Feedback] tags.
+    * Return the final score between [Start of Score] and [End of Score] tags.

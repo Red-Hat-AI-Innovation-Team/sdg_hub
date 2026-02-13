@@ -180,7 +180,7 @@ blocks:
       block_name: eval_faithful_prompt
       input_cols: [document, response]
       output_cols: eval_faithful_prompt
-      prompt_config_path: ../../instructlab/evaluate_faithfulness.yaml
+      prompt_config_path: evaluate_faithfulness_ja.yaml
       format_as_messages: true
 
   - block_type: LLMChatBlock
@@ -227,7 +227,7 @@ blocks:
       - question
       - response
       output_cols: eval_relevancy_prompt
-      prompt_config_path: ../../instructlab/evaluate_relevancy.yaml
+      prompt_config_path: evaluate_relevancy_ja.yaml
       format_as_messages: true
   - block_type: LLMChatBlock
     block_config:
@@ -271,7 +271,7 @@ blocks:
       input_cols:
       - question
       output_cols: verify_question_prompt
-      prompt_config_path: ../../instructlab/evaluate_question.yaml
+      prompt_config_path: evaluate_question_ja.yaml
       format_as_messages: true
   - block_type: LLMChatBlock
     block_config:

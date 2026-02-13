@@ -1,0 +1,64 @@
+- role: system
+  content: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+- role: user
+  content: |
+    Determine if the provided information is corroborated by the given context. Respond with YES if the context substantiates the information, even partially. Answer NO if the context does not support the information.
+
+    Guidelines:
+    - Answer YES when the context provides either direct or indirect evidence supporting the information. Indirect evidence may include contextual implications or inferred connections that reasonably support the information.
+    - Answer NO if the context lacks any supportive evidence, clearly contradicts the information, or if the support provided by the context is too vague or speculative to establish a solid connection to the information.
+    - Avoid using "partially" in your response. If the context provides any reasonable support (direct or indirect) for the information, consider it as a YES.
+
+    Strictly answer in this format:
+    [Start of Context]
+    ...
+    [End of Context]
+    [Start of Response]
+    ... 
+    [End of Response]
+    [Start of Explanation]
+    ...
+    [End of Explanation]
+    [Start of Answer]
+    ...
+    [End of Answer]
+
+    Example 1:
+    [Start of Context]
+    An apple pie is a fruit pie with apples as the main filling. It's often served with whipped cream, ice cream, custard, or cheddar cheese. Typically, it has a double crust, with pastry above and below the filling. The upper crust can be solid or latticed.
+    [End of Context]
+    [Start of Response]
+    Apple pie is generally double-crusted.
+    [End of Response]
+    [Start of Explanation]
+    The context directly supports the information by stating that apple pie is "generally double-crusted," which matches the information provided.
+    [End of Explanation]
+    [Start of Answer]
+    YES
+    [End of Answer]
+
+    Example 2:
+    [Start of Context]
+    An apple pie is a fruit pie with apples as the main filling. It's often served with whipped cream, ice cream, custard, or cheddar cheese. Typically, it has a double crust, with pastry above and below the filling. The upper crust can be solid or latticed.
+    [End of Context]
+    [Start of Response]
+    Apple pies taste bad.
+    [End of Response]
+    [Start of Explanation]
+    The context does not provide any information about the taste of apple pies. The statement "Apple pies taste bad" is a subjective opinion and is not supported or mentioned in the given context.
+    [End of Explanation]
+    [Start of Answer]
+    NO
+    [End of Answer]
+
+    Now, based on the above examples and guidelines, determine if the following information is supported by the context provided. Answer YES or NO.
+    * Return the explanation within the [Start of Explanation] and [End of Explanation] tags.
+    * Return the answer between [Start of Answer] and [End of Answer] tags.
+
+    [Start of Context]
+    {{document}}
+    [End of Context]
+    [Start of Response]
+    {{response}}
+    [End of Response]

@@ -121,7 +121,7 @@ blocks:
     - document
     - response
     output_cols: eval_faithful_prompt
-    prompt_config_path: ../../multi_summary_qa/instructlab/evaluate_faithfulness.yaml
+    prompt_config_path: ../evaluate_faithfulness.yaml
     format_as_messages: true
 - block_type: LLMChatBlock
   block_config:
