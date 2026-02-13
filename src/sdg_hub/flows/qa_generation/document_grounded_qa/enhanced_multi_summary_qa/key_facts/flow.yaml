@@ -64,12 +64,6 @@ blocks:
     - '### Key Facts With Context'
     end_tags:
     - ''
-- block_type: RegexParserBlock
-  block_config:
-    block_name: parse_atomic_facts_to_individual_facts
-    input_cols: atomic_facts
-    output_cols: key_fact
-    parsing_pattern: '(?:^|\n)\s*\d+\.\s+(.*?)(?=\n\s*\d+\.\s+|\Z)'
 - block_type: RenameColumnsBlock
   block_config:
     block_name: rename_to_raw_document_column
@@ -80,7 +74,7 @@ blocks:
     block_name: rename_to_document_column
     input_cols:
       atomic_facts: document
-- block_type: TextParserBlock
+- block_type: RegexParserBlock
   block_config:
     block_name: parse_atomic_facts_to_individual_facts
     input_cols: document
