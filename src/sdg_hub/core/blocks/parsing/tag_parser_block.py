@@ -74,7 +74,7 @@ class TagParserBlock(BaseBlock):
         elif start:
             pattern += "$"
 
-        return [m.strip() for m in re.findall(pattern, text, re.DOTALL)]
+        return [m.strip() for m in re.findall(pattern, text, re.DOTALL) if m.strip()]
 
     def _clean(self, value: str) -> str:
         for tag in self.parser_cleanup_tags or []:

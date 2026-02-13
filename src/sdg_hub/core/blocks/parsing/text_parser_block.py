@@ -87,7 +87,7 @@ class TextParserBlock(BaseBlock):
         elif start:
             pattern += "$"
 
-        return [m.strip() for m in re.findall(pattern, text, re.DOTALL)]
+        return [m.strip() for m in re.findall(pattern, text, re.DOTALL) if m.strip()]
 
     def _parse_single_text(self, sample: dict, text: str) -> list[dict]:
         output_cols = cast(list[str], self.output_cols)
