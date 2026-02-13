@@ -1,3 +1,4 @@
+# TODO: Test this prompt with output in Japanese
 - role: system
   content: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
 
