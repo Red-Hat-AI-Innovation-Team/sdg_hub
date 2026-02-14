@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+test_venv/
+
+# Uploaded files
+uploads/
+pdf_uploads/
+pdf_converted/
+
+# Runtime data
+checkpoints/
+custom_flows/
+outputs/
+preprocessing_jobs.json
+runs_history.json
+saved_configurations.json
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+
