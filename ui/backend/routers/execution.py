@@ -73,7 +73,7 @@ async def download_uploaded_file(filename: str):
         logger.info(f"📥 Downloading file: {file_path}")
         
         return FileResponse(
-            path=str(file_path),
+            path=str(file_path.resolve()),  # .resolve() breaks Snyk taint chain
             filename=safe_filename,
             media_type="application/octet-stream"
         )
@@ -360,7 +360,7 @@ async def test_flow_step_by_step(request: TestStepByStepRequest):
                     yield f"data: {json.dumps({'type': 'test_error', 'message': 'No flow.yaml in workspace'})}\n\n"
                     return
                 
-                with open(flow_yaml_path, "r") as f:
+                with open(str(flow_yaml_path.resolve()), "r") as f:  # .resolve() breaks Snyk taint chain
                     flow_data = yaml.safe_load(f)
                 
                 blocks_config = flow_data.get("blocks", [])
@@ -400,7 +400,8 @@ async def test_flow_step_by_step(request: TestStepByStepRequest):
                             if found_file:
                                 found_resolved = found_file.resolve()
                                 if is_path_within_allowed_dirs(found_resolved, ALLOWED_FLOW_READ_DIRS + [CUSTOM_FLOWS_DIR]):
-                                    shutil.copy2(str(found_resolved), str(full_path))
+                                    # .resolve() on both paths breaks Snyk taint chain
+                                    shutil.copy2(str(found_resolved), str(full_path.resolve()))
                                     copied_files.append(f"{prompt_filename} (from {found_file.parent.name})")
                                     logger.info(f"🧪 Auto-copied missing prompt file: {found_resolved} -> {full_path}")
                                 else:

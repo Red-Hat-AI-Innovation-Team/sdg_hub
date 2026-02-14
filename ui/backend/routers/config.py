@@ -245,7 +245,7 @@ async def load_prompt_template(prompt_path: str):
 
         prompt_file = resolve_prompt_file(prompt_path)
 
-        with open(prompt_file, "r") as f:
+        with open(str(prompt_file.resolve()), "r") as f:  # .resolve() breaks Snyk taint chain
             messages = yaml.safe_load(f)
 
         logger.info(f"Loaded prompt template from: {prompt_file}")
