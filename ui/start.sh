@@ -237,13 +237,15 @@ fi
 source venv/bin/activate
 
 # Install/update dependencies (including sdg_hub from parent repo)
+# Use explicit venv pip path as fallback in case activate doesn't update PATH
+PIP_CMD="./venv/bin/pip"
 if [ ! -f "venv/.dependencies_installed" ] || [ "requirements.txt" -nt "venv/.dependencies_installed" ]; then
     echo -e "${YELLOW}   Installing Python dependencies...${NC}"
-    pip install -q -r requirements.txt
+    $PIP_CMD install -q -r requirements.txt
     
     # Install sdg_hub from the parent repository
     echo -e "${YELLOW}   Installing sdg_hub...${NC}"
-    pip install -q -e ../..
+    $PIP_CMD install -q -e ../..
     
     touch venv/.dependencies_installed
     echo -e "${GREEN}   ✓ Backend dependencies installed${NC}"
