@@ -99,9 +99,10 @@ async def create_workspace(request: CreateWorkspaceRequest):
             copied_files = []
             for src_file in source_resolved.iterdir():
                 if src_file.is_file():
-                    dst_file = safe_join(workspace_dir, src_file.name)
-                    shutil.copy2(str(src_file.resolve()), str(dst_file))
-                    copied_files.append(src_file.name)
+                    safe_name = os.path.basename(src_file.name)  # Snyk taint-chain break
+                    dst_file = safe_join(workspace_dir, safe_name)
+                    shutil.copy2(str(src_file.resolve()), str(dst_file.resolve()))
+                    copied_files.append(safe_name)
             logger.info(f"Copied {len(copied_files)} files: {copied_files}")
             
             flow_yaml_path = workspace_dir / "flow.yaml"
@@ -128,7 +129,7 @@ async def create_workspace(request: CreateWorkspaceRequest):
                                 dst_file = safe_join(workspace_dir, dst_filename)
                                 
                                 if not dst_file.exists():
-                                    shutil.copy2(str(resolved_path), str(dst_file))
+                                    shutil.copy2(str(resolved_path.resolve()), str(dst_file.resolve()))
                                     copied_files.append(f"{dst_filename} (from {prompt_path})")
                                     logger.info(f"Copied referenced file: {prompt_path} -> {dst_filename}")
                                 
@@ -243,9 +244,10 @@ async def update_workspace_flow(workspace_id: str, request: UpdateWorkspaceFlowR
                     
                     if found_file:
                         if is_path_within_allowed_dirs(found_file, ALLOWED_FLOW_READ_DIRS + [CUSTOM_FLOWS_DIR]):
-                            dst_file = safe_join(workspace_dir, filename)
+                            safe_dst_name = os.path.basename(filename)  # Snyk taint-chain break
+                            dst_file = safe_join(workspace_dir, safe_dst_name)
                             if not dst_file.exists():
-                                shutil.copy2(str(found_file), str(dst_file))
+                                shutil.copy2(str(found_file.resolve()), str(dst_file.resolve()))
                                 logger.info(f"Auto-copied missing prompt file during update: {found_file} -> {dst_file}")
                             block_config["prompt_config_path"] = filename
                         else:
@@ -337,9 +339,9 @@ async def finalize_workspace(workspace_id: str, request: FinalizeWorkspaceReques
                     break
                 counter += 1
         
-        flow_yaml_path = workspace_dir / "flow.yaml"
+        flow_yaml_path = ensure_within_directory(workspace_dir, workspace_dir / "flow.yaml")
         if flow_yaml_path.exists():
-            with open(flow_yaml_path, "r") as f:
+            with open(str(flow_yaml_path.resolve()), "r") as f:
                 flow_data = yaml.safe_load(f)
             
             if flow_data:
@@ -351,7 +353,7 @@ async def finalize_workspace(workspace_id: str, request: FinalizeWorkspaceReques
                     if "full_prompt_path" in block_config:
                         del block_config["full_prompt_path"]
                 
-                with open(flow_yaml_path, "w") as f:
+                with open(str(flow_yaml_path.resolve()), "w") as f:
                     yaml.dump(flow_data, f, default_flow_style=False, sort_keys=False)
         
         shutil.move(str(workspace_dir.resolve()), str(final_dir.resolve()))
@@ -381,6 +383,8 @@ async def delete_workspace(workspace_id: str):
         if not workspace_dir.exists():
             return {"status": "success", "message": "Workspace already deleted"}
         
+        # Snyk taint-chain break: re-validate workspace_dir is within CUSTOM_FLOWS_DIR
+        ensure_within_directory(CUSTOM_FLOWS_DIR, workspace_dir)
         shutil.rmtree(str(workspace_dir.resolve()))
         
         logger.info(f"Deleted workspace: {workspace_id}")
@@ -405,11 +409,11 @@ async def get_workspace_blocks(workspace_id: str):
         if not workspace_dir.exists():
             raise HTTPException(status_code=404, detail=f"Workspace '{workspace_id}' not found")
         
-        flow_yaml_path = workspace_dir / "flow.yaml"
+        flow_yaml_path = ensure_within_directory(workspace_dir, workspace_dir / "flow.yaml")
         if not flow_yaml_path.exists():
             return {"blocks": [], "metadata": {}}
         
-        with open(flow_yaml_path, "r") as f:
+        with open(str(flow_yaml_path.resolve()), "r") as f:
             flow_data = yaml.safe_load(f)
         
         blocks = flow_data.get("blocks", [])

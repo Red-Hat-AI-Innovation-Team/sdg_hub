@@ -350,7 +350,7 @@ async def convert_pdfs_to_markdown(job_id: str, selected_files: Optional[str] = 
                     md_filename = sanitize_filename(os.path.basename(file_path.stem)) + ".md"
                     md_path = safe_join(converted_dir, md_filename)
                     
-                    with open(str(md_path), "w", encoding="utf-8") as f:
+                    with open(str(md_path.resolve()), "w", encoding="utf-8") as f:
                         f.write(md_content)
                     
                     original_filename = file_info["filename"]
@@ -423,7 +423,7 @@ async def download_converted_file(job_id: str, filename: str):
             raise HTTPException(status_code=404, detail=f"File not found: {filename}")
     
     return FileResponse(
-        path=str(file_path),
+        path=str(file_path.resolve()),
         filename=os.path.basename(filename),
         media_type="text/markdown"
     )
@@ -505,7 +505,7 @@ async def get_markdown_content(job_id: str, filename: str):
             raise HTTPException(status_code=404, detail=f"Markdown file not found: {filename}")
     
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(str(file_path.resolve()), 'r', encoding='utf-8') as f:
             content = f.read()
         return {"content": content, "filename": file_path.name}
     except Exception as e:
@@ -579,7 +579,7 @@ async def chunk_markdown_documents(job_id: str, config: ChunkingConfig):
                 continue
             converted_base = Path(job.get("converted_dir", "")).resolve()
             md_validated_path = ensure_within_directory(converted_base, converted_base / md_safe_name)
-            with open(str(md_validated_path), "r", encoding="utf-8") as f:
+            with open(str(md_validated_path.resolve()), "r", encoding="utf-8") as f:
                 content = f.read()
             
             # Clean up markdown tables
@@ -757,16 +757,21 @@ async def delete_preprocessed_dataset(job_id: str):
         
         output_file = job.get("output_file")
         if output_file:
-            output_path = Path(output_file)
+            output_path = Path(output_file).resolve()
+            ensure_within_directory(UPLOADS_DIR, output_path)
             if output_path.exists():
                 output_path.unlink()
                 logger.info(f"🗑️ Deleted dataset file: {output_file}")
         
         if job.get("job_dir") and Path(job["job_dir"]).exists():
-            shutil.rmtree(job["job_dir"])
+            job_dir_path = Path(job["job_dir"]).resolve()
+            ensure_within_directory(PDF_UPLOADS_DIR, job_dir_path)
+            shutil.rmtree(str(job_dir_path))
         
         if job.get("converted_dir") and Path(job["converted_dir"]).exists():
-            shutil.rmtree(job["converted_dir"])
+            converted_dir_path = Path(job["converted_dir"]).resolve()
+            ensure_within_directory(PDF_CONVERTED_DIR, converted_dir_path)
+            shutil.rmtree(str(converted_dir_path))
         
         del preprocessing_jobs[job_id]
         save_preprocessing_jobs()
@@ -799,7 +804,7 @@ async def download_preprocessed_dataset(job_id: str):
         raise HTTPException(status_code=404, detail="Dataset file not found on disk")
     
     return FileResponse(
-        path=str(output_path),
+        path=str(output_path.resolve()),
         filename=output_path.name,
         media_type="application/x-jsonlines"
     )
@@ -1038,10 +1043,14 @@ async def cleanup_preprocessing_job(job_id: str):
         job = preprocessing_jobs[job_id]
         
         if job.get("job_dir") and Path(job["job_dir"]).exists():
-            shutil.rmtree(job["job_dir"])
+            job_dir_path = Path(job["job_dir"]).resolve()
+            ensure_within_directory(PDF_UPLOADS_DIR, job_dir_path)
+            shutil.rmtree(str(job_dir_path))
         
         if job.get("converted_dir") and Path(job["converted_dir"]).exists():
-            shutil.rmtree(job["converted_dir"])
+            converted_dir_path = Path(job["converted_dir"]).resolve()
+            ensure_within_directory(PDF_CONVERTED_DIR, converted_dir_path)
+            shutil.rmtree(str(converted_dir_path))
         
         del preprocessing_jobs[job_id]
         save_preprocessing_jobs()
