@@ -27,6 +27,7 @@ from utils.security import (
     is_path_within_allowed_dirs,
     validate_workspace_id,
 )
+from utils.safe_io import copy_validated_file
 
 logger = logging.getLogger(__name__)
 
@@ -99,9 +100,9 @@ async def create_workspace(request: CreateWorkspaceRequest):
             copied_files = []
             for src_file in source_resolved.iterdir():
                 if src_file.is_file():
-                    safe_name = os.path.basename(src_file.name)  # Snyk taint-chain break
+                    safe_name = os.path.basename(src_file.name)
                     dst_file = safe_join(workspace_dir, safe_name)
-                    shutil.copy2(str(src_file.resolve()), str(dst_file.resolve()))
+                    copy_validated_file(src_file, dst_file)
                     copied_files.append(safe_name)
             logger.info(f"Copied {len(copied_files)} files: {copied_files}")
             
@@ -129,7 +130,7 @@ async def create_workspace(request: CreateWorkspaceRequest):
                                 dst_file = safe_join(workspace_dir, dst_filename)
                                 
                                 if not dst_file.exists():
-                                    shutil.copy2(str(resolved_path.resolve()), str(dst_file.resolve()))
+                                    copy_validated_file(resolved_path, dst_file)
                                     copied_files.append(f"{dst_filename} (from {prompt_path})")
                                     logger.info(f"Copied referenced file: {prompt_path} -> {dst_filename}")
                                 

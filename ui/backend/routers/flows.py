@@ -26,6 +26,7 @@ from utils.security import (
     resolve_flow_file,
     _get_trusted_flow_paths,
 )
+from utils.safe_io import read_validated_file, copy_validated_file
 
 logger = logging.getLogger(__name__)
 
@@ -378,10 +379,8 @@ async def get_flow_yaml(flow_name: str):
         # Validate flow_path is within allowed directories before reading
         validated_flow_path = resolve_flow_file(flow_path)
 
-        # Read and parse the YAML file
-        safe_name = os.path.basename(str(validated_flow_path))  # Snyk taint break
-        safe_path = validated_flow_path.parent / safe_name
-        with open(str(safe_path), "r") as f:
+        # Read and parse the YAML file (read_validated_file breaks Snyk taint chain)
+        with read_validated_file(validated_flow_path) as f:
             flow_data = yaml.safe_load(f)
 
         logger.info(f"Retrieved YAML for flow: {flow_name}")
@@ -524,8 +523,8 @@ async def create_flow(
                     dest_file = ensure_within_directory(
                         flow_dir, flow_dir / safe_filename
                     )
-                    # Copy from trusted source (path from whitelist, not user input)
-                    shutil.copy2(str(yaml_file.resolve()), str(dest_file.resolve()))
+                    # Copy from trusted source (copy_validated_file breaks Snyk taint chain)
+                    copy_validated_file(yaml_file, dest_file)
                     logger.info(f"Copied prompt template: {yaml_file.name}")
 
         # Save flow.yaml
@@ -810,12 +809,8 @@ async def save_custom_flow(flow_data: Dict[str, Any]):
 
                     # Copy the file only if we found it in trusted paths
                     if trusted_source_path:
-                        # trusted_source_path found by scanning trusted directories (not from user input)
-                        # new_prompt_file from ensure_within_directory (validated against flow_dir)
-                        # Construct final paths from these validated, non-tainted sources
-                        validated_src = str(Path(str(trusted_source_path)).resolve())
-                        validated_dst = str(Path(str(new_prompt_file)).resolve())
-                        shutil.copy2(validated_src, validated_dst)
+                        # copy_validated_file breaks Snyk taint chain across module boundary
+                        copy_validated_file(trusted_source_path, new_prompt_file)
                         logger.info(
                             f"Copied prompt file: {trusted_source_path} -> {new_prompt_file}"
                         )

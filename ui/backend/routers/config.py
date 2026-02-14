@@ -245,10 +245,9 @@ async def load_prompt_template(prompt_path: str):
         import yaml
 
         prompt_file = resolve_prompt_file(prompt_path)
-        safe_name = os.path.basename(str(prompt_file))  # Snyk taint break
-        safe_path = prompt_file.parent / safe_name
 
-        with open(str(safe_path), "r") as f:
+        from utils.safe_io import read_validated_file
+        with read_validated_file(prompt_file) as f:
             messages = yaml.safe_load(f)
 
         logger.info(f"Loaded prompt template from: {prompt_file}")
