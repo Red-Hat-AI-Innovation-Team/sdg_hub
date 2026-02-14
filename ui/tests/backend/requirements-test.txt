@@ -1,0 +1,32 @@
+# Test dependencies for SDG Hub UI Backend
+# Install with: pip install -r requirements-test.txt
+
+# Testing framework
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+pytest-html>=4.0.0
+
+# HTTP testing
+httpx>=0.25.0
+pytest-httpx>=0.21.0
+
+# Mocking
+responses>=0.23.0
+
+# Type checking (optional)
+mypy>=1.0.0
+
+# Code quality
+ruff>=0.1.0
+
+# Dependencies from main requirements
+fastapi>=0.100.0
+uvicorn>=0.23.0
+pydantic>=2.0.0
+pandas>=2.0.0
+python-multipart>=0.0.6
+python-dotenv>=1.0.0
+PyYAML>=6.0.0
+nest-asyncio>=1.5.0
+

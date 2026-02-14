@@ -1,0 +1,145 @@
+# SDG Hub UI - Security-focused .gitignore
+
+# ============================================================================
+# SECURITY: Sensitive Files - NEVER COMMIT THESE
+# ============================================================================
+
+# Environment variables with API keys
+.env
+.env.local
+.env.*.local
+
+# Configuration exports that might contain API keys
+*_config_export*.json
+*_configuration*.json
+backend/config_exports/
+
+# API key files
+*_api_keys*.txt
+*_secrets*.txt
+*.key
+
+# SSL certificates
+backend/cert.pem
+backend/key.pem
+backend/*.pem
+frontend/cert.pem
+frontend/key.pem
+frontend/*.pem
+
+# Uploaded datasets (may contain sensitive data)
+backend/uploads/
+backend/outputs/
+backend/evaluation_results/
+
+# Custom flows that might contain sensitive prompts
+backend/custom_flows/
+
+# Checkpoints from pipeline runs
+backend/checkpoints/
+
+# Run history (may contain API endpoints and config)
+backend/runs_history.json
+backend/saved_configurations.json
+backend/evaluation_schemas/
+
+# Data directories for different instances
+backend/data_*/
+
+# ============================================================================
+# Python
+# ============================================================================
+
+# Virtual environment
+backend/venv/
+backend/.venv/
+backend/env/
+backend/test_venv/
+
+# Python cache
+backend/__pycache__/
+backend/.ruff_cache/
+.ruff_cache/
+backend/**/__pycache__/
+tests/__pycache__/
+tests/**/__pycache__/
+tests/**/.pytest_cache/
+.pytest_cache/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+backend/build/
+backend/develop-eggs/
+backend/dist/
+backend/downloads/
+backend/eggs/
+backend/.eggs/
+backend/lib/
+backend/lib64/
+backend/parts/
+backend/sdist/
+backend/var/
+backend/wheels/
+backend/pip-wheel-metadata/
+backend/share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Logs
+*.log
+backend/*.log
+backend/**/*.log
+
+# ============================================================================
+# Node.js / React
+# ============================================================================
+
+# Dependencies
+frontend/node_modules/
+tests/frontend/node_modules/
+node_modules/
+
+# Production build
+frontend/build/
+
+# Testing
+frontend/coverage/
+
+# Misc
+frontend/.DS_Store
+.DS_Store
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# ============================================================================
+# IDEs
+# ============================================================================
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ============================================================================
+# OS
+# ============================================================================
+
+.DS_Store
+Thumbs.db
+Desktop.ini
+

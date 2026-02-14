@@ -1,0 +1,42 @@
+{
+  "name": "sdg-hub-ui",
+  "version": "1.0.0",
+  "description": "SDG Hub Configuration UI with PatternFly",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "dependencies": {
+    "@patternfly/patternfly": "^5.0.0",
+    "@patternfly/react-core": "^5.0.0",
+    "@patternfly/react-drag-drop": "^6.4.0",
+    "@patternfly/react-icons": "^5.0.0",
+    "@patternfly/react-table": "^5.4.16",
+    "@patternfly/react-topology": "^6.4.0",
+    "ansi-to-html": "^0.7.2",
+    "axios": "^1.13.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "proxy": "http://localhost:8000"
+}

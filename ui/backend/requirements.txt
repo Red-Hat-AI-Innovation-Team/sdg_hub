@@ -1,0 +1,23 @@
+# SDG Hub UI Backend Dependencies
+# Note: sdg_hub must be installed separately (pip install . from repo root)
+
+# Web framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Data validation (compatible with sdg_hub)
+pydantic>=2.0.0,<3.0.0
+
+# File uploads
+python-multipart>=0.0.6
+
+# Async support
+nest-asyncio>=1.5.0
+
+# Data handling - using same version as sdg_hub to avoid conflicts
+pandas
+PyYAML>=6.0.0
+
+# PDF Preprocessing - for converting PDF files to datasets
+docling>=2.3.0
+langchain-text-splitters>=0.0.1
