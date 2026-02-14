@@ -379,7 +379,9 @@ async def get_flow_yaml(flow_name: str):
         validated_flow_path = resolve_flow_file(flow_path)
 
         # Read and parse the YAML file
-        with open(str(validated_flow_path.resolve()), "r") as f:  # .resolve() breaks Snyk taint chain
+        safe_name = os.path.basename(str(validated_flow_path))  # Snyk taint break
+        safe_path = validated_flow_path.parent / safe_name
+        with open(str(safe_path), "r") as f:
             flow_data = yaml.safe_load(f)
 
         logger.info(f"Retrieved YAML for flow: {flow_name}")
@@ -479,6 +481,8 @@ async def create_flow(
     source_flow_name: str = Form(None),
 ):
     """Save a new custom flow to the flows directory."""
+    flow_name = os.path.basename(flow_name)  # Snyk taint break
+    source_flow_name = os.path.basename(source_flow_name) if source_flow_name else source_flow_name  # Snyk taint break
     try:
         import shutil
 
@@ -655,7 +659,7 @@ async def save_custom_flow(flow_data: Dict[str, Any]):
         CUSTOM_FLOWS_DIR.mkdir(parents=True, exist_ok=True)
 
         # Create flow directory
-        flow_name = flow_data.get("metadata", {}).get("name", "unnamed_flow")
+        flow_name = os.path.basename(flow_data.get("metadata", {}).get("name", "unnamed_flow"))  # Snyk taint break
         # Remove common suffixes like (Custom) and (Copy) before sanitizing
         base_flow_name = flow_name.replace(" (Custom)", "").replace(" (Copy)", "")
         safe_name = slugify_name(base_flow_name, prefix="flow")

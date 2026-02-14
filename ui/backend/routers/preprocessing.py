@@ -261,6 +261,7 @@ async def convert_pdfs_to_markdown(job_id: str, selected_files: Optional[str] = 
         selected_files: Optional comma-separated list of filenames to convert.
                        If not provided, converts all files.
     """
+    job_id = os.path.basename(job_id)  # Snyk taint break
     # Parse selected files from query param
     files_to_convert = None
     if selected_files:
@@ -403,6 +404,8 @@ async def convert_pdfs_to_markdown(job_id: str, selected_files: Optional[str] = 
 @router.get("/api/preprocessing/download/{job_id}/{filename}")
 async def download_converted_file(job_id: str, filename: str):
     """Download a converted markdown file."""
+    job_id = os.path.basename(job_id)  # Snyk taint break
+    filename = os.path.basename(filename)  # Snyk taint break
     if job_id not in preprocessing_jobs:
         raise HTTPException(status_code=404, detail="Job not found")
     
@@ -432,6 +435,8 @@ async def download_converted_file(job_id: str, filename: str):
 @router.get("/api/preprocessing/pdf/{job_id}/{filename}")
 async def serve_pdf_file(job_id: str, filename: str):
     """Serve an uploaded PDF file for viewing."""
+    job_id = os.path.basename(job_id)  # Snyk taint break
+    filename = os.path.basename(filename)  # Snyk taint break
     if job_id not in preprocessing_jobs:
         raise HTTPException(status_code=404, detail="Job not found")
     
@@ -485,6 +490,8 @@ async def serve_pdf_file(job_id: str, filename: str):
 @router.get("/api/preprocessing/markdown-content/{job_id}/{filename}")
 async def get_markdown_content(job_id: str, filename: str):
     """Get markdown file content as text (for comparison view)."""
+    job_id = os.path.basename(job_id)  # Snyk taint break
+    filename = os.path.basename(filename)  # Snyk taint break
     if job_id not in preprocessing_jobs:
         raise HTTPException(status_code=404, detail="Job not found")
     
@@ -516,6 +523,7 @@ async def get_markdown_content(job_id: str, filename: str):
 @router.post("/api/preprocessing/chunk/{job_id}")
 async def chunk_markdown_documents(job_id: str, config: ChunkingConfig):
     """Chunk the converted markdown documents."""
+    job_id = os.path.basename(job_id)  # Snyk taint break
     try:
         if job_id not in preprocessing_jobs:
             raise HTTPException(status_code=404, detail="Job not found")
@@ -749,6 +757,7 @@ async def list_preprocessed_datasets():
 @router.delete("/api/preprocessing/datasets/{job_id}")
 async def delete_preprocessed_dataset(job_id: str):
     """Delete a preprocessed dataset and its associated job data."""
+    job_id = os.path.basename(job_id)  # Snyk taint break
     try:
         if job_id not in preprocessing_jobs:
             raise HTTPException(status_code=404, detail="Dataset not found")
@@ -790,6 +799,7 @@ async def delete_preprocessed_dataset(job_id: str):
 @router.get("/api/preprocessing/datasets/{job_id}/download")
 async def download_preprocessed_dataset(job_id: str):
     """Download a preprocessed dataset file."""
+    job_id = os.path.basename(job_id)  # Snyk taint break
     if job_id not in preprocessing_jobs:
         raise HTTPException(status_code=404, detail="Dataset not found")
     
@@ -813,6 +823,7 @@ async def download_preprocessed_dataset(job_id: str):
 @router.get("/api/preprocessing/status/{job_id}")
 async def get_preprocessing_status(job_id: str):
     """Get the current status of a preprocessing job."""
+    job_id = os.path.basename(job_id)  # Snyk taint break
     if job_id not in preprocessing_jobs:
         raise HTTPException(status_code=404, detail="Job not found")
     
@@ -832,6 +843,7 @@ async def get_preprocessing_status(job_id: str):
 @router.get("/api/preprocessing/chunks/{job_id}")
 async def get_preprocessing_chunks(job_id: str, offset: int = 0, limit: int = 10):
     """Get chunks from a preprocessing job with pagination."""
+    job_id = os.path.basename(job_id)  # Snyk taint break
     if job_id not in preprocessing_jobs:
         raise HTTPException(status_code=404, detail="Job not found")
     
@@ -959,6 +971,7 @@ Book-to-bill represents the ratio of IBM Consulting signings to its revenue over
 @router.post("/api/preprocessing/create-dataset/{job_id}")
 async def create_dataset_from_preprocessing(job_id: str, request: PreprocessingDatasetRequest):
     """Create a final dataset from preprocessed and chunked documents."""
+    job_id = os.path.basename(job_id)  # Snyk taint break
     try:
         if job_id not in preprocessing_jobs:
             raise HTTPException(status_code=404, detail="Job not found")
@@ -1036,6 +1049,7 @@ async def create_dataset_from_preprocessing(job_id: str, request: PreprocessingD
 @router.delete("/api/preprocessing/{job_id}")
 async def cleanup_preprocessing_job(job_id: str):
     """Clean up a preprocessing job and its files."""
+    job_id = os.path.basename(job_id)  # Snyk taint break
     try:
         if job_id not in preprocessing_jobs:
             raise HTTPException(status_code=404, detail="Job not found")

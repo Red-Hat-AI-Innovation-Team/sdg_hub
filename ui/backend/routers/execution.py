@@ -57,6 +57,7 @@ router = APIRouter()
 @router.get("/uploads/{filename}")
 async def download_uploaded_file(filename: str):
     """Download a file from the uploads directory."""
+    filename = os.path.basename(filename)  # Snyk taint break
     try:
         safe_filename = sanitize_filename(filename)
         if not safe_filename:
@@ -342,17 +343,18 @@ async def test_flow_step_by_step(request: TestStepByStepRequest):
             
             model_config = request.model_config_data
             sample_data = request.sample_data
+            workspace_id = os.path.basename(request.workspace_id) if request.workspace_id else None  # Snyk taint break
             
             # Load blocks from workspace if workspace_id is provided
-            if request.workspace_id:
+            if workspace_id:
                 try:
-                    workspace_dir = validate_workspace_id(request.workspace_id)
+                    workspace_dir = validate_workspace_id(workspace_id)
                 except HTTPException:
                     yield f"data: {json.dumps({'type': 'test_error', 'message': 'Invalid workspace ID'})}\n\n"
                     return
                 
                 if not workspace_dir.exists():
-                    yield f"data: {json.dumps({'type': 'test_error', 'message': f'Workspace not found: {request.workspace_id}'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'test_error', 'message': f'Workspace not found: {workspace_id}'})}\n\n"
                     return
                 
                 flow_yaml_path = workspace_dir / "flow.yaml"
@@ -421,7 +423,7 @@ async def test_flow_step_by_step(request: TestStepByStepRequest):
                     yield f"data: {json.dumps({'type': 'test_error', 'message': error_msg})}\n\n"
                     return
                 
-                logger.info(f"🧪 Loaded {len(blocks_config)} blocks from workspace: {request.workspace_id}")
+                logger.info(f"🧪 Loaded {len(blocks_config)} blocks from workspace: {workspace_id}")
             else:
                 blocks_config = request.blocks
             

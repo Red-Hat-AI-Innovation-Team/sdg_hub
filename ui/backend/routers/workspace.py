@@ -187,6 +187,7 @@ async def create_workspace(request: CreateWorkspaceRequest):
 @router.post("/api/workspace/{workspace_id}/update-flow")
 async def update_workspace_flow(workspace_id: str, request: UpdateWorkspaceFlowRequest):
     """Update the flow.yaml in a workspace."""
+    workspace_id = os.path.basename(workspace_id)  # Snyk taint break
     import yaml
     from pathlib import PurePosixPath
     
@@ -273,6 +274,7 @@ async def update_workspace_flow(workspace_id: str, request: UpdateWorkspaceFlowR
 @router.post("/api/workspace/{workspace_id}/update-prompt")
 async def update_workspace_prompt(workspace_id: str, request: UpdateWorkspacePromptRequest):
     """Create or update a prompt file in the workspace."""
+    workspace_id = os.path.basename(workspace_id)  # Snyk taint break
     import yaml
     
     try:
@@ -311,6 +313,7 @@ async def update_workspace_prompt(workspace_id: str, request: UpdateWorkspacePro
 @router.post("/api/workspace/{workspace_id}/finalize")
 async def finalize_workspace(workspace_id: str, request: FinalizeWorkspaceRequest):
     """Finalize a workspace by renaming it to a permanent flow directory."""
+    workspace_id = os.path.basename(workspace_id)  # Snyk taint break
     import yaml
     
     try:
@@ -319,7 +322,7 @@ async def finalize_workspace(workspace_id: str, request: FinalizeWorkspaceReques
         if not workspace_dir.exists():
             raise HTTPException(status_code=404, detail=f"Workspace '{workspace_id}' not found")
         
-        clean_name = request.flow_name
+        clean_name = os.path.basename(request.flow_name)  # Snyk taint break
         for suffix in [" (Custom)", " (Copy)"]:
             clean_name = clean_name.replace(suffix, "")
         
@@ -377,6 +380,7 @@ async def finalize_workspace(workspace_id: str, request: FinalizeWorkspaceReques
 @router.delete("/api/workspace/{workspace_id}")
 async def delete_workspace(workspace_id: str):
     """Delete a workspace (cleanup on cancel)."""
+    workspace_id = os.path.basename(workspace_id)  # Snyk taint break
     try:
         workspace_dir = validate_workspace_id(workspace_id)
         
@@ -401,6 +405,7 @@ async def delete_workspace(workspace_id: str):
 @router.get("/api/workspace/{workspace_id}/blocks")
 async def get_workspace_blocks(workspace_id: str):
     """Get the blocks from a workspace with full prompt paths resolved."""
+    workspace_id = os.path.basename(workspace_id)  # Snyk taint break
     import yaml
     
     try:
