@@ -6,7 +6,7 @@ and expanding the fields into separate columns.
 """
 
 # Standard
-from typing import Any, Optional
+from typing import Any, Optional, cast
 import json
 import re
 
@@ -188,7 +188,7 @@ class JSONParserBlock(BaseBlock):
         pd.DataFrame
             Dataset with JSON fields expanded into separate columns.
         """
-        input_col = self.input_cols[0]
+        input_col = cast(list[str], self.input_cols)[0]
         result = samples.copy()
 
         # Parse JSON from each row
