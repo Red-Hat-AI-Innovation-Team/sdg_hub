@@ -191,6 +191,35 @@ def test_invalid_json():
     assert result["name"].iloc[2] == "Bob"
 
 
+def test_nan_values_in_input():
+    """Test handling of NaN values in input column."""
+    import numpy as np
+
+    data = {
+        "json_content": [
+            '{"name": "Alice"}',
+            np.nan,  # NaN value
+            '{"name": "Bob"}',
+            None,  # None value
+        ],
+    }
+    dataset = pd.DataFrame(data)
+
+    block = JSONParserBlock(
+        block_name="test_nan",
+        input_cols=["json_content"],
+    )
+
+    result = block.generate(dataset)
+
+    assert len(result) == 4
+    assert result["name"].iloc[0] == "Alice"
+    # NaN and None rows should have NaN/empty values, not raise AttributeError
+    assert pd.isna(result["name"].iloc[1]) or result["name"].iloc[1] == {}
+    assert result["name"].iloc[2] == "Bob"
+    assert pd.isna(result["name"].iloc[3]) or result["name"].iloc[3] == {}
+
+
 def test_empty_json():
     """Test handling of empty JSON object."""
     data = {

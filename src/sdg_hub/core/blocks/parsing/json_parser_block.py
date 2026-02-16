@@ -149,7 +149,7 @@ class JSONParserBlock(BaseBlock):
         dict[str, Any]
             Parsed JSON as a dictionary. Returns empty dict on failure.
         """
-        if not text:
+        if not isinstance(text, str) or not text:
             return {}
 
         json_str = self._extract_json(text)
