@@ -1,0 +1,15 @@
+- role: system
+  content: Eres un Asistente de IA muy conocedor que asistirá fielmente al usuario con su tarea.
+
+- role: user
+  content: |
+    Responde la pregunta basándote en el documento proporcionado.
+
+    Aquí está el documento:
+
+    Documento:
+    {{document_outline}}
+    {{document}}
+
+    Pregunta:
+    {{question}}
