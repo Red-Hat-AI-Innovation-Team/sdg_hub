@@ -206,6 +206,29 @@ def test_empty_json():
     result = block.generate(dataset)
 
     assert len(result) == 1
+    # Verify no phantom '0' column is created from empty dicts
+    assert 0 not in result.columns
+
+
+def test_all_empty_json_no_phantom_column():
+    """Test that all empty JSON objects don't create phantom column 0."""
+    data = {
+        "json_content": ["{}", "{}", "{}"],
+    }
+    dataset = pd.DataFrame(data)
+
+    block = JSONParserBlock(
+        block_name="test_all_empty",
+        input_cols=["json_content"],
+    )
+
+    result = block.generate(dataset)
+
+    assert len(result) == 3
+    # Verify no phantom '0' column is created
+    assert 0 not in result.columns
+    # Should only have the original json_content column
+    assert list(result.columns) == ["json_content"]
 
 
 def test_nested_json():

@@ -197,6 +197,10 @@ class JSONParserBlock(BaseBlock):
         # Expand parsed JSON into columns
         parsed_df = parsed_series.apply(pd.Series)
 
+        # Remove phantom '0' column created when all rows return empty dicts
+        if 0 in parsed_df.columns:
+            parsed_df = parsed_df.drop(columns=[0])
+
         # Filter to specific output columns if specified
         if self.output_cols:
             # Only keep columns that were requested and exist in parsed data
