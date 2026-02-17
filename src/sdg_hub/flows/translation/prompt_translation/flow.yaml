@@ -1,0 +1,66 @@
+metadata:
+  name: Prompt Translation Flow
+  description: >-
+    Translates LLM prompt text to a target language while preserving Jinja2 template
+    variables, structural parsing tags, and markdown formatting. Designed for translating
+    sdg_hub prompt configuration files to enable multilingual data generation workflows.
+  version: 1.0.0
+  author: SDG Hub Contributors
+  recommended_models:
+    default: openai/gpt-5.2
+    compatible:
+      - openai/gpt-5
+      - google/translategemma-27b-it
+      - microsoft/phi-4
+    experimental: []
+  tags:
+    - translation
+    - multilingual
+    - prompt-engineering
+  license: Apache-2.0
+  dataset_requirements:
+    required_columns:
+      - text
+      - target_language
+    description: >-
+      Input dataset must contain a 'text' column with the prompt content to translate
+      and a 'target_language' column with the target language name (e.g., 'Spanish',
+      'French'). The flow preserves Jinja2 template variables and structural tags
+      while translating all natural language content.
+  output_columns:
+    - translated_text
+  id: calm-river-421
+
+blocks:
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: build_translation_prompt
+      input_cols:
+        - text
+        - target_language
+      output_cols: translation_prompt
+      prompt_config_path: translate_prompt.yaml
+      format_as_messages: true
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: translate_text
+      input_cols: translation_prompt
+      output_cols: raw_translation
+      max_tokens: 8192
+      temperature: 0.3
+      n: 1
+      async_mode: true
+
+  - block_type: LLMResponseExtractorBlock
+    block_config:
+      block_name: extract_translation
+      input_cols: raw_translation
+      extract_content: true
+      expand_lists: true
+
+  - block_type: RenameColumnsBlock
+    block_config:
+      block_name: rename_translated_text
+      input_cols:
+        extract_translation_content: translated_text
