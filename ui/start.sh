@@ -341,4 +341,12 @@ echo -e "${YELLOW}Press Ctrl+C to stop all servers${NC}"
 echo ""
 
 cd frontend
+# Node.js 25.2.0 introduced a bug where html-webpack-plugin triggers a SecurityError
+# by accessing the experimental localStorage global (nodejs/node#60704).
+# Disable webstorage on Node 25+ where the bug exists. Append to any existing
+# NODE_OPTIONS so user-defined flags (e.g. --max-old-space-size) are preserved.
+NODE_MAJOR=$(node -e "console.log(process.versions.node.split('.')[0])")
+if [ "$NODE_MAJOR" -ge 25 ] 2>/dev/null; then
+    export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--no-experimental-webstorage"
+fi
 BROWSER=none npm start
