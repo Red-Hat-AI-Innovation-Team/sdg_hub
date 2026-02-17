@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Python interpreter block for executing code from dataset rows."""
 
-from typing import Any, Optional
+from typing import Any, Optional, cast
 import asyncio
 
 from pydantic import Field, PrivateAttr, field_validator
@@ -129,7 +129,7 @@ class PythonInterpreterBlock(BaseBlock):
 
         if self._connector is None or self._connector_config_key != config_key:
             connector_class = ConnectorRegistry.get(self.interpreter_framework)
-            config = ConnectorConfig(timeout=self.timeout)
+            config = ConnectorConfig(timeout=self.timeout)  # type: ignore[call-arg]
             self._connector = connector_class(config=config)
             self._connector_config_key = config_key
 
@@ -146,7 +146,10 @@ class PythonInterpreterBlock(BaseBlock):
             if pd.isna(code) or not isinstance(code, str) or not code.strip():
                 return CodeExecutionResult(
                     success=False,
+                    output=None,
                     error="Empty or invalid code",
+                    return_value=None,
+                    execution_time_ms=None,
                 ).model_dump()
 
             if hasattr(connector, "aexecute_code"):
@@ -175,8 +178,9 @@ class PythonInterpreterBlock(BaseBlock):
         """Execute code from DataFrame rows and capture results."""
         df = samples.copy()
         connector = self._get_connector()
-        code_col = self.input_cols[0]
-        output_col = self.output_cols[0]
+        # Validators guarantee these are single-element lists
+        code_col = cast(list[str], self.input_cols)[0]
+        output_col = cast(list[str], self.output_cols)[0]
 
         codes = df[code_col].tolist()
 
