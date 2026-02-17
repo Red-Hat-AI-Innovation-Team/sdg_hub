@@ -67,7 +67,7 @@ dev = [
 ]
 # Code block dependencies (execution, linting, parsing, etc.)
 code = [
-    "pydantic-monty>=0.0.3",  # Secure Python interpreter
+    "pydantic-monty>=0.0.3,<0.1.0",  # Secure Python interpreter
 ]
 # Minimal dependencies for integration testing only
 # Integration tests run knowledge_generation.ipynb which only needs nest-asyncio

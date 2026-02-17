@@ -75,6 +75,53 @@ class TestMontyConnector:
         assert result.success is False
         assert "Division by zero" in result.error
 
+    def test_execute_code_passes_resource_limits(self, mock_monty):
+        """Test that resource limits are passed to run_monty."""
+        from sdg_hub.core.connectors.code_interpreter.monty import MontyConnector
+
+        mock_monty.run_monty.return_value = "result"
+        mock_limits = MagicMock()
+        mock_monty.ResourceLimits.return_value = mock_limits
+
+        connector = MontyConnector()
+        connector.execute_code("print(1)", timeout=30.0)
+
+        # Verify ResourceLimits was created with correct timeout
+        mock_monty.ResourceLimits.assert_called_once_with(max_duration_secs=30.0)
+
+        # Verify limits were passed to run_monty
+        call_kwargs = mock_monty.run_monty.call_args.kwargs
+        assert call_kwargs["limits"] == mock_limits
+
+    def test_execute_code_timeout_exceeded(self, mock_monty):
+        """Test that timeout errors are handled correctly."""
+        from sdg_hub.core.connectors.code_interpreter.monty import MontyConnector
+
+        # Simulate Monty raising an error when execution exceeds time limit
+        mock_monty.run_monty.side_effect = mock_monty.MontyError(
+            "execution exceeded time limit"
+        )
+
+        connector = MontyConnector()
+        result = connector.execute_code("while True: pass", timeout=0.1)
+
+        assert result.success is False
+        assert "time limit" in result.error.lower()
+        assert result.execution_time_ms is not None
+
+    def test_execute_code_uses_default_timeout(self, mock_monty):
+        """Test that default config timeout is used when not specified."""
+        from sdg_hub.core.connectors.base import ConnectorConfig
+        from sdg_hub.core.connectors.code_interpreter.monty import MontyConnector
+
+        mock_monty.run_monty.return_value = "result"
+
+        connector = MontyConnector(config=ConnectorConfig(timeout=60.0))
+        connector.execute_code("print(1)")
+
+        # Verify ResourceLimits was created with config timeout
+        mock_monty.ResourceLimits.assert_called_once_with(max_duration_secs=60.0)
+
     @pytest.fixture
     def mock_monty_async(self):
         """Create mock with async support."""
@@ -100,6 +147,35 @@ class TestMontyConnector:
 
         assert result.success is True
         assert result.output == "async result"
+
+    @pytest.mark.asyncio
+    async def test_aexecute_code_passes_resource_limits(self):
+        """Test that resource limits are passed to run_monty_async."""
+        from sdg_hub.core.connectors.code_interpreter.monty import MontyConnector
+
+        mock_module = MagicMock()
+        mock_module.MontyError = Exception
+        mock_limits = MagicMock()
+        mock_module.ResourceLimits.return_value = mock_limits
+
+        captured_kwargs = {}
+
+        async def mock_run_async(*args, **kwargs):
+            captured_kwargs.update(kwargs)
+            return "async result"
+
+        mock_module.run_monty_async = mock_run_async
+
+        with patch.object(monty_module, "MONTY_AVAILABLE", True):
+            with patch.object(monty_module, "pydantic_monty", mock_module):
+                connector = MontyConnector()
+                await connector.aexecute_code("print(1)", timeout=15.0)
+
+        # Verify ResourceLimits was created with correct timeout
+        mock_module.ResourceLimits.assert_called_once_with(max_duration_secs=15.0)
+
+        # Verify limits were passed to run_monty_async
+        assert captured_kwargs["limits"] == mock_limits
 
 
 class TestCodeExecutionResult:

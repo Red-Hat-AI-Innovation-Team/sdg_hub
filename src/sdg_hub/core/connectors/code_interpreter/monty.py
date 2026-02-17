@@ -28,33 +28,6 @@ except ImportError:
     pydantic_monty = None
 
 
-class MontyConnectorConfig(ConnectorConfig):
-    """Configuration for MontyConnector.
-
-    Attributes
-    ----------
-    memory_limit : int, optional
-        Maximum memory usage in bytes. Default 100MB.
-    time_limit : float, optional
-        Maximum execution time in seconds. Default 30.0.
-    stack_depth_limit : int, optional
-        Maximum call stack depth. Default 100.
-    """
-
-    memory_limit: Optional[int] = Field(
-        default=100 * 1024 * 1024,  # 100MB
-        description="Maximum memory usage in bytes",
-    )
-    time_limit: Optional[float] = Field(
-        default=30.0,
-        description="Maximum execution time in seconds",
-    )
-    stack_depth_limit: Optional[int] = Field(
-        default=100,
-        description="Maximum call stack depth",
-    )
-
-
 @ConnectorRegistry.register("monty")
 class MontyConnector(BaseCodeInterpreterConnector):
     """Connector for Monty secure Python interpreter.
@@ -101,9 +74,8 @@ class MontyConnector(BaseCodeInterpreterConnector):
         If pydantic-monty is not installed.
     """
 
-    config: MontyConnectorConfig = Field(
-        default_factory=MontyConnectorConfig,
-        description="Connector configuration",
+    config: ConnectorConfig = Field(
+        default_factory=lambda: ConnectorConfig()  # type: ignore[call-arg]
     )
 
     def model_post_init(self, __context: Any) -> None:
@@ -111,8 +83,58 @@ class MontyConnector(BaseCodeInterpreterConnector):
         if not MONTY_AVAILABLE:
             raise ConnectorError(
                 "pydantic-monty is not installed. "
-                "Install it with: pip install pydantic-monty"
+                "Install it with: uv pip install '.[code]'"
             )
+
+    def _get_resource_limits(
+        self, timeout: Optional[float] = None
+    ) -> "pydantic_monty.ResourceLimits":
+        """Build ResourceLimits for Monty execution.
+
+        Parameters
+        ----------
+        timeout : float, optional
+            Timeout override. Falls back to config.timeout (default 120s).
+
+        Returns
+        -------
+        pydantic_monty.ResourceLimits
+            Resource limits object for Monty execution.
+        """
+        effective_timeout = timeout if timeout is not None else self.config.timeout
+        return pydantic_monty.ResourceLimits(max_duration_secs=effective_timeout)
+
+    def _build_result(self, output: Any, start_time: float) -> CodeExecutionResult:
+        """Build success result with timing."""
+        execution_time_ms = (time.perf_counter() - start_time) * 1000
+        output_str = str(output) if output is not None else ""
+        return CodeExecutionResult(
+            success=True,
+            output=output_str,
+            error=None,
+            return_value=output,
+            execution_time_ms=execution_time_ms,
+        )
+
+    def _build_error(
+        self, error: Exception, start_time: float, *, log_warning: bool = False
+    ) -> CodeExecutionResult:
+        """Build error result with timing."""
+        execution_time_ms = (time.perf_counter() - start_time) * 1000
+        if isinstance(error, pydantic_monty.MontyError):
+            error_msg = str(error)
+            logger.debug(f"Monty execution error: {error_msg}")
+        else:
+            error_msg = f"{type(error).__name__}: {error}"
+            if log_warning:
+                logger.warning(f"Unexpected error during code execution: {error_msg}")
+        return CodeExecutionResult(
+            success=False,
+            output=None,
+            error=error_msg,
+            return_value=None,
+            execution_time_ms=execution_time_ms,
+        )
 
     def execute_code(
         self,
@@ -130,8 +152,7 @@ class MontyConnector(BaseCodeInterpreterConnector):
             Input variables to make available to the code.
             Keys become variable names in the code's namespace.
         timeout : float, optional
-            Maximum execution time in seconds.
-            Defaults to config.time_limit or config.timeout.
+            Maximum execution time in seconds. Defaults to config.timeout.
 
         Returns
         -------
@@ -146,73 +167,27 @@ class MontyConnector(BaseCodeInterpreterConnector):
         ... )
         >>> print(result.output)  # "30\\n"
         """
-        if not MONTY_AVAILABLE:
-            return CodeExecutionResult(
-                success=False,
-                error="pydantic-monty is not installed",
-            )
-
-        # Determine timeout
-        effective_timeout = timeout
-        if effective_timeout is None:
-            effective_timeout = self.config.time_limit or self.config.timeout
-
-        # Prepare inputs
         input_names = list(inputs.keys()) if inputs else []
-        input_values = inputs if inputs else {}
-
+        input_values = inputs or {}
+        limits = self._get_resource_limits(timeout)
         start_time = time.perf_counter()
 
         try:
-            # Create Monty instance
-            # We don't register any external functions for security
             monty = pydantic_monty.Monty(
                 code,
                 inputs=input_names,
                 external_functions=[],
             )
-
-            # Execute the code
             output = pydantic_monty.run_monty(
                 monty,
                 inputs=input_values,
                 external_functions={},
+                limits=limits,
             )
-
-            execution_time_ms = (time.perf_counter() - start_time) * 1000
-
-            # Handle output - Monty returns the result of the last expression
-            # or captured print output depending on the code structure
-            output_str = str(output) if output is not None else ""
-
-            return CodeExecutionResult(
-                success=True,
-                output=output_str,
-                return_value=output,
-                execution_time_ms=execution_time_ms,
-            )
-
-        except pydantic_monty.MontyError as e:
-            execution_time_ms = (time.perf_counter() - start_time) * 1000
-            error_msg = str(e)
-            logger.debug(f"Monty execution error: {error_msg}")
-
-            return CodeExecutionResult(
-                success=False,
-                error=error_msg,
-                execution_time_ms=execution_time_ms,
-            )
+            return self._build_result(output, start_time)
 
         except Exception as e:
-            execution_time_ms = (time.perf_counter() - start_time) * 1000
-            error_msg = f"{type(e).__name__}: {e}"
-            logger.warning(f"Unexpected error during code execution: {error_msg}")
-
-            return CodeExecutionResult(
-                success=False,
-                error=error_msg,
-                execution_time_ms=execution_time_ms,
-            )
+            return self._build_error(e, start_time, log_warning=True)
 
     async def aexecute_code(
         self,
@@ -231,26 +206,16 @@ class MontyConnector(BaseCodeInterpreterConnector):
         inputs : dict, optional
             Input variables for the code.
         timeout : float, optional
-            Maximum execution time in seconds.
+            Maximum execution time in seconds. Defaults to config.timeout.
 
         Returns
         -------
         CodeExecutionResult
             Execution result.
         """
-        if not MONTY_AVAILABLE:
-            return CodeExecutionResult(
-                success=False,
-                error="pydantic-monty is not installed",
-            )
-
-        effective_timeout = timeout
-        if effective_timeout is None:
-            effective_timeout = self.config.time_limit or self.config.timeout
-
         input_names = list(inputs.keys()) if inputs else []
-        input_values = inputs if inputs else {}
-
+        input_values = inputs or {}
+        limits = self._get_resource_limits(timeout)
         start_time = time.perf_counter()
 
         try:
@@ -259,38 +224,13 @@ class MontyConnector(BaseCodeInterpreterConnector):
                 inputs=input_names,
                 external_functions=[],
             )
-
             output = await pydantic_monty.run_monty_async(
                 monty,
                 inputs=input_values,
                 external_functions={},
+                limits=limits,
             )
-
-            execution_time_ms = (time.perf_counter() - start_time) * 1000
-            output_str = str(output) if output is not None else ""
-
-            return CodeExecutionResult(
-                success=True,
-                output=output_str,
-                return_value=output,
-                execution_time_ms=execution_time_ms,
-            )
-
-        except pydantic_monty.MontyError as e:
-            execution_time_ms = (time.perf_counter() - start_time) * 1000
-            return CodeExecutionResult(
-                success=False,
-                error=str(e),
-                execution_time_ms=execution_time_ms,
-            )
+            return self._build_result(output, start_time)
 
         except Exception as e:
-            execution_time_ms = (time.perf_counter() - start_time) * 1000
-            error_msg = f"{type(e).__name__}: {e}"
-            logger.warning(f"Unexpected error during async execution: {error_msg}")
-
-            return CodeExecutionResult(
-                success=False,
-                error=error_msg,
-                execution_time_ms=execution_time_ms,
-            )
+            return self._build_error(e, start_time, log_warning=True)
