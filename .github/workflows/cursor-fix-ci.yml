@@ -27,7 +27,7 @@ jobs:
       - name: Install Cursor CLI
         run: |
           curl https://cursor.com/install -fsS | bash
-          echo "$HOME/.cursor/bin" >> $GITHUB_PATH
+          echo "$HOME/.cursor/bin" >> "$GITHUB_PATH"
 
       - name: Configure git identity
         run: |

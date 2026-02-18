@@ -23,7 +23,7 @@ jobs:
       - name: Install Cursor CLI
         run: |
           curl https://cursor.com/install -fsS | bash
-          echo "$HOME/.cursor/bin" >> $GITHUB_PATH
+          echo "$HOME/.cursor/bin" >> "$GITHUB_PATH"
 
       - name: Configure git
         run: |
@@ -36,6 +36,7 @@ jobs:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH_PREFIX: docs
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           agent -p "You are operating in a GitHub Actions runner.
 
@@ -46,7 +47,7 @@ jobs:
           - Owner: ${{ github.repository_owner }}
           - PR Number: ${{ github.event.pull_request.number }}
           - Base Ref: ${{ github.base_ref }}
-          - Head Ref: ${{ github.head_ref }}
+          - Head Ref: ${HEAD_REF}
           - Docs Branch Prefix: ${{ env.BRANCH_PREFIX }}
 
           # Goal:

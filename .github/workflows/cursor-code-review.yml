@@ -25,7 +25,7 @@ jobs:
       - name: Install Cursor CLI
         run: |
           curl https://cursor.com/install -fsS | bash
-          echo "$HOME/.cursor/bin" >> $GITHUB_PATH
+          echo "$HOME/.cursor/bin" >> "$GITHUB_PATH"
 
       - name: Configure git identity
         run: |
@@ -39,6 +39,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BLOCKING_REVIEW: ${{ vars.BLOCKING_REVIEW || 'false' }}
         run: |
+          # shellcheck disable=SC2016
           agent --force --model "$MODEL" --output-format=text --print 'You are operating in a GitHub Actions runner performing automated code review. The gh CLI is available and authenticated via GH_TOKEN. You may comment on pull requests.
 
           Context:
