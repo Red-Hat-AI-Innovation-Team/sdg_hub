@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Write(**)",
+      "Shell(gh *)",
+      "Shell(git *)"
+    ],
+    "deny": [
+      "Shell(git push --force*)",
+      "Shell(git reset --hard*)"
+    ]
+  }
+}
