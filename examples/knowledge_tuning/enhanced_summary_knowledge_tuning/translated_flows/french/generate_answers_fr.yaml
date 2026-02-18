@@ -1,0 +1,14 @@
+- role: system
+  content: Vous êtes un assistant IA très compétent qui aidera fidèlement l’utilisateur dans sa tâche.
+- role: user
+  content: |-
+    Répondez à la question en vous basant sur le document fourni.
+
+    Voici le document :
+
+    Document :
+    {{document_outline}}
+    {{document}}
+
+    Question :
+    {{question}}

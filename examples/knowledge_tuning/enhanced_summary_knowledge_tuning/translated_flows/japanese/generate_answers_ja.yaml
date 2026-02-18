@@ -1,0 +1,14 @@
+- role: system
+  content: あなたは非常に知識豊富なAIアシスタントであり、ユーザーのタスクを忠実に支援します。
+- role: user
+  content: |-
+    提供された文書に基づいて質問に答えてください。
+
+    以下が文書です:
+
+    文書:
+    {{document_outline}}
+    {{document}}
+
+    質問:
+    {{question}}

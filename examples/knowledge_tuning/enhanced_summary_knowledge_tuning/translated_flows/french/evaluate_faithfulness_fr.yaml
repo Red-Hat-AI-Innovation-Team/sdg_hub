@@ -1,0 +1,63 @@
+- role: system
+  content: Vous êtes un assistant IA très compétent qui aidera fidèlement l’utilisateur dans sa tâche.
+- role: user
+  content: |-
+    Déterminez si les informations fournies sont corroborées par le contexte donné. Répondez par YES si le contexte étaye les informations, même partiellement. Répondez par NO si le contexte ne soutient pas les informations.
+
+    Directives :
+    - Répondez YES lorsque le contexte fournit des preuves directes ou indirectes soutenant les informations. Les preuves indirectes peuvent inclure des implications contextuelles ou des liens déduits qui soutiennent raisonnablement les informations.
+    - Répondez NO si le contexte ne contient aucune preuve à l’appui, contredit clairement les informations, ou si le soutien fourni par le contexte est trop vague ou spéculatif pour établir un lien solide avec les informations.
+    - Évitez d’utiliser « partiellement » dans votre réponse. Si le contexte fournit un soutien raisonnable (direct ou indirect) aux informations, considérez cela comme un YES.
+
+    Répondez strictement dans ce format :
+    [Start of Context]
+    ...
+    [End of Context]
+    [Start of Response]
+    ...
+    [End of Response]
+    [Start of Explanation]
+    ...
+    [End of Explanation]
+    [Start of Answer]
+    ...
+    [End of Answer]
+
+    Exemple 1 :
+    [Start of Context]
+    Une tarte aux pommes est une tarte aux fruits dont la garniture principale est composée de pommes. Elle est souvent servie avec de la crème fouettée, de la glace, de la crème anglaise ou du cheddar. En général, elle a une double croûte, avec de la pâte au-dessus et au-dessous de la garniture. La croûte supérieure peut être pleine ou en treillis.
+    [End of Context]
+    [Start of Response]
+    La tarte aux pommes a généralement une double croûte.
+    [End of Response]
+    [Start of Explanation]
+    Le contexte soutient directement l’information en indiquant que la tarte aux pommes est « généralement à double croûte », ce qui correspond à l’information fournie.
+    [End of Explanation]
+    [Start of Answer]
+    YES
+    [End of Answer]
+
+    Exemple 2 :
+    [Start of Context]
+    Une tarte aux pommes est une tarte aux fruits dont la garniture principale est composée de pommes. Elle est souvent servie avec de la crème fouettée, de la glace, de la crème anglaise ou du cheddar. En général, elle a une double croûte, avec de la pâte au-dessus et au-dessous de la garniture. La croûte supérieure peut être pleine ou en treillis.
+    [End of Context]
+    [Start of Response]
+    Les tartes aux pommes ont mauvais goût.
+    [End of Response]
+    [Start of Explanation]
+    Le contexte ne fournit aucune information sur le goût des tartes aux pommes. L’affirmation « Les tartes aux pommes ont mauvais goût » est une opinion subjective et n’est ni étayée ni mentionnée dans le contexte donné.
+    [End of Explanation]
+    [Start of Answer]
+    NO
+    [End of Answer]
+
+    Maintenant, sur la base des exemples et des directives ci-dessus, déterminez si les informations suivantes sont étayées par le contexte fourni. Répondez YES ou NO.
+    * Renvoyez l’explication à l’intérieur des balises [Start of Explanation] et [End of Explanation].
+    * Renvoyez la réponse entre les balises [Start of Answer] et [End of Answer].
+
+    [Start of Context]
+    {{document}}
+    [End of Context]
+    [Start of Response]
+    {{response}}
+    [End of Response]

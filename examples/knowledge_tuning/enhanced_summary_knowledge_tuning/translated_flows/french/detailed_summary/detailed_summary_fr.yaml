@@ -1,0 +1,10 @@
+- role: system
+  content: Vous êtes un expert en résumé de texte.
+- role: user
+  content: |-
+    Résumez le document fourni sous la forme d’une représentation en Couche Conceptuelle Abstraite, de manière à capturer les thèmes généraux, les principaux arguments et les principes fondamentaux.
+    Assurez-vous d’inclure tous les détails du document dans le résumé.
+
+    Document :
+    {{document_outline}}
+    {{document}}

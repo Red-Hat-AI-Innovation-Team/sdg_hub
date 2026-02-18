@@ -1,0 +1,64 @@
+- role: system
+  content: Vous êtes un expert en résumé de texte.
+- role: user
+  content: |-
+    Vous allez créer un Résumé Extractif Amélioré à partir du document fourni.
+    Contrairement à un résumé extractif standard qui se contente d’extraire des phrases clés, un Résumé Extractif Amélioré ajoute des informations contextuelles riches et une classification cognitive à chaque segment extrait.
+    Pour chaque section significative du document, extrayez 2 à 4 passages clés et listez-les. Ensuite, pour chaque extrait, annotez-le. Structurez votre réponse comme suit :
+    ### Extraits du passage :
+    [Liste des extraits]
+
+    ### Annotations :
+
+    ### Extrait [Numéro]
+    > "[Citation directe du texte original]"
+
+    **Marqueur de contexte** : [Brève description de l’endroit où cet extrait s’insère dans la narration du document ou dans la structure de l’argumentation]
+    **Pertinence** : [Évaluez comme Faible, Moyenne, Moyenne-Élevée, Élevée ou Très Élevée et expliquez brièvement l’importance pour les thèmes principaux]
+    **Relation** : [Expliquez comment cet extrait se connecte aux autres extraits, en précisant le numéro de l’extrait, ou des concepts du document]
+
+    Pour vous aider à comprendre la tâche, voici un exemple :
+    Document :
+    Le travail à distance a augmenté de plus de 150 % depuis 2020 en raison de la pandémie. Les entreprises ont constaté que la productivité restait stable, tandis que la satisfaction des employés augmentait. Cependant, des défis tels que des lacunes de communication et des problèmes de cohésion d’équipe sont apparus. Les entreprises adoptent désormais des modèles hybrides pour équilibrer flexibilité et collaboration.
+
+    ### Extraits du passage :
+    1. > "Le travail à distance a augmenté de plus de 150 % depuis 2020 en raison de la pandémie."
+    2. > "Les entreprises ont constaté que la productivité restait stable, tandis que la satisfaction des employés augmentait."
+    3. > "Cependant, des défis tels que des lacunes de communication et des problèmes de cohésion d’équipe sont apparus."
+    4. > "Les entreprises adoptent désormais des modèles hybrides pour équilibrer flexibilité et collaboration."
+
+    ### Annotations :
+
+    ### Extrait 1
+    > "Le travail à distance a augmenté de plus de 150 % depuis 2020 en raison de la pandémie."
+
+    * **Marqueur de contexte** : Il s’agit de l’énoncé factuel d’ouverture, fournissant un contexte temporel et le catalyseur des changements abordés ensuite.
+    * **Pertinence** : **Très Élevée** – Il introduit le sujet principal et quantifie l’ampleur de la transformation, ancrant l’ensemble de la discussion.
+    * **Relation** : Établit la cause des changements dans les modes de travail ; mène directement aux évaluations des Extraits 2 et 3, puis au changement qui en résulte dans l’Extrait 4.
+
+
+    ### Extrait 2
+    > "Les entreprises ont constaté que la productivité restait stable, tandis que la satisfaction des employés augmentait."
+
+    * **Marqueur de contexte** : Placé après la croissance du travail à distance, cet extrait résume les principaux bénéfices observés par les entreprises.
+    * **Pertinence** : **Élevée** – Met en évidence pourquoi le travail à distance a gagné en soutien : il a assuré la continuité de l’activité et amélioré le moral des employés.
+    * **Relation** : Fonctionne de pair avec l’Extrait 3 pour présenter une vision équilibrée des résultats du travail à distance ; explique une partie de la motivation derrière les modèles hybrides de l’Extrait 4.
+
+    ### Extrait 3
+    > "Cependant, des défis tels que des lacunes de communication et des problèmes de cohésion d’équipe sont apparus."
+
+    * **Marqueur de contexte** : Marque un tournant dans la narration, passant des bénéfices aux complications du travail à distance.
+    * **Pertinence** : **Élevée** – Ajoute de la nuance en introduisant des inconvénients critiques auxquels les entreprises ont été confrontées.
+    * **Relation** : Contraste avec l’Extrait 2 et prépare la justification de la solution hybride dans l’Extrait 4.
+
+    ### Extrait 4
+    > "Les entreprises adoptent désormais des modèles hybrides pour équilibrer flexibilité et collaboration."
+
+    * **Marqueur de contexte** : Insight de conclusion, présentant le consensus émergent ou la stratégie adoptée en réponse aux constats précédents.
+    * **Pertinence** : **Très Élevée** – Synthétise les enseignements du document en une solution tournée vers l’avenir.
+    * **Relation** : Résout la tension mise en évidence dans les Extraits 2 et 3 ; représente l’évolution déclenchée par la situation de l’Extrait 1.
+
+    À vous maintenant de créer un Résumé Extractif Amélioré à partir du document fourni.
+    Document :
+    {{document_outline}}
+    {{document}}

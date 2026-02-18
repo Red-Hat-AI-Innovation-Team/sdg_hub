@@ -111,3 +111,70 @@ We performed continued pre-training (CPT) using next-token prediction on augment
 Notes:
 - CPT shows signs of overfitting at higher token count (number of summaries) on knowledge data.
 - We use red pajama mix to prevent some of this overfitting.
+
+---
+
+## Multilingual Support
+
+The knowledge tuning flows support multilingual data generation. Set the `SDG_LANG` environment variable to a language name (e.g., `Spanish`) and the notebook will automatically select the corresponding translated flows.
+
+### Translating Flows to a New Language
+
+Use the translation utility script to create flows for a new language:
+
+```bash
+python utils/translate_flow.py --lang Spanish --lang-code es \
+    --translator openai/gpt-4o --verifier claude-sonnet-4-20250514
+```
+
+Pass `--verbose` (`-v`) to see debug output from the translator and verifier:
+
+```bash
+python utils/translate_flow.py --lang French --lang-code fr \
+    --translator openai/gpt-4o --verifier openai/gpt-4o --max-retries 5 -v
+```
+
+See `python utils/translate_flow.py --help` for all options.
+
+### Seed Data Format
+
+The input dataset must contain documents in the target language with in-context learning examples.
+All text content should be in the target language, except `document_outline` and `domain` which may remain in English.
+
+| Column | Language | Description |
+|--------|----------|-------------|
+| `document` | Target | Full document text in target language |
+| `document_outline` | English | Document title/identifier (kept in English) |
+| `domain` | English | Domain classification (e.g., `articles/essays`) |
+| `icl_document` | Target | In-context learning example document(s) |
+| `icl_query_1` | Target | First ICL example question |
+| `icl_query_2` | Target | Second ICL example question |
+| `icl_query_3` | Target | Third ICL example question |
+
+**Note:** The `icl_query_*` columns are only required by the extractive summary, detailed summary,
+and document based QA flows. The key facts flow only requires `document`, `document_outline`, and `domain`.
+
+---
+
+### Spanish Experiment Results
+
+We evaluated the Spanish knowledge tuning data by training models with two methods
+(**SFT** and **OSFT**) and measuring accuracy on the Spanish-translated
+[QuALITY](https://github.com/nyu-mll/quality) benchmark in both open-book and closed-book settings.
+
+<p align="center">
+  <img src="imgs/rag_context_sweep_comparison_spanish.png" alt="Spanish Translated QuALITY Performance" />
+</p>
+
+#### Open-Book Accuracy (%) by Number of Retrieved Contexts
+
+| Contexts | Baseline | SFT   | OSFT  |
+|----------|----------|-------|-------|
+| 0(No-Rag)| 44.47    | 48.92 | 47.16 |
+| 2        | 49.01    | 55.49 | 52.75 |
+| 4        | 54.25    | 59.81 | 58.26 |
+| 8        | 60.03    | 65.84 | 63.51 |
+| 16       | 64.61    | 68.80 | 68.14 |
+| 32       | 65.71    | 68.88 | 69.68 |
+
+Both **SFT** and **OSFT** consistently outperform the baseline across all context settings.

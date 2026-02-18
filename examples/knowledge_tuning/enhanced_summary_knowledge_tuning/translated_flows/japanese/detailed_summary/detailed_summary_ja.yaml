@@ -1,0 +1,10 @@
+- role: system
+  content: あなたはテキストを要約する専門家です。
+- role: user
+  content: |-
+    与えられた文書を、包括的なテーマ、主要な論点、および中核となる原則を捉える**抽象概念レイヤー（Abstract Conceptual Layer）**表現として要約してください。
+    要約には、文書内のすべての詳細を必ず含めてください。
+
+    Document:
+    {{document_outline}}
+    {{document}}

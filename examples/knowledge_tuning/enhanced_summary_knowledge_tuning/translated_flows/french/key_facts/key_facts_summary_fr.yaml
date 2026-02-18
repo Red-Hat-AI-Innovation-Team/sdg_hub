@@ -1,0 +1,60 @@
+- role: system
+  content: Vous êtes un expert dans la synthèse des faits clés à partir d’un texte.
+- role: user
+  content: |-
+    Veuillez décomposer l’extrait suivant d’un article sur {{domain}} en faits atomiques.
+    Suivez ces principes pour résumer les faits clés :
+    1. Identifiez les faits atomiques / faits clés à partir du texte.
+    2. Décomposez les phrases composées en faits atomiques.
+    3. Listez d’abord les faits clés.
+    4. Ensuite, fournissez chaque fait avec suffisamment de contexte tiré du passage afin qu’un lecteur puisse clairement comprendre comment le fait se rattache au texte original.
+    5. Suivez le format des exemples ci-dessous.
+
+    Pour vous aider à comprendre la tâche, voici un exemple :
+
+    ### Passage
+    Le travail à distance a augmenté de plus de 150 % depuis 2020 en raison de la pandémie. Les entreprises ont constaté que la productivité est restée stable, tandis que la satisfaction des employés a augmenté. Cependant, des défis tels que des lacunes de communication et des problèmes de cohésion d’équipe sont apparus. Les entreprises adoptent désormais des modèles hybrides pour équilibrer flexibilité et collaboration.
+
+    ### Faits clés
+    1. Le travail à distance a augmenté de plus de 150 % depuis 2020.
+    2. La pandémie a été le moteur de cette croissance.
+    3. Les entreprises ont indiqué que la productivité est restée stable pendant le travail à distance.
+    4. La satisfaction des employés a augmenté pendant la période de travail à distance.
+    5. Le travail à distance a créé des défis de communication.
+    6. Le travail à distance a affaibli la cohésion d’équipe.
+    7. Les entreprises adoptent des modèles hybrides.
+    8. Les modèles hybrides visent à équilibrer flexibilité et collaboration.
+
+
+    ### Faits clés avec contexte
+    1. **Le travail à distance a augmenté de plus de 150 % depuis 2020.**
+      → Ce fait quantifie la hausse spectaculaire du travail à distance, en établissant une comparaison claire avant/après la pandémie.
+
+    2. **La pandémie a été le moteur de cette croissance.**
+      → Il situe ce changement dans le contexte d’une crise mondiale, en soulignant la nature réactive de la transformation du travail.
+
+    3. **Les entreprises ont indiqué que la productivité est restée stable pendant le travail à distance.**
+      → Malgré les inquiétudes initiales, les entreprises ont observé que le travail à distance n’a pas réduit la production, ce qui renforce sa viabilité.
+
+    4. **La satisfaction des employés a augmenté pendant la période de travail à distance.**
+      → Le moral et le bien-être se sont améliorés avec les modalités à distance, ajoutant un bénéfice centré sur l’humain au modèle opérationnel.
+
+    5. **Le travail à distance a créé des défis de communication.**
+      → Reconnaît que le nouveau modèle a introduit des frictions dans les échanges interpersonnels et organisationnels.
+
+    6. **Le travail à distance a affaibli la cohésion d’équipe.**
+      → Au-delà de la communication, ce changement a entraîné une diminution des liens et de la synergie au sein des équipes, affectant la culture et la collaboration.
+
+    7. **Les entreprises adoptent des modèles hybrides.**
+      → Les entreprises ne s’en tiennent plus au tout дистанiel ou au tout présentiel : elles évoluent vers une solution mixte.
+
+    8. **Les modèles hybrides visent à équilibrer flexibilité et collaboration.**
+      → La logique des modèles hybrides est de conserver les avantages (flexibilité, satisfaction) tout en atténuant les inconvénients (isolement, mauvaise communication).
+    ### End
+
+    À vous maintenant : décomposez l’extrait suivant de l’article sur {{domain}} en faits atomiques en suivant un style similaire à celui des exemples ci-dessus
+    ### Passage
+    {{document_outline}}
+    {{document}}
+
+    ### Faits clés

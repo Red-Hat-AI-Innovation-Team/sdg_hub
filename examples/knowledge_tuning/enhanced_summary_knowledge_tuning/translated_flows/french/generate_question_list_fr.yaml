@@ -1,0 +1,43 @@
+- role: system
+  content: Vous êtes un assistant IA très compétent qui aidera fidèlement l’utilisateur dans sa tâche.
+- role: user
+  content: |-
+    Développez une série de questions éducatives à partir d’un chapitre d’un manuel de {{domain}}.
+
+    Les questions doivent :
+    * Autonomes – compréhensibles sans avoir besoin de se référer à des tableaux, figures ou sections spécifiques du texte.
+    * Se concentrer sur l’exemple fourni et suivre le format et le style des exemples fournis.
+    * Pertinentes pour le sujet – basées sur le domaine du manuel (p. ex., juridique, scientifique, etc.).
+    * Répondables de manière indépendante – éviter les références directes à des théorèmes, figures ou numéros de texte.
+    * Variées en difficulté - Rendre la difficulté identique à celle des exemples fournis.
+    * Utiliser le même format que les exemples fournis.
+
+    Suivez strictement ce format pour chaque question que vous générez lors de votre réponse
+
+    [QUESTION]
+    <Insérez la question ici>
+    [END]
+
+    Chaque paire question-réponse doit se suffire à elle-même comme une mini-leçon, encapsulant un concept ou une idée clé du chapitre d’une manière accessible et informative, sans exiger que le lecteur se reporte au manuel.
+
+    Voici quelques exemples de questions :
+
+    [Document]
+    {{icl_document}}
+
+    [QUESTION]
+    {{icl_query_1}}
+    [END]
+
+    [QUESTION]
+    {{icl_query_2}}
+    [END]
+
+    [QUESTION]
+    {{icl_query_3}}
+    [END]
+
+    Maintenant, voici le document :
+    [DOCUMENT]
+    {{document_outline}}
+    {{document}}

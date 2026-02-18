@@ -1,0 +1,20 @@
+- role: system
+  content: Vous êtes un assistant IA très compétent qui aidera fidèlement l’utilisateur dans sa tâche.
+- role: user
+  content: |-
+    Étant donné le fait clé ci-dessous extrait du document, générez 5 paires de questions-réponses basées sur les faits clés.
+    Introduisez de la variation dans la question et le fait clé.
+    Assurez-vous d’ancrer la question et la réponse dans le fait clé fourni.
+
+    Suivez strictement ce format pour chaque paire de question et réponse que vous générez lors de votre réponse :
+    [QUESTION]
+    <Insérez la question ici>
+    [END]
+    [ANSWER]
+    <Insérez la réponse ici>
+    [END]
+
+    Maintenant, voici le fait clé :
+    [Key Fact]
+    {{document_outline}}
+    {{key_fact}}

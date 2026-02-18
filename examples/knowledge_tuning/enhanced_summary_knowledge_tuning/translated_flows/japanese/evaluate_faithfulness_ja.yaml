@@ -1,0 +1,63 @@
+- role: system
+  content: あなたは非常に知識豊富なAIアシスタントであり、ユーザーのタスクを忠実に支援します。
+- role: user
+  content: |-
+    提供された情報が、与えられたコンテキストによって裏付けられているかどうかを判断してください。コンテキストがその情報を（部分的にでも）実証している場合は YES と回答してください。コンテキストがその情報を支持していない場合は NO と回答してください。
+
+    ガイドライン:
+    - コンテキストが、その情報を支持する直接的または間接的な証拠を提供している場合は YES と回答してください。間接的な証拠には、その情報を合理的に支持する文脈上の含意や推論可能なつながりが含まれます。
+    - コンテキストに支持する証拠がまったくない場合、明確に情報と矛盾する場合、またはコンテキストによる支持が曖昧すぎたり推測的すぎて情報との確かな関連を確立できない場合は NO と回答してください。
+    - 回答に「部分的に」という表現を使用しないでください。コンテキストがその情報を支持する合理的な根拠（直接または間接）を少しでも提供している場合は YES とみなしてください。
+
+    厳密にこの形式で回答してください:
+    [Start of Context]
+    ...
+    [End of Context]
+    [Start of Response]
+    ...
+    [End of Response]
+    [Start of Explanation]
+    ...
+    [End of Explanation]
+    [Start of Answer]
+    ...
+    [End of Answer]
+
+    例 1:
+    [Start of Context]
+    アップルパイは、リンゴを主なフィリングとするフルーツパイです。ホイップクリーム、アイスクリーム、カスタード、またはチェダーチーズと一緒に提供されることがよくあります。通常、上下に生地がある二重クラストになっています。上のクラストは、全面を覆うものにも格子状のものにもできます。
+    [End of Context]
+    [Start of Response]
+    アップルパイは一般的に二重クラストである。
+    [End of Response]
+    [Start of Explanation]
+    コンテキストは、アップルパイが「通常、二重クラスト」であると述べており、提示された情報と一致するため、情報を直接裏付けています。
+    [End of Explanation]
+    [Start of Answer]
+    YES
+    [End of Answer]
+
+    例 2:
+    [Start of Context]
+    アップルパイは、リンゴを主なフィリングとするフルーツパイです。ホイップクリーム、アイスクリーム、カスタード、またはチェダーチーズと一緒に提供されることがよくあります。通常、上下に生地がある二重クラストになっています。上のクラストは、全面を覆うものにも格子状のものにもできます。
+    [End of Context]
+    [Start of Response]
+    アップルパイはまずい。
+    [End of Response]
+    [Start of Explanation]
+    コンテキストには、アップルパイの味についての情報は一切ありません。「アップルパイはまずい」という文は主観的な意見であり、与えられたコンテキストでは支持も言及もされていません。
+    [End of Explanation]
+    [Start of Answer]
+    NO
+    [End of Answer]
+
+    それでは、上記の例とガイドラインに基づいて、次の情報が提供されたコンテキストによって支持されているかどうかを判断してください。YES または NO で回答してください。
+    * 説明は [Start of Explanation] と [End of Explanation] タグの中に返してください。
+    * 回答は [Start of Answer] と [End of Answer] タグの間に返してください。
+
+    [Start of Context]
+    {{document}}
+    [End of Context]
+    [Start of Response]
+    {{response}}
+    [End of Response]
