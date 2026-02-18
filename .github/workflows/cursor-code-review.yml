@@ -11,6 +11,9 @@ permissions:
   contents: read
   issues: write
 
+env:
+  BLOCKING_REVIEW: ${{ vars.BLOCKING_REVIEW || 'false' }}
+
 jobs:
   code-review:
     runs-on: ubuntu-latest
@@ -37,7 +40,7 @@ jobs:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           MODEL: gpt-5.3-codex-xhigh
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BLOCKING_REVIEW: ${{ vars.BLOCKING_REVIEW || 'false' }}
+          BLOCKING_REVIEW: ${{ env.BLOCKING_REVIEW }}
         run: |
           # shellcheck disable=SC2016
           agent --force --model "$MODEL" --output-format=text --print 'You are operating in a GitHub Actions runner performing automated code review. The gh CLI is available and authenticated via GH_TOKEN. You may comment on pull requests.
