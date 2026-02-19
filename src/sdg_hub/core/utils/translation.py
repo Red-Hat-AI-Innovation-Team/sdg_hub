@@ -128,13 +128,22 @@ def discover_prompt_yamls(flow_yaml_path: Path) -> dict[Path, str]:
     flow_dir = flow_yaml_path.parent
     prompts: dict[Path, str] = {}
 
+    flow_dir_resolved = flow_dir.resolve()
+
     for block in flow_def.get("blocks", []):
         config = block.get("block_config", {})
         if "prompt_config_path" in config:
             rel_path = config["prompt_config_path"]
             abs_path = (flow_dir / rel_path).resolve()
+            # Reject paths that escape the flow directory tree
+            if not abs_path.is_relative_to(flow_dir_resolved):
+                log.warning(
+                    "Skipping prompt_config_path %r: resolves outside flow directory",
+                    rel_path,
+                )
+                continue
             if abs_path not in prompts:
-                # Store just the filename (flat layout assumption)
+                # Store just the filenames for prompt files
                 prompts[abs_path] = abs_path.name
 
     return prompts
@@ -742,7 +751,7 @@ def translate_flow(
     # 3. Build translation system prompt with detected tags
     system_prompt = _build_translation_system_prompt(lang, structural_tags)
 
-    # 4. Compute output paths (flat layout)
+    # 4. Compute output paths
     flow_out, prompt_mapping = _compute_output_paths(
         flow_yaml, prompt_yamls, output_path, lang_code
     )

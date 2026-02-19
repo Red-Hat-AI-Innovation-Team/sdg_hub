@@ -190,16 +190,15 @@ class TestDiscoverPromptYamls:
         p.write_text(yaml.dump(flow))
         assert discover_prompt_yamls(p) == {}
 
-    def test_relative_parent_path_resolves(self, flow_with_parent_prompts):
-        """Prompts referenced via ../ still resolve to correct abs path."""
+    def test_parent_path_rejected(self, flow_with_parent_prompts):
+        """Prompts referenced via ../ are rejected (path traversal guard)."""
         prompts = discover_prompt_yamls(flow_with_parent_prompts)
-        assert len(prompts) == 2
+        # Only the local prompt should be discovered; ../shared_prompt.yaml
+        # is outside the flow directory and is skipped.
+        assert len(prompts) == 1
         names = {p.name for p in prompts}
-        assert "shared_prompt.yaml" in names
         assert "local_prompt.yaml" in names
-        # All values should be basenames (flat layout)
-        for basename in prompts.values():
-            assert "/" not in basename
+        assert "shared_prompt.yaml" not in names
 
 
 # ---------------------------------------------------------------------------
