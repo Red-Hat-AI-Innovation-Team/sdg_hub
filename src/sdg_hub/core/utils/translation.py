@@ -246,6 +246,9 @@ def translate_text(
             "Authentication failed for translator model. "
             "Please set SDG_TRANSLATION_API_KEY in your environment."
         ) from None
+    if not response.choices:
+        log.warning("Translator returned no choices (model=%s)", model)
+        return ""
     content = response.choices[0].message.content or ""
     log.debug("Translator response length: %d chars", len(content))
     if not content:
@@ -361,6 +364,9 @@ def verify_translation(
             "Please set SDG_TRANSLATION_VERIFIER_API_KEY (or SDG_TRANSLATION_API_KEY) "
             "in your environment."
         ) from None
+    if not response.choices:
+        log.warning("Verifier returned no choices (model=%s)", model)
+        return "FAIL: verifier returned no choices"
     verdict = (response.choices[0].message.content or "").strip()
     log.debug("Verifier raw response: %r", verdict)
     if not verdict:
