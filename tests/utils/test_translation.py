@@ -17,6 +17,7 @@ from sdg_hub.core.utils.translation import (
     extract_structural_tags,
     validate_translation,
 )
+import litellm
 import pytest
 import yaml
 
@@ -480,3 +481,553 @@ class TestTranslateFlowMocked:
 
         assert issues == []
         mock_registry.register_search_path.assert_not_called()
+
+    @patch("sdg_hub.core.utils.translation.litellm")
+    def test_default_output_dir(
+        self, mock_litellm, simple_flow_yaml, tmp_path, monkeypatch
+    ):
+        """When output_dir is None, it defaults to CWD/<parent_name>_<lang_code>."""
+        self._mock_llm(mock_litellm)
+
+        from pathlib import Path
+
+        from sdg_hub.core.utils.translation import translate_flow
+
+        monkeypatch.setattr(Path, "cwd", staticmethod(lambda: tmp_path))
+
+        with patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry:
+            mock_registry.get_flow_path.return_value = None
+            issues = translate_flow(
+                flow=str(simple_flow_yaml),
+                lang="Spanish",
+                lang_code="es",
+                translator_model="test/model",
+                verifier_model="test/verifier",
+                register=False,
+            )
+
+        assert issues == []
+        # The parent dir of simple_flow_yaml fixture is the tmp_path itself
+        expected_dir = tmp_path / f"{simple_flow_yaml.parent.name}_es"
+        assert (expected_dir / "flow.yaml").exists()
+
+    @patch("sdg_hub.core.utils.translation.litellm")
+    def test_env_var_api_keys(self, mock_litellm, simple_flow_yaml, tmp_path):
+        """API keys are read from env when not passed explicitly."""
+        self._mock_llm(mock_litellm)
+
+        from sdg_hub.core.utils.translation import translate_flow
+
+        out = tmp_path / "output"
+        env = {
+            "SDG_TRANSLATION_API_KEY": "test-key-123",
+            "SDG_TRANSLATION_API_BASE": "https://api.example.com",
+            "SDG_TRANSLATION_VERIFIER_API_KEY": "verifier-key-456",
+            "SDG_TRANSLATION_VERIFIER_API_BASE": "https://verifier.example.com",
+        }
+        with (
+            patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry,
+            patch.dict("os.environ", env, clear=False),
+        ):
+            mock_registry.get_flow_path.return_value = None
+            issues = translate_flow(
+                flow=str(simple_flow_yaml),
+                lang="Spanish",
+                lang_code="es",
+                translator_model="test/model",
+                verifier_model="test/verifier",
+                output_dir=str(out),
+                register=False,
+            )
+
+        assert issues == []
+        # Verify api_key/api_base were passed through to litellm.completion
+        calls = mock_litellm.completion.call_args_list
+        # Translation call (first)
+        assert calls[0].kwargs.get("api_key") == "test-key-123"
+        assert calls[0].kwargs.get("api_base") == "https://api.example.com"
+        # Verifier call (second)
+        assert calls[1].kwargs.get("api_key") == "verifier-key-456"
+        assert calls[1].kwargs.get("api_base") == "https://verifier.example.com"
+
+    @patch("sdg_hub.core.utils.translation.litellm")
+    def test_flow_with_structural_tags(self, mock_litellm, flow_with_tags, tmp_path):
+        """translate_flow correctly discovers and uses structural tags."""
+        self._mock_llm(mock_litellm)
+
+        from sdg_hub.core.utils.translation import translate_flow
+
+        out = tmp_path / "output"
+        with patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry:
+            mock_registry.get_flow_path.return_value = None
+            issues = translate_flow(
+                flow=str(flow_with_tags),
+                lang="Spanish",
+                lang_code="es",
+                translator_model="test/model",
+                verifier_model="test/verifier",
+                output_dir=str(out),
+                register=False,
+            )
+
+        assert issues == []
+        # The system prompt (first message in translation call) should mention tags
+        calls = mock_litellm.completion.call_args_list
+        sys_msg = calls[0].kwargs["messages"][0]["content"]
+        assert "[QUESTION]" in sys_msg
+        assert "[ANSWER]" in sys_msg
+        assert "[END]" in sys_msg
+
+    @patch("sdg_hub.core.utils.translation.litellm")
+    def test_verifier_failure_reports_issues(
+        self, mock_litellm, simple_flow_yaml, tmp_path
+    ):
+        """When verifier returns FAIL, issues are reported."""
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "Translated content"
+
+        def side_effect(**kwargs):
+            if kwargs.get("max_tokens") == 256:
+                resp = MagicMock()
+                resp.choices = [MagicMock()]
+                resp.choices[0].message.content = "FAIL: missing context"
+                return resp
+            return mock_response
+
+        mock_litellm.completion.side_effect = side_effect
+
+        from sdg_hub.core.utils.translation import translate_flow
+
+        out = tmp_path / "output"
+        with patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry:
+            mock_registry.get_flow_path.return_value = None
+            issues = translate_flow(
+                flow=str(simple_flow_yaml),
+                lang="Spanish",
+                lang_code="es",
+                translator_model="test/model",
+                verifier_model="test/verifier",
+                output_dir=str(out),
+                max_retries=1,
+                register=False,
+            )
+
+        assert len(issues) > 0
+        assert any("verifier" in i for i in issues)
+
+
+# ---------------------------------------------------------------------------
+# _resolve_flow_path
+# ---------------------------------------------------------------------------
+
+
+class TestResolveFlowPath:
+    def test_filesystem_path(self, simple_flow_yaml):
+        from sdg_hub.core.utils.translation import _resolve_flow_path
+
+        with patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry:
+            mock_registry.get_flow_path.return_value = None
+            result = _resolve_flow_path(str(simple_flow_yaml))
+        assert result == simple_flow_yaml.resolve()
+
+    def test_registry_lookup(self, simple_flow_yaml):
+        from sdg_hub.core.utils.translation import _resolve_flow_path
+
+        with patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry:
+            mock_registry.get_flow_path.return_value = str(simple_flow_yaml)
+            result = _resolve_flow_path("my-flow-id")
+        assert result == simple_flow_yaml.resolve()
+
+    def test_not_found_raises_system_exit(self, tmp_path):
+        from sdg_hub.core.utils.translation import _resolve_flow_path
+
+        with (
+            patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry,
+            pytest.raises(SystemExit, match="not found"),
+        ):
+            mock_registry.get_flow_path.return_value = None
+            _resolve_flow_path("nonexistent-flow-id")
+
+    def test_registry_exception_falls_through(self, simple_flow_yaml):
+        """If FlowRegistry raises, we fall back to filesystem."""
+        from sdg_hub.core.utils.translation import _resolve_flow_path
+
+        with patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry:
+            mock_registry.get_flow_path.side_effect = RuntimeError("broken")
+            # Should still work via filesystem fallback
+            result = _resolve_flow_path(str(simple_flow_yaml))
+        assert result == simple_flow_yaml.resolve()
+
+
+# ---------------------------------------------------------------------------
+# translate_text
+# ---------------------------------------------------------------------------
+
+
+class TestTranslateText:
+    @patch("sdg_hub.core.utils.translation.litellm")
+    def test_basic_translation(self, mock_litellm):
+        from sdg_hub.core.utils.translation import translate_text
+
+        mock_resp = MagicMock()
+        mock_resp.choices = [MagicMock()]
+        mock_resp.choices[0].message.content = "Hola mundo"
+        mock_litellm.completion.return_value = mock_resp
+
+        result = translate_text("Hello world", "Spanish", "test/model")
+        assert result == "Hola mundo"
+        mock_litellm.completion.assert_called_once()
+
+    @patch("sdg_hub.core.utils.translation.litellm")
+    def test_with_api_key_and_base(self, mock_litellm):
+        from sdg_hub.core.utils.translation import translate_text
+
+        mock_resp = MagicMock()
+        mock_resp.choices = [MagicMock()]
+        mock_resp.choices[0].message.content = "Translated"
+        mock_litellm.completion.return_value = mock_resp
+
+        result = translate_text(
+            "Hello",
+            "French",
+            "test/model",
+            api_key="my-key",
+            api_base="https://example.com",
+        )
+        assert result == "Translated"
+        call_kwargs = mock_litellm.completion.call_args.kwargs
+        assert call_kwargs["api_key"] == "my-key"
+        assert call_kwargs["api_base"] == "https://example.com"
+
+    @patch("sdg_hub.core.utils.translation.litellm")
+    def test_custom_system_prompt(self, mock_litellm):
+        from sdg_hub.core.utils.translation import translate_text
+
+        mock_resp = MagicMock()
+        mock_resp.choices = [MagicMock()]
+        mock_resp.choices[0].message.content = "Result"
+        mock_litellm.completion.return_value = mock_resp
+
+        translate_text(
+            "Hello",
+            "Spanish",
+            "test/model",
+            system_prompt="Custom instructions",
+        )
+        messages = mock_litellm.completion.call_args.kwargs["messages"]
+        assert messages[0]["content"] == "Custom instructions"
+
+    @patch("sdg_hub.core.utils.translation.litellm")
+    def test_auth_error_raises_system_exit(self, mock_litellm):
+        from sdg_hub.core.utils.translation import translate_text
+
+        mock_litellm.AuthenticationError = litellm.AuthenticationError
+        mock_litellm.completion.side_effect = litellm.AuthenticationError(
+            message="bad key", llm_provider="openai", model="gpt-4"
+        )
+
+        with pytest.raises(SystemExit, match="Authentication failed"):
+            translate_text("Hello", "Spanish", "test/model")
+
+    @patch("sdg_hub.core.utils.translation.litellm")
+    def test_empty_response(self, mock_litellm):
+        from sdg_hub.core.utils.translation import translate_text
+
+        mock_resp = MagicMock()
+        mock_resp.choices = [MagicMock()]
+        mock_resp.choices[0].message.content = ""
+        mock_litellm.completion.return_value = mock_resp
+
+        result = translate_text("Hello", "Spanish", "test/model")
+        assert result == ""
+
+
+# ---------------------------------------------------------------------------
+# verify_translation
+# ---------------------------------------------------------------------------
+
+
+class TestVerifyTranslation:
+    @patch("sdg_hub.core.utils.translation.litellm")
+    def test_pass_verdict(self, mock_litellm):
+        from sdg_hub.core.utils.translation import verify_translation
+
+        mock_resp = MagicMock()
+        mock_resp.choices = [MagicMock()]
+        mock_resp.choices[0].message.content = "PASS"
+        mock_litellm.completion.return_value = mock_resp
+
+        result = verify_translation(
+            "Hello",
+            "Hola",
+            "Spanish",
+            "test/model",
+            frozenset(),
+        )
+        assert result == "PASS"
+
+    @patch("sdg_hub.core.utils.translation.litellm")
+    def test_fail_verdict(self, mock_litellm):
+        from sdg_hub.core.utils.translation import verify_translation
+
+        mock_resp = MagicMock()
+        mock_resp.choices = [MagicMock()]
+        mock_resp.choices[0].message.content = "FAIL: missing instruction"
+        mock_litellm.completion.return_value = mock_resp
+
+        result = verify_translation(
+            "Hello",
+            "Hola",
+            "Spanish",
+            "test/model",
+            frozenset(),
+        )
+        assert result == "FAIL: missing instruction"
+
+    @patch("sdg_hub.core.utils.translation.litellm")
+    def test_with_structural_tags(self, mock_litellm):
+        from sdg_hub.core.utils.translation import verify_translation
+
+        mock_resp = MagicMock()
+        mock_resp.choices = [MagicMock()]
+        mock_resp.choices[0].message.content = "PASS"
+        mock_litellm.completion.return_value = mock_resp
+
+        verify_translation(
+            "Hello [Q] [END]",
+            "Hola [Q] [END]",
+            "Spanish",
+            "test/model",
+            frozenset({"[Q]", "[END]"}),
+        )
+        sys_msg = mock_litellm.completion.call_args.kwargs["messages"][0]["content"]
+        assert "[END]" in sys_msg
+        assert "[Q]" in sys_msg
+
+    @patch("sdg_hub.core.utils.translation.litellm")
+    def test_with_api_credentials(self, mock_litellm):
+        from sdg_hub.core.utils.translation import verify_translation
+
+        mock_resp = MagicMock()
+        mock_resp.choices = [MagicMock()]
+        mock_resp.choices[0].message.content = "PASS"
+        mock_litellm.completion.return_value = mock_resp
+
+        verify_translation(
+            "Hello",
+            "Hola",
+            "Spanish",
+            "test/model",
+            frozenset(),
+            api_key="vkey",
+            api_base="https://v.example.com",
+        )
+        call_kwargs = mock_litellm.completion.call_args.kwargs
+        assert call_kwargs["api_key"] == "vkey"
+        assert call_kwargs["api_base"] == "https://v.example.com"
+
+    @patch("sdg_hub.core.utils.translation.litellm")
+    def test_auth_error_raises_system_exit(self, mock_litellm):
+        from sdg_hub.core.utils.translation import verify_translation
+
+        mock_litellm.AuthenticationError = litellm.AuthenticationError
+        mock_litellm.completion.side_effect = litellm.AuthenticationError(
+            message="bad key", llm_provider="openai", model="gpt-4"
+        )
+
+        with pytest.raises(SystemExit, match="Authentication failed"):
+            verify_translation(
+                "Hello",
+                "Hola",
+                "Spanish",
+                "test/model",
+                frozenset(),
+            )
+
+    @patch("sdg_hub.core.utils.translation.litellm")
+    def test_empty_response_returns_fail(self, mock_litellm):
+        from sdg_hub.core.utils.translation import verify_translation
+
+        mock_resp = MagicMock()
+        mock_resp.choices = [MagicMock()]
+        mock_resp.choices[0].message.content = ""
+        mock_litellm.completion.return_value = mock_resp
+
+        result = verify_translation(
+            "Hello",
+            "Hola",
+            "Spanish",
+            "test/model",
+            frozenset(),
+        )
+        assert result.startswith("FAIL")
+
+
+# ---------------------------------------------------------------------------
+# _clean_content
+# ---------------------------------------------------------------------------
+
+
+class TestCleanContent:
+    def test_strips_trailing_whitespace(self):
+        from sdg_hub.core.utils.translation import _clean_content
+
+        assert _clean_content("hello   \nworld  ") == "hello\nworld"
+
+    def test_preserves_leading_whitespace(self):
+        from sdg_hub.core.utils.translation import _clean_content
+
+        assert _clean_content("  hello\n  world") == "  hello\n  world"
+
+
+# ---------------------------------------------------------------------------
+# _translate_and_verify
+# ---------------------------------------------------------------------------
+
+
+class TestTranslateAndVerify:
+    @patch("sdg_hub.core.utils.translation.verify_translation")
+    @patch("sdg_hub.core.utils.translation.translate_text")
+    def test_passes_first_attempt(self, mock_translate, mock_verify):
+        from sdg_hub.core.utils.translation import _translate_and_verify
+
+        mock_translate.return_value = "Hola mundo"
+        mock_verify.return_value = "PASS"
+
+        translated, issues = _translate_and_verify(
+            "Hello world",
+            "Spanish",
+            "test/model",
+            None,
+            None,
+            "test/verifier",
+            None,
+            None,
+            3,
+            "test-label",
+            structural_tags=frozenset(),
+            system_prompt="Translate.",
+        )
+        assert translated == "Hola mundo"
+        assert issues == []
+        assert mock_translate.call_count == 1
+
+    @patch("sdg_hub.core.utils.translation.verify_translation")
+    @patch("sdg_hub.core.utils.translation.translate_text")
+    def test_retries_on_failure(self, mock_translate, mock_verify):
+        from sdg_hub.core.utils.translation import _translate_and_verify
+
+        mock_translate.return_value = "Hola mundo"
+        mock_verify.side_effect = ["FAIL: bad", "PASS"]
+
+        translated, issues = _translate_and_verify(
+            "Hello world",
+            "Spanish",
+            "test/model",
+            None,
+            None,
+            "test/verifier",
+            None,
+            None,
+            3,
+            "test-label",
+            structural_tags=frozenset(),
+            system_prompt="Translate.",
+        )
+        assert translated == "Hola mundo"
+        assert issues == []
+        assert mock_translate.call_count == 2
+
+    @patch("sdg_hub.core.utils.translation.verify_translation")
+    @patch("sdg_hub.core.utils.translation.translate_text")
+    def test_max_retries_exhausted(self, mock_translate, mock_verify):
+        from sdg_hub.core.utils.translation import _translate_and_verify
+
+        mock_translate.return_value = "Bad translation"
+        mock_verify.return_value = "FAIL: still bad"
+
+        translated, issues = _translate_and_verify(
+            "Hello world",
+            "Spanish",
+            "test/model",
+            None,
+            None,
+            "test/verifier",
+            None,
+            None,
+            2,
+            "test-label",
+            structural_tags=frozenset(),
+            system_prompt="Translate.",
+        )
+        assert translated == "Bad translation"
+        assert len(issues) > 0
+        assert mock_translate.call_count == 2
+
+    @patch("sdg_hub.core.utils.translation.verify_translation")
+    @patch("sdg_hub.core.utils.translation.translate_text")
+    def test_programmatic_issues_cause_retry(self, mock_translate, mock_verify):
+        from sdg_hub.core.utils.translation import _translate_and_verify
+
+        # First attempt: missing Jinja2 variable; second attempt: fixed
+        mock_translate.side_effect = ["Missing var", "Fixed {{name}}"]
+        mock_verify.side_effect = ["PASS", "PASS"]
+
+        translated, issues = _translate_and_verify(
+            "Hello {{name}}",
+            "Spanish",
+            "test/model",
+            None,
+            None,
+            "test/verifier",
+            None,
+            None,
+            3,
+            "test-label",
+            structural_tags=frozenset(),
+            system_prompt="Translate.",
+        )
+        # First attempt passes verifier but fails programmatic (missing {{name}})
+        # Second attempt should pass both
+        assert mock_translate.call_count == 2
+        assert issues == []
+
+
+# ---------------------------------------------------------------------------
+# _str_representer (YAML block style)
+# ---------------------------------------------------------------------------
+
+
+class TestBlockStyleDumper:
+    def test_multiline_string_uses_block_scalar(self):
+        from sdg_hub.core.utils.translation import _BlockStyleDumper
+
+        data = [{"role": "system", "content": "Line 1\nLine 2\nLine 3"}]
+        output = yaml.dump(data, Dumper=_BlockStyleDumper, default_flow_style=False)
+        assert "|" in output
+
+    def test_single_line_string_no_block_scalar(self):
+        from sdg_hub.core.utils.translation import _BlockStyleDumper
+
+        data = [{"role": "system", "content": "Just one line"}]
+        output = yaml.dump(data, Dumper=_BlockStyleDumper, default_flow_style=False)
+        assert "Just one line" in output
+
+
+# ---------------------------------------------------------------------------
+# __init__.py lazy import
+# ---------------------------------------------------------------------------
+
+
+class TestLazyImport:
+    def test_translate_flow_importable(self):
+        from sdg_hub.core.utils import translate_flow
+
+        assert callable(translate_flow)
+
+    def test_unknown_attr_raises(self):
+        with pytest.raises(AttributeError, match="no attribute"):
+            from sdg_hub.core import utils
+
+            utils.__getattr__("nonexistent_function")
