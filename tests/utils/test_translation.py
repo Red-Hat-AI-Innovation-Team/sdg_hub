@@ -455,7 +455,7 @@ class TestTranslateFlowMocked:
 
         # Verify FlowRegistry was called (register=True by default)
         mock_registry.register_search_path.assert_called_once_with(str(out.resolve()))
-        mock_registry.discover_flows.assert_called_once()
+        mock_registry._discover_flows.assert_called_once_with(force_refresh=True)
 
     @patch("sdg_hub.core.utils.translation.litellm")
     def test_register_false_skips_registry(

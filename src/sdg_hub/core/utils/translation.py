@@ -819,8 +819,7 @@ def translate_flow(
         from sdg_hub.core.flow.registry import FlowRegistry
 
         FlowRegistry.register_search_path(str(output_path))
-        FlowRegistry._entries = {}
-        FlowRegistry.discover_flows()
+        FlowRegistry._discover_flows(force_refresh=True)
         print(f"\n✓ Registered {output_path} with FlowRegistry")
 
     return all_issues
