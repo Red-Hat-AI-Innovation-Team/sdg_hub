@@ -12,10 +12,20 @@ class GenerateError(Exception):
     """An exception raised during generate step."""
 
 
+def __getattr__(name: str):
+    """Lazy import for translate_flow to avoid runpy double-import warning."""
+    if name == "translate_flow":
+        from .translation import translate_flow
+
+        return translate_flow
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
 __all__ = [
     "GenerateError",
     "resolve_path",
     "get_flow_identifier",
     "estimate_execution_time",
     "is_llm_using_block",
+    "translate_flow",
 ]
