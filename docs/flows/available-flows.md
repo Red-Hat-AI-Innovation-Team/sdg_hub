@@ -43,7 +43,7 @@ Document → Summary/Extraction Generation → Question Generation → Answer Ge
 - Async processing for efficiency
 - All tagged with `knowledge-tuning`, `document-internalization`, `question-generation`
 
-**Location:** `src/sdg_hub/flows/qa_generation/document_grounded_qa/enhanced_multi_summary_qa/`
+**Location:** `src/sdg_hub/flows/knowledge_infusion/enhanced_multi_summary_qa/`
 
 ### 2.1 Extractive Summary Knowledge Tuning Flow
 
@@ -541,7 +541,7 @@ Generation Complete:
 
 **Purpose:** Generate high-quality Japanese QA pairs with comprehensive three-stage evaluation (faithfulness, relevancy, question verification) for Japanese language training data generation.
 
-**Location:** `src/sdg_hub/flows/qa_generation/document_grounded_qa/multi_summary_qa/multilingual/japanese/`
+**Location:** `src/sdg_hub/flows/knowledge_infusion/japanese_multi_summary_qa/`
 
 ### Architecture
 
@@ -562,12 +562,13 @@ Filtered High-Quality QA
 ### Files
 
 ```
-japanese/
+japanese_multi_summary_qa/
 ├── flow.yaml                        # Main flow (identical blocks structure)
-├── atomic_facts_ja.yaml            # Japanese atomic facts prompt
-├── detailed_summary_ja.yaml        # Japanese detailed summary prompt
-├── extractive_summary_ja.yaml      # Japanese extractive summary prompt
-└── generate_questions_responses_ja.yaml  # Japanese QA generation prompt
+└── prompts/
+    ├── atomic_facts_ja.yaml            # Japanese atomic facts prompt
+    ├── detailed_summary_ja.yaml        # Japanese detailed summary prompt
+    ├── extractive_summary_ja.yaml      # Japanese extractive summary prompt
+    └── generate_questions_responses_ja.yaml  # Japanese QA generation prompt
 ```
 
 ### Input Requirements
@@ -647,13 +648,14 @@ To create a new language variant:
 
 1. **Create directory structure:**
    ```
-   multilingual/
-   └── {language}/
+   knowledge_infusion/
+   └── {language}_multi_summary_qa/
        ├── flow.yaml
-       ├── atomic_facts_{lang}.yaml
-       ├── detailed_summary_{lang}.yaml
-       ├── extractive_summary_{lang}.yaml
-       └── generate_questions_responses_{lang}.yaml
+       └── prompts/
+           ├── atomic_facts_{lang}.yaml
+           ├── detailed_summary_{lang}.yaml
+           ├── extractive_summary_{lang}.yaml
+           └── generate_questions_responses_{lang}.yaml
    ```
 
 2. **Copy and translate prompts:**
@@ -673,7 +675,7 @@ To create a new language variant:
 
 4. **Update prompt paths in flow.yaml:**
    ```yaml
-   prompt_config_path: detailed_summary_{lang}.yaml
+   prompt_config_path: prompts/detailed_summary_{lang}.yaml
    ```
 
 5. **Test with native speakers** to ensure quality

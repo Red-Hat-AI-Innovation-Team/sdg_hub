@@ -6,14 +6,13 @@ Want to create a new flow? Follow these conventions:
 
 ```
 flows/
-└── {category}/              # e.g., qa_generation, text_analysis
-    └── {subcategory}/       # e.g., document_grounded_qa
-        └── {flow_name}/     # e.g., my_new_flow
-            ├── __init__.py
-            ├── flow.yaml         # Main flow definition (required)
-            ├── prompt1.yaml      # Prompt configurations
-            ├── prompt2.yaml
-            └── README.md         # Flow-specific documentation
+└── {category}/              # e.g., knowledge_infusion, text_analysis
+    └── {flow_name}/         # e.g., my_new_flow
+        ├── flow.yaml             # Main flow definition (required)
+        ├── README.md             # Flow-specific documentation
+        └── prompts/              # Prompt configurations
+            ├── prompt1.yaml
+            └── prompt2.yaml
 ```
 
 ### Flow Metadata Requirements
@@ -57,6 +56,5 @@ Flows are automatically discovered if:
 1. Located in `src/sdg_hub/flows/`
 2. Directory contains `flow.yaml`
 3. Contains valid metadata section
-4. Has `__init__.py` in directory
 
 No manual registration needed!

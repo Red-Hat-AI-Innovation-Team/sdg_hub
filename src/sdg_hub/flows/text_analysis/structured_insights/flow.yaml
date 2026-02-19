@@ -40,7 +40,7 @@ blocks:
       input_cols:
         - "text"
       output_cols: "summary_prompt"
-      prompt_config_path: "summarize.yaml"
+      prompt_config_path: "prompts/summarize.yaml"
   - block_type: "LLMChatBlock"
     block_config:
       block_name: "generate_summary"
@@ -72,7 +72,7 @@ blocks:
       input_cols:
         - "text"
       output_cols: "keywords_prompt"
-      prompt_config_path: "extract_keywords.yaml"
+      prompt_config_path: "prompts/extract_keywords.yaml"
   - block_type: "LLMChatBlock"
     block_config:
       block_name: "generate_keywords"
@@ -104,7 +104,7 @@ blocks:
       input_cols:
         - "text"
       output_cols: "entities_prompt"
-      prompt_config_path: "extract_entities.yaml"
+      prompt_config_path: "prompts/extract_entities.yaml"
   - block_type: "LLMChatBlock"
     block_config:
       block_name: "generate_entities"
@@ -136,7 +136,7 @@ blocks:
       input_cols:
         - "text"
       output_cols: "sentiment_prompt"
-      prompt_config_path: "analyze_sentiment.yaml"
+      prompt_config_path: "prompts/analyze_sentiment.yaml"
   - block_type: "LLMChatBlock"
     block_config:
       block_name: "generate_sentiment"

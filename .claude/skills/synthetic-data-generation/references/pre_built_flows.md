@@ -64,7 +64,7 @@ print(result.columns)
 
 ### Document Grounded QA
 
-**Location:** `src/sdg_hub/flows/qa_generation/document_grounded_qa/`
+**Location:** `src/sdg_hub/flows/knowledge_infusion/enhanced_multi_summary_qa/`
 
 **Purpose:** Generate question-answer pairs grounded in documents.
 
@@ -80,7 +80,7 @@ df = pd.DataFrame({
 
 ### Multi-Summary QA (InstructLab)
 
-**Location:** `src/sdg_hub/flows/qa_generation/document_grounded_qa/multi_summary_qa/instructlab/`
+**Location:** `src/sdg_hub/flows/knowledge_infusion/enhanced_multi_summary_qa/`
 
 **Purpose:** Generate diverse QA pairs using multiple summary strategies.
 
@@ -131,7 +131,7 @@ print(result[["document", "question", "response"]])
 
 ### RAG Evaluation
 
-**Location:** `src/sdg_hub/flows/evaluation/rag/`
+**Location:** `src/sdg_hub/flows/evaluation/rag_evaluation/`
 
 **Purpose:** Evaluate RAG system outputs for faithfulness and relevancy.
 

@@ -24,23 +24,31 @@ The discovery system searches these locations:
 
 ```
 src/sdg_hub/flows/                    # Built-in flows
-├── qa_generation/                    # Question-answer generation
-│   ├── document_grounded_qa/
-│   │   ├── enhanced_multi_summary_qa/
-│   │   │   └── flow.yaml
-│   │   └── multi_summary_qa/
-│   │       └── multilingual/
-│   │           └── japanese/
-│   │               └── flow.yaml
-│   └── simple_qa/
-│       └── flow.yaml
-├── text_processing/                  # Text manipulation flows
-│   ├── summarization/
-│   └── classification/
+├── knowledge_infusion/               # Knowledge tuning flows
+│   ├── enhanced_multi_summary_qa/
+│   │   ├── detailed_summary/
+│   │   │   ├── flow.yaml
+│   │   │   └── prompts/
+│   │   ├── extractive_summary/
+│   │   │   ├── flow.yaml
+│   │   │   └── prompts/
+│   │   ├── doc_direct_qa/
+│   │   │   ├── flow.yaml
+│   │   │   └── prompts/
+│   │   └── key_facts/
+│   │       ├── flow.yaml
+│   │       └── prompts/
+│   └── japanese_multi_summary_qa/
+│       ├── flow.yaml
+│       └── prompts/
+├── text_analysis/                    # Text analysis flows
+│   └── structured_insights/
+│       ├── flow.yaml
+│       └── prompts/
 └── evaluation/                       # Quality assessment flows
-    ├── quality_assessment/
-    └── bias_detection/
-
+    └── rag_evaluation/
+        ├── flow.yaml
+        └── prompts/
 ```
 
 ## 📋 Flow Registry Operations
@@ -148,19 +156,13 @@ Flows are organized in a logical hierarchy:
 
 ```
 flows/
-├── domain/              # By problem domain
-│   ├── qa_generation/
-│   ├── text_processing/
-│   ├── evaluation/
-│   └── data_preparation/
-├── use_case/            # By specific use case
-│   ├── document_grounded_qa/
-│   ├── conversational_qa/
-│   └── multi_turn_dialogue/
-└── variant/             # By implementation variant
-    ├── simple/          # Simplified version
-    ├── advanced/        # Feature-rich version
-    └── multilingual/    # Language-specific variants
+├── knowledge_infusion/  # Knowledge tuning and QA generation
+│   ├── enhanced_multi_summary_qa/
+│   └── japanese_multi_summary_qa/
+├── text_analysis/       # Text processing and insights
+│   └── structured_insights/
+└── evaluation/          # Quality assessment flows
+    └── rag_evaluation/
 ```
 
 ### Flow Naming Conventions
@@ -181,17 +183,22 @@ metadata:
 Organize flows logically:
 
 ```
-qa_generation/                           # Primary domain
-├── document_grounded_qa/                # Specific approach
-│   ├── enhanced_multi_summary_qa/       # Enhanced implementation
+knowledge_infusion/                      # Primary domain
+├── enhanced_multi_summary_qa/           # Enhanced implementation
+│   ├── detailed_summary/
 │   │   ├── flow.yaml                   # Main flow definition
-│   │   └── README.md                   # Flow documentation
-│   └── multi_summary_qa/               # Multi-summary variant
-│       └── multilingual/               # Language-specific
-│           └── japanese/               # Japanese language support
-│               ├── flow.yaml
-│               ├── atomic_facts_ja.yaml
-│               └── detailed_summary_ja.yaml
+│   │   └── prompts/                    # Prompt configurations
+│   │       ├── detailed_summary.yaml
+│   │       └── generate_question_list.yaml
+│   └── extractive_summary/
+│       ├── flow.yaml
+│       └── prompts/
+└── japanese_multi_summary_qa/           # Japanese language support
+    ├── flow.yaml
+    ├── README.md                        # Flow documentation
+    └── prompts/
+        ├── atomic_facts_ja.yaml
+        └── detailed_summary_ja.yaml
 ```
 
 ## 🏷️ Flow Categorization and Tagging

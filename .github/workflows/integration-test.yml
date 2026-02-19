@@ -51,7 +51,7 @@ jobs:
           filters: |
             relevant:
               # Only trigger on changes to relevant flows and examples (EXTEND THIS):
-              - 'src/sdg_hub/flows/qa_generation/document_grounded_qa/enhanced_multi_summary_qa/**'
+              - 'src/sdg_hub/flows/knowledge_infusion/enhanced_multi_summary_qa/**'
               - 'examples/knowledge_tuning/enhanced_summary_knowledge_tuning/**'
               # Standard integration test triggers
               - 'tests/integration/**/*.py'

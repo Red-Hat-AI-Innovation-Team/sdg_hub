@@ -1,0 +1,18 @@
+# Prompt used in: detailed_summary flow
+# Origin: knowledge_infusion/enhanced_multi_summary_qa
+---
+- role: system
+  content: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+- role: user
+  content: |
+    Answer the question based on the provided document.
+
+    Here is the document:
+
+    Document:
+    {{document_outline}}
+    {{document}}
+
+    Question:
+    {{question}}

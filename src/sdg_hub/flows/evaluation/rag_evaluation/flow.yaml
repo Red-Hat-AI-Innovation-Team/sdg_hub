@@ -1,0 +1,201 @@
+metadata:
+  name: RAG Evaluation Dataset Flow
+  description: Generates Q&A pairs for RAG evaluation.
+  version: 1.0.0
+  author: "Red Hat AI RAG Contributors"
+  license: "Apache-2.0"
+  recommended_models:
+    default: "openai/gpt-oss-120b"
+    compatible:
+      - "meta-llama/Llama-3.3-70B-Instruct"
+      - "microsoft/phi-4"
+  tags:
+  - rag-evaluation
+  - qa-pairs
+  dataset_requirements:
+    required_columns:
+    - document
+    - document_outline
+    description: Input dataset should contain documents with text content and document outlines.
+  id: loud-dawn-245
+blocks:
+  - block_type: DuplicateColumnsBlock
+    block_config:
+      block_name: duplicate_to_context
+      input_cols: {document: context}
+
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: topic_prompt
+      input_cols: [document]
+      output_cols: topic_messages
+      prompt_config_path: prompts/topic_generation.yaml
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: gen_topic
+      input_cols: topic_messages
+      output_cols: topic_response
+      async_mode: true
+      n: 1
+      max_tokens: 2048
+      temperature: 0.7
+
+  - block_type: LLMResponseExtractorBlock
+    block_config:
+      block_name: parse_topic
+      input_cols: topic_response
+      field_prefix: topic_
+      extract_content: true
+
+  - block_type: RenameColumnsBlock
+    block_config:
+      block_name: rename_topic
+      input_cols: {topic_content: topic}
+
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: conceptual_prompt
+      input_cols:
+        document: document
+        document_outline: document_outline
+        topic: topic
+      output_cols: conceptual_messages
+      prompt_config_path: prompts/conceptual_qa_generation.yaml
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: gen_conceptual_question
+      input_cols: conceptual_messages
+      output_cols: question_response
+      async_mode: true
+      n: 1
+      max_tokens: 2048
+      temperature: 0.7
+
+  - block_type: LLMResponseExtractorBlock
+    block_config:
+      block_name: parse_question
+      input_cols: question_response
+      field_prefix: question_
+      extract_content: true
+
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: evolution_prompt
+      input_cols: {question_content: question}
+      output_cols: evolution_messages
+      prompt_config_path: prompts/question_evolution.yaml
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: evolve_question
+      input_cols: evolution_messages
+      output_cols: evolution_response
+      async_mode: true
+      n: 1
+      max_tokens: 4096
+      temperature: 0.7
+
+  - block_type: LLMResponseExtractorBlock
+    block_config:
+      block_name: parse_evolved_question
+      input_cols: evolution_response
+      field_prefix: "evolved_"
+      extract_content: true
+
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: answer_prompt
+      input_cols: 
+        context: context
+        evolved_content: question
+      output_cols: answer_messages
+      prompt_config_path: prompts/answer_generation.yaml
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: gen_answer
+      input_cols: answer_messages
+      output_cols: answer_response
+      async_mode: true
+      n: 1
+      max_tokens: 4096
+      temperature: 0.2
+
+  - block_type: LLMResponseExtractorBlock
+    block_config:
+      block_name: parse_answer
+      input_cols: answer_response
+      field_prefix: "answer_"
+      extract_content: true
+
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: critic_prompt
+      input_cols: 
+        context: context
+        evolved_content: question
+        answer_content: answer
+      output_cols: critic_messages
+      prompt_config_path: prompts/groundedness_critic.yaml
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: gen_critic_score
+      input_cols: critic_messages
+      output_cols: critic_response
+      async_mode: true
+      n: 1
+      max_tokens: 512
+      temperature: 0.0
+
+  - block_type: LLMResponseExtractorBlock
+    block_config:
+      block_name: parse_critic_score
+      input_cols: critic_response
+      field_prefix: "critic_"
+      extract_content: true
+
+  - block_type: ColumnValueFilterBlock
+    block_config:
+      block_name: filter_ungrounded
+      input_cols: critic_content
+      filter_value: [4, 5]
+      operation: "eq"
+      convert_dtype: "int"
+
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: extraction_prompt
+      input_cols: 
+        context: context
+        evolved_content: question
+        answer_content: answer
+      output_cols: extraction_messages
+      prompt_config_path: prompts/context_extraction.yaml
+
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: extract_context
+      input_cols: extraction_messages
+      output_cols: extraction_response
+      async_mode: true
+      n: 1
+      max_tokens: 4096
+      temperature: 0.0
+
+  - block_type: LLMResponseExtractorBlock
+    block_config:
+      block_name: parse_extracted_context
+      input_cols: extraction_response
+      field_prefix: "ground_truth_"
+      extract_content: true
+
+  - block_type: RenameColumnsBlock
+    block_config:
+      block_name: rename_final_columns
+      input_cols: 
+        evolved_content: question
+        answer_content: response
+        ground_truth_content: ground_truth_context
