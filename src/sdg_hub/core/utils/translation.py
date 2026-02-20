@@ -431,11 +431,13 @@ def _adapt_flow_yaml(
     output_path: Path,
     target_language: str,
     lang_code: str,
+    translated_prompts: set[str],
 ) -> None:
     """Create a translated copy of a flow YAML.
 
     Updates the flow id/name for uniqueness and rewrites
     ``prompt_config_path`` values to point at the translated prompt files.
+    Only rewrites paths whose basename is in *translated_prompts*.
     """
     with open(source_path, encoding="utf-8") as f:
         flow_def = yaml.safe_load(f)
@@ -451,6 +453,8 @@ def _adapt_flow_yaml(
         config = block.get("block_config", {})
         if "prompt_config_path" in config:
             old_basename = Path(config["prompt_config_path"]).name
+            if old_basename not in translated_prompts:
+                continue
             new_basename = old_basename.replace(".yaml", f"_{lang_code}.yaml")
             config["prompt_config_path"] = f"prompts/{new_basename}"
 
@@ -538,9 +542,15 @@ def translate_flow(
     prompt_yamls, structural_tags = _parse_flow_yaml(flow_yaml)
     tag_rule = _build_tag_rule(structural_tags)
 
-    # Compute output paths inline
+    # Compute output paths — check for basename collisions
     flow_out = output_path / flow_yaml.name
     prompts_dir = output_path / "prompts"
+    stems = [src.stem for src in prompt_yamls]
+    if len(stems) != len(set(stems)):
+        raise ValueError(
+            f"Duplicate prompt basenames detected: {stems}. "
+            "All prompt files must have unique names."
+        )
     prompt_mapping = {
         src: prompts_dir / f"{src.stem}_{lang_code}.yaml" for src in prompt_yamls
     }
@@ -572,8 +582,9 @@ def translate_flow(
         )
         all_issues.extend(issues)
 
-    # Adapt flow YAML
-    _adapt_flow_yaml(flow_yaml, flow_out, lang, lang_code)
+    # Adapt flow YAML — only rewrite paths for prompts we actually translated
+    translated_basenames = {src.name for src in prompt_yamls}
+    _adapt_flow_yaml(flow_yaml, flow_out, lang, lang_code, translated_basenames)
 
     # Summary
     if all_issues:

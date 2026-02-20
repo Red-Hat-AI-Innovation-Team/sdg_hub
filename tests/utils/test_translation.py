@@ -161,7 +161,7 @@ class TestValidateTranslation:
 class TestAdaptFlowYaml:
     def test_adapts_metadata_and_prompt_paths(self, simple_flow_yaml, tmp_path):
         out = tmp_path / "out" / "flow.yaml"
-        _adapt_flow_yaml(simple_flow_yaml, out, "Spanish", "es")
+        _adapt_flow_yaml(simple_flow_yaml, out, "Spanish", "es", {"my_prompt.yaml"})
 
         with open(out) as f:
             result = yaml.safe_load(f)
