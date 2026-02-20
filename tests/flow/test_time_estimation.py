@@ -217,7 +217,7 @@ class TestTimeEstimatorIntegration:
 
         # Test is_llm_using_block - block type detection
         llm_block_info = {
-            "block_type": "LLMChatBlock",
+            "block_class": "LLMChatBlock",
             "parameters_used": {"model": "test-model"},
         }
         assert is_llm_using_block(llm_block_info) is True
@@ -225,24 +225,24 @@ class TestTimeEstimatorIntegration:
         # Test is_llm_using_block - parameter-based detection
         # Block with model parameter but non-LLM block type
         llm_by_params_model = {
-            "block_type": "CustomBlock",
+            "block_class": "CustomBlock",
             "parameters_used": {"model": "test-model"},
         }
         assert is_llm_using_block(llm_by_params_model) is True
 
         llm_by_params_api_base = {
-            "block_type": "CustomBlock",
+            "block_class": "CustomBlock",
             "parameters_used": {"api_base": "http://localhost:8000"},
         }
         assert is_llm_using_block(llm_by_params_api_base) is True
 
         llm_by_params_api_key = {
-            "block_type": "CustomBlock",
+            "block_class": "CustomBlock",
             "parameters_used": {"api_key": "secret"},
         }
         assert is_llm_using_block(llm_by_params_api_key) is True
 
-        non_llm_block_info = {"block_type": "TextConcat", "parameters_used": {}}
+        non_llm_block_info = {"block_class": "TextConcat", "parameters_used": {}}
         assert is_llm_using_block(non_llm_block_info) is False
 
         # Test calculate_block_throughput
@@ -289,7 +289,7 @@ class TestTimeEstimatorIntegration:
             "blocks_executed": [
                 {
                     "block_name": "llm_block",
-                    "block_type": "LLMChatBlock",
+                    "block_class": "LLMChatBlock",
                     "execution_time_seconds": 4.0,
                     "input_rows": 5,
                     "output_rows": 5,
@@ -304,7 +304,7 @@ class TestTimeEstimatorIntegration:
             "blocks_executed": [
                 {
                     "block_name": "llm_block",
-                    "block_type": "LLMChatBlock",
+                    "block_class": "LLMChatBlock",
                     "execution_time_seconds": 1.0,
                     "input_rows": 1,
                     "output_rows": 1,
@@ -387,7 +387,7 @@ class TestTimeEstimatorIntegration:
                     "block_name": "high_throughput_block",
                     "execution_time_seconds": 0.1,
                     "input_rows": 100,
-                    "block_type": "LLMChatBlock",
+                    "block_class": "LLMChatBlock",
                     "parameters_used": {"model": "gpt-4"},
                 }
             ],
@@ -404,7 +404,7 @@ class TestTimeEstimatorIntegration:
                         "block_name": "high_throughput_block",
                         "execution_time_seconds": 0.2,
                         "input_rows": 200,
-                        "block_type": "LLMChatBlock",
+                        "block_class": "LLMChatBlock",
                         "parameters_used": {"model": "gpt-4"},
                     }
                 ],
@@ -450,14 +450,14 @@ class TestTimeEstimatorIntegration:
             "blocks_executed": [
                 {
                     "block_name": "block1",
-                    "block_type": "LLMChatBlock",
+                    "block_class": "LLMChatBlock",
                     "execution_time_seconds": 1.0,
                     "input_rows": 1,
                     "parameters_used": {"model": "test"},
                 },
                 {
                     "block_name": "block2",
-                    "block_type": "LLMChatBlock",
+                    "block_class": "LLMChatBlock",
                     "execution_time_seconds": 1.0,
                     "input_rows": 1,
                     "parameters_used": {"model": "test"},
@@ -471,7 +471,7 @@ class TestTimeEstimatorIntegration:
             "blocks_executed": [
                 {
                     "block_name": "block1",
-                    "block_type": "LLMChatBlock",
+                    "block_class": "LLMChatBlock",
                     "execution_time_seconds": 5.0,
                     "input_rows": 5,
                     "parameters_used": {"model": "test"},
@@ -498,14 +498,14 @@ class TestTimeEstimatorIntegration:
             "blocks_executed": [
                 {
                     "block_name": "transform_block",
-                    "block_type": "TransformBlock",  # Not an LLM block
+                    "block_class": "TransformBlock",  # Not an LLM block
                     "execution_time_seconds": 1.0,
                     "input_rows": 1,
                     "parameters_used": {},
                 },
                 {
                     "block_name": "llm_block",
-                    "block_type": "LLMChatBlock",  # LLM block
+                    "block_class": "LLMChatBlock",  # LLM block
                     "execution_time_seconds": 1.0,
                     "input_rows": 1,
                     "parameters_used": {"model": "test"},
@@ -519,14 +519,14 @@ class TestTimeEstimatorIntegration:
             "blocks_executed": [
                 {
                     "block_name": "transform_block",
-                    "block_type": "TransformBlock",
+                    "block_class": "TransformBlock",
                     "execution_time_seconds": 1.0,
                     "input_rows": 5,
                     "parameters_used": {},
                 },
                 {
                     "block_name": "llm_block",
-                    "block_type": "LLMChatBlock",
+                    "block_class": "LLMChatBlock",
                     "execution_time_seconds": 5.0,
                     "input_rows": 5,
                     "parameters_used": {"model": "test"},
