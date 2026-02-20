@@ -406,6 +406,12 @@ def _translate_prompt_yaml(
             translated_msg["content"] = translated_content
         translated_messages.append(translated_msg)
 
+    if all_issues:
+        logger.warning(
+            "Skipping write of %s due to validation issues", output_path.name
+        )
+        return all_issues
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         yaml.dump(
