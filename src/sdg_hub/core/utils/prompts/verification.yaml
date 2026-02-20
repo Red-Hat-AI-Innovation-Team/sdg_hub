@@ -7,7 +7,7 @@
     Check ONLY the content inside the tags for:
     1. Semantic accuracy — does the translation convey the same meaning?
     2. Completeness — are all instructions, examples, and guidelines translated?
-    3. Preserved elements — Jinja2 variables ({% raw %}{{var}}{% endraw %}) and structural tags {{structural_tag_examples}}must NOT be translated
+    3. Preserved elements — Jinja2 variables ({% raw %}{{var}}{% endraw %}) and structural tags {{structural_tag_examples}} must NOT be translated
 
     Respond with ONLY one of:
     - PASS — if the translation is accurate and complete

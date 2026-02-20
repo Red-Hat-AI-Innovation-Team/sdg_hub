@@ -137,9 +137,9 @@ def _llm_call(
 ) -> str:
     """Make a single litellm completion call and return the response text."""
     kwargs: dict = {"model": model}
-    if api_key:
+    if api_key is not None:
         kwargs["api_key"] = api_key
-    if api_base:
+    if api_base is not None:
         kwargs["api_base"] = api_base
 
     try:
@@ -434,6 +434,8 @@ def _adapt_flow_yaml(
         flow_def = yaml.safe_load(f)
 
     flow_def = copy.deepcopy(flow_def)
+    if "metadata" not in flow_def:
+        raise ValueError(f"Flow YAML {source_path} is missing 'metadata' section")
     meta = flow_def["metadata"]
     meta["name"] = f"{meta['name']} ({target_language})"
     meta["id"] = f"{meta['id']}-{lang_code}"
