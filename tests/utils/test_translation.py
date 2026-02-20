@@ -309,6 +309,7 @@ class TestTranslateFlow:
             patch("sdg_hub.core.utils.translation.Flow") as mock_flow_cls,
         ):
             mock_registry.get_flow_path_safe.return_value = str(simple_flow_yaml)
+            mock_registry.get_flow_path.return_value = None
             mock_flow_cls.from_yaml.return_value = sentinel
             result = translate_flow(
                 flow="test-flow-1",

@@ -544,6 +544,17 @@ def translate_flow(
     else:
         output_path = Path(output_dir).resolve()
 
+    # Skip if already translated — check registry and output directory
+    translated_id = f"{flow}-{lang_code}"
+    if FlowRegistry.get_flow_path(translated_id) is not None:
+        logger.info("Flow '%s' already registered, skipping translation", translated_id)
+        return Flow.from_yaml(FlowRegistry.get_flow_path_safe(translated_id))
+    if output_path.exists() and (output_path / flow_yaml.name).exists():
+        logger.info(
+            "Output directory '%s' already exists, skipping translation", output_path
+        )
+        return Flow.from_yaml(str(output_path / flow_yaml.name))
+
     # Parse flow YAML once — discover prompts and structural tags together
     prompt_yamls, structural_tags = _parse_flow_yaml(flow_yaml)
     tag_rule = _build_tag_rule(structural_tags)
