@@ -1,0 +1,64 @@
+# Prompt used in: key_facts flow
+# Origin: knowledge_infusion/enhanced_multi_summary_qa_es
+---
+- role: system
+  content: Eres un experto en resumir hechos clave de texto.
+
+- role: user
+  content: |
+    Por favor, descompón el siguiente fragmento de un artículo sobre {{domain}} en hechos atómicos.
+    Sigue estos principios para resumir los hechos clave:
+    1. Identifica hechos atómicos/hechos clave del texto.
+    2. Descompón las oraciones compuestas en hechos atómicos.
+    3. Primero enumera los hechos clave.
+    4. Luego, proporciona cada hecho con suficiente contexto del pasaje para que un lector pueda entender claramente cómo el hecho se conecta con el texto original.
+    5. Sigue el formato de los ejemplos a continuación.
+
+    Para ayudarte a entender la tarea, aquí hay un ejemplo:
+
+    ### Passage
+    El trabajo remoto ha crecido más del 150% desde 2020 debido a la pandemia. Las empresas descubrieron que la productividad se mantuvo estable, mientras que la satisfacción de los empleados aumentó. Sin embargo, surgieron desafíos como brechas de comunicación y problemas de cohesión del equipo. Las empresas ahora están adoptando modelos híbridos para equilibrar la flexibilidad con la colaboración.
+
+    ### Key Facts
+    1. El trabajo remoto ha crecido más del 150% desde 2020.
+    2. La pandemia fue la fuerza impulsora detrás de este crecimiento.
+    3. Las empresas reportaron que la productividad se mantuvo estable durante el trabajo remoto.
+    4. La satisfacción de los empleados aumentó durante el período de trabajo remoto.
+    5. El trabajo remoto creó desafíos de comunicación.
+    6. El trabajo remoto debilitó la cohesión del equipo.
+    7. Las empresas están adoptando modelos híbridos.
+    8. Los modelos híbridos buscan equilibrar la flexibilidad con la colaboración.
+
+
+    ### Key Facts With Context
+    1. **El trabajo remoto ha crecido más del 150% desde 2020.**
+      → Este hecho cuantifica el dramático aumento del trabajo remoto, estableciendo una clara comparación antes y después de la pandemia.
+
+    2. **La pandemia fue la fuerza impulsora detrás de este crecimiento.**
+      → Sitúa el cambio en un contexto de crisis global, enfatizando la naturaleza reactiva de la transformación laboral.
+
+    3. **Las empresas reportaron que la productividad se mantuvo estable durante el trabajo remoto.**
+      → A pesar de las preocupaciones iniciales, las empresas observaron que el trabajo remoto no afectó negativamente la producción, reforzando su viabilidad.
+
+    4. **La satisfacción de los empleados aumentó durante el período de trabajo remoto.**
+      → La moral y el bienestar mejoraron bajo los arreglos remotos, añadiendo un beneficio centrado en el humano al modelo operacional.
+
+    5. **El trabajo remoto creó desafíos de comunicación.**
+      → Reconoce que el nuevo modelo introdujo fricción en el diálogo interpersonal y organizacional.
+
+    6. **El trabajo remoto debilitó la cohesión del equipo.**
+      → Más allá de la comunicación, el cambio llevó a una reducción en la unión y sinergia del equipo, impactando la cultura y la colaboración.
+
+    7. **Las empresas están adoptando modelos híbridos.**
+      → Las empresas ya no se aferran al trabajo completamente remoto o completamente presencial—están evolucionando hacia una solución combinada.
+
+    8. **Los modelos híbridos buscan equilibrar la flexibilidad con la colaboración.**
+      → La razón detrás de los modelos híbridos es retener los aspectos positivos (flexibilidad, satisfacción) mientras se mitigan los negativos (aislamiento, mala comunicación).
+    ### End
+
+    Ahora es tu turno de descomponer el siguiente fragmento de un artículo sobre {{domain}} en hechos atómicos siguiendo un estilo similar a los ejemplos anteriores.
+    ### Passage
+    {{document_outline}}
+    {{document}}
+
+    ### Key Facts

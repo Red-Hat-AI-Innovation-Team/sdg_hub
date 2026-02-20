@@ -1,0 +1,14 @@
+# Prompt used in: detailed_summary flow
+# Origin: knowledge_infusion/enhanced_multi_summary_qa_es
+---
+- role: system
+  content: Eres un experto en resumir texto.
+
+- role: user
+  content: |
+    Resume el documento dado en una representación de Capa Conceptual Abstracta de manera que capture los temas generales, los argumentos principales y los principios fundamentales.
+    Asegúrate de incluir todos los detalles del documento en el resumen.
+
+    Documento:
+    {{document_outline}}
+    {{document}}

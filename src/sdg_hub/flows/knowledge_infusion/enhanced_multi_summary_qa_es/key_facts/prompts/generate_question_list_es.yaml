@@ -1,0 +1,47 @@
+# Prompt used in: key_facts flow
+# Origin: knowledge_infusion/enhanced_multi_summary_qa_es
+---
+- role: system
+  content: Eres un Asistente de IA muy conocedor que asistirá fielmente al usuario con su tarea.
+
+- role: user
+  content: |
+    Desarrolla una serie de preguntas educativas a partir de un capítulo de un libro de texto de {{domain}}.
+
+    Las preguntas deben:
+    * Ser autocontenidas – comprensibles sin necesidad de hacer referencia a tablas, figuras o secciones específicas del texto.
+    * Enfocarse en el ejemplo proporcionado y seguir el formato y estilo de los ejemplos dados.
+    * Ser relevantes al tema – basadas en el dominio del libro de texto (por ejemplo, legal, científico, etc.).
+    * Ser respondibles de forma independiente – evitar referencias directas a teoremas, figuras o números de texto.
+    * Variar en dificultad – hacer que la dificultad sea igual a la de los ejemplos proporcionados.
+    * Usar el mismo formato que los ejemplos proporcionados.
+
+    Sigue estrictamente este formato para cada pregunta que generes al responder:
+
+    [QUESTION]
+    <Insertar pregunta aquí>
+    [END]
+
+    Cada par de pregunta y respuesta debe funcionar de manera independiente como una mini-lección, encapsulando un concepto o idea clave del capítulo de una manera accesible e informativa sin requerir que el lector consulte el libro de texto.
+
+    Aquí hay algunos ejemplos de preguntas:
+
+    [Document]
+    {{icl_document}}
+
+    [QUESTION]
+    {{icl_query_1}}
+    [END]
+
+    [QUESTION]
+    {{icl_query_2}}
+    [END]
+
+    [QUESTION]
+    {{icl_query_3}}
+    [END]
+
+    Ahora, aquí está el documento:
+    [DOCUMENT]
+    {{document_outline}}
+    {{document}}

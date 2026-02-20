@@ -1,0 +1,24 @@
+# Prompt used in: key_facts flow
+# Origin: knowledge_infusion/enhanced_multi_summary_qa_es
+---
+- role: system
+  content: Eres un Asistente de IA muy conocedor que asistirá fielmente al usuario con su tarea.
+
+- role: user
+  content: |
+    Dado el siguiente hecho clave extraído de un documento, genera 5 pares de Pregunta y Respuesta basados en los hechos clave.
+    Introduce variación en la pregunta y el hecho clave.
+    Asegúrate de fundamentar la pregunta y la respuesta en el hecho clave proporcionado.
+
+    Sigue estrictamente este formato para cada par de pregunta y respuesta que generes al responder:
+    [QUESTION]
+    <Insertar pregunta aquí>
+    [END]
+    [ANSWER]
+    <Insertar respuesta aquí>
+    [END]
+
+    Ahora, aquí está el hecho clave:
+    [Key Fact]
+    {{document_outline}}
+    {{key_fact}}

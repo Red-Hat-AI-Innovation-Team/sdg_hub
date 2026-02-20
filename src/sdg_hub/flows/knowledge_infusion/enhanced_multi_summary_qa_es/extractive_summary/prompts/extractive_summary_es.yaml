@@ -1,0 +1,68 @@
+# Prompt used in: extractive_summary flow
+# Origin: knowledge_infusion/enhanced_multi_summary_qa_es
+---
+- role: system
+  content: Eres un experto en resumir texto.
+
+- role: user
+  content: |
+    Crearás un Resumen Extractivo Mejorado del documento proporcionado.
+    A diferencia de un resumen extractivo estándar que simplemente extrae oraciones clave, un Resumen Extractivo Mejorado añade información contextual rica y clasificación cognitiva a cada segmento extraído.
+    Para cada sección significativa del documento, extrae 2-4 pasajes clave y enuméralos. Luego, para cada extracto, añade anotaciones. Estructura tu respuesta de la siguiente manera:
+    ### Extracts from the Passage:
+    [Lista de extractos]
+
+    ### Annotations:
+
+    ### Extract [Number]
+    > "[Cita directa del texto original]"
+
+    **Context Marker**: [Breve descripción de dónde encaja este extracto dentro de la narrativa o estructura argumentativa del documento]
+    **Relevance**: [Califica como Baja, Media, Media-Alta, Alta o Muy Alta y explica brevemente la importancia para los temas principales]
+    **Relationship**: [Explica cómo este extracto se conecta con otros extractos, especificando el número de extracto, o conceptos en el documento]
+
+    Para ayudarte a entender la tarea, aquí hay un ejemplo:
+    Documento:
+    El trabajo remoto ha crecido más del 150% desde 2020 debido a la pandemia. Las empresas descubrieron que la productividad se mantuvo estable, mientras que la satisfacción de los empleados aumentó. Sin embargo, surgieron desafíos como brechas de comunicación y problemas de cohesión del equipo. Las empresas ahora están adoptando modelos híbridos para equilibrar la flexibilidad con la colaboración.
+
+    ### Extracts from the Passage:
+    1. > "El trabajo remoto ha crecido más del 150% desde 2020 debido a la pandemia."
+    2. > "Las empresas descubrieron que la productividad se mantuvo estable, mientras que la satisfacción de los empleados aumentó."
+    3. > "Sin embargo, surgieron desafíos como brechas de comunicación y problemas de cohesión del equipo."
+    4. > "Las empresas ahora están adoptando modelos híbridos para equilibrar la flexibilidad con la colaboración."
+
+    ### Annotations:
+
+    ### Extract 1
+    > "El trabajo remoto ha crecido más del 150% desde 2020 debido a la pandemia."
+
+    * **Context Marker**: Esta es la declaración factual inicial, proporcionando contexto temporal y el catalizador para los cambios discutidos posteriormente.
+    * **Relevance**: **Muy Alta** – Introduce el tema principal y cuantifica la escala de la transformación, anclando toda la discusión.
+    * **Relationship**: Establece la causa de los cambios en los patrones de trabajo; conduce directamente a las evaluaciones en los Extractos 2 y 3, y al cambio resultante en el Extracto 4.
+
+
+    ### Extract 2
+    > "Las empresas descubrieron que la productividad se mantuvo estable, mientras que la satisfacción de los empleados aumentó."
+
+    * **Context Marker**: Posicionado después del crecimiento del trabajo remoto, este extracto resume los beneficios clave observados por las empresas.
+    * **Relevance**: **Alta** – Destaca por qué el trabajo remoto ganó apoyo: proporcionó continuidad del negocio y mejoró la moral de los empleados.
+    * **Relationship**: Trabaja en conjunto con el Extracto 3 para presentar una visión equilibrada de los resultados del trabajo remoto; explica parte de la motivación detrás de los modelos híbridos en el Extracto 4.
+
+    ### Extract 3
+    > "Sin embargo, surgieron desafíos como brechas de comunicación y problemas de cohesión del equipo."
+
+    * **Context Marker**: Marca un punto de inflexión en la narrativa, pasando de los beneficios a las complicaciones del trabajo remoto.
+    * **Relevance**: **Alta** – Añade matices al introducir las desventajas críticas que enfrentaron las empresas.
+    * **Relationship**: Contrasta con el Extracto 2 y establece la justificación para la solución híbrida en el Extracto 4.
+
+    ### Extract 4
+    > "Las empresas ahora están adoptando modelos híbridos para equilibrar la flexibilidad con la colaboración."
+
+    * **Context Marker**: Perspectiva conclusiva, presentando el consenso emergente o la estrategia que se está adoptando en respuesta a los hallazgos anteriores.
+    * **Relevance**: **Muy Alta** – Sintetiza las perspectivas del documento en una solución orientada al futuro.
+    * **Relationship**: Resuelve la tensión destacada en los Extractos 2 y 3; representa la evolución provocada por la situación en el Extracto 1.
+
+    Ahora es tu turno de crear un Resumen Extractivo Mejorado del documento proporcionado.
+    Documento:
+    {{document_outline}}
+    {{document}}

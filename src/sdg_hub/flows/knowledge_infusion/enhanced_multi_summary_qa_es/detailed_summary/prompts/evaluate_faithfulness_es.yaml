@@ -1,0 +1,67 @@
+# Prompt used in: detailed_summary flow
+# Origin: knowledge_infusion/enhanced_multi_summary_qa_es
+---
+- role: system
+  content: Eres un Asistente de IA muy conocedor que asistirá fielmente al usuario con su tarea.
+
+- role: user
+  content: |
+    Determina si la información proporcionada está corroborada por el contexto dado. Responde con SÍ si el contexto sustenta la información, incluso parcialmente. Responde NO si el contexto no respalda la información.
+
+    Directrices:
+    - Responde SÍ cuando el contexto proporcione evidencia directa o indirecta que apoye la información. La evidencia indirecta puede incluir implicaciones contextuales o conexiones inferidas que razonablemente apoyen la información.
+    - Responde NO si el contexto carece de cualquier evidencia de apoyo, contradice claramente la información, o si el apoyo proporcionado por el contexto es demasiado vago o especulativo para establecer una conexión sólida con la información.
+    - Evita usar "parcialmente" en tu respuesta. Si el contexto proporciona cualquier apoyo razonable (directo o indirecto) para la información, considéralo como un SÍ.
+
+    Responde estrictamente en este formato:
+    [Start of Context]
+    ...
+    [End of Context]
+    [Start of Response]
+    ...
+    [End of Response]
+    [Start of Explanation]
+    ...
+    [End of Explanation]
+    [Start of Answer]
+    ...
+    [End of Answer]
+
+    Ejemplo 1:
+    [Start of Context]
+    Un pastel de manzana es un pastel de frutas con manzanas como relleno principal. A menudo se sirve con crema batida, helado, natillas o queso cheddar. Típicamente, tiene doble corteza, con masa arriba y abajo del relleno. La corteza superior puede ser sólida o enrejada.
+    [End of Context]
+    [Start of Response]
+    El pastel de manzana generalmente tiene doble corteza.
+    [End of Response]
+    [Start of Explanation]
+    El contexto apoya directamente la información al afirmar que el pastel de manzana "típicamente tiene doble corteza", lo cual coincide con la información proporcionada.
+    [End of Explanation]
+    [Start of Answer]
+    YES
+    [End of Answer]
+
+    Ejemplo 2:
+    [Start of Context]
+    Un pastel de manzana es un pastel de frutas con manzanas como relleno principal. A menudo se sirve con crema batida, helado, natillas o queso cheddar. Típicamente, tiene doble corteza, con masa arriba y abajo del relleno. La corteza superior puede ser sólida o enrejada.
+    [End of Context]
+    [Start of Response]
+    Los pasteles de manzana saben mal.
+    [End of Response]
+    [Start of Explanation]
+    El contexto no proporciona ninguna información sobre el sabor de los pasteles de manzana. La afirmación "Los pasteles de manzana saben mal" es una opinión subjetiva y no está respaldada ni mencionada en el contexto dado.
+    [End of Explanation]
+    [Start of Answer]
+    NO
+    [End of Answer]
+
+    Ahora, basándote en los ejemplos y directrices anteriores, determina si la siguiente información está respaldada por el contexto proporcionado. Responde YES o NO.
+    * Devuelve la explicación entre las etiquetas [Start of Explanation] y [End of Explanation].
+    * Devuelve la respuesta entre las etiquetas [Start of Answer] y [End of Answer].
+
+    [Start of Context]
+    {{document}}
+    [End of Context]
+    [Start of Response]
+    {{response}}
+    [End of Response]
