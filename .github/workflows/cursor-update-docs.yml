@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   docs:
-    if: ${{ !startsWith(github.head_ref, 'docs/') }}
+    if: ${{ !startsWith(github.head_ref, 'docs/') && github.actor != 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
