@@ -924,5 +924,6 @@ except Exception as e:
 Ready to master the flow system? Explore these detailed guides:
 
 - **[Flow Discovery](discovery.md)** - Advanced discovery and organization techniques
+- **[Flow Translation](translation.md)** - Translate any flow to a target language
 - **[Custom Flows](custom-flows.md)** - Building your own sophisticated pipelines
 - **[API Reference](../api-reference.md)** - Complete technical documentation

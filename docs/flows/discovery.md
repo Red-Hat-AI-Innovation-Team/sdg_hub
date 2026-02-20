@@ -476,6 +476,7 @@ If your new tag represents a common pattern others might use, consider updating 
 
 Master flow discovery and organization:
 
+- **[Flow Translation](translation.md)** - Translate any flow to a target language
 - **[Custom Flows](custom-flows.md)** - Build and organize your own flows
 - **[Flow Overview](overview.md)** - YAML structure and configuration
 - **[Development Guide](../development.md)** - Contribute flows to the ecosystem

@@ -111,3 +111,63 @@ We performed continued pre-training (CPT) using next-token prediction on augment
 Notes:
 - CPT shows signs of overfitting at higher token count (number of summaries) on knowledge data.
 - We use red pajama mix to prevent some of this overfitting.
+
+---
+
+## Multilingual Support
+
+The knowledge generation notebook supports generating training data in **any language**. Translated flow variants are resolved automatically — if a pre-translated flow exists it is used directly, otherwise `translate_flow()` creates one on-demand using an LLM.
+
+### Quick Start
+
+1. Copy `.env.example` to `.env` and configure your model endpoint.
+2. Set the multilingual variables:
+
+   ```dotenv
+   SDG_LANG=Spanish
+   SDG_LANG_CODE=es
+   ```
+
+3. Run `knowledge_generation.ipynb` as normal. The notebook detects these variables and uses translated flows.
+
+To revert to English, remove or leave `SDG_LANG` empty.
+
+### Configuration Reference
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `SDG_LANG` | Target language name (empty = English) | `Spanish`, `French`, `Japanese` |
+| `SDG_LANG_CODE` | ISO 639-1 language code | `es`, `fr`, `ja` |
+| `TRANSLATED_FLOWS_DIR` | Directory with pre-translated flows (optional) | `./translated_flows` |
+| `TRANSLATOR_MODEL` | LLM for translation (litellm format) | `openai/gpt-4o` |
+| `TRANSLATOR_API_KEY` | API key for translator model | |
+| `TRANSLATOR_API_BASE` | Custom API base URL (optional) | |
+| `VERIFIER_MODEL` | LLM for translation verification | `openai/gpt-4o` |
+| `VERIFIER_API_KEY` | API key for verifier (if different) | |
+| `VERIFIER_API_BASE` | Custom API base URL for verifier (optional) | |
+
+### How It Works
+
+1. The notebook reads `SDG_LANG` and `SDG_LANG_CODE` from the environment.
+2. For each of the four generation flows (extractive summary, detailed summary, key facts, document-based Q\&A), it checks `FlowRegistry` for a translated variant named `<Flow Name> (<Language>)`.
+3. If found, it uses the existing translated flow. If not, it calls `translate_flow()` which:
+   - Translates all prompt YAMLs using the configured translator model.
+   - Verifies each translation with a second LLM pass.
+   - Creates an adapted `flow.yaml` with updated metadata and prompt paths.
+   - Registers the new flow with `FlowRegistry` for immediate use.
+
+### Pre-translated Flows
+
+The repository ships with **Spanish (`es`)** flows under `src/sdg_hub/flows/knowledge_infusion/enhanced_multi_summary_qa_es/`. These are auto-discovered and require no extra setup — just set `SDG_LANG=Spanish` and `SDG_LANG_CODE=es`.
+
+### Spanish Translated QuALITY Benchmark Results
+
+We evaluated Spanish knowledge tuning using the same QuALITY benchmark (translated to Spanish), comparing a baseline Llama-3.1-8B-Instruct model against SFT and OSFT variants trained on Spanish-translated synthetic data.
+
+<p align="center">
+  <img src="imgs/rag_context_sweep_comparison_spanish.png" alt="Spanish Translated QuALITY Performance" />
+</p>
+
+<p align="center">
+  <em>Figure: Spanish QuALITY benchmark accuracy across retrieved context sizes. SFT on translated data yields consistent gains over the baseline in both open-book and closed-book settings.</em>
+</p>

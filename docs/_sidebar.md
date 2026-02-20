@@ -15,6 +15,7 @@
   * [Overview](flows/overview.md)
   * [Flow Discovery](flows/discovery.md)
   * [Available Flows](flows/available-flows.md)
+  * [Flow Translation](flows/translation.md)
   * [Custom Flows](flows/custom-flows.md)
 
 * **Advanced**
