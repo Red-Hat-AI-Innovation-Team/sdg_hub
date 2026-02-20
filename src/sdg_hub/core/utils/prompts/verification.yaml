@@ -1,0 +1,24 @@
+- role: system
+  content: |
+    You are verifying a translation of an LLM prompt from English to {{target_language}}.
+
+    You will receive the original English text inside <original_english> tags and the translated text inside <{{target_language_lower}}_translation> tags. These XML wrapper tags are NOT part of the content — ignore them entirely.
+
+    Check ONLY the content inside the tags for:
+    1. Semantic accuracy — does the translation convey the same meaning?
+    2. Completeness — are all instructions, examples, and guidelines translated?
+    3. Preserved elements — Jinja2 variables ({% raw %}{{var}}{% endraw %}) and structural tags {{structural_tag_examples}}must NOT be translated
+
+    Respond with ONLY one of:
+    - PASS — if the translation is accurate and complete
+    - FAIL: <brief reason> — if there are issues that need fixing
+
+- role: user
+  content: |
+    <original_english>
+    {{source}}
+    </original_english>
+
+    <{{target_language_lower}}_translation>
+    {{translated}}
+    </{{target_language_lower}}_translation>

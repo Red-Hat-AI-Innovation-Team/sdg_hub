@@ -2,20 +2,17 @@
 """Unit tests for the flow translation module.
 
 Tests the discovery, extraction, and validation functions.
-LLM-dependent functions (translate_text, verify_translation) are tested
+LLM-dependent functions (_translate_text, _verify_translation) are tested
 via mocking.
 """
 
 from unittest.mock import MagicMock, patch
 
 from sdg_hub.core.utils.translation import (
-    _build_translation_system_prompt,
-    _compute_output_paths,
-    _is_flow_yaml,
-    adapt_flow_yaml,
-    discover_prompt_yamls,
-    extract_structural_tags,
-    validate_translation,
+    _adapt_flow_yaml,
+    _build_tag_rule,
+    _parse_flow_yaml,
+    _validate_translation,
 )
 import litellm
 import pytest
@@ -141,40 +138,23 @@ def flow_with_parent_prompts(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# _is_flow_yaml
+# _parse_flow_yaml
 # ---------------------------------------------------------------------------
 
 
-class TestIsFlowYaml:
-    def test_valid_flow(self, simple_flow_yaml):
-        assert _is_flow_yaml(simple_flow_yaml) is True
-
-    def test_non_flow_yaml(self, tmp_path):
-        p = tmp_path / "not_a_flow.yaml"
-        p.write_text(yaml.dump([{"role": "user", "content": "hi"}]))
-        assert _is_flow_yaml(p) is False
-
-    def test_missing_file(self, tmp_path):
-        assert _is_flow_yaml(tmp_path / "missing.yaml") is False
-
-    def test_invalid_yaml(self, tmp_path):
-        p = tmp_path / "bad.yaml"
-        p.write_text("{{{{not yaml")
-        assert _is_flow_yaml(p) is False
-
-
-# ---------------------------------------------------------------------------
-# discover_prompt_yamls
-# ---------------------------------------------------------------------------
-
-
-class TestDiscoverPromptYamls:
-    def test_finds_prompt_config_path(self, simple_flow_yaml):
-        prompts = discover_prompt_yamls(simple_flow_yaml)
+class TestParseFlowYaml:
+    def test_discovers_prompts(self, simple_flow_yaml):
+        prompts, tags = _parse_flow_yaml(simple_flow_yaml)
         assert len(prompts) == 1
         abs_path = list(prompts.keys())[0]
         assert abs_path.name == "my_prompt.yaml"
         assert prompts[abs_path] == "my_prompt.yaml"
+        assert tags == frozenset()
+
+    def test_extracts_tags(self, flow_with_tags):
+        prompts, tags = _parse_flow_yaml(flow_with_tags)
+        assert len(prompts) == 1
+        assert tags == frozenset({"[QUESTION]", "[ANSWER]", "[END]"})
 
     def test_no_prompt_blocks(self, tmp_path):
         flow = {
@@ -188,32 +168,17 @@ class TestDiscoverPromptYamls:
         }
         p = tmp_path / "flow.yaml"
         p.write_text(yaml.dump(flow))
-        assert discover_prompt_yamls(p) == {}
+        prompts, tags = _parse_flow_yaml(p)
+        assert prompts == {}
+        assert tags == frozenset()
 
     def test_parent_path_rejected(self, flow_with_parent_prompts):
         """Prompts referenced via ../ are rejected (path traversal guard)."""
-        prompts = discover_prompt_yamls(flow_with_parent_prompts)
-        # Only the local prompt should be discovered; ../shared_prompt.yaml
-        # is outside the flow directory and is skipped.
+        prompts, _ = _parse_flow_yaml(flow_with_parent_prompts)
         assert len(prompts) == 1
         names = {p.name for p in prompts}
         assert "local_prompt.yaml" in names
         assert "shared_prompt.yaml" not in names
-
-
-# ---------------------------------------------------------------------------
-# extract_structural_tags
-# ---------------------------------------------------------------------------
-
-
-class TestExtractStructuralTags:
-    def test_extracts_tags_from_parser(self, flow_with_tags):
-        tags = extract_structural_tags(flow_with_tags)
-        assert tags == frozenset({"[QUESTION]", "[ANSWER]", "[END]"})
-
-    def test_no_parser_blocks(self, simple_flow_yaml):
-        tags = extract_structural_tags(simple_flow_yaml)
-        assert tags == frozenset()
 
     def test_skips_empty_tags(self, tmp_path):
         flow = {
@@ -231,32 +196,29 @@ class TestExtractStructuralTags:
         }
         p = tmp_path / "flow.yaml"
         p.write_text(yaml.dump(flow))
-        assert extract_structural_tags(p) == frozenset({"[REAL]"})
+        _, tags = _parse_flow_yaml(p)
+        assert tags == frozenset({"[REAL]"})
 
 
 # ---------------------------------------------------------------------------
-# _build_translation_system_prompt
+# _build_tag_rule
 # ---------------------------------------------------------------------------
 
 
-class TestBuildTranslationSystemPrompt:
+class TestBuildTagRule:
     def test_with_tags(self):
-        prompt = _build_translation_system_prompt(
-            "Spanish", frozenset({"[Q]", "[END]"})
-        )
-        assert "Spanish" in prompt
-        assert "[END]" in prompt
-        assert "[Q]" in prompt
-        assert "DO NOT translate parsing/structural tags" in prompt
+        rule = _build_tag_rule(frozenset({"[Q]", "[END]"}))
+        assert "[END]" in rule
+        assert "[Q]" in rule
+        assert "DO NOT translate parsing/structural tags" in rule
 
     def test_without_tags(self):
-        prompt = _build_translation_system_prompt("French", frozenset())
-        assert "French" in prompt
-        assert "no structural parsing tags" in prompt
+        rule = _build_tag_rule(frozenset())
+        assert "no structural parsing tags" in rule
 
 
 # ---------------------------------------------------------------------------
-# validate_translation
+# _validate_translation
 # ---------------------------------------------------------------------------
 
 
@@ -264,7 +226,7 @@ class TestValidateTranslation:
     def test_all_preserved(self):
         source = "Translate {{document}} into [QUESTION] format [END]"
         translated = "Traduzca {{document}} al formato [QUESTION] [END]"
-        issues = validate_translation(
+        issues = _validate_translation(
             source, translated, frozenset({"[QUESTION]", "[END]"})
         )
         assert issues == []
@@ -272,19 +234,19 @@ class TestValidateTranslation:
     def test_missing_jinja_var(self):
         source = "Use {{document}} and {{query}}"
         translated = "Usa {{document}} y"
-        issues = validate_translation(source, translated, frozenset())
+        issues = _validate_translation(source, translated, frozenset())
         assert any("Missing Jinja2 variables" in i for i in issues)
 
     def test_extra_jinja_var(self):
         source = "Use {{document}}"
         translated = "Usa {{document}} {{extra}}"
-        issues = validate_translation(source, translated, frozenset())
+        issues = _validate_translation(source, translated, frozenset())
         assert any("Unexpected Jinja2 variables" in i for i in issues)
 
     def test_missing_structural_tag(self):
         source = "Format as [QUESTION] ... [END]"
         translated = "Formatea como ... "
-        issues = validate_translation(
+        issues = _validate_translation(
             source, translated, frozenset({"[QUESTION]", "[END]"})
         )
         assert any("Missing structural tags" in i for i in issues)
@@ -293,21 +255,21 @@ class TestValidateTranslation:
         """Tags defined in the flow but not present in this prompt are OK."""
         source = "No tags here"
         translated = "Sin etiquetas aqui"
-        issues = validate_translation(
+        issues = _validate_translation(
             source, translated, frozenset({"[QUESTION]", "[END]"})
         )
         assert issues == []
 
 
 # ---------------------------------------------------------------------------
-# adapt_flow_yaml
+# _adapt_flow_yaml
 # ---------------------------------------------------------------------------
 
 
 class TestAdaptFlowYaml:
     def test_metadata_adapted(self, simple_flow_yaml, tmp_path):
         out = tmp_path / "out" / "flow.yaml"
-        adapt_flow_yaml(simple_flow_yaml, out, "Spanish", "es")
+        _adapt_flow_yaml(simple_flow_yaml, out, "Spanish", "es")
 
         with open(out) as f:
             result = yaml.safe_load(f)
@@ -315,12 +277,10 @@ class TestAdaptFlowYaml:
         meta = result["metadata"]
         assert meta["name"] == "Test Flow (Spanish)"
         assert meta["id"] == "test-flow-1-es"
-        assert meta["description"] == "A test flow in Spanish."
-        assert "spanish" in meta["tags"]
 
     def test_prompt_config_path_updated(self, simple_flow_yaml, tmp_path):
         out = tmp_path / "out" / "flow.yaml"
-        adapt_flow_yaml(simple_flow_yaml, out, "French", "fr")
+        _adapt_flow_yaml(simple_flow_yaml, out, "French", "fr")
 
         with open(out) as f:
             result = yaml.safe_load(f)
@@ -334,7 +294,7 @@ class TestAdaptFlowYaml:
     def test_parent_path_flattened(self, flow_with_parent_prompts, tmp_path):
         """../shared_prompt.yaml is rewritten to prompts/shared_prompt_es.yaml."""
         out = tmp_path / "out" / "flow.yaml"
-        adapt_flow_yaml(flow_with_parent_prompts, out, "Spanish", "es")
+        _adapt_flow_yaml(flow_with_parent_prompts, out, "Spanish", "es")
 
         with open(out) as f:
             result = yaml.safe_load(f)
@@ -346,55 +306,9 @@ class TestAdaptFlowYaml:
         ]
         assert "prompts/shared_prompt_es.yaml" in paths
         assert "prompts/local_prompt_es.yaml" in paths
-        # All paths should point into prompts/ subdir, no ../ prefixes
         for p in paths:
             assert p.startswith("prompts/")
             assert "../" not in p
-
-    def test_dataset_requirements_updated(self, tmp_path):
-        flow = {
-            "metadata": {
-                "name": "Flow",
-                "id": "f1",
-                "version": "1",
-                "tags": [],
-                "dataset_requirements": {
-                    "description": "Input dataset should contain documents"
-                },
-            },
-            "blocks": [],
-        }
-        src = tmp_path / "src" / "flow.yaml"
-        src.parent.mkdir()
-        src.write_text(yaml.dump(flow))
-
-        out = tmp_path / "out" / "flow.yaml"
-        adapt_flow_yaml(src, out, "Japanese", "ja")
-
-        with open(out) as f:
-            result = yaml.safe_load(f)
-
-        desc = result["metadata"]["dataset_requirements"]["description"]
-        assert "Japanese documents" in desc
-
-
-# ---------------------------------------------------------------------------
-# _compute_output_paths
-# ---------------------------------------------------------------------------
-
-
-class TestComputeOutputPaths:
-    def test_single_flow(self, simple_flow_yaml, tmp_path):
-        prompts = discover_prompt_yamls(simple_flow_yaml)
-        out = tmp_path / "output"
-        flow_out, prompt_map = _compute_output_paths(
-            simple_flow_yaml.resolve(), prompts, out, "es"
-        )
-        assert flow_out == out / "flow.yaml"
-        assert len(prompt_map) == 1
-        out_prompt = list(prompt_map.values())[0]
-        assert out_prompt.name == "my_prompt_es.yaml"
-        assert out_prompt.parent == out / "prompts"
 
 
 # ---------------------------------------------------------------------------
@@ -422,19 +336,21 @@ class TestTranslateFlowMocked:
 
     @patch("sdg_hub.core.utils.translation.litellm")
     def test_end_to_end(self, mock_litellm, simple_flow_yaml, tmp_path):
-        """Full translate_flow with mocked LLM returns no issues."""
+        """Full translate_flow with mocked LLM returns a Flow object."""
         self._mock_llm(mock_litellm)
 
         from sdg_hub.core.utils.translation import translate_flow
 
         out = tmp_path / "output"
-        # Mock FlowRegistry: get_flow_path returns None (not found) so it
-        # falls through to filesystem resolution. Then mock the register
-        # calls at the end.
-        with patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry:
-            mock_registry.get_flow_path.return_value = None
-            issues = translate_flow(
-                flow=str(simple_flow_yaml),
+        sentinel = MagicMock()
+        with (
+            patch("sdg_hub.core.utils.translation.FlowRegistry") as mock_registry,
+            patch("sdg_hub.core.utils.translation.Flow") as mock_flow_cls,
+        ):
+            mock_registry.get_flow_path_safe.return_value = str(simple_flow_yaml)
+            mock_flow_cls.from_yaml.return_value = sentinel
+            result = translate_flow(
+                flow="test-flow-1",
                 lang="Spanish",
                 lang_code="es",
                 translator_model="test/model",
@@ -442,7 +358,10 @@ class TestTranslateFlowMocked:
                 output_dir=str(out),
             )
 
-        assert issues == []
+        assert result is sentinel
+        mock_flow_cls.from_yaml.assert_called_once_with(
+            str(out.resolve() / "flow.yaml")
+        )
         assert (out / "flow.yaml").exists()
         assert (out / "prompts" / "my_prompt_es.yaml").exists()
 
@@ -466,10 +385,14 @@ class TestTranslateFlowMocked:
         from sdg_hub.core.utils.translation import translate_flow
 
         out = tmp_path / "output"
-        with patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry:
-            mock_registry.get_flow_path.return_value = None
-            issues = translate_flow(
-                flow=str(simple_flow_yaml),
+        with (
+            patch("sdg_hub.core.utils.translation.FlowRegistry") as mock_registry,
+            patch("sdg_hub.core.utils.translation.Flow") as mock_flow_cls,
+        ):
+            mock_registry.get_flow_path_safe.return_value = str(simple_flow_yaml)
+            mock_flow_cls.from_yaml.return_value = MagicMock()
+            result = translate_flow(
+                flow="test-flow-1",
                 lang="Spanish",
                 lang_code="es",
                 translator_model="test/model",
@@ -478,7 +401,7 @@ class TestTranslateFlowMocked:
                 register=False,
             )
 
-        assert issues == []
+        assert result is mock_flow_cls.from_yaml.return_value
         mock_registry.register_search_path.assert_not_called()
 
     @patch("sdg_hub.core.utils.translation.litellm")
@@ -494,10 +417,14 @@ class TestTranslateFlowMocked:
 
         monkeypatch.setattr(Path, "cwd", staticmethod(lambda: tmp_path))
 
-        with patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry:
-            mock_registry.get_flow_path.return_value = None
-            issues = translate_flow(
-                flow=str(simple_flow_yaml),
+        with (
+            patch("sdg_hub.core.utils.translation.FlowRegistry") as mock_registry,
+            patch("sdg_hub.core.utils.translation.Flow") as mock_flow_cls,
+        ):
+            mock_registry.get_flow_path_safe.return_value = str(simple_flow_yaml)
+            mock_flow_cls.from_yaml.return_value = MagicMock()
+            result = translate_flow(
+                flow="test-flow-1",
                 lang="Spanish",
                 lang_code="es",
                 translator_model="test/model",
@@ -505,49 +432,10 @@ class TestTranslateFlowMocked:
                 register=False,
             )
 
-        assert issues == []
+        assert result is mock_flow_cls.from_yaml.return_value
         # The parent dir of simple_flow_yaml fixture is the tmp_path itself
         expected_dir = tmp_path / f"{simple_flow_yaml.parent.name}_es"
         assert (expected_dir / "flow.yaml").exists()
-
-    @patch("sdg_hub.core.utils.translation.litellm")
-    def test_env_var_api_keys(self, mock_litellm, simple_flow_yaml, tmp_path):
-        """API keys are read from env when not passed explicitly."""
-        self._mock_llm(mock_litellm)
-
-        from sdg_hub.core.utils.translation import translate_flow
-
-        out = tmp_path / "output"
-        env = {
-            "SDG_TRANSLATION_API_KEY": "test-key-123",
-            "SDG_TRANSLATION_API_BASE": "https://api.example.com",
-            "SDG_TRANSLATION_VERIFIER_API_KEY": "verifier-key-456",
-            "SDG_TRANSLATION_VERIFIER_API_BASE": "https://verifier.example.com",
-        }
-        with (
-            patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry,
-            patch.dict("os.environ", env, clear=False),
-        ):
-            mock_registry.get_flow_path.return_value = None
-            issues = translate_flow(
-                flow=str(simple_flow_yaml),
-                lang="Spanish",
-                lang_code="es",
-                translator_model="test/model",
-                verifier_model="test/verifier",
-                output_dir=str(out),
-                register=False,
-            )
-
-        assert issues == []
-        # Verify api_key/api_base were passed through to litellm.completion
-        calls = mock_litellm.completion.call_args_list
-        # Translation call (first)
-        assert calls[0].kwargs.get("api_key") == "test-key-123"
-        assert calls[0].kwargs.get("api_base") == "https://api.example.com"
-        # Verifier call (second)
-        assert calls[1].kwargs.get("api_key") == "verifier-key-456"
-        assert calls[1].kwargs.get("api_base") == "https://verifier.example.com"
 
     @patch("sdg_hub.core.utils.translation.litellm")
     def test_flow_with_structural_tags(self, mock_litellm, flow_with_tags, tmp_path):
@@ -557,10 +445,14 @@ class TestTranslateFlowMocked:
         from sdg_hub.core.utils.translation import translate_flow
 
         out = tmp_path / "output"
-        with patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry:
-            mock_registry.get_flow_path.return_value = None
-            issues = translate_flow(
-                flow=str(flow_with_tags),
+        with (
+            patch("sdg_hub.core.utils.translation.FlowRegistry") as mock_registry,
+            patch("sdg_hub.core.utils.translation.Flow") as mock_flow_cls,
+        ):
+            mock_registry.get_flow_path_safe.return_value = str(flow_with_tags)
+            mock_flow_cls.from_yaml.return_value = MagicMock()
+            result = translate_flow(
+                flow="tag-flow-1",
                 lang="Spanish",
                 lang_code="es",
                 translator_model="test/model",
@@ -569,7 +461,7 @@ class TestTranslateFlowMocked:
                 register=False,
             )
 
-        assert issues == []
+        assert result is mock_flow_cls.from_yaml.return_value
         # The system prompt (first message in translation call) should mention tags
         calls = mock_litellm.completion.call_args_list
         sys_msg = calls[0].kwargs["messages"][0]["content"]
@@ -578,10 +470,10 @@ class TestTranslateFlowMocked:
         assert "[END]" in sys_msg
 
     @patch("sdg_hub.core.utils.translation.litellm")
-    def test_verifier_failure_reports_issues(
+    def test_verifier_failure_still_returns_flow(
         self, mock_litellm, simple_flow_yaml, tmp_path
     ):
-        """When verifier returns FAIL, issues are reported."""
+        """When verifier returns FAIL, a Flow is still returned."""
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
         mock_response.choices[0].message.content = "Translated content"
@@ -599,10 +491,15 @@ class TestTranslateFlowMocked:
         from sdg_hub.core.utils.translation import translate_flow
 
         out = tmp_path / "output"
-        with patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry:
-            mock_registry.get_flow_path.return_value = None
-            issues = translate_flow(
-                flow=str(simple_flow_yaml),
+        sentinel = MagicMock()
+        with (
+            patch("sdg_hub.core.utils.translation.FlowRegistry") as mock_registry,
+            patch("sdg_hub.core.utils.translation.Flow") as mock_flow_cls,
+        ):
+            mock_registry.get_flow_path_safe.return_value = str(simple_flow_yaml)
+            mock_flow_cls.from_yaml.return_value = sentinel
+            result = translate_flow(
+                flow="test-flow-1",
                 lang="Spanish",
                 lang_code="es",
                 translator_model="test/model",
@@ -612,114 +509,59 @@ class TestTranslateFlowMocked:
                 register=False,
             )
 
-        assert len(issues) > 0
-        assert any("verifier" in i for i in issues)
+        assert result is sentinel
 
 
 # ---------------------------------------------------------------------------
-# _resolve_flow_path
+# _llm_call
 # ---------------------------------------------------------------------------
 
 
-class TestResolveFlowPath:
-    def test_filesystem_path(self, simple_flow_yaml):
-        from sdg_hub.core.utils.translation import _resolve_flow_path
-
-        with patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry:
-            mock_registry.get_flow_path.return_value = None
-            result = _resolve_flow_path(str(simple_flow_yaml))
-        assert result == simple_flow_yaml.resolve()
-
-    def test_registry_lookup(self, simple_flow_yaml):
-        from sdg_hub.core.utils.translation import _resolve_flow_path
-
-        with patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry:
-            mock_registry.get_flow_path.return_value = str(simple_flow_yaml)
-            result = _resolve_flow_path("my-flow-id")
-        assert result == simple_flow_yaml.resolve()
-
-    def test_not_found_raises_system_exit(self, tmp_path):
-        from sdg_hub.core.utils.translation import _resolve_flow_path
-
-        with (
-            patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry,
-            pytest.raises(SystemExit, match="not found"),
-        ):
-            mock_registry.get_flow_path.return_value = None
-            _resolve_flow_path("nonexistent-flow-id")
-
-    def test_registry_exception_falls_through(self, simple_flow_yaml):
-        """If FlowRegistry raises, we fall back to filesystem."""
-        from sdg_hub.core.utils.translation import _resolve_flow_path
-
-        with patch("sdg_hub.core.flow.registry.FlowRegistry") as mock_registry:
-            mock_registry.get_flow_path.side_effect = RuntimeError("broken")
-            # Should still work via filesystem fallback
-            result = _resolve_flow_path(str(simple_flow_yaml))
-        assert result == simple_flow_yaml.resolve()
-
-
-# ---------------------------------------------------------------------------
-# translate_text
-# ---------------------------------------------------------------------------
-
-
-class TestTranslateText:
+class TestLlmCall:
     @patch("sdg_hub.core.utils.translation.litellm")
-    def test_basic_translation(self, mock_litellm):
-        from sdg_hub.core.utils.translation import translate_text
+    def test_basic_call(self, mock_litellm):
+        from sdg_hub.core.utils.translation import _llm_call
 
         mock_resp = MagicMock()
         mock_resp.choices = [MagicMock()]
-        mock_resp.choices[0].message.content = "Hola mundo"
+        mock_resp.choices[0].message.content = "response"
         mock_litellm.completion.return_value = mock_resp
 
-        result = translate_text("Hello world", "Spanish", "test/model")
-        assert result == "Hola mundo"
+        result = _llm_call(
+            [{"role": "user", "content": "hi"}],
+            "test/model",
+            None,
+            None,
+            max_tokens=100,
+            temperature=0.0,
+        )
+        assert result == "response"
         mock_litellm.completion.assert_called_once()
 
     @patch("sdg_hub.core.utils.translation.litellm")
-    def test_with_api_key_and_base(self, mock_litellm):
-        from sdg_hub.core.utils.translation import translate_text
+    def test_passes_api_credentials(self, mock_litellm):
+        from sdg_hub.core.utils.translation import _llm_call
 
         mock_resp = MagicMock()
         mock_resp.choices = [MagicMock()]
-        mock_resp.choices[0].message.content = "Translated"
+        mock_resp.choices[0].message.content = "ok"
         mock_litellm.completion.return_value = mock_resp
 
-        result = translate_text(
-            "Hello",
-            "French",
+        _llm_call(
+            [{"role": "user", "content": "hi"}],
             "test/model",
-            api_key="my-key",
-            api_base="https://example.com",
+            "my-key",
+            "https://example.com",
+            max_tokens=100,
+            temperature=0.0,
         )
-        assert result == "Translated"
         call_kwargs = mock_litellm.completion.call_args.kwargs
         assert call_kwargs["api_key"] == "my-key"
         assert call_kwargs["api_base"] == "https://example.com"
 
     @patch("sdg_hub.core.utils.translation.litellm")
-    def test_custom_system_prompt(self, mock_litellm):
-        from sdg_hub.core.utils.translation import translate_text
-
-        mock_resp = MagicMock()
-        mock_resp.choices = [MagicMock()]
-        mock_resp.choices[0].message.content = "Result"
-        mock_litellm.completion.return_value = mock_resp
-
-        translate_text(
-            "Hello",
-            "Spanish",
-            "test/model",
-            system_prompt="Custom instructions",
-        )
-        messages = mock_litellm.completion.call_args.kwargs["messages"]
-        assert messages[0]["content"] == "Custom instructions"
-
-    @patch("sdg_hub.core.utils.translation.litellm")
     def test_auth_error_raises_system_exit(self, mock_litellm):
-        from sdg_hub.core.utils.translation import translate_text
+        from sdg_hub.core.utils.translation import _llm_call
 
         mock_litellm.AuthenticationError = litellm.AuthenticationError
         mock_litellm.completion.side_effect = litellm.AuthenticationError(
@@ -727,73 +569,116 @@ class TestTranslateText:
         )
 
         with pytest.raises(SystemExit, match="Authentication failed"):
-            translate_text("Hello", "Spanish", "test/model")
+            _llm_call(
+                [{"role": "user", "content": "hi"}],
+                "test/model",
+                None,
+                None,
+                max_tokens=100,
+                temperature=0.0,
+            )
 
     @patch("sdg_hub.core.utils.translation.litellm")
     def test_empty_response(self, mock_litellm):
-        from sdg_hub.core.utils.translation import translate_text
+        from sdg_hub.core.utils.translation import _llm_call
 
         mock_resp = MagicMock()
         mock_resp.choices = [MagicMock()]
         mock_resp.choices[0].message.content = ""
         mock_litellm.completion.return_value = mock_resp
 
-        result = translate_text("Hello", "Spanish", "test/model")
+        result = _llm_call(
+            [{"role": "user", "content": "hi"}],
+            "test/model",
+            None,
+            None,
+            max_tokens=100,
+            temperature=0.0,
+        )
         assert result == ""
 
 
 # ---------------------------------------------------------------------------
-# verify_translation
+# _translate_text
+# ---------------------------------------------------------------------------
+
+
+class TestTranslateText:
+    @patch("sdg_hub.core.utils.translation.litellm")
+    def test_basic_translation(self, mock_litellm):
+        from sdg_hub.core.utils.translation import _translate_text
+
+        mock_resp = MagicMock()
+        mock_resp.choices = [MagicMock()]
+        mock_resp.choices[0].message.content = "Hola mundo"
+        mock_litellm.completion.return_value = mock_resp
+
+        result = _translate_text("Hello world", "Spanish", "test/model")
+        assert result == "Hola mundo"
+
+    @patch("sdg_hub.core.utils.translation.litellm")
+    def test_custom_tag_rule(self, mock_litellm):
+        from sdg_hub.core.utils.translation import _translate_text
+
+        mock_resp = MagicMock()
+        mock_resp.choices = [MagicMock()]
+        mock_resp.choices[0].message.content = "Result"
+        mock_litellm.completion.return_value = mock_resp
+
+        _translate_text(
+            "Hello",
+            "Spanish",
+            "test/model",
+            tag_rule="- DO NOT translate [TAG]",
+        )
+        messages = mock_litellm.completion.call_args.kwargs["messages"]
+        assert "DO NOT translate [TAG]" in messages[0]["content"]
+
+
+# ---------------------------------------------------------------------------
+# _verify_translation
 # ---------------------------------------------------------------------------
 
 
 class TestVerifyTranslation:
     @patch("sdg_hub.core.utils.translation.litellm")
     def test_pass_verdict(self, mock_litellm):
-        from sdg_hub.core.utils.translation import verify_translation
+        from sdg_hub.core.utils.translation import _verify_translation
 
         mock_resp = MagicMock()
         mock_resp.choices = [MagicMock()]
         mock_resp.choices[0].message.content = "PASS"
         mock_litellm.completion.return_value = mock_resp
 
-        result = verify_translation(
-            "Hello",
-            "Hola",
-            "Spanish",
-            "test/model",
-            frozenset(),
+        result = _verify_translation(
+            "Hello", "Hola", "Spanish", "test/model", frozenset()
         )
         assert result == "PASS"
 
     @patch("sdg_hub.core.utils.translation.litellm")
     def test_fail_verdict(self, mock_litellm):
-        from sdg_hub.core.utils.translation import verify_translation
+        from sdg_hub.core.utils.translation import _verify_translation
 
         mock_resp = MagicMock()
         mock_resp.choices = [MagicMock()]
         mock_resp.choices[0].message.content = "FAIL: missing instruction"
         mock_litellm.completion.return_value = mock_resp
 
-        result = verify_translation(
-            "Hello",
-            "Hola",
-            "Spanish",
-            "test/model",
-            frozenset(),
+        result = _verify_translation(
+            "Hello", "Hola", "Spanish", "test/model", frozenset()
         )
         assert result == "FAIL: missing instruction"
 
     @patch("sdg_hub.core.utils.translation.litellm")
     def test_with_structural_tags(self, mock_litellm):
-        from sdg_hub.core.utils.translation import verify_translation
+        from sdg_hub.core.utils.translation import _verify_translation
 
         mock_resp = MagicMock()
         mock_resp.choices = [MagicMock()]
         mock_resp.choices[0].message.content = "PASS"
         mock_litellm.completion.return_value = mock_resp
 
-        verify_translation(
+        _verify_translation(
             "Hello [Q] [END]",
             "Hola [Q] [END]",
             "Spanish",
@@ -805,60 +690,16 @@ class TestVerifyTranslation:
         assert "[Q]" in sys_msg
 
     @patch("sdg_hub.core.utils.translation.litellm")
-    def test_with_api_credentials(self, mock_litellm):
-        from sdg_hub.core.utils.translation import verify_translation
-
-        mock_resp = MagicMock()
-        mock_resp.choices = [MagicMock()]
-        mock_resp.choices[0].message.content = "PASS"
-        mock_litellm.completion.return_value = mock_resp
-
-        verify_translation(
-            "Hello",
-            "Hola",
-            "Spanish",
-            "test/model",
-            frozenset(),
-            api_key="vkey",
-            api_base="https://v.example.com",
-        )
-        call_kwargs = mock_litellm.completion.call_args.kwargs
-        assert call_kwargs["api_key"] == "vkey"
-        assert call_kwargs["api_base"] == "https://v.example.com"
-
-    @patch("sdg_hub.core.utils.translation.litellm")
-    def test_auth_error_raises_system_exit(self, mock_litellm):
-        from sdg_hub.core.utils.translation import verify_translation
-
-        mock_litellm.AuthenticationError = litellm.AuthenticationError
-        mock_litellm.completion.side_effect = litellm.AuthenticationError(
-            message="bad key", llm_provider="openai", model="gpt-4"
-        )
-
-        with pytest.raises(SystemExit, match="Authentication failed"):
-            verify_translation(
-                "Hello",
-                "Hola",
-                "Spanish",
-                "test/model",
-                frozenset(),
-            )
-
-    @patch("sdg_hub.core.utils.translation.litellm")
     def test_empty_response_returns_fail(self, mock_litellm):
-        from sdg_hub.core.utils.translation import verify_translation
+        from sdg_hub.core.utils.translation import _verify_translation
 
         mock_resp = MagicMock()
         mock_resp.choices = [MagicMock()]
         mock_resp.choices[0].message.content = ""
         mock_litellm.completion.return_value = mock_resp
 
-        result = verify_translation(
-            "Hello",
-            "Hola",
-            "Spanish",
-            "test/model",
-            frozenset(),
+        result = _verify_translation(
+            "Hello", "Hola", "Spanish", "test/model", frozenset()
         )
         assert result.startswith("FAIL")
 
@@ -886,8 +727,8 @@ class TestCleanContent:
 
 
 class TestTranslateAndVerify:
-    @patch("sdg_hub.core.utils.translation.verify_translation")
-    @patch("sdg_hub.core.utils.translation.translate_text")
+    @patch("sdg_hub.core.utils.translation._verify_translation")
+    @patch("sdg_hub.core.utils.translation._translate_text")
     def test_passes_first_attempt(self, mock_translate, mock_verify):
         from sdg_hub.core.utils.translation import _translate_and_verify
 
@@ -906,14 +747,14 @@ class TestTranslateAndVerify:
             3,
             "test-label",
             structural_tags=frozenset(),
-            system_prompt="Translate.",
+            tag_rule="- No tags",
         )
         assert translated == "Hola mundo"
         assert issues == []
         assert mock_translate.call_count == 1
 
-    @patch("sdg_hub.core.utils.translation.verify_translation")
-    @patch("sdg_hub.core.utils.translation.translate_text")
+    @patch("sdg_hub.core.utils.translation._verify_translation")
+    @patch("sdg_hub.core.utils.translation._translate_text")
     def test_retries_on_failure(self, mock_translate, mock_verify):
         from sdg_hub.core.utils.translation import _translate_and_verify
 
@@ -932,14 +773,14 @@ class TestTranslateAndVerify:
             3,
             "test-label",
             structural_tags=frozenset(),
-            system_prompt="Translate.",
+            tag_rule="- No tags",
         )
         assert translated == "Hola mundo"
         assert issues == []
         assert mock_translate.call_count == 2
 
-    @patch("sdg_hub.core.utils.translation.verify_translation")
-    @patch("sdg_hub.core.utils.translation.translate_text")
+    @patch("sdg_hub.core.utils.translation._verify_translation")
+    @patch("sdg_hub.core.utils.translation._translate_text")
     def test_max_retries_exhausted(self, mock_translate, mock_verify):
         from sdg_hub.core.utils.translation import _translate_and_verify
 
@@ -958,14 +799,14 @@ class TestTranslateAndVerify:
             2,
             "test-label",
             structural_tags=frozenset(),
-            system_prompt="Translate.",
+            tag_rule="- No tags",
         )
         assert translated == "Bad translation"
         assert len(issues) > 0
         assert mock_translate.call_count == 2
 
-    @patch("sdg_hub.core.utils.translation.verify_translation")
-    @patch("sdg_hub.core.utils.translation.translate_text")
+    @patch("sdg_hub.core.utils.translation._verify_translation")
+    @patch("sdg_hub.core.utils.translation._translate_text")
     def test_programmatic_issues_cause_retry(self, mock_translate, mock_verify):
         from sdg_hub.core.utils.translation import _translate_and_verify
 
@@ -985,7 +826,7 @@ class TestTranslateAndVerify:
             3,
             "test-label",
             structural_tags=frozenset(),
-            system_prompt="Translate.",
+            tag_rule="- No tags",
         )
         # First attempt passes verifier but fails programmatic (missing {{name}})
         # Second attempt should pass both
