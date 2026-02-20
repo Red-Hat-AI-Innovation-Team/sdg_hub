@@ -5461,7 +5461,7 @@ requires-dist = [
     { name = "nltk", marker = "extra == 'examples'" },
     { name = "pandas" },
     { name = "polars", marker = "extra == 'examples'" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.0.4,<4.0" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.0.4,<5.0" },
     { name = "pydantic", specifier = ">=2.0.0,<3.0.0" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-asyncio", marker = "extra == 'dev'" },
