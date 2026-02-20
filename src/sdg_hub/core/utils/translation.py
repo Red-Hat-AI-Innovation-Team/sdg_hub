@@ -19,6 +19,7 @@ import yaml
 from ..blocks.llm.prompt_builder_block import PromptRenderer, PromptTemplateConfig
 from ..flow.base import Flow
 from ..flow.registry import FlowRegistry
+from ..utils.error_handling import APIConnectionError
 from ..utils.logger_config import setup_logger
 
 logger = setup_logger(__name__)
@@ -149,10 +150,10 @@ def _llm_call(
             temperature=temperature,
             **kwargs,
         )
-    except litellm.AuthenticationError:
-        raise SystemExit(
+    except litellm.AuthenticationError as exc:
+        raise APIConnectionError(
             f"Authentication failed for model {model}. Please check your api_key."
-        ) from None
+        ) from exc
 
     if not response.choices:
         logger.warning("LLM returned no choices (model=%s)", model)
@@ -370,6 +371,12 @@ def _translate_prompt_yaml(
     """Translate a prompt YAML file. Returns unresolved validation issues."""
     with open(source_path, encoding="utf-8") as f:
         messages = yaml.safe_load(f)
+
+    if not isinstance(messages, list):
+        raise ValueError(
+            f"Prompt YAML {source_path} must be a list of messages, "
+            f"got {type(messages).__name__}"
+        )
 
     all_issues: list[str] = []
     translated_messages = []

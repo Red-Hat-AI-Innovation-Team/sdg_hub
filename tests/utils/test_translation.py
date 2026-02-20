@@ -3,12 +3,12 @@
 
 from unittest.mock import MagicMock, patch
 
+from sdg_hub.core.utils.error_handling import APIConnectionError
 from sdg_hub.core.utils.translation import (
     _adapt_flow_yaml,
     _parse_flow_yaml,
     _validate_translation,
 )
-import litellm
 import pytest
 import yaml
 
@@ -200,15 +200,16 @@ class TestLlmCall:
         assert result == "response"
 
     @patch("sdg_hub.core.utils.translation.litellm")
-    def test_auth_error_raises_system_exit(self, mock_litellm):
+    def test_auth_error_raises_api_connection_error(self, mock_litellm):
         from sdg_hub.core.utils.translation import _llm_call
+        import litellm
 
         mock_litellm.AuthenticationError = litellm.AuthenticationError
         mock_litellm.completion.side_effect = litellm.AuthenticationError(
             message="bad key", llm_provider="openai", model="gpt-4"
         )
 
-        with pytest.raises(SystemExit, match="Authentication failed"):
+        with pytest.raises(APIConnectionError, match="Authentication failed"):
             _llm_call(
                 [{"role": "user", "content": "hi"}],
                 "test/model",
