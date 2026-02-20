@@ -53,7 +53,7 @@ blocks:
     - icl_query_2
     - icl_query_3
     output_cols: question_generation_prompt
-    prompt_config_path: ../generate_question_list_es.yaml
+    prompt_config_path: prompts/generate_question_list_es.yaml
     format_as_messages: true
 - block_type: LLMChatBlock
   block_config:
@@ -87,7 +87,7 @@ blocks:
     - document
     - document_outline
     output_cols: answer_generation_prompt
-    prompt_config_path: ../generate_answers_es.yaml
+    prompt_config_path: prompts/generate_answers_es.yaml
     format_as_messages: true
 - block_type: LLMChatBlock
   block_config:
@@ -121,7 +121,7 @@ blocks:
     - document
     - response
     output_cols: eval_faithful_prompt
-    prompt_config_path: ../evaluate_faithfulness_es.yaml
+    prompt_config_path: prompts/evaluate_faithfulness_es.yaml
     format_as_messages: true
 - block_type: LLMChatBlock
   block_config:

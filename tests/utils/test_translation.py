@@ -6,6 +6,8 @@ from unittest.mock import MagicMock, patch
 from sdg_hub.core.utils.error_handling import APIConnectionError
 from sdg_hub.core.utils.translation import (
     _adapt_flow_yaml,
+    _adapt_header_comments,
+    _extract_header_comments,
     _parse_flow_yaml,
     _validate_translation,
 )
@@ -41,7 +43,9 @@ def simple_flow_yaml(tmp_path):
     flow_path = tmp_path / "flow.yaml"
     flow_path.write_text(yaml.dump(flow))
     (tmp_path / "my_prompt.yaml").write_text(
-        yaml.dump([{"role": "system", "content": "Hello"}])
+        "# Prompt used in: test flow\n"
+        "# Origin: test/simple\n"
+        "---\n" + yaml.dump([{"role": "system", "content": "Hello"}])
     )
     return flow_path
 
@@ -120,6 +124,49 @@ class TestParseFlowYaml:
         prompts, _ = _parse_flow_yaml(sub / "flow.yaml")
         assert len(prompts) == 1
         assert "shared.yaml" not in {p.name for p in prompts}
+
+
+# ---------------------------------------------------------------------------
+# _extract_header_comments / _adapt_header_comments
+# ---------------------------------------------------------------------------
+
+
+class TestHeaderComments:
+    def test_extract_comments(self, tmp_path):
+        prompt = tmp_path / "prompt.yaml"
+        prompt.write_text(
+            "# Prompt used in: detailed_summary flow\n"
+            "# Origin: knowledge_infusion/enhanced_multi_summary_qa\n"
+            "---\n"
+            "- role: system\n"
+            "  content: Hello\n"
+        )
+        comments = _extract_header_comments(prompt)
+        assert comments == [
+            "# Prompt used in: detailed_summary flow",
+            "# Origin: knowledge_infusion/enhanced_multi_summary_qa",
+        ]
+
+    def test_extract_no_comments(self, tmp_path):
+        prompt = tmp_path / "prompt.yaml"
+        prompt.write_text("- role: system\n  content: Hello\n")
+        assert _extract_header_comments(prompt) == []
+
+    def test_adapt_updates_origin(self):
+        comments = [
+            "# Prompt used in: detailed_summary flow",
+            "# Origin: knowledge_infusion/enhanced_multi_summary_qa",
+        ]
+        adapted = _adapt_header_comments(comments, "es")
+        assert adapted == [
+            "# Prompt used in: detailed_summary flow",
+            "# Origin: knowledge_infusion/enhanced_multi_summary_qa_es",
+        ]
+
+    def test_adapt_no_origin(self):
+        comments = ["# Some other comment"]
+        adapted = _adapt_header_comments(comments, "fr")
+        assert adapted == ["# Some other comment"]
 
 
 # ---------------------------------------------------------------------------
@@ -327,3 +374,8 @@ class TestTranslateFlow:
         with open(out / "flow.yaml") as f:
             flow = yaml.safe_load(f)
         assert flow["metadata"]["id"] == "test-flow-1-es"
+
+        # Verify header comments are preserved and adapted
+        translated_prompt = (out / "prompts" / "my_prompt_es.yaml").read_text()
+        assert "# Prompt used in: test flow" in translated_prompt
+        assert "# Origin: test/simple_es" in translated_prompt

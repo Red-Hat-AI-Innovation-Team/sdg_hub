@@ -349,6 +349,42 @@ def _translate_and_verify(
 
 
 # ---------------------------------------------------------------------------
+# Prompt YAML header comments
+# ---------------------------------------------------------------------------
+
+
+def _extract_header_comments(path: Path) -> list[str]:
+    """Extract leading ``#`` comment lines from a prompt YAML file.
+
+    Returns comment lines (including the ``#`` prefix) that appear before
+    the first YAML content or document separator (``---``).
+    """
+    comments: list[str] = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            stripped = line.rstrip("\n")
+            if stripped.startswith("#"):
+                comments.append(stripped)
+            elif stripped == "" or stripped == "---":
+                continue
+            else:
+                break
+    return comments
+
+
+def _adapt_header_comments(comments: list[str], lang_code: str) -> list[str]:
+    """Update ``# Origin:`` lines to reference the translated flow."""
+    adapted: list[str] = []
+    for line in comments:
+        if line.startswith("# Origin:"):
+            origin = line.split(":", 1)[1].strip()
+            adapted.append(f"# Origin: {origin}_{lang_code}")
+        else:
+            adapted.append(line)
+    return adapted
+
+
+# ---------------------------------------------------------------------------
 # Prompt YAML translation
 # ---------------------------------------------------------------------------
 
@@ -367,8 +403,13 @@ def _translate_prompt_yaml(
     *,
     structural_tags: frozenset[str],
     tag_rule: str,
+    lang_code: str,
 ) -> list[str]:
     """Translate a prompt YAML file. Returns unresolved validation issues."""
+    header_comments = _extract_header_comments(source_path)
+    if header_comments:
+        header_comments = _adapt_header_comments(header_comments, lang_code)
+
     with open(source_path, encoding="utf-8") as f:
         messages = yaml.safe_load(f)
 
@@ -414,6 +455,10 @@ def _translate_prompt_yaml(
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
+        if header_comments:
+            for comment in header_comments:
+                f.write(comment + "\n")
+            f.write("---\n")
         yaml.dump(
             translated_messages,
             f,
@@ -596,6 +641,7 @@ def translate_flow(
             max_retries,
             structural_tags=structural_tags,
             tag_rule=tag_rule,
+            lang_code=lang_code,
         )
         all_issues.extend(issues)
 

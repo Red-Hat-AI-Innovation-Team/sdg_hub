@@ -39,7 +39,7 @@ blocks:
     - document_outline
     - domain
     output_cols: atomic_facts_prompt
-    prompt_config_path: key_facts_summary_es.yaml
+    prompt_config_path: prompts/key_facts_summary_es.yaml
     format_as_messages: true
 - block_type: LLMChatBlock
   block_config:
@@ -88,7 +88,7 @@ blocks:
     - key_fact
     - document_outline
     output_cols: key_fact_qa
-    prompt_config_path: ../generate_multiple_qa_es.yaml
+    prompt_config_path: prompts/generate_multiple_qa_es.yaml
     format_as_messages: true
 - block_type: LLMChatBlock
   block_config:
