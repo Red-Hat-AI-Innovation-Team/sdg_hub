@@ -20,6 +20,7 @@ import pandas as pd
 # Local
 from ..blocks.base import BaseBlock
 from ..utils.logger_config import setup_logger
+from .column_tracker import ColumnDependencyTracker
 from .metadata import DatasetRequirements, FlowMetadata
 
 logger = setup_logger(__name__)
@@ -53,6 +54,7 @@ class Flow(BaseModel):
     # Private attributes (not serialized)
     _model_config_set: bool = PrivateAttr(default=False)
     _block_metrics: list[dict[str, Any]] = PrivateAttr(default_factory=list)
+    _column_tracker: Optional[ColumnDependencyTracker] = PrivateAttr(default=None)
 
     @field_validator("blocks")
     @classmethod

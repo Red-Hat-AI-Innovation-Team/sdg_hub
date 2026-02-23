@@ -248,6 +248,10 @@ class FlowMetadata(BaseModel):
     dataset_requirements: Optional[DatasetRequirements] = Field(
         default=None, description="Requirements for input datasets"
     )
+    output_columns: Optional[list[str]] = Field(
+        default=None,
+        description="Columns to keep in the final output. Original input columns are always preserved.",
+    )
 
     @field_validator("id")
     @classmethod
@@ -279,6 +283,17 @@ class FlowMetadata(BaseModel):
     def validate_tags(cls, v: list[str]) -> list[str]:
         """Validate and clean tags."""
         return [tag.strip().lower() for tag in v if tag.strip()]
+
+    @field_validator("output_columns")
+    @classmethod
+    def validate_output_columns(cls, v: Optional[list[str]]) -> Optional[list[str]]:
+        """Validate and clean output columns."""
+        if v is None:
+            return v
+        cleaned = [col.strip() for col in v if isinstance(col, str) and col.strip()]
+        if len(cleaned) != len(set(cleaned)):
+            raise ValueError("output_columns contains duplicate column names")
+        return cleaned
 
     @field_validator("recommended_models")
     @classmethod

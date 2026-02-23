@@ -23,6 +23,7 @@ from ..utils.flow_metrics import (
 from ..utils.logger_config import setup_logger
 from ..utils.time_estimator import estimate_execution_time
 from .checkpointer import FlowCheckpointer
+from .column_tracker import ColumnDependencyTracker
 
 if TYPE_CHECKING:
     from .base import Flow
@@ -269,6 +270,18 @@ def execute_blocks_on_dataset(
                 f"{len(current_dataset.columns)} columns"
             )
 
+            # Drop columns no longer needed by downstream blocks
+            if flow._column_tracker is not None:
+                cols_to_drop = flow._column_tracker.get_droppable_columns(
+                    i, set(current_dataset.columns)
+                )
+                if cols_to_drop:
+                    exec_logger.info(
+                        f"Dropping {len(cols_to_drop)} unused columns: "
+                        f"{sorted(cols_to_drop)}"
+                    )
+                    current_dataset = current_dataset.drop(columns=cols_to_drop)
+
         except EmptyDatasetError:
             # Re-raise EmptyDatasetError directly without wrapping
             raise
@@ -297,6 +310,49 @@ def execute_blocks_on_dataset(
             ) from exc
 
     return current_dataset
+
+
+def _cleanup_final_columns(
+    dataset: pd.DataFrame,
+    output_columns: set[str],
+    original_columns: set[str],
+    flow_logger,
+) -> pd.DataFrame:
+    """Drop all columns except output_columns and original input columns.
+
+    Parameters
+    ----------
+    dataset : pd.DataFrame
+        Dataset to clean up.
+    output_columns : set[str]
+        Columns that must be preserved in output.
+    original_columns : set[str]
+        Original input columns (auto-preserved).
+    flow_logger
+        Logger for this execution.
+
+    Returns
+    -------
+    pd.DataFrame
+        Dataset with only output_columns + original columns retained.
+    """
+    current_cols = set(dataset.columns)
+    cols_to_keep = output_columns | original_columns
+    cols_to_drop = current_cols - cols_to_keep
+    missing_cols = output_columns - current_cols
+
+    if missing_cols:
+        flow_logger.warning(
+            f"output_columns not found in final dataset: {sorted(missing_cols)}"
+        )
+
+    if cols_to_drop:
+        flow_logger.info(
+            f"Dropping {len(cols_to_drop)} intermediate columns: {sorted(cols_to_drop)}"
+        )
+        dataset = dataset.drop(columns=list(cols_to_drop))
+
+    return dataset
 
 
 def execute_flow(
@@ -358,6 +414,14 @@ def execute_flow(
 
     # Convert to DataFrame if needed (backwards compatibility)
     dataset, was_dataset = convert_to_dataframe(dataset)
+
+    # Capture original columns for preservation during cleanup
+    original_columns = set(dataset.columns)
+
+    # Determine effective output columns from metadata
+    effective_output_columns = (
+        set(flow.metadata.output_columns) if flow.metadata.output_columns else None
+    )
 
     # Normalize runtime_params early
     runtime_params = runtime_params or {}
@@ -455,6 +519,17 @@ def execute_flow(
     flow._block_metrics = []
     run_start = time.perf_counter()
 
+    # Initialize column tracker for early dropping of unused columns
+    if effective_output_columns:
+        flow._column_tracker = ColumnDependencyTracker(
+            flow.blocks, effective_output_columns, original_columns
+        )
+        flow_logger.info(
+            "Column cleanup enabled - will drop unused intermediate columns"
+        )
+    else:
+        flow._column_tracker = None
+
     # Execute flow with metrics capture, ensuring metrics are always displayed/saved
     final_dataset = None
     execution_successful = False
@@ -520,6 +595,15 @@ def execute_flow(
                     )
 
         execution_successful = True
+
+        # Drop intermediate columns if output_columns is specified
+        if effective_output_columns and final_dataset is not None:
+            final_dataset = _cleanup_final_columns(
+                final_dataset,
+                effective_output_columns,
+                original_columns,
+                flow_logger,
+            )
 
     finally:
         # Always display metrics and save JSON, even if execution failed
