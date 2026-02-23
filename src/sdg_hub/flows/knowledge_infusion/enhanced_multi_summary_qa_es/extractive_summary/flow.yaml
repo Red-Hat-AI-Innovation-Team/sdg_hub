@@ -31,7 +31,7 @@ metadata:
     - icl_query_3
     description: 'Input dataset should contain Spanish documents with text content and domain classification. Each document should be substantial enough for meaningful question generation (minimum 100 words recommended). The flow generates extractive summaries and corresponding QA pairs in Spanish designed to help LLMs internalize document knowledge for knowledge tuning.'
   output_columns:
-  - summary
+  - document
   - question
   - response
   - raw_document
@@ -188,7 +188,7 @@ blocks:
     input_cols: extract_eval_faithful_content
     output_cols:
     - faithfulness_explanation
-    - faithfulness_judgement
+    - faithfulness_judgment
     start_tags:
     - '[Start of Explanation]'
     - '[Start of Answer]'
@@ -199,6 +199,6 @@ blocks:
   block_config:
     block_name: eval_faithful_filter
     input_cols:
-      - faithfulness_judgement
+      - faithfulness_judgment
     filter_value: 'YES'
     operation: eq
