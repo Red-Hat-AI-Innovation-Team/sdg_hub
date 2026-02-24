@@ -44,13 +44,13 @@ class TestFlowMetadataColumnCleanup:
                 output_columns=["col1", "col1"],
             )
 
-    def test_output_columns_empty_list(self):
-        """Test that empty list is accepted (keeps only original columns)."""
-        metadata = FlowMetadata(
-            name="test",
-            output_columns=[],
-        )
-        assert metadata.output_columns == []
+    def test_output_columns_empty_list_rejected(self):
+        """Test that empty list is rejected."""
+        with pytest.raises(ValueError, match="must not be empty"):
+            FlowMetadata(
+                name="test",
+                output_columns=[],
+            )
 
 
 class TestColumnDependencyTracker:

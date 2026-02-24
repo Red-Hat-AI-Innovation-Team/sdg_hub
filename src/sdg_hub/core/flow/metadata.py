@@ -291,6 +291,11 @@ class FlowMetadata(BaseModel):
         if v is None:
             return v
         cleaned = [col.strip() for col in v if isinstance(col, str) and col.strip()]
+        if not cleaned:
+            raise ValueError(
+                "output_columns must not be empty when specified. "
+                "Remove the field entirely to keep all columns."
+            )
         if len(cleaned) != len(set(cleaned)):
             raise ValueError("output_columns contains duplicate column names")
         return cleaned
