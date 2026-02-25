@@ -52,6 +52,7 @@ class Flow(BaseModel):
 
     # Private attributes (not serialized)
     _model_config_set: bool = PrivateAttr(default=False)
+    _agent_config_set: bool = PrivateAttr(default=False)
     _block_metrics: list[dict[str, Any]] = PrivateAttr(default_factory=list)
 
     @field_validator("blocks")
@@ -193,6 +194,52 @@ class Flow(BaseModel):
         from .model_config import get_model_recommendations
 
         return get_model_recommendations(self)
+
+    def set_agent_config(
+        self,
+        agent_framework: Optional[str] = None,
+        agent_url: Optional[str] = None,
+        agent_api_key: Optional[str] = None,
+        blocks: Optional[list[str]] = None,
+        **kwargs: Any,
+    ) -> None:
+        """Configure agent settings for agent blocks in this flow (in-place).
+
+        Auto-detects agent blocks and applies configuration. See agent_config.set_agent_config
+        for full parameter documentation.
+        """
+        from .agent_config import set_agent_config
+
+        set_agent_config(
+            self, agent_framework, agent_url, agent_api_key, blocks, **kwargs
+        )
+
+    def _detect_agent_blocks(self) -> list[str]:
+        """Detect blocks with block_type='agent'. Returns list of block names."""
+        from .agent_config import detect_agent_blocks
+
+        return detect_agent_blocks(self)
+
+    def is_agent_config_required(self) -> bool:
+        """Check if agent configuration is required (True if flow has agent blocks)."""
+        from .agent_config import is_agent_config_required
+
+        return is_agent_config_required(self)
+
+    def is_agent_config_set(self) -> bool:
+        """Check if agent configuration has been set or is not required."""
+        from .agent_config import is_agent_config_set
+
+        return is_agent_config_set(self)
+
+    def reset_agent_config(self) -> None:
+        """Reset agent configuration flag (useful for testing or reconfiguration).
+
+        After calling this, set_agent_config() must be called again before generate().
+        """
+        from .agent_config import reset_agent_config
+
+        reset_agent_config(self)
 
     def validate_dataset(
         self, dataset: Union[pd.DataFrame, datasets.Dataset]

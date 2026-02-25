@@ -1592,3 +1592,221 @@ class TestFlow:
         with open(log_files[0]) as f:
             log_content = f.read()
             assert "Test Flow" in log_content or "test_flow" in log_content
+
+    # --- Agent config tests ---
+
+    def create_mock_agent_block(
+        self,
+        name="agent_block",
+        agent_framework="langflow",
+        agent_url="http://localhost:7860",
+        agent_api_key=None,
+    ):
+        """Create a mock block with agent attributes for testing."""
+        from tests.flow.conftest import MockBlock
+
+        block = MockBlock(block_name=name, input_cols=["input"], output_cols=["output"])
+        block.block_type = "agent"
+        block.agent_framework = agent_framework
+        block.agent_url = agent_url
+        block.agent_api_key = agent_api_key
+        block.timeout = 120.0
+        block.max_retries = 3
+        return block
+
+    def test_detect_agent_blocks(self):
+        """Test detecting agent blocks."""
+        regular_block = self.create_mock_block("regular_block")
+        agent_block = self.create_mock_agent_block("agent_block")
+
+        flow = Flow(blocks=[regular_block, agent_block], metadata=self.test_metadata)
+
+        detected = flow._detect_agent_blocks()
+        assert len(detected) == 1
+        assert "agent_block" in detected
+        assert "regular_block" not in detected
+
+    def test_detect_agent_blocks_none_found(self):
+        """Test detecting agent blocks when none exist."""
+        regular_block = self.create_mock_block("regular_block")
+        flow = Flow(blocks=[regular_block], metadata=self.test_metadata)
+
+        detected = flow._detect_agent_blocks()
+        assert len(detected) == 0
+
+    def test_detect_agent_blocks_multiple(self):
+        """Test detecting multiple agent blocks."""
+        regular_block = self.create_mock_block("regular_block")
+        agent_block1 = self.create_mock_agent_block("agent1")
+        agent_block2 = self.create_mock_agent_block("agent2")
+
+        flow = Flow(
+            blocks=[regular_block, agent_block1, agent_block2],
+            metadata=self.test_metadata,
+        )
+
+        detected = flow._detect_agent_blocks()
+        assert len(detected) == 2
+        assert "agent1" in detected
+        assert "agent2" in detected
+        assert "regular_block" not in detected
+
+    def test_set_agent_config_all_agent_blocks(self):
+        """Test set_agent_config with auto-detection of all agent blocks."""
+        agent_block1 = self.create_mock_agent_block(
+            "agent1", agent_url="http://old:7860"
+        )
+        agent_block2 = self.create_mock_agent_block(
+            "agent2", agent_url="http://old:7860"
+        )
+
+        flow = Flow(blocks=[agent_block1, agent_block2], metadata=self.test_metadata)
+
+        flow.set_agent_config(
+            agent_framework="langflow",
+            agent_url="http://new:7860",
+            agent_api_key="NEW_KEY",
+        )
+
+        assert flow.blocks[0].agent_framework == "langflow"
+        assert flow.blocks[0].agent_url == "http://new:7860"
+        assert flow.blocks[0].agent_api_key == "NEW_KEY"
+        assert flow.blocks[1].agent_url == "http://new:7860"
+        assert flow.blocks[1].agent_api_key == "NEW_KEY"
+
+    def test_set_agent_config_specific_blocks(self):
+        """Test set_agent_config with specific block targeting."""
+        agent_block1 = self.create_mock_agent_block(
+            "agent1", agent_url="http://old:7860"
+        )
+        agent_block2 = self.create_mock_agent_block(
+            "agent2", agent_url="http://old:7860"
+        )
+
+        flow = Flow(blocks=[agent_block1, agent_block2], metadata=self.test_metadata)
+
+        flow.set_agent_config(
+            agent_url="http://new:7860",
+            blocks=["agent1"],
+        )
+
+        assert flow.blocks[0].agent_url == "http://new:7860"
+        assert flow.blocks[1].agent_url == "http://old:7860"  # unchanged
+
+    def test_set_agent_config_no_parameters(self):
+        """Test set_agent_config with no parameters raises error."""
+        agent_block = self.create_mock_agent_block("agent_block")
+        flow = Flow(blocks=[agent_block], metadata=self.test_metadata)
+
+        with pytest.raises(ValueError) as exc_info:
+            flow.set_agent_config()
+
+        assert "At least one configuration parameter must be provided" in str(
+            exc_info.value
+        )
+
+    def test_set_agent_config_invalid_block_names(self):
+        """Test set_agent_config with invalid block names raises error."""
+        agent_block = self.create_mock_agent_block("agent_block")
+        flow = Flow(blocks=[agent_block], metadata=self.test_metadata)
+
+        with pytest.raises(ValueError) as exc_info:
+            flow.set_agent_config(
+                agent_url="http://new:7860",
+                blocks=["nonexistent_block"],
+            )
+
+        assert "Specified blocks not found in flow" in str(exc_info.value)
+
+    def test_generate_requires_agent_config_for_agent_flows(self):
+        """Test that generate() requires set_agent_config() for flows with agent blocks."""
+        agent_block = self.create_mock_agent_block("agent_block")
+        flow = Flow(blocks=[agent_block], metadata=self.test_metadata)
+        dataset = pd.DataFrame({"input": ["test"]})
+
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.generate(dataset)
+
+        assert "Agent configuration required before generate()" in str(exc_info.value)
+        assert "agent_block" in str(exc_info.value)
+        assert "Call flow.set_agent_config() first" in str(exc_info.value)
+
+    def test_generate_allows_execution_after_agent_config(self):
+        """Test that generate() works after set_agent_config() is called."""
+        agent_block = self.create_mock_agent_block("agent_block")
+        flow = Flow(blocks=[agent_block], metadata=self.test_metadata)
+        dataset = pd.DataFrame({"input": ["test"]})
+
+        flow.set_agent_config(
+            agent_framework="langflow",
+            agent_url="http://localhost:7860",
+            agent_api_key="key",
+        )
+
+        result = flow.generate(dataset)
+        assert len(result) == 1
+
+    def test_generate_works_for_non_agent_flows(self):
+        """Test that generate() works without agent config for flows without agent blocks."""
+        regular_block = self.create_mock_block("regular_block")
+        flow = Flow(blocks=[regular_block], metadata=self.test_metadata)
+        dataset = pd.DataFrame({"input": ["test"]})
+
+        result = flow.generate(dataset)
+        assert len(result) == 1
+
+    def test_is_agent_config_required(self):
+        """Test is_agent_config_required() method."""
+        # Flow without agent blocks
+        regular_block = self.create_mock_block("regular_block")
+        flow = Flow(blocks=[regular_block], metadata=self.test_metadata)
+        assert not flow.is_agent_config_required()
+
+        # Flow with agent blocks
+        agent_block = self.create_mock_agent_block("agent_block")
+        flow = Flow(blocks=[agent_block], metadata=self.test_metadata)
+        assert flow.is_agent_config_required()
+
+    def test_is_agent_config_set(self):
+        """Test is_agent_config_set() method."""
+        agent_block = self.create_mock_agent_block("agent_block")
+        flow = Flow(blocks=[agent_block], metadata=self.test_metadata)
+
+        # Should be False initially
+        assert not flow.is_agent_config_set()
+
+        # Should be True after calling set_agent_config()
+        flow.set_agent_config(agent_url="http://localhost:7860")
+        assert flow.is_agent_config_set()
+
+    def test_reset_agent_config(self):
+        """Test reset_agent_config() method."""
+        agent_block = self.create_mock_agent_block("agent_block")
+        flow = Flow(blocks=[agent_block], metadata=self.test_metadata)
+
+        flow.set_agent_config(agent_url="http://localhost:7860")
+        assert flow.is_agent_config_set()
+
+        flow.reset_agent_config()
+        assert not flow.is_agent_config_set()
+
+    def test_flow_with_both_llm_and_agent_blocks(self):
+        """Test flow with both LLM and agent blocks requires both configs."""
+        llm_block = self.create_mock_llm_block("llm_block")
+        agent_block = self.create_mock_agent_block("agent_block")
+        flow = Flow(blocks=[llm_block, agent_block], metadata=self.test_metadata)
+        dataset = pd.DataFrame({"input": ["test"]})
+
+        # Should fail - neither config set
+        with pytest.raises(FlowValidationError, match="Model configuration required"):
+            flow.generate(dataset)
+
+        # Set only model config - should still fail (agent config missing)
+        flow.set_model_config(model="test-model")
+        with pytest.raises(FlowValidationError, match="Agent configuration required"):
+            flow.generate(dataset)
+
+        # Set agent config too - should work
+        flow.set_agent_config(agent_url="http://localhost:7860")
+        result = flow.generate(dataset)
+        assert len(result) == 1

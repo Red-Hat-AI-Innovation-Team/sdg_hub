@@ -8,6 +8,7 @@ and dual initialization modes.
 # Local
 # Import submodules to make them available for patching in tests
 from . import (
+    agent_config,  # noqa: F401
     display,  # noqa: F401
     execution,  # noqa: F401
     model_config,  # noqa: F401
