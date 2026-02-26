@@ -24,12 +24,12 @@ from typing import Optional
 import yaml
 
 # Third Party
-from docling.datamodel.base_models import InputFormat
-from docling.datamodel.pipeline_options import (
+from docling.datamodel.accelerator_options import (
     AcceleratorDevice,
     AcceleratorOptions,
-    PdfPipelineOptions,
 )
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from logger_config import setup_logger
 import click
