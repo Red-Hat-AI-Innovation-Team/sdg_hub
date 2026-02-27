@@ -225,6 +225,10 @@ class FlowMetadata(BaseModel):
         License identifier.
     dataset_requirements : Optional[DatasetRequirements]
         Requirements for input datasets.
+    output_columns : Optional[list[str]]
+        Columns to keep in the final output. When set, intermediate columns are
+        dropped both during and after execution. Original input columns are always
+        preserved. Must be non-empty if specified; omit to keep all columns.
     """
 
     name: str = Field(..., min_length=1, description="Human-readable name")

@@ -71,10 +71,10 @@ class TestColumnDependencyTracker:
             original_columns={"a", "b", "c"},
         )
 
-        assert tracker.last_consumer["a"] == 0
-        assert tracker.last_consumer["b"] == 0
-        assert tracker.last_consumer["ab"] == 1
-        assert tracker.last_consumer["c"] == 1
+        assert tracker._last_consumer["a"] == 0
+        assert tracker._last_consumer["b"] == 0
+        assert tracker._last_consumer["ab"] == 1
+        assert tracker._last_consumer["c"] == 1
 
     def test_extract_input_columns_string(self):
         """Test extracting input columns from string."""
@@ -158,7 +158,7 @@ class TestColumnDependencyTrackerEdgeCases:
             columns_to_keep={"output"},
             original_columns={"input"},
         )
-        assert tracker.last_consumer == {}
+        assert tracker._last_consumer == {}
         droppable = tracker.get_droppable_columns(0, {"input", "output", "temp"})
         assert "temp" in droppable
         assert "input" not in droppable
@@ -274,8 +274,10 @@ class TestFlowColumnCleanup:
         assert "temp1" not in result.columns
         assert "temp2" not in result.columns
 
-    def test_flow_missing_output_columns_warns(self, caplog):
-        """Test warning when output_columns specifies missing columns."""
+    def test_flow_missing_output_columns_raises(self):
+        """Test error when output_columns specifies missing columns."""
+        from sdg_hub.core.utils.error_handling import FlowValidationError
+
         flow = Flow(
             metadata=FlowMetadata(
                 name="test",
@@ -291,7 +293,98 @@ class TestFlowColumnCleanup:
         )
 
         dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        with pytest.raises(FlowValidationError, match="output_columns not found"):
+            flow.generate(dataset)
+
+    def test_flow_early_drop_verified_mid_execution(self):
+        """Test that columns are actually dropped mid-execution, not just at the end.
+
+        Uses a block that records which columns exist when it runs, proving
+        that early dropping happened before the final cleanup.
+        """
+        from sdg_hub.core.blocks.base import BaseBlock
+        from sdg_hub.core.blocks.registry import BlockRegistry
+
+        captured_columns: list[set[str]] = []
+
+        @BlockRegistry.register("ColumnCapture", "test", "Captures columns for testing")
+        class ColumnCaptureBlock(BaseBlock):
+            """Block that records available columns during execution."""
+
+            def generate(self, samples, **kwargs):
+                captured_columns.append(set(samples.columns))
+                return samples
+
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["final"],
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="step1",
+                    input_cols=["a", "b"],
+                    output_cols="temp",
+                ),
+                # temp's last consumer is step2 (index 1), so it should be
+                # dropped after step2 completes, before step3 runs
+                DuplicateColumnsBlock(
+                    block_name="step2",
+                    input_cols={"temp": "final"},
+                ),
+                ColumnCaptureBlock(block_name="capture"),
+            ],
+        )
+
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
         flow.generate(dataset)
 
-        assert "output_columns not found in final dataset" in caplog.text
-        assert "nonexistent" in caplog.text
+        # The capture block should see that 'temp' was already dropped
+        assert len(captured_columns) == 1
+        assert "temp" not in captured_columns[0]
+        assert "final" in captured_columns[0]
+
+
+class TestCleanupFinalColumns:
+    """Unit tests for _cleanup_final_columns function."""
+
+    def test_drops_intermediate_columns(self):
+        """Test that intermediate columns are dropped."""
+        from sdg_hub.core.flow.execution import _cleanup_final_columns
+
+        dataset = pd.DataFrame({"a": ["1"], "intermediate": ["2"], "output": ["3"]})
+        result = _cleanup_final_columns(
+            dataset, {"output"}, {"a"}, __import__("logging").getLogger()
+        )
+        assert list(result.columns) == ["a", "output"]
+
+    def test_preserves_original_and_output(self):
+        """Test that original and output columns are all preserved."""
+        from sdg_hub.core.flow.execution import _cleanup_final_columns
+
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"], "output": ["3"]})
+        result = _cleanup_final_columns(
+            dataset, {"output"}, {"a", "b"}, __import__("logging").getLogger()
+        )
+        assert set(result.columns) == {"a", "b", "output"}
+
+    def test_nothing_to_drop(self):
+        """Test when all columns should be kept."""
+        from sdg_hub.core.flow.execution import _cleanup_final_columns
+
+        dataset = pd.DataFrame({"a": ["1"], "output": ["2"]})
+        result = _cleanup_final_columns(
+            dataset, {"output"}, {"a"}, __import__("logging").getLogger()
+        )
+        assert set(result.columns) == {"a", "output"}
+
+    def test_missing_output_columns_raises(self):
+        """Test that missing output columns raise FlowValidationError."""
+        from sdg_hub.core.flow.execution import _cleanup_final_columns
+        from sdg_hub.core.utils.error_handling import FlowValidationError
+
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        with pytest.raises(FlowValidationError, match="output_columns not found"):
+            _cleanup_final_columns(
+                dataset, {"missing_col"}, {"a"}, __import__("logging").getLogger()
+            )

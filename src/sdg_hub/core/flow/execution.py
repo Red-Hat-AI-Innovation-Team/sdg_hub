@@ -191,6 +191,7 @@ def execute_blocks_on_dataset(
     runtime_params: dict[str, dict[str, Any]],
     flow_logger=None,
     max_concurrency: Optional[int] = None,
+    column_tracker: Optional[ColumnDependencyTracker] = None,
 ) -> pd.DataFrame:
     """Execute all blocks in sequence on the given dataset.
 
@@ -206,6 +207,8 @@ def execute_blocks_on_dataset(
         Logger to use for this execution. Falls back to global logger if None.
     max_concurrency : Optional[int], optional
         Maximum concurrency for LLM requests across blocks.
+    column_tracker : Optional[ColumnDependencyTracker], optional
+        Tracker for early dropping of unused columns. If None, no early dropping.
 
     Returns
     -------
@@ -270,18 +273,6 @@ def execute_blocks_on_dataset(
                 f"{len(current_dataset.columns)} columns"
             )
 
-            # Drop columns no longer needed by downstream blocks
-            if flow._column_tracker is not None:
-                cols_to_drop = flow._column_tracker.get_droppable_columns(
-                    i, set(current_dataset.columns)
-                )
-                if cols_to_drop:
-                    exec_logger.info(
-                        f"Dropping {len(cols_to_drop)} unused columns: "
-                        f"{sorted(cols_to_drop)}"
-                    )
-                    current_dataset = current_dataset.drop(columns=cols_to_drop)
-
         except EmptyDatasetError:
             # Re-raise EmptyDatasetError directly without wrapping
             raise
@@ -309,6 +300,19 @@ def execute_blocks_on_dataset(
                 f"Block '{block.block_name}' execution failed: {exc}"
             ) from exc
 
+        # Drop columns no longer needed by downstream blocks (outside try/except
+        # so failures here are not misattributed as block execution errors)
+        if column_tracker is not None:
+            cols_to_drop = column_tracker.get_droppable_columns(
+                i, set(current_dataset.columns)
+            )
+            if cols_to_drop:
+                exec_logger.info(
+                    f"Dropping {len(cols_to_drop)} unused columns: "
+                    f"{sorted(cols_to_drop)}"
+                )
+                current_dataset = current_dataset.drop(columns=cols_to_drop)
+
     return current_dataset
 
 
@@ -335,6 +339,11 @@ def _cleanup_final_columns(
     -------
     pd.DataFrame
         Dataset with only output_columns + original columns retained.
+
+    Raises
+    ------
+    FlowValidationError
+        If any output_columns are missing from the final dataset.
     """
     current_cols = set(dataset.columns)
     cols_to_keep = output_columns | original_columns
@@ -342,8 +351,9 @@ def _cleanup_final_columns(
     missing_cols = output_columns - current_cols
 
     if missing_cols:
-        flow_logger.warning(
-            f"output_columns not found in final dataset: {sorted(missing_cols)}"
+        raise FlowValidationError(
+            f"output_columns not found in final dataset: {sorted(missing_cols)}. "
+            f"Check that your flow's blocks produce these columns."
         )
 
     if cols_to_drop:
@@ -520,15 +530,14 @@ def execute_flow(
     run_start = time.perf_counter()
 
     # Initialize column tracker for early dropping of unused columns
+    column_tracker: Optional[ColumnDependencyTracker] = None
     if effective_output_columns:
-        flow._column_tracker = ColumnDependencyTracker(
+        column_tracker = ColumnDependencyTracker(
             flow.blocks, effective_output_columns, original_columns
         )
         flow_logger.info(
             "Column cleanup enabled - will drop unused intermediate columns"
         )
-    else:
-        flow._column_tracker = None
 
     # Execute flow with metrics capture, ensuring metrics are always displayed/saved
     final_dataset = None
@@ -550,7 +559,12 @@ def execute_flow(
 
                 # Execute all blocks on this chunk
                 processed_chunk = execute_blocks_on_dataset(
-                    flow, chunk_dataset, runtime_params, flow_logger, max_concurrency
+                    flow,
+                    chunk_dataset,
+                    runtime_params,
+                    flow_logger,
+                    max_concurrency,
+                    column_tracker,
                 )
                 all_processed.append(processed_chunk)
 
@@ -579,7 +593,12 @@ def execute_flow(
         else:
             # Process entire dataset at once
             final_dataset = execute_blocks_on_dataset(
-                flow, dataset, runtime_params, flow_logger, max_concurrency
+                flow,
+                dataset,
+                runtime_params,
+                flow_logger,
+                max_concurrency,
+                column_tracker,
             )
 
             # Save final checkpoint if checkpointing enabled

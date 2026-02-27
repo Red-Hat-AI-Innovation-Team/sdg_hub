@@ -32,17 +32,17 @@ class ColumnDependencyTracker:
         original_columns : set[str]
             Original input columns (auto-preserved)
         """
-        self.blocks = blocks
-        self.columns_to_keep = columns_to_keep
-        self.original_columns = original_columns
-        self.last_consumer: dict[str, int] = {}  # col -> last block index that reads it
-        self._build_dependency_graph()
+        self._preserved: frozenset[str] = frozenset(columns_to_keep | original_columns)
+        self._last_consumer: dict[
+            str, int
+        ] = {}  # col -> last block index that reads it
+        self._build_last_consumer_map(blocks)
 
-    def _build_dependency_graph(self) -> None:
-        """Build dependency graph by tracking column usage."""
-        for i, block in enumerate(self.blocks):
+    def _build_last_consumer_map(self, blocks: list[BaseBlock]) -> None:
+        """Build map of each column to the last block index that reads it."""
+        for i, block in enumerate(blocks):
             for col in self._extract_input_columns(block.input_cols):
-                self.last_consumer[col] = i
+                self._last_consumer[col] = i
 
     @staticmethod
     def _extract_input_columns(
@@ -69,7 +69,10 @@ class ColumnDependencyTracker:
         if isinstance(input_cols, dict):
             # For dict inputs, keys are the columns being read
             return list(input_cols.keys())
-        return []
+        raise ValueError(
+            f"Unexpected input_cols type: {type(input_cols)}. "
+            f"Expected str, list, dict, or None."
+        )
 
     def get_droppable_columns(
         self, block_index: int, current_columns: set[str]
@@ -88,13 +91,11 @@ class ColumnDependencyTracker:
         list[str]
             Columns that can be safely dropped
         """
-        # Columns to preserve: columns_to_keep + original input columns
-        preserved = self.columns_to_keep | self.original_columns
         droppable = []
         for col in current_columns:
-            if col in preserved:
+            if col in self._preserved:
                 continue
             # Drop if this block was the last consumer (or column was never consumed)
-            if self.last_consumer.get(col, -1) <= block_index:
+            if self._last_consumer.get(col, -1) <= block_index:
                 droppable.append(col)
         return droppable
