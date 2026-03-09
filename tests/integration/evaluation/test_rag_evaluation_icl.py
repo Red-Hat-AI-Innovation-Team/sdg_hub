@@ -11,8 +11,14 @@ import yaml
 # First Party
 from sdg_hub import Flow, FlowRegistry, FlowValidator
 
-
-FLOW_DIR = Path(__file__).resolve().parents[3] / "src" / "sdg_hub" / "flows" / "evaluation" / "rag_evaluation_icl"
+FLOW_DIR = (
+    Path(__file__).resolve().parents[3]
+    / "src"
+    / "sdg_hub"
+    / "flows"
+    / "evaluation"
+    / "rag_evaluation_icl"
+)
 FLOW_YAML = FLOW_DIR / "flow.yaml"
 
 
@@ -151,7 +157,9 @@ class TestRagEvaluationIclPrompts:
                 messages = yaml.safe_load(f)
 
             # Filter to actual message dicts (skip comments)
-            actual_messages = [m for m in messages if isinstance(m, dict) and "role" in m]
+            actual_messages = [
+                m for m in messages if isinstance(m, dict) and "role" in m
+            ]
             assert actual_messages[-1]["role"] == "user", (
                 f"{prompt_file}: last message should have role 'user', got '{actual_messages[-1]['role']}'"
             )
