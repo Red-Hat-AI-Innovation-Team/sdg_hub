@@ -7,7 +7,7 @@ Generates realistic Q&A pairs for RAG (Retrieval-Augmented Generation) evaluatio
 Uses example questions from real users to guide question generation style, producing realistic, user-like questions instead of textbook-style ones:
 
 1. Takes example questions alongside the document they relate to as style references
-2. Generates 3-5 realistic questions per document that match the style and tone of the examples
+2. Generates a series of realistic questions per document that match the style and tone of the examples
 3. Produces extractive answers grounded in the document context
 4. Evaluates answer groundedness on a 1-5 scale
 5. Filters out poorly grounded Q&A pairs (keeps only scores 4-5)
@@ -46,7 +46,7 @@ The `icl_*` columns provide style guidance. The `icl_document` is a separate doc
 ```python
 runtime_params = {
     "gen_icl_questions": {
-        "max_tokens": 4096,
+        "max_tokens": 256,
         "temperature": 0.7    # Higher for question diversity
     },
     "gen_answer": {
@@ -118,7 +118,7 @@ print(f"Generated {len(result)} QA pairs")
 |--------|------------------|----------------------|
 | Question style | Textbook-like, indirect | Realistic, user-like |
 | ICL examples required | No | Yes |
-| Questions per document | 1 | 3-5 |
+| Questions per document | 1 | Multiple |
 | Question generation | 3 stages (topic, conceptual, evolution) | 1 stage (ICL-driven) |
 | Answer generation | Identical | Identical |
 | Groundedness scoring | Identical (1-5 scale) | Identical (1-5 scale) |
