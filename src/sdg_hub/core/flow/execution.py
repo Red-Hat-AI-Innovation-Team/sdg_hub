@@ -511,6 +511,16 @@ def execute_flow(
             flow_logger.info(
                 "All samples already completed, returning existing results"
             )
+
+            # Apply column cleanup so checkpointed results match normal output
+            if effective_output_columns is not None:
+                completed_dataset = _cleanup_final_columns(
+                    completed_dataset,
+                    effective_output_columns,
+                    original_columns,
+                    flow_logger,
+                )
+
             if log_dir is not None:
                 _close_flow_logger(flow_logger, logger)
 
