@@ -732,7 +732,7 @@ The `icl_*` columns provide style guidance. The `icl_document` is a separate doc
 ```python
 runtime_params = {
     "gen_icl_questions": {
-        "max_tokens": 256,
+        "max_tokens": 2048,
         "temperature": 0.7    # Higher for question diversity
     },
     "gen_answer": {
