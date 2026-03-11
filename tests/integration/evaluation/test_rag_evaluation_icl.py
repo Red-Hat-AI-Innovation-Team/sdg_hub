@@ -120,7 +120,7 @@ class TestRagEvaluationIclPrompts:
     PROMPTS_DIR = FLOW_DIR / "prompts"
     EXPECTED_PROMPTS = [
         "topic_generation.yaml",
-        "conceptual_qa_generation.yaml",
+        "conceptual_qa_generation_icl.yaml",
         "question_evolution_icl.yaml",
         "answer_generation.yaml",
         "groundedness_critic.yaml",
@@ -173,9 +173,9 @@ class TestRagEvaluationIclPrompts:
                 f"got '{actual_messages[-1]['role']}'"
             )
 
-    def test_evolution_prompt_contains_icl_variables(self):
-        """Test that the evolution prompt references ICL variables."""
-        path = self.PROMPTS_DIR / "question_evolution_icl.yaml"
+    def test_conceptual_prompt_contains_icl_variables(self):
+        """Test that the conceptual QA prompt references ICL variables."""
+        path = self.PROMPTS_DIR / "conceptual_qa_generation_icl.yaml"
         with open(path, encoding="utf-8") as f:
             content = f.read()
 
@@ -184,10 +184,14 @@ class TestRagEvaluationIclPrompts:
             "{{icl_query_1}}",
             "{{icl_query_2}}",
             "{{icl_query_3}}",
-            "{{question}}",
+            "{{document}}",
+            "{{document_outline}}",
+            "{{topic}}",
         ]
         for var in expected_vars:
-            assert var in content, f"Evolution prompt missing template variable: {var}"
+            assert (
+                var in content
+            ), f"Conceptual QA prompt missing template variable: {var}"
 
 
 class TestRagEvaluationIclFlowDiscovery:

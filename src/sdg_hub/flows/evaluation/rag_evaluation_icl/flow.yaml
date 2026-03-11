@@ -21,7 +21,7 @@ metadata:
     - icl_query_1
     - icl_query_2
     - icl_query_3
-    description: 'Input dataset should contain documents with text content, document outlines, and in-context learning examples (an example document with three example questions) to guide realistic question style evolution.
+    description: 'Input dataset should contain documents with text content, document outlines, and in-context learning examples (an example document with three example questions) to guide realistic question generation.
 
       '
   id: keen-pearl-546
@@ -65,8 +65,12 @@ blocks:
       document: document
       document_outline: document_outline
       topic: topic
+      icl_document: icl_document
+      icl_query_1: icl_query_1
+      icl_query_2: icl_query_2
+      icl_query_3: icl_query_3
     output_cols: conceptual_messages
-    prompt_config_path: prompts/conceptual_qa_generation.yaml
+    prompt_config_path: prompts/conceptual_qa_generation_icl.yaml
 - block_type: LLMChatBlock
   block_config:
     block_name: gen_conceptual_question
@@ -87,10 +91,6 @@ blocks:
     block_name: evolution_prompt
     input_cols:
       question_content: question
-      icl_document: icl_document
-      icl_query_1: icl_query_1
-      icl_query_2: icl_query_2
-      icl_query_3: icl_query_3
     output_cols: evolution_messages
     prompt_config_path: prompts/question_evolution_icl.yaml
 - block_type: LLMChatBlock

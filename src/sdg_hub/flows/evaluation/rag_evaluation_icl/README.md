@@ -1,14 +1,14 @@
 # RAG Evaluation ICL Dataset Flow
 
-Generates realistic Q&A pairs for RAG (Retrieval-Augmented Generation) evaluation using the existing 3-stage question generation pipeline with ICL-driven style evolution.
+Generates realistic Q&A pairs for RAG (Retrieval-Augmented Generation) evaluation using the existing 3-stage question generation pipeline with ICL-driven question generation.
 
 ## What It Does
 
-Uses the same 3-stage pipeline as the base RAG evaluation flow, but replaces the evolution step with ICL-driven style transfer that rewrites questions to match real user style:
+Uses the same 3-stage pipeline as the base RAG evaluation flow, but adds ICL examples to the question generation step so questions are generated in a realistic user style from the start:
 
 1. Extracts a topic from the document (diversity control)
-2. Generates a reasoning question about that topic
-3. Rewrites the question to match the style of provided real user question examples (ICL evolution)
+2. Generates a realistic question about that topic using ICL examples as style references (has full document context)
+3. Evolves the question to be more indirect and compressed
 4. Produces extractive answers grounded in the document context
 5. Evaluates answer groundedness on a 1-5 scale
 6. Filters out poorly grounded Q&A pairs (keeps only scores 4-5)
@@ -17,7 +17,7 @@ Uses the same 3-stage pipeline as the base RAG evaluation flow, but replaces the
 ## Pipeline
 
 ```
-Document → Topic Extraction → Conceptual QA → ICL Style Evolution →
+Document → Topic Extraction → ICL Question Generation → Evolution →
 Answer Generation → Groundedness Scoring → Filter (4-5) → Context Extraction → Final QA Pairs
 ```
 
@@ -32,7 +32,7 @@ Answer Generation → Groundedness Scoring → Filter (4-5) → Context Extracti
 | `icl_query_2` | Second example question (real user style) | Yes |
 | `icl_query_3` | Third example question (real user style) | Yes |
 
-The `icl_*` columns provide style guidance for the evolution step. The `icl_document` is a separate document with `icl_query_1/2/3` being example questions that were asked about it. The LLM studies the style, tone, and structure of these examples, then rewrites the generated question to match that authentic style.
+The `icl_*` columns provide style guidance for the question generation step. The `icl_document` is a separate document with `icl_query_1/2/3` being example questions that were asked about it. The LLM studies the style, tone, and structure of these examples, then generates a realistic question about the extracted topic.
 
 ## Output Columns
 
@@ -56,7 +56,7 @@ runtime_params = {
     },
     "evolve_question": {
         "max_tokens": 4096,
-        "temperature": 0.7    # Higher for style diversity
+        "temperature": 0.7
     },
     "gen_answer": {
         "max_tokens": 4096,
@@ -128,7 +128,7 @@ print(f"Generated {len(result)} QA pairs")
 | Question style | Textbook-like, indirect | Realistic, user-like |
 | ICL examples required | No | Yes |
 | Questions per document | 1 | 1 |
-| Question generation | 3 stages (topic, conceptual, evolution) | 3 stages (topic, conceptual, ICL evolution) |
+| Question generation | 3 stages (topic, conceptual, evolution) | 3 stages (topic, ICL conceptual, evolution) |
 | Answer generation | Identical | Identical |
 | Groundedness scoring | Identical (1-5 scale) | Identical (1-5 scale) |
 | Output columns | Same | Same |
