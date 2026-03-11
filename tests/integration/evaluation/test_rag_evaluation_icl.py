@@ -4,12 +4,12 @@
 # Standard
 from pathlib import Path
 
+# First Party
+from sdg_hub import Flow, FlowRegistry, FlowValidator
+
 # Third Party
 import pytest
 import yaml
-
-# First Party
-from sdg_hub import Flow, FlowRegistry, FlowValidator
 
 FLOW_DIR = (
     Path(__file__).resolve().parents[3]
@@ -47,14 +47,15 @@ class TestRagEvaluationIclFlowStructure:
     def test_flow_block_count(self):
         """Test that the flow has the expected number of blocks."""
         flow = Flow.from_yaml(str(FLOW_YAML))
-        assert len(flow.blocks) == 16
+        assert len(flow.blocks) == 22
 
     def test_flow_block_names_unique(self):
         """Test that all block names are unique."""
         flow = Flow.from_yaml(str(FLOW_YAML))
         block_names = [b.block_name for b in flow.blocks]
         assert len(block_names) == len(set(block_names)), (
-            f"Duplicate block names found: {[n for n in block_names if block_names.count(n) > 1]}"
+            f"Duplicate block names found: "
+            f"{[n for n in block_names if block_names.count(n) > 1]}"
         )
 
     def test_flow_block_names(self):
@@ -62,10 +63,16 @@ class TestRagEvaluationIclFlowStructure:
         flow = Flow.from_yaml(str(FLOW_YAML))
         expected_names = [
             "duplicate_to_context",
-            "icl_question_prompt",
-            "gen_icl_questions",
-            "parse_icl_questions",
-            "parse_question_tags",
+            "topic_prompt",
+            "gen_topic",
+            "parse_topic",
+            "rename_topic",
+            "conceptual_prompt",
+            "gen_conceptual_question",
+            "parse_question",
+            "evolution_prompt",
+            "evolve_question",
+            "parse_evolved_question",
             "answer_prompt",
             "gen_answer",
             "parse_answer",
@@ -112,7 +119,9 @@ class TestRagEvaluationIclPrompts:
 
     PROMPTS_DIR = FLOW_DIR / "prompts"
     EXPECTED_PROMPTS = [
-        "icl_question_generation.yaml",
+        "topic_generation.yaml",
+        "conceptual_qa_generation.yaml",
+        "question_evolution_icl.yaml",
         "answer_generation.yaml",
         "groundedness_critic.yaml",
         "context_extraction.yaml",
@@ -145,9 +154,9 @@ class TestRagEvaluationIclPrompts:
 
         for i, msg in enumerate(messages):
             if isinstance(msg, dict) and "role" in msg:
-                assert "content" in msg, (
-                    f"{prompt_file} message {i} has 'role' but missing 'content'"
-                )
+                assert (
+                    "content" in msg
+                ), f"{prompt_file} message {i} has 'role' but missing 'content'"
 
     def test_prompt_last_message_is_user(self):
         """Test that the last message in each prompt has user role."""
@@ -156,17 +165,17 @@ class TestRagEvaluationIclPrompts:
             with open(path, encoding="utf-8") as f:
                 messages = yaml.safe_load(f)
 
-            # Filter to actual message dicts (skip comments)
             actual_messages = [
                 m for m in messages if isinstance(m, dict) and "role" in m
             ]
             assert actual_messages[-1]["role"] == "user", (
-                f"{prompt_file}: last message should have role 'user', got '{actual_messages[-1]['role']}'"
+                f"{prompt_file}: last message should have role 'user', "
+                f"got '{actual_messages[-1]['role']}'"
             )
 
-    def test_icl_prompt_contains_expected_variables(self):
-        """Test that the ICL question generation prompt references all ICL variables."""
-        path = self.PROMPTS_DIR / "icl_question_generation.yaml"
+    def test_evolution_prompt_contains_icl_variables(self):
+        """Test that the evolution prompt references ICL variables."""
+        path = self.PROMPTS_DIR / "question_evolution_icl.yaml"
         with open(path, encoding="utf-8") as f:
             content = f.read()
 
@@ -175,20 +184,10 @@ class TestRagEvaluationIclPrompts:
             "{{icl_query_1}}",
             "{{icl_query_2}}",
             "{{icl_query_3}}",
-            "{{document}}",
-            "{{document_outline}}",
+            "{{question}}",
         ]
         for var in expected_vars:
-            assert var in content, f"ICL prompt missing template variable: {var}"
-
-    def test_icl_prompt_uses_question_tags(self):
-        """Test that the ICL prompt instructs the use of [QUESTION]...[END] tags."""
-        path = self.PROMPTS_DIR / "icl_question_generation.yaml"
-        with open(path, encoding="utf-8") as f:
-            content = f.read()
-
-        assert "[QUESTION]" in content
-        assert "[END]" in content
+            assert var in content, f"Evolution prompt missing template variable: {var}"
 
 
 class TestRagEvaluationIclFlowDiscovery:
@@ -200,7 +199,7 @@ class TestRagEvaluationIclFlowDiscovery:
         FlowRegistry._search_paths.clear()
         FlowRegistry._initialized = False
 
-        flows_dir = str(FLOW_DIR.parent)  # evaluation/
+        flows_dir = str(FLOW_DIR.parent)
         FlowRegistry.register_search_path(flows_dir)
         FlowRegistry._discover_flows(force_refresh=True)
 

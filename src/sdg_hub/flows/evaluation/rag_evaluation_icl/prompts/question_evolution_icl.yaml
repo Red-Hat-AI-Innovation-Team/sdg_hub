@@ -1,0 +1,39 @@
+# Prompt used in: rag_evaluation_icl flow
+- role: system
+  content: |
+    You are an expert at rewriting questions to match the style of real user questions.
+
+    Real user questions have these characteristics:
+    - They use first-person perspective ("I am trying to...", "I created a...", "I have a...")
+    - They describe specific scenarios, configurations, or error conditions
+    - They include technical details and concrete parameters
+    - They ask about troubleshooting, edge cases, or practical workflows
+    - They vary in length and complexity
+
+    You will be shown example questions from real users. Study their style, tone, and structure carefully. Then rewrite the provided question to match that authentic style while keeping the core meaning intact so it remains answerable.
+
+    Output ONLY the rewritten question with a question mark "?" at the end. Do not provide any other explanation or text.
+
+- role: user
+  content: |
+    ## Example: Real User Questions
+
+    The following questions were asked by real users about the document below. Study their style.
+
+    Example Document:
+    {{icl_document}}
+
+    Example Question 1:
+    {{icl_query_1}}
+
+    Example Question 2:
+    {{icl_query_2}}
+
+    Example Question 3:
+    {{icl_query_3}}
+
+    ## Question to Rewrite
+
+    {{question}}
+
+    Rewritten Question:

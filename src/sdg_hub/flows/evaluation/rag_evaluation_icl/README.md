@@ -1,22 +1,23 @@
 # RAG Evaluation ICL Dataset Flow
 
-Generates realistic Q&A pairs for RAG (Retrieval-Augmented Generation) evaluation using In-Context Learning (ICL) with real user question examples.
+Generates realistic Q&A pairs for RAG (Retrieval-Augmented Generation) evaluation using the existing 3-stage question generation pipeline with ICL-driven style evolution.
 
 ## What It Does
 
-Uses example questions from real users to guide question generation style, producing realistic, user-like questions instead of textbook-style ones:
+Uses the same 3-stage pipeline as the base RAG evaluation flow, but replaces the evolution step with ICL-driven style transfer that rewrites questions to match real user style:
 
-1. Takes example questions alongside the document they relate to as style references
-2. Generates a series of realistic questions per document that match the style and tone of the examples
-3. Produces extractive answers grounded in the document context
-4. Evaluates answer groundedness on a 1-5 scale
-5. Filters out poorly grounded Q&A pairs (keeps only scores 4-5)
-6. Extracts ground truth context sentences from the document
+1. Extracts a topic from the document (diversity control)
+2. Generates a reasoning question about that topic
+3. Rewrites the question to match the style of provided real user question examples (ICL evolution)
+4. Produces extractive answers grounded in the document context
+5. Evaluates answer groundedness on a 1-5 scale
+6. Filters out poorly grounded Q&A pairs (keeps only scores 4-5)
+7. Extracts ground truth context sentences from the document
 
 ## Pipeline
 
 ```
-Document + ICL Examples → ICL Question Generation → Tag Parsing (row expansion) →
+Document → Topic Extraction → Conceptual QA → ICL Style Evolution →
 Answer Generation → Groundedness Scoring → Filter (4-5) → Context Extraction → Final QA Pairs
 ```
 
@@ -31,7 +32,7 @@ Answer Generation → Groundedness Scoring → Filter (4-5) → Context Extracti
 | `icl_query_2` | Second example question (real user style) | Yes |
 | `icl_query_3` | Third example question (real user style) | Yes |
 
-The `icl_*` columns provide style guidance. The `icl_document` is a separate document with `icl_query_1/2/3` being example questions that were asked about it. The LLM studies the style, tone, and structure of these examples, then generates similar-style questions for the target `document`.
+The `icl_*` columns provide style guidance for the evolution step. The `icl_document` is a separate document with `icl_query_1/2/3` being example questions that were asked about it. The LLM studies the style, tone, and structure of these examples, then rewrites the generated question to match that authentic style.
 
 ## Output Columns
 
@@ -45,9 +46,17 @@ The `icl_*` columns provide style guidance. The `icl_document` is a separate doc
 
 ```python
 runtime_params = {
-    "gen_icl_questions": {
+    "gen_topic": {
         "max_tokens": 2048,
-        "temperature": 0.7    # Higher for question diversity
+        "temperature": 0.7
+    },
+    "gen_conceptual_question": {
+        "max_tokens": 2048,
+        "temperature": 0.7
+    },
+    "evolve_question": {
+        "max_tokens": 4096,
+        "temperature": 0.7    # Higher for style diversity
     },
     "gen_answer": {
         "max_tokens": 4096,
@@ -65,7 +74,7 @@ runtime_params = {
 - Evaluating RAG systems with realistic user-style questions
 - Need questions that reflect how real users ask (first-person, scenario-based, troubleshooting)
 - Have example questions from real users to use as style references
-- Want multiple questions per document with groundedness filtering
+- Want topic-focused diversity control from the 3-stage pipeline
 
 For textbook-style questions without ICL examples, use the base `rag_evaluation` flow instead.
 
@@ -106,9 +115,9 @@ print(f"Generated {len(result)} QA pairs")
 
 ```json
 {
-  "question": "I configured the webhook trigger but it doesn't fire on push events to feature branches - do I need to set a specific branch filter pattern?",
-  "response": "According to the documentation, webhook triggers require an explicit branch filter configuration...",
-  "ground_truth_context": "Webhook triggers support glob patterns for branch filtering. By default, only the main branch is matched unless a custom pattern is specified."
+  "question": "I'm trying to set up a distributed application where I need each individual Pod to be directly discoverable by its peers - when would I specifically choose a Headless Service, and how does it change DNS resolution compared to a standard Service?",
+  "response": "You would choose a Headless Service when each Pod needs to be individually addressable. A Headless Service is created by setting clusterIP to None, and instead of allocating a cluster IP, it returns the Pod IPs directly through DNS...",
+  "ground_truth_context": "Headless Services are created by setting clusterIP to None. They don't allocate a cluster IP and instead return the Pod IPs directly through DNS. This is useful for StatefulSets where each Pod needs to be individually addressable."
 }
 ```
 
@@ -118,8 +127,8 @@ print(f"Generated {len(result)} QA pairs")
 |--------|------------------|----------------------|
 | Question style | Textbook-like, indirect | Realistic, user-like |
 | ICL examples required | No | Yes |
-| Questions per document | 1 | Multiple |
-| Question generation | 3 stages (topic, conceptual, evolution) | 1 stage (ICL-driven) |
+| Questions per document | 1 | 1 |
+| Question generation | 3 stages (topic, conceptual, evolution) | 3 stages (topic, conceptual, ICL evolution) |
 | Answer generation | Identical | Identical |
 | Groundedness scoring | Identical (1-5 scale) | Identical (1-5 scale) |
 | Output columns | Same | Same |
