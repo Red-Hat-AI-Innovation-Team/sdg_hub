@@ -134,7 +134,36 @@ blocks:
     input_cols: generation_prompt
     output_cols: raw_response
     response_format:
-      type: json_object
+      type: json_schema
+      strict: true
+      json_schema:
+        name: prompts_response
+        schema:
+          type: object
+          properties:
+            prompt:
+              type: string
+              minLength: 100
+            why_prompt_harmful:
+              type: string
+            why_prompt_has_temporal_relevance:
+              type: string
+            why_prompt_fits_exploit_stage:
+              type: string
+            why_prompt_tailored_for_region:
+              type: string
+            why_prompt_targets_demographic:
+              type: string
+            why_prompt_exploits_trust:
+              type: string
+            why_prompt_contains_instruction_keyword:
+              type: string
+            why_prompt_has_style:
+              type: string
+            why_prompt_matches_expertise:
+              type: string
+          required:
+          - prompt
     async_mode: true
 - block_type: LLMResponseExtractorBlock
   block_config:
