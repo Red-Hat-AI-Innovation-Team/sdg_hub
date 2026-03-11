@@ -187,8 +187,9 @@ class TestRagEvaluationIclPrompts:
             messages = yaml.safe_load(f)
 
         for i, msg in enumerate(messages):
-            if not isinstance(msg, dict):
-                continue
+            assert isinstance(
+                msg, dict
+            ), f"{prompt_file} message {i} must be a dict, got {type(msg).__name__}"
             assert (
                 "role" in msg
             ), f"{prompt_file} message {i} is a dict but missing 'role'"
@@ -203,10 +204,13 @@ class TestRagEvaluationIclPrompts:
         with open(path, encoding="utf-8") as f:
             messages = yaml.safe_load(f)
 
-        actual_messages = [m for m in messages if isinstance(m, dict) and "role" in m]
-        assert actual_messages[-1]["role"] == "user", (
+        last_msg = messages[-1]
+        assert isinstance(
+            last_msg, dict
+        ), f"{prompt_file}: last entry must be a dict, got {type(last_msg).__name__}"
+        assert last_msg.get("role") == "user", (
             f"{prompt_file}: last message should have role 'user', "
-            f"got '{actual_messages[-1]['role']}'"
+            f"got '{last_msg.get('role')}'"
         )
 
     def test_conceptual_prompt_contains_icl_variables(self):
