@@ -11,8 +11,19 @@ from sdg_hub import Flow, FlowRegistry, FlowValidator
 import pytest
 import yaml
 
+
+def _find_repo_root() -> Path:
+    """Find repository root by locating pyproject.toml."""
+    current = Path(__file__).resolve().parent
+    while current != current.parent:
+        if (current / "pyproject.toml").exists():
+            return current
+        current = current.parent
+    raise RuntimeError("Could not find repository root")
+
+
 FLOW_DIR = (
-    Path(__file__).resolve().parents[3]
+    _find_repo_root()
     / "src"
     / "sdg_hub"
     / "flows"
@@ -20,6 +31,53 @@ FLOW_DIR = (
     / "rag_evaluation_icl"
 )
 FLOW_YAML = FLOW_DIR / "flow.yaml"
+
+EXPECTED_BLOCK_NAMES = [
+    "duplicate_to_context",
+    "topic_prompt",
+    "gen_topic",
+    "parse_topic",
+    "rename_topic",
+    "conceptual_prompt",
+    "gen_conceptual_question",
+    "parse_question",
+    "evolution_prompt",
+    "evolve_question",
+    "parse_evolved_question",
+    "answer_prompt",
+    "gen_answer",
+    "parse_answer",
+    "critic_prompt",
+    "gen_critic_score",
+    "parse_critic_score",
+    "filter_ungrounded",
+    "extraction_prompt",
+    "extract_context",
+    "parse_extracted_context",
+    "rename_final_columns",
+]
+
+
+@pytest.fixture()
+def clean_registry():
+    """Reset FlowRegistry to clean state for test isolation."""
+    original_entries = FlowRegistry._entries.copy()
+    original_paths = FlowRegistry._search_paths.copy()
+    original_init = FlowRegistry._initialized
+
+    FlowRegistry._entries.clear()
+    FlowRegistry._search_paths.clear()
+    FlowRegistry._initialized = False
+
+    flows_dir = str(FLOW_DIR.parent)
+    FlowRegistry.register_search_path(flows_dir)
+    FlowRegistry._discover_flows(force_refresh=True)
+
+    yield
+
+    FlowRegistry._entries = original_entries
+    FlowRegistry._search_paths = original_paths
+    FlowRegistry._initialized = original_init
 
 
 class TestRagEvaluationIclFlowStructure:
@@ -47,7 +105,7 @@ class TestRagEvaluationIclFlowStructure:
     def test_flow_block_count(self):
         """Test that the flow has the expected number of blocks."""
         flow = Flow.from_yaml(str(FLOW_YAML))
-        assert len(flow.blocks) == 22
+        assert len(flow.blocks) == len(EXPECTED_BLOCK_NAMES)
 
     def test_flow_block_names_unique(self):
         """Test that all block names are unique."""
@@ -61,32 +119,8 @@ class TestRagEvaluationIclFlowStructure:
     def test_flow_block_names(self):
         """Test that the flow contains the expected blocks in order."""
         flow = Flow.from_yaml(str(FLOW_YAML))
-        expected_names = [
-            "duplicate_to_context",
-            "topic_prompt",
-            "gen_topic",
-            "parse_topic",
-            "rename_topic",
-            "conceptual_prompt",
-            "gen_conceptual_question",
-            "parse_question",
-            "evolution_prompt",
-            "evolve_question",
-            "parse_evolved_question",
-            "answer_prompt",
-            "gen_answer",
-            "parse_answer",
-            "critic_prompt",
-            "gen_critic_score",
-            "parse_critic_score",
-            "filter_ungrounded",
-            "extraction_prompt",
-            "extract_context",
-            "parse_extracted_context",
-            "rename_final_columns",
-        ]
         actual_names = [b.block_name for b in flow.blocks]
-        assert actual_names == expected_names
+        assert actual_names == EXPECTED_BLOCK_NAMES
 
     def test_dataset_requirements(self):
         """Test that dataset requirements specify all required ICL columns."""
@@ -147,31 +181,33 @@ class TestRagEvaluationIclPrompts:
 
     @pytest.mark.parametrize("prompt_file", EXPECTED_PROMPTS)
     def test_prompt_messages_have_role_and_content(self, prompt_file):
-        """Test that each message in a prompt has role and content fields."""
+        """Test that each dict message in a prompt has both role and content."""
         path = self.PROMPTS_DIR / prompt_file
         with open(path, encoding="utf-8") as f:
             messages = yaml.safe_load(f)
 
         for i, msg in enumerate(messages):
-            if isinstance(msg, dict) and "role" in msg:
-                assert (
-                    "content" in msg
-                ), f"{prompt_file} message {i} has 'role' but missing 'content'"
+            if not isinstance(msg, dict):
+                continue
+            assert (
+                "role" in msg
+            ), f"{prompt_file} message {i} is a dict but missing 'role'"
+            assert (
+                "content" in msg
+            ), f"{prompt_file} message {i} has 'role' but missing 'content'"
 
-    def test_prompt_last_message_is_user(self):
+    @pytest.mark.parametrize("prompt_file", EXPECTED_PROMPTS)
+    def test_prompt_last_message_is_user(self, prompt_file):
         """Test that the last message in each prompt has user role."""
-        for prompt_file in self.EXPECTED_PROMPTS:
-            path = self.PROMPTS_DIR / prompt_file
-            with open(path, encoding="utf-8") as f:
-                messages = yaml.safe_load(f)
+        path = self.PROMPTS_DIR / prompt_file
+        with open(path, encoding="utf-8") as f:
+            messages = yaml.safe_load(f)
 
-            actual_messages = [
-                m for m in messages if isinstance(m, dict) and "role" in m
-            ]
-            assert actual_messages[-1]["role"] == "user", (
-                f"{prompt_file}: last message should have role 'user', "
-                f"got '{actual_messages[-1]['role']}'"
-            )
+        actual_messages = [m for m in messages if isinstance(m, dict) and "role" in m]
+        assert actual_messages[-1]["role"] == "user", (
+            f"{prompt_file}: last message should have role 'user', "
+            f"got '{actual_messages[-1]['role']}'"
+        )
 
     def test_conceptual_prompt_contains_icl_variables(self):
         """Test that the conceptual QA prompt references ICL variables."""
@@ -197,30 +233,14 @@ class TestRagEvaluationIclPrompts:
 class TestRagEvaluationIclFlowDiscovery:
     """Test that the flow is discoverable by FlowRegistry."""
 
-    def test_flow_discoverable(self):
+    def test_flow_discoverable(self, clean_registry):
         """Test that the flow is found by FlowRegistry."""
-        FlowRegistry._entries.clear()
-        FlowRegistry._search_paths.clear()
-        FlowRegistry._initialized = False
-
-        flows_dir = str(FLOW_DIR.parent)
-        FlowRegistry.register_search_path(flows_dir)
-        FlowRegistry._discover_flows(force_refresh=True)
-
         flows = FlowRegistry.list_flows()
         flow_names = [f["name"] for f in flows]
         assert "RAG Evaluation ICL Dataset Flow" in flow_names
 
-    def test_flow_path_retrievable(self):
+    def test_flow_path_retrievable(self, clean_registry):
         """Test that the flow path can be retrieved by name."""
-        FlowRegistry._entries.clear()
-        FlowRegistry._search_paths.clear()
-        FlowRegistry._initialized = False
-
-        flows_dir = str(FLOW_DIR.parent)
-        FlowRegistry.register_search_path(flows_dir)
-        FlowRegistry._discover_flows(force_refresh=True)
-
         path = FlowRegistry.get_flow_path("RAG Evaluation ICL Dataset Flow")
         assert path is not None
         assert "rag_evaluation_icl" in path
