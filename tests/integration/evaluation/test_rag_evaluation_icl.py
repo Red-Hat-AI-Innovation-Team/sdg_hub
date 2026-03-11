@@ -69,7 +69,7 @@ def clean_registry():
     FlowRegistry._search_paths.clear()
     FlowRegistry._initialized = False
 
-    flows_dir = str(FLOW_DIR.parent)
+    flows_dir = str(FLOW_DIR.parents[1])
     FlowRegistry.register_search_path(flows_dir)
     FlowRegistry._discover_flows(force_refresh=True)
 
