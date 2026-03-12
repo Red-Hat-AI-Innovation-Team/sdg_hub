@@ -1,3 +1,4 @@
+# Prompt used in: rag_evaluation_icl flow
 - role: system
   content: |
     You are a strict evaluator for a RAG system. Your task is to rate how well the provided Answer is supported by the Context.
