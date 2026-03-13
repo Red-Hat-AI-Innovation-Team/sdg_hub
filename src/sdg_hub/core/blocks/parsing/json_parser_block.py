@@ -124,6 +124,14 @@ class JSONParserBlock(BaseBlock):
             if start != -1 and end != -1 and end > start:
                 return text[start : end + 1]
 
+            # Try recovering truncated JSON by appending closing brace
+            if start != -1 and (end == -1 or end <= start):
+                logger.warning(
+                    "JSON object appears truncated (missing closing brace). "
+                    "Attempting recovery by appending '}'."
+                )
+                return text[start:].rstrip() + "}"
+
             # Try finding JSON array
             start = text.find("[")
             end = text.rfind("]")
@@ -160,7 +168,7 @@ class JSONParserBlock(BaseBlock):
         json_str = self._fix_json_string(json_str)
 
         try:
-            parsed = json.loads(json_str)
+            parsed = json.loads(json_str, strict=False)
             if isinstance(parsed, dict):
                 return parsed
             elif isinstance(parsed, list):

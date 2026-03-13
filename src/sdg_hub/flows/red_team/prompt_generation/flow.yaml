@@ -135,8 +135,8 @@ blocks:
     output_cols: raw_response
     response_format:
       type: json_schema
-      strict: true
       json_schema:
+        strict: false
         name: prompts_response
         schema:
           type: object
