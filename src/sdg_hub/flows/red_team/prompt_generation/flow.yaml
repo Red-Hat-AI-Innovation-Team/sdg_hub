@@ -5,13 +5,7 @@ metadata:
   version: 1.0.0
   author: Chatterbox Labs
   recommended_models:
-    default: openai/gpt-4
-    compatible:
-    - openai/gpt-4o
-    - meta-llama/Llama-3.3-70B-Instruct
-    - anthropic/claude-3-5-sonnet
-    experimental:
-    - openai/gpt-3.5-turbo
+    default: IlyaGusev/gemma-2-9b-it-abliterated
   tags:
   - red-team
   - adversarial
