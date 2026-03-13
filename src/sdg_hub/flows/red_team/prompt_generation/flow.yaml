@@ -38,7 +38,7 @@ blocks:
 - block_type: RowMultiplierBlock
   block_config:
     block_name: replicate_rows
-    num_samples: 5
+    num_samples: 10
     shuffle: false
 - block_type: SamplerBlock
   block_config:
