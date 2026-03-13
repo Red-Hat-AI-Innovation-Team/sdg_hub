@@ -19,6 +19,9 @@ Maps values based on their position/index, useful for applying transformations b
 ### MeltColumnsBlock
 Reshapes data from wide format to long format, converting multiple columns into key-value pairs.
 
+### SamplerBlock
+Randomly samples values from list, set, or weighted dictionary columns. Use `num_samples=1` with `return_scalar=true` when downstream blocks expect a scalar value instead of a single-item list.
+
 ### UniformColumnValueSetter
 Replaces all values in a column with a single statistical aggregate (mode, min, max, mean, or median) computed from the data. Modifies the column in-place, useful for data normalization, creating baseline comparisons, or extracting dominant values.
 

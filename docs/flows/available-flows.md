@@ -9,6 +9,7 @@ SDG Hub provides a rich ecosystem of pre-built flows for various data generation
 - **QA Generation Flows** - Create training datasets with question-answer pairs for knowledge tuning
 - **Text Analysis Flows** - Extract structured insights from unstructured text content
 - **Multilingual Flows** - Localized variants for non-English data generation
+- **Red Teaming Flows** - Generate adversarial prompts for AI safety evaluation
 
 All flows support:
 - Automatic discovery and registration
@@ -24,6 +25,47 @@ All flows support:
 | [Enhanced Multi-Summary QA](#enhanced-multi-summary-qa-flows) | 4 | Knowledge tuning dataset generation | `knowledge-tuning`, `document-internalization` |
 | [Multilingual QA](#japanese-multilingual-multi-summary-qa-flow) | 1 | Japanese language QA generation | `multilingual`, `japanese` |
 | [Text Analysis](#structured-text-insights-extraction-flow) | 1 | NLP insights extraction | `text-analysis`, `nlp` |
+| [Red Team Prompt Generation](#red-team-prompt-generation-flow) | 1 | Adversarial prompt generation for safety testing | `red-team`, `safety-testing` |
+
+---
+
+## Red Team Prompt Generation Flow
+
+**Name:** `Red Teaming Prompt Generation Flow`
+
+**Purpose:** Generate adversarial prompts for safety testing by combining policy concepts with sampled demographic, expertise, geography, style, exploit-stage, medium, temporal, and trust-signal context.
+
+**Location:** `src/sdg_hub/flows/red_team/prompt_generation/`
+
+### Architecture
+
+```yaml
+Input Concept → Row Replication → Multi-Dimension Sampling →
+PromptBuilderBlock → LLMChatBlock (json_schema response) →
+LLMResponseExtractorBlock → JSONParserBlock → Structured Prompt Dataset
+```
+
+### Input Requirements
+
+| Column | Description | Required |
+|--------|-------------|----------|
+| `policy_concept` | Safety policy topic to test | Yes |
+| `concept_definition` | Description of the policy concept | Yes |
+| `*_pool` columns | Optional sampling pools (demographics, expertise, geography, language styles, exploit stages, task medium, temporal context, trust signals) | No |
+
+### Output Columns
+
+- `prompt` - Generated adversarial prompt candidate
+- `why_prompt_harmful` - Harm rationale
+- `why_prompt_has_temporal_relevance` - Temporal-context rationale
+- `why_prompt_fits_exploit_stage` - Exploit-stage rationale
+- Additional `why_prompt_*` fields for region, demographic targeting, trust exploitation, instruction keywords, style, and expertise fit
+
+### Key Notes
+
+- Uses `SamplerBlock` with `num_samples: 1` and `return_scalar: true` so sampled dimensions are emitted as scalar values.
+- Uses `response_format.type: json_schema` for structured generation from the model.
+- Uses `JSONParserBlock` to expand parsed JSON fields into output columns and remove the raw extracted text when `drop_input: true`.
 
 ---
 
