@@ -13,6 +13,9 @@ Constructs structured prompts from templates and data, with support for complex 
 ### TextParserBlock
 Extracts structured data from LLM responses using patterns, schemas, or parsing rules.
 
+### JSONParserBlock
+Parses JSON objects from model responses and expands fields into separate columns, including JSON embedded in surrounding text.
+
 ## 🚀 LLMChatBlock
 
 The unified chat block that replaces provider-specific implementations with a single, powerful interface.
@@ -664,6 +667,40 @@ print(result["reasoning"])  # Extracted reasoning
 - Each tag pair extracts all matches for that field
 - Tags can be any string (XML-style, markdown-style, custom)
 - Missing tags result in empty lists for that field
+
+## 🧩 JSONParserBlock
+
+JSONParserBlock is useful when your model returns JSON output and you want each JSON field as a dataset column.
+
+### Basic Usage
+
+```python
+from sdg_hub.core.blocks import JSONParserBlock
+from datasets import Dataset
+
+parser = JSONParserBlock(
+    block_name="parse_json_response",
+    input_cols=["response_text"],
+    output_cols=["prompt", "why_prompt_harmful"],  # Optional: select fields
+    drop_input=True
+)
+
+dataset = Dataset.from_dict({
+    "response_text": [
+        '{"prompt":"Example adversarial prompt","why_prompt_harmful":"Contains policy bypass intent"}'
+    ]
+})
+
+result = parser.generate(dataset)
+print(result["prompt"][0])
+```
+
+### JSONParserBlock Notes
+
+- `extract_embedded=True` (default) extracts JSON even when surrounded by extra text
+- `fix_trailing_commas=True` (default) repairs common LLM formatting issues
+- `field_prefix` lets you namespace parsed fields (for example, `parsed_`)
+- `drop_input=True` removes the raw JSON source column after parsing
 
 ## 🚀 Next Steps
 

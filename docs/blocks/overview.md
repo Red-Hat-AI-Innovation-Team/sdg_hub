@@ -52,6 +52,7 @@ AI-powered blocks for language model operations:
 - **LLMChatBlock** - Direct chat with language models
 - **PromptBuilderBlock** - Construct prompts from templates
 - **TextParserBlock** - Extract structured data from LLM responses
+- **JSONParserBlock** - Parse JSON responses into structured columns
 
 ### 🔄 Transform Blocks (`transform/`)
 Data manipulation and transformation:
@@ -60,6 +61,7 @@ Data manipulation and transformation:
 - **TextConcatBlock** - Concatenate text from multiple columns
 - **IndexBasedMapperBlock** - Map values based on indices
 - **MeltColumnsBlock** - Reshape wide data to long format
+- **SamplerBlock** - Randomly sample values from list or weighted pools
 
 ### 🔍 Filtering Blocks (`filtering/`)
 Quality control and data validation:
