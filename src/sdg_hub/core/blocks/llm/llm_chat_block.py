@@ -124,6 +124,11 @@ class LLMChatBlock(BaseBlock):
     drop_params: bool = Field(
         True, description="Whether to drop unsupported parameters to prevent API errors"
     )
+    max_completion_tokens: Optional[int] = Field(
+        None,
+        description="Maximum completion tokens (used by newer models like GPT-5 "
+        "instead of max_tokens). When set, max_tokens is automatically excluded.",
+    )
 
     # All LiteLLM completion parameters can be passed via extra="allow"
     # Common examples: temperature, max_tokens, top_p, frequency_penalty,
@@ -320,12 +325,27 @@ class LLMChatBlock(BaseBlock):
         if self.num_retries is not None:
             completion_kwargs["num_retries"] = self.num_retries
 
-        # Apply only non-block-field overrides (flow params + unknown LiteLLM params)
-        # BaseBlock already handles block field overrides by modifying instance attributes
+        # Add max_completion_tokens if set (for models like GPT-5, o1, o3)
+        if self.max_completion_tokens is not None:
+            completion_kwargs["max_completion_tokens"] = self.max_completion_tokens
+
+        # Apply non-block-field overrides (flow params + unknown LiteLLM params)
+        # BaseBlock already handles block field overrides by modifying instance
+        # attributes, but LiteLLM params that happen to also be model fields
+        # (like max_completion_tokens) need to pass through as well.
+        litellm_passthrough_fields = {"max_completion_tokens"}
         non_block_overrides = {
-            k: v for k, v in overrides.items() if k not in self.__class__.model_fields
+            k: v
+            for k, v in overrides.items()
+            if k not in self.__class__.model_fields or k in litellm_passthrough_fields
         }
         completion_kwargs.update(non_block_overrides)
+
+        # When max_completion_tokens is set, drop max_tokens to avoid
+        # API errors with models that only support max_completion_tokens
+        # (e.g., GPT-5, o1, o3)
+        if completion_kwargs.get("max_completion_tokens") is not None:
+            completion_kwargs.pop("max_tokens", None)
 
         # Ensure drop_params is set to handle unknown parameters gracefully
         completion_kwargs["drop_params"] = self.drop_params

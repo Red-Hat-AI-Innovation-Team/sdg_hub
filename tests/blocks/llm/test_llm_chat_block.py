@@ -1048,6 +1048,97 @@ class TestMultipleResponses:
         assert "row 100" in error_msg  # Should find the error in the last row
         assert "missing required 'content' field" in error_msg
 
+
+class TestMaxCompletionTokens:
+    """Test max_completion_tokens support for newer models (GPT-5, o1, o3)."""
+
+    def test_max_completion_tokens_field(self):
+        """Test that max_completion_tokens is an explicit field."""
+        block = LLMChatBlock(
+            block_name="test_mct",
+            input_cols="messages",
+            output_cols="response",
+            model="openai/gpt-5",
+            max_completion_tokens=1024,
+        )
+        assert block.max_completion_tokens == 1024
+
+    def test_max_completion_tokens_passed_to_litellm(
+        self, mock_litellm_completion, sample_dataset
+    ):
+        """Test that max_completion_tokens is passed through to LiteLLM."""
+        block = LLMChatBlock(
+            block_name="test_mct",
+            input_cols="messages",
+            output_cols="response",
+            model="openai/gpt-5",
+            api_key="test-key",
+            max_completion_tokens=1024,
+        )
+
+        block.generate(sample_dataset)
+
+        call_kwargs = mock_litellm_completion.call_args[1]
+        assert call_kwargs["max_completion_tokens"] == 1024
+
+    def test_max_completion_tokens_drops_max_tokens(
+        self, mock_litellm_completion, sample_dataset
+    ):
+        """Test that max_tokens is dropped when max_completion_tokens is set."""
+        block = LLMChatBlock(
+            block_name="test_mct",
+            input_cols="messages",
+            output_cols="response",
+            model="openai/gpt-5",
+            api_key="test-key",
+            max_tokens=500,
+            max_completion_tokens=1024,
+        )
+
+        block.generate(sample_dataset)
+
+        call_kwargs = mock_litellm_completion.call_args[1]
+        assert call_kwargs["max_completion_tokens"] == 1024
+        assert "max_tokens" not in call_kwargs
+
+    def test_max_tokens_still_works_without_max_completion_tokens(
+        self, mock_litellm_completion, sample_dataset
+    ):
+        """Test that max_tokens works normally when max_completion_tokens is not set."""
+        block = LLMChatBlock(
+            block_name="test_mt",
+            input_cols="messages",
+            output_cols="response",
+            model="openai/gpt-4",
+            api_key="test-key",
+            max_tokens=500,
+        )
+
+        block.generate(sample_dataset)
+
+        call_kwargs = mock_litellm_completion.call_args[1]
+        assert call_kwargs["max_tokens"] == 500
+        assert "max_completion_tokens" not in call_kwargs
+
+    def test_max_completion_tokens_runtime_override(
+        self, mock_litellm_completion, sample_dataset
+    ):
+        """Test that max_completion_tokens can be set via runtime params."""
+        block = LLMChatBlock(
+            block_name="test_mct_override",
+            input_cols="messages",
+            output_cols="response",
+            model="openai/gpt-5",
+            api_key="test-key",
+            max_tokens=500,
+        )
+
+        block.generate(sample_dataset, max_completion_tokens=2048)
+
+        call_kwargs = mock_litellm_completion.call_args[1]
+        assert call_kwargs["max_completion_tokens"] == 2048
+        assert "max_tokens" not in call_kwargs
+
     def test_validation_with_complex_conversation(self):
         """Test validation with complex multi-turn conversations."""
         valid_data = [
