@@ -182,8 +182,47 @@ result = flow.generate(
 Runtime parameters work with any block type - LLM blocks, parser blocks, filter blocks, etc. For detailed parameter options by block type, see [Flow Execution](flows/overview.md#-flow-execution).
 
 ### Error Handling
-#TODO: Add error handling
 
+SDG Hub provides specific exception types so you can handle different failure modes appropriately:
+
+```python
+from sdg_hub.core.utils.error_handling import (
+    FlowValidationError,
+    MissingColumnError,
+    EmptyDatasetError,
+    OutputColumnCollisionError,
+)
+
+# Catch flow-level errors (invalid YAML, missing model config)
+try:
+    flow = Flow.from_yaml("path/to/flow.yaml")
+    flow.set_model_config(model="openai/gpt-4o", api_key="your_key")
+    result = flow.generate(dataset)
+except FlowValidationError as e:
+    print(f"Flow configuration error: {e}")
+except MissingColumnError as e:
+    print(f"Dataset missing columns: {e.missing_columns}")
+    print(f"Available columns: {e.available_columns}")
+except EmptyDatasetError as e:
+    print(f"Block '{e.block_name}' received an empty dataset")
+```
+
+**Common error scenarios and fixes:**
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `MissingColumnError` | Dataset is missing columns a block expects | Check `flow.get_dataset_schema()` for required columns |
+| `EmptyDatasetError` | A filtering block removed all rows | Loosen filter criteria or check input data quality |
+| `OutputColumnCollisionError` | A block tried to create a column that already exists | Rename conflicting columns upstream |
+| `FlowValidationError` | Invalid YAML or model not configured | Call `flow.set_model_config()` before `generate()` |
+| `BlockValidationError` | Invalid message format for LLM blocks | Ensure messages are `[{"role": ..., "content": ...}]` |
+
+**Dry runs** are the best way to catch errors early before processing large datasets:
+
+```python
+# Validate the full pipeline with a small sample
+dry_result = flow.dry_run(dataset, sample_size=2)
+```
 
 ## 🚀 Next Steps
 
