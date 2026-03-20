@@ -442,9 +442,11 @@ class TestCallMethod:
                 # Access the field to verify override worked
                 result = samples.copy()
                 result["test_output"] = result["input"].apply(
-                    lambda x: f"processed_{x}_{self.custom_field}"
-                    if pd.notna(x)
-                    else f"processed_unknown_{self.custom_field}"
+                    lambda x: (
+                        f"processed_{x}_{self.custom_field}"
+                        if pd.notna(x)
+                        else f"processed_unknown_{self.custom_field}"
+                    )
                 )
                 return result
 
@@ -668,6 +670,116 @@ class TestCallMethod:
 
         # Verify input logging was called
         assert mock_console.print.call_count == 1
+
+
+class TestStructuralFieldProtection:
+    """Test that structural fields cannot be overridden at runtime."""
+
+    def create_test_dataset(self, data=None):
+        """Helper to create test datasets."""
+        if data is None:
+            data = [
+                {"input": "test1", "category": "A"},
+                {"input": "test2", "category": "B"},
+            ]
+        return pd.DataFrame(data)
+
+    @patch("sdg_hub.core.blocks.base.console")
+    def test_reject_input_cols_override(self, mock_console):
+        """Test that overriding input_cols at runtime raises ValueError."""
+        dataset = self.create_test_dataset()
+        block = DummyBlock(
+            block_name="test_block",
+            input_cols=["input"],
+            output_cols=["test_output"],
+        )
+
+        with pytest.raises(ValueError, match="Cannot override structural fields"):
+            block(dataset, input_cols=["category"])
+
+    @patch("sdg_hub.core.blocks.base.console")
+    def test_reject_output_cols_override(self, mock_console):
+        """Test that overriding output_cols at runtime raises ValueError."""
+        dataset = self.create_test_dataset()
+        block = DummyBlock(
+            block_name="test_block",
+            input_cols=["input"],
+            output_cols=["test_output"],
+        )
+
+        with pytest.raises(ValueError, match="Cannot override structural fields"):
+            block(dataset, output_cols=["other_output"])
+
+    @patch("sdg_hub.core.blocks.base.console")
+    def test_reject_block_name_override(self, mock_console):
+        """Test that overriding block_name at runtime raises ValueError."""
+        dataset = self.create_test_dataset()
+        block = DummyBlock(
+            block_name="test_block",
+            input_cols=["input"],
+            output_cols=["test_output"],
+        )
+
+        with pytest.raises(ValueError, match="Cannot override structural fields"):
+            block(dataset, block_name="new_name")
+
+    @patch("sdg_hub.core.blocks.base.console")
+    def test_reject_block_type_override(self, mock_console):
+        """Test that overriding block_type at runtime raises ValueError."""
+        dataset = self.create_test_dataset()
+        block = DummyBlock(
+            block_name="test_block",
+            input_cols=["input"],
+            output_cols=["test_output"],
+        )
+
+        with pytest.raises(ValueError, match="Cannot override structural fields"):
+            block(dataset, block_type="llm")
+
+    @patch("sdg_hub.core.blocks.base.console")
+    def test_reject_multiple_structural_overrides(self, mock_console):
+        """Test that overriding multiple structural fields lists all in the error."""
+        dataset = self.create_test_dataset()
+        block = DummyBlock(
+            block_name="test_block",
+            input_cols=["input"],
+            output_cols=["test_output"],
+        )
+
+        with pytest.raises(
+            ValueError, match="Cannot override structural fields"
+        ) as exc_info:
+            block(dataset, input_cols=["other"], output_cols=["other_out"])
+
+        # Both fields should be mentioned (sorted order)
+        assert "input_cols" in str(exc_info.value)
+        assert "output_cols" in str(exc_info.value)
+
+    @patch("sdg_hub.core.blocks.base.console")
+    def test_allow_non_structural_overrides(self, mock_console):
+        """Test that non-structural fields can still be overridden."""
+        dataset = self.create_test_dataset()
+
+        class ConfigurableBlock(DummyBlock):
+            temperature: float = 0.7
+
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
+                result = samples.copy()
+                result["test_output"] = str(self.temperature)
+                return result
+
+        block = ConfigurableBlock(
+            block_name="test_block",
+            input_cols=["input"],
+            output_cols=["test_output"],
+        )
+
+        # Non-structural override should work fine
+        result = block(dataset, temperature=0.9)
+        assert result.iloc[0]["test_output"] == "0.9"
+
+        # Original value restored
+        assert block.temperature == 0.7
 
 
 class TestGetConfig:
