@@ -112,7 +112,58 @@ result = chat_block.generate(dataset)
 ```
 
 ### 4. Monitoring and Logging
-#TODO: Add logging example
+
+Every block automatically produces Rich-formatted panels on execution showing input/output summaries:
+
+```
+┌──────────────────── question_answerer ────────────────────┐
+│ 📊 Processing Input Data                                  │
+│ Block Type: LLMChatBlock                                  │
+│ Input Rows: 2                                             │
+│ Input Columns: 1                                          │
+│ Column Names: question                                    │
+│ Expected Output Columns: answer                           │
+└───────────────────────────────────────────────────────────┘
+
+┌──────────── question_answerer - Complete ─────────────────┐
+│ ✅ Processing Complete                                     │
+│ Rows: 2 → 2                                               │
+│ Columns: 1 → 2                                            │
+│ 🟢 Added: answer                                          │
+│ 📋 Final Columns: answer, question                        │
+└───────────────────────────────────────────────────────────┘
+```
+
+**Controlling log level:**
+
+SDG Hub uses Python's standard logging with a Rich handler. Set the `LOG_LEVEL` environment variable to control verbosity:
+
+```bash
+# Show all logs (default)
+LOG_LEVEL=INFO python my_script.py
+
+# Only warnings and errors
+LOG_LEVEL=WARNING python my_script.py
+
+# Debug output (includes per-sample progress)
+LOG_LEVEL=DEBUG python my_script.py
+
+# Reduce LiteLLM noise separately
+LITELLM_LOG_LEVEL=ERROR python my_script.py
+```
+
+**Saving logs to file:**
+
+When running flows, pass `log_dir` to `flow.generate()` to save execution metrics to JSON:
+
+```python
+result = flow.generate(
+    dataset,
+    log_dir="./logs"  # Saves {flow_name}_{timestamp}_metrics.json
+)
+```
+
+The metrics JSON includes per-block execution time, row counts, column changes, and error details. See [Flow Metrics and Reporting](../flows/overview.md#-flow-metrics-and-reporting) for the full specification.
 
 ## 🛡️ Built-in Validation
 
