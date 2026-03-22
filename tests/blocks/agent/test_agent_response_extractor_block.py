@@ -8,11 +8,14 @@ import pytest
 
 
 # Sample Langflow response structure
-def make_langflow_response(text, session_id="session-123"):
+def make_langflow_response(text, session_id="session-123", content_blocks=None):
     """Create a sample Langflow response structure."""
+    msg = {"text": text}
+    if content_blocks is not None:
+        msg["data"] = {"content_blocks": content_blocks}
     return {
         "session_id": session_id,
-        "outputs": [{"outputs": [{"results": {"message": {"text": text}}}]}],
+        "outputs": [{"outputs": [{"results": {"message": msg}}]}],
     }
 
 
@@ -651,3 +654,96 @@ class TestAgentResponseExtractorBlockIntegration:
             "session-2",
             "session-3",
         ]
+
+
+SAMPLE_CONTENT_BLOCKS = [
+    {
+        "title": "Agent Steps",
+        "contents": [
+            {"type": "text", "header": {"title": "Input"}, "text": "find laptops"},
+            {
+                "type": "tool_use",
+                "name": "search",
+                "tool_input": {"q": "laptops"},
+                "output": {"content": [{"type": "text", "text": '{"results": []}'}]},
+            },
+            {"type": "text", "header": {"title": "Output"}, "text": "No results."},
+        ],
+    }
+]
+
+
+class TestAgentResponseExtractorToolTrace:
+    """Test extract_tool_trace feature."""
+
+    def test_extract_tool_trace(self):
+        """Test extracting tool trace from content_blocks."""
+        block = AgentResponseExtractorBlock(
+            block_name="ext",
+            agent_framework="langflow",
+            input_cols="agent_response",
+            extract_text=False,
+            extract_tool_trace=True,
+        )
+        response = make_langflow_response(
+            "answer", content_blocks=SAMPLE_CONTENT_BLOCKS
+        )
+        dataset = pd.DataFrame({"agent_response": [response]})
+
+        result = block.generate(dataset)
+
+        assert "ext_tool_trace" in result.columns
+        trace = result["ext_tool_trace"].iloc[0]
+        assert len(trace) == 3
+        assert trace[0]["type"] == "text"
+        assert trace[1]["type"] == "tool_use"
+        assert trace[1]["name"] == "search"
+        assert trace[2]["type"] == "text"
+
+    def test_extract_tool_trace_with_text(self):
+        """Test extracting both text and tool trace."""
+        block = AgentResponseExtractorBlock(
+            block_name="ext",
+            agent_framework="langflow",
+            input_cols="agent_response",
+            extract_text=True,
+            extract_tool_trace=True,
+        )
+        response = make_langflow_response(
+            "answer", content_blocks=SAMPLE_CONTENT_BLOCKS
+        )
+        dataset = pd.DataFrame({"agent_response": [response]})
+
+        result = block.generate(dataset)
+
+        assert result["ext_text"].iloc[0] == "answer"
+        assert len(result["ext_tool_trace"].iloc[0]) == 3
+
+    def test_extract_tool_trace_missing(self, caplog):
+        """Test graceful handling when content_blocks is missing."""
+        block = AgentResponseExtractorBlock(
+            block_name="ext",
+            agent_framework="langflow",
+            input_cols="agent_response",
+            extract_text=True,
+            extract_tool_trace=True,
+        )
+        response = make_langflow_response("answer")
+        dataset = pd.DataFrame({"agent_response": [response]})
+
+        result = block.generate(dataset)
+
+        assert result["ext_text"].iloc[0] == "answer"
+        assert "tool_trace" in caplog.text
+
+    def test_init_tool_trace_only(self):
+        """Test initializing with only extract_tool_trace."""
+        block = AgentResponseExtractorBlock(
+            block_name="ext",
+            agent_framework="langflow",
+            input_cols="agent_response",
+            extract_text=False,
+            extract_tool_trace=True,
+        )
+        assert block.extract_tool_trace is True
+        assert "ext_tool_trace" in block.output_cols
