@@ -387,6 +387,33 @@ flow.set_model_config(
 # The configuration applies to all LLM blocks in the flow
 ```
 
+## 🤖 Agent Runtime Configuration
+
+Flows with agent blocks (for example, agentic MCP flows) require connector configuration before `generate()`.
+
+```python
+# Configure agent connector settings at runtime
+flow.set_agent_config(
+    agent_framework="langflow",
+    agent_url="http://localhost:7860/api/v1/run/default",
+    agent_api_key="your-agent-key",
+)
+
+# Optional: target specific agent blocks only
+flow.set_agent_config(
+    agent_url="http://localhost:7860/api/v1/run/alternate",
+    blocks=["explore_server"],
+)
+```
+
+If a flow contains both LLM and agent blocks, configure both before execution:
+
+```python
+flow.set_model_config(model="openai/gpt-5.2", api_key="your-llm-key")
+flow.set_agent_config(agent_framework="langflow", agent_url="http://localhost:7860/api/v1/run/default")
+result = flow.generate(dataset)
+```
+
 ## 🚀 Flow Execution
 
 ### Basic Execution

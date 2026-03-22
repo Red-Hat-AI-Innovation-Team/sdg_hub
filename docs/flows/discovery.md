@@ -41,6 +41,10 @@ src/sdg_hub/flows/                    # Built-in flows
 │   └── japanese_multi_summary_qa/
 │       ├── flow.yaml
 │       └── prompts/
+├── agentic/                          # Agentic tool-use generation flows
+│   └── mcp_distillation/
+│       ├── flow.yaml
+│       └── prompts/
 ├── text_analysis/                    # Text analysis flows
 │   └── structured_insights/
 │       ├── flow.yaml
@@ -159,6 +163,8 @@ flows/
 ├── knowledge_infusion/  # Knowledge tuning and QA generation
 │   ├── enhanced_multi_summary_qa/
 │   └── japanese_multi_summary_qa/
+├── agentic/             # Agentic tool-use and distillation flows
+│   └── mcp_distillation/
 ├── text_analysis/       # Text processing and insights
 │   └── structured_insights/
 └── evaluation/          # Quality assessment flows
@@ -199,6 +205,15 @@ knowledge_infusion/                      # Primary domain
     └── prompts/
         ├── atomic_facts_ja.yaml
         └── detailed_summary_ja.yaml
+
+agentic/                                 # Agentic workflow domain
+└── mcp_distillation/                    # MCP tool-use distillation flow
+    ├── flow.yaml
+    └── prompts/
+        ├── exploration.yaml
+        ├── question_generation.yaml
+        ├── question_quality_check.yaml
+        └── response_quality_check.yaml
 ```
 
 ## 🏷️ Flow Categorization and Tagging
