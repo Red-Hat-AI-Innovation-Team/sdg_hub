@@ -186,8 +186,8 @@ class AgentResponseExtractorBlock(BaseBlock):
         ValueError
             If none of the requested fields are found in the response.
         """
-        extracted = {}
-        missing_fields = []
+        extracted: dict[str, Any] = {}
+        missing_fields: list[str] = []
 
         if self.extract_text:
             try:
