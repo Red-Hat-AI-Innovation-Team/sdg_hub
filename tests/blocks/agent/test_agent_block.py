@@ -24,6 +24,21 @@ class TestAgentBlockRegistration:
         assert "AgentBlock" in agent_blocks
 
 
+class TestAgentBlockBlockType:
+    """Test AgentBlock block_type attribute."""
+
+    def test_block_type_is_agent(self):
+        """Test that block_type is set to 'agent'."""
+        block = AgentBlock(
+            block_name="test",
+            agent_framework="langflow",
+            agent_url="http://localhost:7860",
+            input_cols=["messages"],
+            output_cols=["response"],
+        )
+        assert block.block_type == "agent"
+
+
 class TestAgentBlockConfiguration:
     """Test AgentBlock configuration."""
 

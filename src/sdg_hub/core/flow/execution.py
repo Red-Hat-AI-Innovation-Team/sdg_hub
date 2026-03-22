@@ -354,6 +354,7 @@ def execute_flow(
         is required but not set.
     """
     # Import here to avoid circular imports
+    from .agent_config import detect_agent_blocks
     from .model_config import detect_llm_blocks
 
     # Convert to DataFrame if needed (backwards compatibility)
@@ -405,6 +406,15 @@ def execute_flow(
             f"Model configuration required before generate(). "
             f"Found {len(llm_blocks)} LLM blocks: {sorted(llm_blocks)}. "
             f"Call flow.set_model_config() first."
+        )
+
+    # Check if agent configuration has been set for flows with agent blocks
+    agent_blocks = detect_agent_blocks(flow)
+    if agent_blocks and not flow._agent_config_set:
+        raise FlowValidationError(
+            f"Agent configuration required before generate(). "
+            f"Found {len(agent_blocks)} agent blocks: {sorted(agent_blocks)}. "
+            f"Call flow.set_agent_config() first."
         )
 
     # Validate dataset requirements

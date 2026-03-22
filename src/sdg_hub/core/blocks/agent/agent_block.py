@@ -81,6 +81,8 @@ class AgentBlock(BaseBlock):
     >>> result_df = block(df)
     """
 
+    block_type: str = "agent"
+
     # Required configuration
     agent_framework: str = Field(
         ...,

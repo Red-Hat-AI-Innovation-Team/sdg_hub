@@ -76,6 +76,15 @@ class AgentResponseExtractorBlock(BaseBlock):
         default=False,
         description="Whether to extract session_id from responses.",
     )
+    extract_tool_trace: bool = Field(
+        default=False,
+        description=(
+            "Whether to extract the full tool call trace from agent responses. "
+            "For Langflow, this extracts the content_blocks 'Agent Steps' array "
+            "containing structured tool_use entries (name, tool_input, output) "
+            "and text entries (input/output messages)."
+        ),
+    )
     expand_lists: bool = Field(
         default=True,
         description="Whether to expand list inputs into individual rows (True) or preserve lists (False).",
@@ -88,10 +97,12 @@ class AgentResponseExtractorBlock(BaseBlock):
     @model_validator(mode="after")
     def validate_extraction_configuration(self):
         """Validate that at least one extraction field is enabled and pre-compute field names."""
-        if not any([self.extract_text, self.extract_session_id]):
+        if not any(
+            [self.extract_text, self.extract_session_id, self.extract_tool_trace]
+        ):
             raise ValueError(
                 "AgentResponseExtractorBlock requires at least one extraction field to be enabled: "
-                "extract_text or extract_session_id"
+                "extract_text, extract_session_id, or extract_tool_trace"
             )
 
         # Validate agent_framework
@@ -108,6 +119,7 @@ class AgentResponseExtractorBlock(BaseBlock):
             prefix = self.block_name + "_"
         self._text_field = f"{prefix}text"
         self._session_id_field = f"{prefix}session_id"
+        self._tool_trace_field = f"{prefix}tool_trace"
 
         # Advertise output columns for standard collision checks
         self.output_cols = self._get_output_columns()
@@ -202,6 +214,13 @@ class AgentResponseExtractorBlock(BaseBlock):
                 else:
                     extracted[self._session_id_field] = response["session_id"]
 
+        if self.extract_tool_trace:
+            tool_trace = self._extract_langflow_tool_trace(response)
+            if tool_trace is not None:
+                extracted[self._tool_trace_field] = tool_trace
+            else:
+                missing_fields.append("tool_trace")
+
         if missing_fields:
             logger.warning(
                 f"Requested fields {missing_fields} not found in response. "
@@ -213,6 +232,49 @@ class AgentResponseExtractorBlock(BaseBlock):
                 f"No requested fields found in response. Available keys: {list(response.keys())}"
             )
         return extracted
+
+    def _extract_langflow_tool_trace(
+        self, response: dict
+    ) -> list[dict[str, Any]] | None:
+        """Extract the full tool call trace from Langflow content_blocks.
+
+        Langflow agent responses include an 'Agent Steps' content block with
+        structured entries for each step: user input (text), tool calls
+        (tool_use with name, tool_input, output), and final output (text).
+
+        Parameters
+        ----------
+        response : dict
+            Raw Langflow API response.
+
+        Returns
+        -------
+        list[dict] or None
+            List of step dicts from content_blocks, or None if not found.
+        """
+        # Try both paths where content_blocks can appear
+        for path_fn in [
+            lambda r: r["outputs"][0]["outputs"][0]["results"]["message"]["data"][
+                "content_blocks"
+            ],
+            lambda r: r["outputs"][0]["outputs"][0]["results"]["message"][
+                "content_blocks"
+            ],
+        ]:
+            try:
+                content_blocks = path_fn(response)
+                if not content_blocks:
+                    continue
+                # Find the "Agent Steps" block
+                for block in content_blocks:
+                    contents = block.get("contents")
+                    if contents and isinstance(contents, list):
+                        return contents
+            except (KeyError, IndexError, TypeError):
+                continue
+
+        logger.warning("No content_blocks with tool trace found in Langflow response")
+        return None
 
     def _extract_fields_from_response(self, response: dict) -> dict[str, Any]:
         """Extract specified fields from a single response object.
@@ -244,6 +306,8 @@ class AgentResponseExtractorBlock(BaseBlock):
             columns.append(self._text_field)
         if self.extract_session_id:
             columns.append(self._session_id_field)
+        if self.extract_tool_trace:
+            columns.append(self._tool_trace_field)
         return columns
 
     def _generate(self, sample: dict) -> list[dict]:

@@ -47,6 +47,7 @@ def load_flow_from_yaml(flow_cls: type["Flow"], yaml_path: str) -> "Flow":
         If the YAML file does not exist at the given path.
     """
     # Import here to avoid circular imports
+    from .agent_config import detect_agent_blocks
     from .model_config import detect_llm_blocks
 
     if yaml_path is None:
@@ -130,6 +131,15 @@ def load_flow_from_yaml(flow_cls: type["Flow"], yaml_path: str) -> "Flow":
         else:
             # LLM blocks present - user must call set_model_config()
             flow._model_config_set = False
+
+        # Check if this is a flow without agent blocks
+        agent_blocks = detect_agent_blocks(flow)
+        if not agent_blocks:
+            # No agent blocks, so no agent config needed
+            flow._agent_config_set = True
+        else:
+            # Agent blocks present - user must call set_agent_config()
+            flow._agent_config_set = False
 
         return flow
     except FlowValidationError:
