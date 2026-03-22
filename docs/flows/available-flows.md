@@ -22,10 +22,104 @@ All flows support:
 
 | Flow Category | Flow Count | Primary Use Case | Tags |
 |---------------|------------|------------------|------|
+| [MCP Server Distillation](#mcp-server-distillation-flow) | 1 | Generate expert MCP tool-use trajectories for SFT data | `agentic`, `tool-use`, `mcp` |
 | [Enhanced Multi-Summary QA](#enhanced-multi-summary-qa-flows) | 4 | Knowledge tuning dataset generation | `knowledge-tuning`, `document-internalization` |
 | [Multilingual QA](#japanese-multilingual-multi-summary-qa-flow) | 1 | Japanese language QA generation | `multilingual`, `japanese` |
 | [Text Analysis](#structured-text-insights-extraction-flow) | 1 | NLP insights extraction | `text-analysis`, `nlp` |
 | [Red Team Prompt Generation](#red-team-prompt-generation-flow) | 1 | Adversarial prompt generation for safety testing | `red-team`, `safety-testing` |
+
+---
+
+## MCP Server Distillation Flow
+
+**Name:** `MCP Server Distillation`
+
+**Purpose:** Generate high-quality MCP tool-use training data through expert distillation: the flow explores a server, synthesizes grounded multi-tool questions, runs expert trajectories, and filters for strong completions.
+
+**Location:** `src/sdg_hub/flows/agentic/mcp_distillation/`
+
+### Architecture
+
+```yaml
+Tool Catalog + Server Metadata → Exploration Prompt →
+AgentBlock (server exploration) → Server Understanding →
+Grounded Question Generation → Question Quality Filter →
+AgentBlock (expert trajectory) → Tool Trace Extraction →
+Response Completeness Filter
+```
+
+### Input Requirements
+
+| Column | Description | Required |
+|--------|-------------|----------|
+| `tool_list` | List of MCP tool schemas (`name`, `description`, `inputSchema`) | Yes |
+| `mcp_server_name` | MCP server name | Yes |
+| `mcp_server_description` | Human-readable server description | Yes |
+
+### Key Output Columns
+
+- `question` - Grounded user question designed to require multi-tool execution
+- `target_tools` - Intended tool sequence for solving the question
+- `extract_agent_text_text` - Expert trajectory conversation text
+- `extract_agent_text_tool_trace` - Structured tool-use trace extracted from Langflow `content_blocks`
+- `completeness_rating` - Response quality rating used by final filtering
+
+### Runtime Requirements
+
+- This flow includes both LLM and agent blocks, so configure both before calling `generate()`.
+- Use `flow.set_model_config(...)` for LLM blocks.
+- Use `flow.set_agent_config(...)` for agent connector settings such as `agent_framework`, `agent_url`, and `agent_api_key`.
+
+### Example Usage
+
+```python
+from datasets import Dataset
+from sdg_hub.core.flow import Flow, FlowRegistry
+from sdg_hub.core.utils.message_formatter import tool_trace_to_messages
+
+FlowRegistry.discover_flows()
+flow_path = FlowRegistry.get_flow_path("MCP Server Distillation")
+flow = Flow.from_yaml(flow_path)
+
+flow.set_model_config(
+    model="openai/gpt-5.2",
+    api_key="your-llm-key",
+)
+
+flow.set_agent_config(
+    agent_framework="langflow",
+    agent_url="http://localhost:7860/api/v1/run/default",
+    agent_api_key="your-langflow-key",
+)
+
+seed = Dataset.from_dict(
+    {
+        "mcp_server_name": ["ecommerce_analytics"],
+        "mcp_server_description": [
+            "Analytics server for products, customers, and orders"
+        ],
+        "tool_list": [
+            [
+                {
+                    "name": "search_products",
+                    "description": "Search products by keyword",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {"query": {"type": "string"}},
+                    },
+                }
+            ]
+        ],
+    }
+)
+
+result = flow.generate(seed, max_concurrency=10)
+
+messages = tool_trace_to_messages(
+    result[0]["extract_agent_text_tool_trace"],
+    result[0]["tool_list"],
+)
+```
 
 ---
 
