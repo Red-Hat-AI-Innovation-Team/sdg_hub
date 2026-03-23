@@ -164,6 +164,8 @@ The repository ships with **Spanish (`es`)** flows under `src/sdg_hub/flows/know
 
 We evaluated Spanish knowledge tuning using the same QuALITY benchmark (translated to Spanish), comparing a baseline Llama-3.1-8B-Instruct model against SFT and OSFT variants trained on Spanish-translated synthetic data.
 
+**Training token count:** 42,653,497
+
 <p align="center">
   <img src="imgs/rag_context_sweep_comparison_spanish.png" alt="Spanish Translated QuALITY Performance" />
 </p>
@@ -171,3 +173,37 @@ We evaluated Spanish knowledge tuning using the same QuALITY benchmark (translat
 <p align="center">
   <em>Figure: Spanish QuALITY benchmark accuracy across retrieved context sizes. SFT on translated data yields consistent gains over the baseline in both open-book and closed-book settings.</em>
 </p>
+
+| # of Contexts Retrieved | Baseline | SFT-2e-5 | OSFT-2e-5-0.2urr |
+|:-----------------------:|---------:|----------:|------------------:|
+| 0 (Closed Book)         |   44.47% |  **48.92%** |            47.16% |
+| 2                       |   49.01% |  **55.49%** |            52.75% |
+| 4                       |   54.25% |  **59.81%** |            58.26% |
+| 8                       |   60.03% |  **65.84%** |            63.51% |
+| 16                      |   64.61% |  **68.80%** |            68.14% |
+| 32                      |   65.71% |    68.88% |        **69.68%** |
+
+### Coverage of Baseline Correct Answers: OSFT vs SFT
+
+While both SFT and OSFT improve overall accuracy, an important question is: **how many of the baseline model's originally correct answers does each method retain?** Standard SFT substantially drives the model away from its current behavior, risking loss of existing knowledge. OSFT, by contrast, restricts weight updates to orthogonal subspaces, giving finer control over how much the model departs from its current behavior while still adding new parametric knowledge. For a deeper dive into the OSFT method, see the [OSFT Comprehensive Tutorial in Training Hub](https://github.com/Red-Hat-AI-Innovation-Team/training_hub/blob/main/examples/notebooks/osft_comprehensive_tutorial.ipynb).
+
+We measure *coverage* as the percentage of questions the baseline model answers correctly that the fine-tuned model also answers correctly. Higher coverage means less forgetting of existing capabilities.
+
+<p align="center">
+  <img src="imgs/coverage_osft_0.2_urr_vs_sft.png" alt="Coverage of Baseline Correct Answers: OSFT vs SFT" />
+</p>
+
+<p align="center">
+  <em>Figure: Coverage of baseline correct answers across retrieved context sizes. OSFT consistently retains a higher proportion of the baseline's correct answers compared to SFT, demonstrating better preservation of existing model knowledge.</em>
+</p>
+
+| # of Contexts Retrieved | SFT Coverage | OSFT Coverage |
+|:-----------------------:|-------------:|--------------:|
+| 0 (Closed Book)         |       72.94% |        77.11% |
+| 2                       |       81.65% |        84.35% |
+| 4                       |       84.40% |        88.22% |
+| 8                       |       87.89% |        90.09% |
+| 16                      |       88.68% |        89.77% |
+| 32                      |       88.20% |        90.14% |
+
+OSFT achieves **84–90% coverage** across open-book settings, compared to SFT's **82–89%**, meaning OSFT consistently retains more of the baseline's correct answers while still gaining new ones.
