@@ -1,7 +1,7 @@
 # Data Generation Pipeline
 
 <p align="center">
-  <img src="../diagrams/png/sdg_pipeline_wide_2x.png" alt="Data Generation Pipeline" />
+  <img src="diagrams/png/sdg_pipeline_wide_2x.png" alt="Data Generation Pipeline" />
 </p>
 
 ## 1. Document Summarization
