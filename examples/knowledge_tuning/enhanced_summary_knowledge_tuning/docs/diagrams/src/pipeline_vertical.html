@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #FFFFFF;
+    color: #1a1a1a;
+    padding: 48px 40px;
+    width: 960px;
+  }
+
+  .stage-row { display: flex; align-items: flex-start; gap: 20px; margin-bottom: 0; }
+  .stage-badge {
+    flex-shrink: 0;
+    width: 148px;
+    text-align: right;
+    padding-top: 14px;
+  }
+  .stage-badge .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 50%;
+    font-size: 13px; font-weight: 600; margin-bottom: 4px;
+  }
+  .stage-badge .label {
+    font-size: 12px; font-weight: 500; letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .card {
+    flex: 1;
+    border: 1px solid #E5E3DC;
+    border-radius: 10px;
+    padding: 18px 22px;
+    background: #fff;
+  }
+  .card-header {
+    font-size: 14px; font-weight: 600; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-body { font-size: 13px; line-height: 1.7; color: #444; }
+
+  .connector {
+    display: flex;
+    justify-content: center;
+    padding: 6px 0 6px 168px;
+  }
+  .connector svg { display: block; }
+
+  .aug-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .aug-card {
+    border: 1px solid #E5E3DC;
+    border-radius: 10px;
+    padding: 14px 16px;
+    background: #fff;
+  }
+  .aug-card .aug-title {
+    font-size: 13px; font-weight: 600; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .aug-card .aug-body { font-size: 12px; line-height: 1.65; color: #555; }
+
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  .quote-line {
+    border-left: 2px solid #7F77DD;
+    padding: 1px 0 1px 10px;
+    margin: 3px 0;
+    font-size: 12px;
+    color: #555;
+  }
+  .fact-line {
+    border-left: 2px solid #1D9E75;
+    padding: 1px 0 1px 10px;
+    margin: 3px 0;
+    font-size: 12px;
+    color: #555;
+  }
+
+  .qa-block { margin: 4px 0; }
+  .qa-q { font-weight: 500; font-size: 12.5px; color: #333; margin-bottom: 2px; }
+  .qa-a { font-size: 12px; color: #555; line-height: 1.6; }
+
+  .verdict {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 2px 10px; border-radius: 6px; letter-spacing: 0.02em;
+  }
+  .verdict.pass { background: #EAF3DE; color: #27500A; }
+  .verdict.fail { background: #FCEBEB; color: #791F1F; }
+
+  .verdict-row { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0; }
+  .verdict-text { font-size: 12px; color: #555; line-height: 1.5; }
+
+  .annot-row { display: flex; align-items: baseline; gap: 8px; margin: 4px 0; font-size: 12px; line-height: 1.55; }
+  .annot-label {
+    flex-shrink: 0; font-weight: 600; font-size: 11px; color: #534AB7;
+    text-transform: uppercase; letter-spacing: 0.03em; min-width: 78px;
+  }
+
+  .fan-label {
+    font-size: 11px; color: #888; text-align: center; padding: 4px 0 2px 168px;
+    letter-spacing: 0.03em;
+  }
+
+  .color-source .num { background: #F1EFE8; color: #444441; }
+  .color-source .label { color: #5F5E5A; }
+  .color-aug .num { background: #EEEDFE; color: #3C3489; }
+  .color-aug .label { color: #534AB7; }
+  .color-gen .num { background: #FAECE7; color: #712B13; }
+  .color-gen .label { color: #993C1D; }
+  .color-filter .num { background: #FAECE7; color: #712B13; }
+  .color-filter .label { color: #993C1D; }
+  .color-out .num { background: #EAF3DE; color: #27500A; }
+  .color-out .label { color: #3B6D11; }
+</style>
+</head>
+<body>
+
+<!-- STAGE 1: Source Document -->
+<div class="stage-row">
+  <div class="stage-badge color-source">
+    <div class="num">1</div>
+    <div class="label">Source</div>
+  </div>
+  <div class="card" style="border-color: #D3D1C7;">
+    <div class="card-header"><span class="dot" style="background:#888780;"></span> Input document</div>
+    <div class="card-body">
+      Coffee consumption worldwide has doubled in the past decade. Studies show moderate intake (3–4 cups daily) reduces the risk of type 2 diabetes by 25%. However, excessive consumption can cause anxiety and sleep disruption. Health organizations recommend limiting intake to 400 mg of caffeine per day.
+    </div>
+  </div>
+</div>
+
+<!-- Connector: fan out -->
+<div class="connector">
+  <svg width="680" height="36" viewBox="0 0 680 36">
+    <line x1="340" y1="0" x2="340" y2="14" stroke="#BFBDB5" stroke-width="1.2"/>
+    <line x1="113" y1="14" x2="567" y2="14" stroke="#BFBDB5" stroke-width="1.2"/>
+    <line x1="113" y1="14" x2="113" y2="36" stroke="#BFBDB5" stroke-width="1.2"/>
+    <line x1="340" y1="14" x2="340" y2="36" stroke="#BFBDB5" stroke-width="1.2"/>
+    <line x1="567" y1="14" x2="567" y2="36" stroke="#BFBDB5" stroke-width="1.2"/>
+    <polygon points="110,36 116,36 113,42" fill="#BFBDB5"/>
+    <polygon points="337,36 343,36 340,42" fill="#BFBDB5"/>
+    <polygon points="564,36 570,36 567,42" fill="#BFBDB5"/>
+  </svg>
+</div>
+<div class="fan-label">Three augmentation views of the same document</div>
+
+<!-- STAGE 2: Augmentation Grid -->
+<div class="stage-row" style="margin-top: 8px;">
+  <div class="stage-badge color-aug">
+    <div class="num">2</div>
+    <div class="label">Augment</div>
+  </div>
+  <div class="aug-grid">
+
+    <div class="aug-card" style="border-color: #CECBF6;">
+      <div class="aug-title"><span class="dot" style="background:#7F77DD;"></span> Extractive summary</div>
+      <div class="aug-body">
+        <div class="quote-line" style="margin-bottom: 8px;">"Moderate intake (3–4 cups daily) reduces the risk of type 2 diabetes by 25%. However, excessive consumption can cause anxiety and sleep disruption."</div>
+        <div class="annot-row"><span class="annot-label">Context</span> <span class="annot-val">Core benefit paired with its counterweight.</span></div>
+        <div class="annot-row"><span class="annot-label">Relevance</span> <span class="annot-val">Very high — anchors the 400 mg guideline.</span></div>
+        <div class="annot-row"><span class="annot-label">Relationship</span> <span class="annot-val">Resolves extract 1 into effects; motivates extract 3.</span></div>
+        <div style="font-size: 11px; color: #888; margin-top: 8px; border-top: 1px solid #eee; padding-top: 6px;">Every passage is extracted and annotated this way.</div>
+      </div>
+    </div>
+
+    <div class="aug-card" style="border-color: #CECBF6;">
+      <div class="aug-title"><span class="dot" style="background:#7F77DD;"></span> Detailed summary</div>
+      <div class="aug-body">
+        The document examines coffee's health profile through three moves: rising global consumption, a net-positive finding at moderate doses alongside caution at high doses, and a concrete guideline of 400 mg/day. The underlying principle is dose-dependent risk.
+      </div>
+    </div>
+
+    <div class="aug-card" style="border-color: #CECBF6;">
+      <div class="aug-title"><span class="dot" style="background:#7F77DD;"></span> Atomic key facts</div>
+      <div class="aug-body">
+        <div class="fact-line">Global coffee consumption has doubled in the past decade.</div>
+        <div class="fact-line">Moderate intake is defined as 3–4 cups per day.</div>
+        <div class="fact-line">Moderate intake reduces type 2 diabetes risk by 25%.</div>
+        <div class="fact-line">Excessive intake causes anxiety and disrupts sleep.</div>
+        <div class="fact-line">Recommended daily caffeine limit is 400 mg.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Connector: fan in -->
+<div class="connector">
+  <svg width="680" height="36" viewBox="0 0 680 36">
+    <line x1="113" y1="0" x2="113" y2="18" stroke="#BFBDB5" stroke-width="1.2"/>
+    <line x1="340" y1="0" x2="340" y2="18" stroke="#BFBDB5" stroke-width="1.2"/>
+    <line x1="567" y1="0" x2="567" y2="18" stroke="#BFBDB5" stroke-width="1.2"/>
+    <line x1="113" y1="18" x2="567" y2="18" stroke="#BFBDB5" stroke-width="1.2"/>
+    <line x1="340" y1="18" x2="340" y2="36" stroke="#BFBDB5" stroke-width="1.2"/>
+    <polygon points="337,36 343,36 340,42" fill="#BFBDB5"/>
+  </svg>
+  </svg>
+</div>
+
+<!-- STAGE 3: Q&A Generation -->
+<div class="stage-row">
+  <div class="stage-badge color-gen">
+    <div class="num">3</div>
+    <div class="label">Generate</div>
+  </div>
+  <div class="card" style="border-color: #F5C4B3;">
+    <div class="card-header"><span class="dot" style="background:#D85A30;"></span> Q&A generation</div>
+    <div class="card-body">
+      <div class="qa-block">
+        <div class="qa-q">Q: Why might health organizations set a specific caffeine limit rather than simply advising "moderate" intake?</div>
+        <div class="qa-a">A: Because coffee has dose-dependent effects — beneficial at 3–4 cups (lowering diabetes risk by 25%) but harmful at higher levels (anxiety, sleep disruption). A numeric threshold of 400 mg/day gives consumers an unambiguous target that captures the crossover between benefit and harm.</div>
+      </div>
+      <div style="border-top: 1px solid #f0eeea; margin: 10px 0;"></div>
+      <div class="qa-block">
+        <div class="qa-q">Q: What evidence suggests coffee's popularity is more than a cultural trend?</div>
+        <div class="qa-a">A: The doubling of global consumption in a single decade signals structural demand growth, and the cited health research — a 25% reduction in diabetes risk at moderate intake — provides a concrete rationale beyond taste or habit.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Connector -->
+<div class="connector">
+  <svg width="680" height="32" viewBox="0 0 680 32">
+    <line x1="340" y1="0" x2="340" y2="32" stroke="#BFBDB5" stroke-width="1.2"/>
+    <polygon points="337,32 343,32 340,38" fill="#BFBDB5"/>
+  </svg>
+</div>
+
+<!-- STAGE 4: Faithfulness Filter -->
+<div class="stage-row">
+  <div class="stage-badge color-filter">
+    <div class="num">4</div>
+    <div class="label">Filter</div>
+  </div>
+  <div class="card" style="border-color: #F5C4B3;">
+    <div class="card-header"><span class="dot" style="background:#D85A30;"></span> Faithfulness filter</div>
+    <div class="card-body">
+      <div class="verdict-row">
+        <span class="verdict pass">PASS</span>
+        <span class="verdict-text">"400 mg/day limit", "25% diabetes risk reduction", "anxiety and sleep disruption" — all directly supported by the source document.</span>
+      </div>
+      <div class="verdict-row">
+        <span class="verdict fail">FAIL</span>
+        <span class="verdict-text">"Coffee prevents heart disease" — not stated in the source. This Q&A pair is discarded.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Connector -->
+<div class="connector">
+  <svg width="680" height="32" viewBox="0 0 680 32">
+    <line x1="340" y1="0" x2="340" y2="32" stroke="#BFBDB5" stroke-width="1.2"/>
+    <polygon points="337,32 343,32 340,38" fill="#BFBDB5"/>
+  </svg>
+</div>
+
+<!-- STAGE 5: Training Data -->
+<div class="stage-row">
+  <div class="stage-badge color-out">
+    <div class="num">5</div>
+    <div class="label">Output</div>
+  </div>
+  <div class="card" style="border-color: #C0DD97;">
+    <div class="card-header"><span class="dot" style="background:#639922;"></span> Training data</div>
+    <div class="card-body">
+      Faithful Q&A pairs from all augmentation paths are collected and mixed into the final training set. Each pair carries its source document for provenance. The different views ensure variety — extractive pairs test recall, detailed-summary pairs test reasoning, and atomic-fact pairs test precision.
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
