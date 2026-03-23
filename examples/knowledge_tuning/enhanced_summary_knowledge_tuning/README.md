@@ -23,3 +23,4 @@ The final product is a **high-quality training dataset** suitable for fine-tunin
 | [CPT Results](docs/cpt_results.md) | Continued pre-training with augmented documents |
 | [Multilingual Support](docs/multilingual.md) | Generating training data in any language, with Spanish benchmark results |
 | [Custom Documents SFT](docs/custom_docs_sft.md) | Training on custom domain-specific documents with SFT |
+| [Blog: Knowledge Tuning Deep Dive](docs/blog.md) | End-to-end walkthrough of the pipeline, augmentation strategies, and results |
