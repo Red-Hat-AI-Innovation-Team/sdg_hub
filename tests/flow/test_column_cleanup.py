@@ -115,9 +115,7 @@ class TestColumnDependencyTracker:
         """Test that original columns are never dropped."""
         block1 = TextConcatBlock(block_name="b1", input_cols=["a"], output_cols="temp")
         # block2 consumes temp, so temp has a known last consumer (block2)
-        block2 = DuplicateColumnsBlock(
-            block_name="b2", input_cols={"temp": "output"}
-        )
+        block2 = DuplicateColumnsBlock(block_name="b2", input_cols={"temp": "output"})
 
         tracker = ColumnDependencyTracker(
             blocks=[block1, block2],
