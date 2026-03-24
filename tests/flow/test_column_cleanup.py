@@ -2,14 +2,15 @@
 """Tests for column cleanup feature."""
 
 # Third Party
+import pandas as pd
+import pytest
+
 # First Party
 from sdg_hub.core.blocks.transform.duplicate_columns import DuplicateColumnsBlock
 from sdg_hub.core.blocks.transform.text_concat import TextConcatBlock
 from sdg_hub.core.flow.base import Flow
 from sdg_hub.core.flow.column_tracker import ColumnDependencyTracker
 from sdg_hub.core.flow.metadata import FlowMetadata
-import pandas as pd
-import pytest
 
 
 class TestFlowMetadataColumnCleanup:
@@ -113,14 +114,19 @@ class TestColumnDependencyTracker:
     def test_get_droppable_columns_preserves_original(self):
         """Test that original columns are never dropped."""
         block1 = TextConcatBlock(block_name="b1", input_cols=["a"], output_cols="temp")
+        # block2 consumes temp, so temp has a known last consumer (block2)
+        block2 = DuplicateColumnsBlock(
+            block_name="b2", input_cols={"temp": "output"}
+        )
 
         tracker = ColumnDependencyTracker(
-            blocks=[block1],
+            blocks=[block1, block2],
             columns_to_keep={"output"},
             original_columns={"a"},
         )
 
-        droppable = tracker.get_droppable_columns(0, {"a", "temp"})
+        # After block2 (index 1), temp's last consumer is satisfied
+        droppable = tracker.get_droppable_columns(1, {"a", "temp", "output"})
         assert "a" not in droppable
         assert "temp" in droppable
 
@@ -160,12 +166,13 @@ class TestColumnDependencyTrackerEdgeCases:
         )
         assert tracker._last_consumer == {}
         droppable = tracker.get_droppable_columns(0, {"input", "output", "temp"})
-        assert "temp" in droppable
+        # 'temp' has no known consumer, so it's deferred to final cleanup
+        assert "temp" not in droppable
         assert "input" not in droppable
         assert "output" not in droppable
 
     def test_get_droppable_columns_never_consumed(self):
-        """Test that columns never consumed are droppable."""
+        """Test that columns never consumed are deferred to final cleanup."""
         block1 = TextConcatBlock(
             block_name="b1", input_cols=["a"], output_cols="unused"
         )
@@ -177,9 +184,10 @@ class TestColumnDependencyTrackerEdgeCases:
             original_columns={"a"},
         )
 
-        # 'unused' is never consumed, can be dropped after creation
+        # 'unused' is never consumed by any block — conservative approach
+        # defers it to _cleanup_final_columns rather than dropping early
         droppable = tracker.get_droppable_columns(0, {"a", "unused"})
-        assert "unused" in droppable
+        assert "unused" not in droppable
 
 
 class TestFlowColumnCleanup:
@@ -388,3 +396,46 @@ class TestCleanupFinalColumns:
             _cleanup_final_columns(
                 dataset, {"missing_col"}, {"a"}, __import__("logging").getLogger()
             )
+
+
+class TestCheckpointColumnCleanup:
+    """Tests for column cleanup on checkpoint early-return path."""
+
+    def test_checkpoint_early_return_drops_intermediate_columns(self, tmp_path):
+        """Test that column cleanup applies when all samples are already checkpointed."""
+        from sdg_hub.core.flow.checkpointer import FlowCheckpointer
+
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["output"],
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat",
+                    input_cols=["a", "b"],
+                    output_cols="output",
+                ),
+            ],
+        )
+
+        # Simulate a prior run that checkpointed all samples with extra columns
+        checkpoint_dir = str(tmp_path / "checkpoints")
+        checkpointer = FlowCheckpointer(
+            checkpoint_dir=checkpoint_dir, flow_id=flow.metadata.id
+        )
+        completed = pd.DataFrame(
+            {"a": ["1"], "b": ["2"], "output": ["12"], "intermediate": ["extra"]}
+        )
+        checkpointer.add_completed_samples(completed)
+        checkpointer.save_final_checkpoint()
+
+        # Now run with same input — should early-return and still apply cleanup
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        result = flow.generate(dataset, checkpoint_dir=checkpoint_dir)
+
+        # Original columns preserved, output kept, intermediate dropped
+        assert "a" in result.columns
+        assert "b" in result.columns
+        assert "output" in result.columns
+        assert "intermediate" not in result.columns

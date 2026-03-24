@@ -95,7 +95,10 @@ class ColumnDependencyTracker:
         for col in current_columns:
             if col in self._preserved:
                 continue
-            # Drop if this block was the last consumer (or column was never consumed)
-            if self._last_consumer.get(col, -1) <= block_index:
+            # Only drop columns with a known last consumer. Columns that no
+            # block declares as input_cols (e.g. custom blocks reading columns
+            # programmatically) are deferred to _cleanup_final_columns.
+            last = self._last_consumer.get(col)
+            if last is not None and last <= block_index:
                 droppable.append(col)
         return droppable

@@ -541,7 +541,7 @@ def execute_flow(
 
     # Initialize column tracker for early dropping of unused columns
     column_tracker: Optional[ColumnDependencyTracker] = None
-    if effective_output_columns:
+    if effective_output_columns is not None:
         column_tracker = ColumnDependencyTracker(
             flow.blocks, effective_output_columns, original_columns
         )
@@ -626,7 +626,7 @@ def execute_flow(
         execution_successful = True
 
         # Drop intermediate columns if output_columns is specified
-        if effective_output_columns and final_dataset is not None:
+        if effective_output_columns is not None and final_dataset is not None:
             final_dataset = _cleanup_final_columns(
                 final_dataset,
                 effective_output_columns,
