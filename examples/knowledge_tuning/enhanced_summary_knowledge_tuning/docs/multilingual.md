@@ -60,14 +60,16 @@ We evaluated Spanish knowledge tuning using the same QuALITY benchmark (translat
   <em>Figure: Spanish QuALITY benchmark accuracy across retrieved context sizes. SFT on translated data yields consistent gains over the baseline in both open-book and closed-book settings.</em>
 </p>
 
-| # of Contexts Retrieved | Baseline | SFT-2e-5 | OSFT-2e-5-0.2urr |
-|:-----------------------:|---------:|----------:|------------------:|
-| 0 (Closed Book)         |   44.47% |  **48.92%** |            47.16% |
-| 2                       |   49.01% |  **55.49%** |            52.75% |
-| 4                       |   54.25% |  **59.81%** |            58.26% |
-| 8                       |   60.03% |  **65.84%** |            63.51% |
-| 16                      |   64.61% |  **68.80%** |            68.14% |
-| 32                      |   65.71% |    68.88% |        **69.68%** |
+| # Contexts Retrieved | Baseline | SFT | OSFT |
+|:--------------------:|---------:|----:|-----:|
+| 0 (Closed Book)      |   44.47% | **48.92%** | 47.16% |
+| 2                    |   49.01% | **55.49%** | 52.75% |
+| 4                    |   54.25% | **59.81%** | 58.26% |
+| 8                    |   60.03% | **65.84%** | 63.51% |
+| 16                   |   64.61% | **68.80%** | 68.14% |
+| 32                   |   65.71% |   68.88% | **69.68%** |
+
+> **Experiment settings:** SFT and OSFT both use a learning rate of 2e-5. OSFT uses an unfreeze rank ratio (URR) of 0.2.
 
 ## Coverage of Baseline Correct Answers: OSFT vs SFT
 
@@ -83,13 +85,36 @@ We measure *coverage* as the percentage of questions the baseline model answers 
   <em>Figure: Coverage of baseline correct answers across retrieved context sizes. OSFT consistently retains a higher proportion of the baseline's correct answers compared to SFT, demonstrating better preservation of existing model knowledge.</em>
 </p>
 
-| # of Contexts Retrieved | SFT Coverage | OSFT Coverage |
-|:-----------------------:|-------------:|--------------:|
-| 0 (Closed Book)         |       72.94% |        77.11% |
-| 2                       |       81.65% |        84.35% |
-| 4                       |       84.40% |        88.22% |
-| 8                       |       87.89% |        90.09% |
-| 16                      |       88.68% |        89.77% |
-| 32                      |       88.20% |        90.14% |
+| # Contexts Retrieved | SFT Coverage | OSFT Coverage |
+|:--------------------:|-------------:|--------------:|
+| 0 (Closed Book)      |       72.94% |        77.11% |
+| 2                    |       81.65% |        84.35% |
+| 4                    |       84.40% |        88.22% |
+| 8                    |       87.89% |        90.09% |
+| 16                   |       88.68% |        89.77% |
+| 32                   |       88.20% |        90.14% |
 
 OSFT achieves **84–90% coverage** across open-book settings, compared to SFT's **82–89%**, meaning OSFT consistently retains more of the baseline's correct answers while still gaining new ones.
+
+## General Performance Preservation
+
+An important concern with domain- and language-specific fine-tuning is whether general instruction-following capabilities degrade. We evaluated both SFT and OSFT models on the **Open LLM Leaderboard v2** benchmarks and **MMLU-ProX Spanish** to verify that general performance is preserved.
+
+### Open LLM Leaderboard v2 - Qwen3-8B
+
+| Benchmark | Baseline | OSFT | SFT |
+|-----------|--------:|---------:|--------:|
+| MMLU-Pro (acc) | 47.56% | 47.37% | 47.06% |
+| BBH (acc_norm) | 60.93% | 57.92% | 58.06% |
+| GPQA (acc_norm) | 36.24% | 37.16% | 35.65% |
+| MATH-Hard (exact_match) | 53.25% | 49.55% | 49.40% |
+| IFEval (prompt_strict) | 25.51% | 28.10% | 29.94% |
+| MuSR (acc_norm) | 43.12% | 40.87% | 42.72% |
+
+### MMLU-ProX Spanish
+
+| Benchmark | Baseline | OSFT | SFT |
+|-----------|--------:|---------:|--------:|
+| MMLU-ProX ES (exact_match) | 56.08% | 55.30% | 55.26% |
+
+Both fine-tuned models preserve general performance well — **less than 1% average drop** on the Open LLM Leaderboard v2.
