@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for column cleanup feature."""
 
-# Third Party
-import pandas as pd
-import pytest
-
 # First Party
 from sdg_hub.core.blocks.transform.duplicate_columns import DuplicateColumnsBlock
 from sdg_hub.core.blocks.transform.text_concat import TextConcatBlock
 from sdg_hub.core.flow.base import Flow
 from sdg_hub.core.flow.column_tracker import ColumnDependencyTracker
 from sdg_hub.core.flow.metadata import FlowMetadata
+
+# Third Party
+import pandas as pd
+import pytest
 
 
 class TestFlowMetadataColumnCleanup:
