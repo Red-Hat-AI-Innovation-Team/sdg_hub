@@ -40,6 +40,7 @@ metadata:
   - taxonomy_path
   - num_examples
   id: bright-coral-421
+parameters: {}
 blocks:
 # --- Stage 1: Generate questions from document chunks ---
 - block_type: DuplicateColumnsBlock

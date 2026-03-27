@@ -120,6 +120,8 @@ class InstructLabFormatterBlock(BaseBlock):
 
             seed_examples = []
             for _, row in group.iterrows():
+                if pd.isna(row[question_col]) or pd.isna(row[answer_col]):
+                    continue
                 example = {
                     "question": str(row[question_col]),
                     "answer": str(row[answer_col]),
