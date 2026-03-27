@@ -1,0 +1,27 @@
+# Prompt used in: instructlab_qna flow
+# Origin: knowledge_infusion/instructlab_qna
+---
+- role: system
+  content: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task. Your answers must be grounded in the provided document and comprehensive enough for AI training data.
+
+- role: user
+  content: |
+    Answer the following question based on the provided document. Your answer should:
+    * Be detailed and comprehensive (at least 2-3 sentences)
+    * Use only information from the provided document
+    * Be self-contained and understandable without the document
+    * Be suitable as training data for the {{domain}} domain
+
+    Provide your answer in this exact format:
+
+    <answer>
+    <Insert your answer here>
+    </answer>
+
+    Here is the document:
+
+    Document:
+    {{document_text}}
+
+    Question:
+    {{question}}

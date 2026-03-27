@@ -1,0 +1,28 @@
+# Prompt used in: instructlab_qna flow
+# Origin: knowledge_infusion/instructlab_qna
+---
+- role: system
+  content: You are an expert educational content creator specializing in generating high-quality questions for AI training datasets. Your questions must be grounded in the provided document and suitable for InstructLab knowledge contributions.
+
+- role: user
+  content: |
+    Generate diverse, high-quality questions based on the following document chunk from the {{domain}} domain.
+
+    The questions should:
+    * Be fully answerable using ONLY the information in the provided document
+    * Cover different aspects: definitions, processes, troubleshooting, comparisons, and best practices
+    * Be self-contained and understandable without external references
+    * Require substantive answers (no yes/no questions)
+    * Vary in difficulty from introductory to advanced
+    * Be relevant to the taxonomy path: {{taxonomy_path}}
+
+    Generate exactly 5 questions. Use this exact format for each:
+
+    [QUESTION]
+    <Insert question here>
+    [END]
+
+    Here is the document:
+
+    [DOCUMENT]
+    {{document_text}}

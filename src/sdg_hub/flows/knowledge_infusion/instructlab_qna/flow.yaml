@@ -1,0 +1,183 @@
+metadata:
+  name: InstructLab Knowledge Q&A Generation
+  description: >
+    Generates high-quality question-answer training data for InstructLab
+    knowledge contributions. Takes document chunks with taxonomy paths and
+    produces diverse, grounded Q&A pairs suitable for InstructLab's qna.yaml
+    schema. Each document chunk yields multiple Q&A pairs that are
+    independently validated for faithfulness to the source material.
+  version: 1.0.0
+  author: SDG Hub Contributors
+  license: Apache-2.0
+  recommended_models:
+    default: openai/gpt-oss-120b
+    compatible:
+    - meta-llama/Llama-3.3-70B-Instruct
+    - openai/gpt-5-mini
+    - ibm/granite-3.3-8b-instruct
+    experimental: []
+  tags:
+  - knowledge-infusion
+  - instructlab
+  - qa-generation
+  - training-data
+  - taxonomy
+  dataset_requirements:
+    required_columns:
+    - document_text
+    - taxonomy_path
+    - domain
+    description: >
+      Input dataset with pre-chunked document text and InstructLab taxonomy
+      metadata. Each row should contain: document_text (a chunk of source
+      document), taxonomy_path (InstructLab taxonomy placement, e.g.
+      knowledge/science/physics), and domain (knowledge domain name, e.g.
+      physics). Documents should be chunked to 300-500 words for best
+      results.
+  output_columns:
+  - question
+  - answer
+  - document_text
+  - domain
+  - taxonomy_path
+  - faithfulness_explanation
+  - faithfulness_judgment
+  id: bright-coral-421
+blocks:
+# --- Stage 1: Generate questions from document chunks ---
+- block_type: DuplicateColumnsBlock
+  block_config:
+    block_name: preserve_source_document
+    input_cols:
+      document_text: source_document_text
+
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: build_question_prompt
+    input_cols:
+    - document_text
+    - taxonomy_path
+    - domain
+    output_cols: question_gen_messages
+    prompt_config_path: prompts/generate_questions.yaml
+    format_as_messages: true
+
+- block_type: LLMChatBlock
+  block_config:
+    block_name: generate_questions
+    input_cols: question_gen_messages
+    output_cols: question_gen_response
+    max_tokens: 2048
+    temperature: 0.7
+    n: 1
+    async_mode: true
+
+- block_type: LLMResponseExtractorBlock
+  block_config:
+    block_name: extract_question_response
+    input_cols: question_gen_response
+    extract_content: true
+    expand_lists: true
+
+- block_type: TagParserBlock
+  block_config:
+    block_name: parse_questions
+    input_cols: extract_question_response_content
+    output_cols: question
+    start_tags:
+    - '[QUESTION]'
+    end_tags:
+    - '[END]'
+
+# --- Stage 2: Generate grounded answers ---
+- block_type: RenameColumnsBlock
+  block_config:
+    block_name: restore_document_for_answers
+    input_cols:
+      source_document_text: document_text
+
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: build_answer_prompt
+    input_cols:
+    - question
+    - document_text
+    - domain
+    output_cols: answer_gen_messages
+    prompt_config_path: prompts/generate_answers.yaml
+    format_as_messages: true
+
+- block_type: LLMChatBlock
+  block_config:
+    block_name: generate_answers
+    input_cols: answer_gen_messages
+    output_cols: answer_gen_response
+    max_tokens: 4096
+    temperature: 0.7
+    n: 1
+    async_mode: true
+
+- block_type: LLMResponseExtractorBlock
+  block_config:
+    block_name: extract_answer_response
+    input_cols: answer_gen_response
+    extract_content: true
+    expand_lists: true
+
+- block_type: TagParserBlock
+  block_config:
+    block_name: parse_answers
+    input_cols: extract_answer_response_content
+    output_cols: answer
+    start_tags:
+    - '<answer>'
+    end_tags:
+    - '</answer>'
+
+# --- Stage 3: Evaluate faithfulness ---
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: build_faithfulness_prompt
+    input_cols:
+    - document_text
+    - question
+    - answer
+    output_cols: faithfulness_messages
+    prompt_config_path: prompts/evaluate_faithfulness.yaml
+    format_as_messages: true
+
+- block_type: LLMChatBlock
+  block_config:
+    block_name: evaluate_faithfulness
+    input_cols: faithfulness_messages
+    output_cols: faithfulness_response
+    n: 1
+    async_mode: true
+
+- block_type: LLMResponseExtractorBlock
+  block_config:
+    block_name: extract_faithfulness
+    input_cols: faithfulness_response
+    extract_content: true
+
+- block_type: TagParserBlock
+  block_config:
+    block_name: parse_faithfulness
+    input_cols: extract_faithfulness_content
+    output_cols:
+    - faithfulness_explanation
+    - faithfulness_judgment
+    start_tags:
+    - '[Start of Explanation]'
+    - '[Start of Judgment]'
+    end_tags:
+    - '[End of Explanation]'
+    - '[End of Judgment]'
+
+- block_type: ColumnValueFilterBlock
+  block_config:
+    block_name: filter_unfaithful
+    input_cols:
+    - faithfulness_judgment
+    filter_value: 'YES'
+    operation: eq

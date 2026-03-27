@@ -1,0 +1,32 @@
+# Prompt used in: instructlab_qna flow
+# Origin: knowledge_infusion/instructlab_qna
+---
+- role: system
+  content: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+
+- role: user
+  content: |
+    Determine if the provided answer is faithful to and supported by the given document context. Respond with YES if the document substantiates the answer, even partially. Answer NO if the document does not support the answer.
+
+    Guidelines:
+    - Answer YES when the document provides either direct or indirect evidence supporting the answer.
+    - Answer NO if the document lacks any supportive evidence, clearly contradicts the answer, or if the support is too vague or speculative.
+    - Also answer NO if the answer contains significant information not present in the document.
+
+    Strictly answer in this format:
+    [Start of Explanation]
+    ...
+    [End of Explanation]
+    [Start of Judgment]
+    YES or NO
+    [End of Judgment]
+
+    [Start of Document]
+    {{document_text}}
+    [End of Document]
+    [Start of Question]
+    {{question}}
+    [End of Question]
+    [Start of Answer]
+    {{answer}}
+    [End of Answer]
