@@ -27,6 +27,7 @@ All flows support:
 | [Multilingual QA](#japanese-multilingual-multi-summary-qa-flow) | 1 | Japanese language QA generation | `multilingual`, `japanese` |
 | [Text Analysis](#structured-text-insights-extraction-flow) | 1 | NLP insights extraction | `text-analysis`, `nlp` |
 | [Red Team Prompt Generation](#red-team-prompt-generation-flow) | 1 | Adversarial prompt generation for safety testing | `red-team`, `safety-testing` |
+| [InstructLab Q&A Generation](#instructlab-knowledge-qa-generation-flow) | 1 | InstructLab qna.yaml training data from documents | `instructlab`, `qa-generation` |
 
 ---
 
@@ -974,3 +975,70 @@ for row in result:
   }
 }
 ```
+
+---
+
+## InstructLab Knowledge Q&A Generation Flow
+
+**Name:** `InstructLab Knowledge Q&A Generation`
+
+**Purpose:** Generate high-quality question-answer training data for InstructLab knowledge contributions. Takes document chunks with taxonomy paths and produces diverse, grounded Q&A pairs formatted as valid InstructLab `qna.yaml` files.
+
+**Location:** `src/sdg_hub/flows/knowledge_infusion/instructlab_qna/`
+
+### Architecture
+
+```yaml
+Document Chunks + Taxonomy Metadata →
+Question Generation (5 diverse questions per chunk) →
+Answer Generation (grounded in source document) →
+Faithfulness Evaluation (LLM-as-judge, temperature 0) →
+Filter Unfaithful (keep YES only) →
+InstructLabFormatterBlock (qna.yaml + attribution.txt)
+```
+
+### Input Requirements
+
+| Column | Description | Required |
+|--------|-------------|----------|
+| `document_text` | Pre-chunked document text (300-500 words recommended) | Yes |
+| `taxonomy_path` | InstructLab taxonomy placement (e.g., `knowledge/science/biology`) | Yes |
+| `domain` | Knowledge domain name (e.g., `biology`) | Yes |
+
+### Key Output Columns
+
+- `qna_yaml` — Complete InstructLab `qna.yaml` content ready for submission
+- `attribution_txt` — Attribution file content
+- `taxonomy_path` — Taxonomy path for directory placement
+- `num_examples` — Number of Q&A examples in the generated YAML
+
+### Example Usage
+
+```python
+import pandas as pd
+from sdg_hub import Flow, FlowRegistry
+
+FlowRegistry.discover_flows()
+flow_path = FlowRegistry.get_flow_path("bright-coral-421")
+flow = Flow.from_yaml(flow_path)
+
+flow.set_model_config(
+    model="openai/gpt-5-mini",
+    api_key="your-api-key",
+)
+
+input_df = pd.DataFrame([{
+    "document_text": "Photosynthesis is the biological process...",
+    "taxonomy_path": "knowledge/science/biology/photosynthesis",
+    "domain": "biology",
+}])
+
+result = flow.generate(input_df)
+```
+
+### Pipeline Stages
+
+1. **Question Generation** — Generates 5 diverse questions per document chunk covering definitional, procedural, troubleshooting, comparative, and best-practice categories
+2. **Answer Generation** — Produces detailed answers grounded strictly in the source document
+3. **Faithfulness Evaluation** — LLM-as-judge evaluates each Q&A pair at temperature 0 for deterministic results; filters out any pair where the answer is not fully supported by the document
+4. **YAML Formatting** — Groups faithful Q&A pairs by taxonomy path and outputs valid `qna.yaml` + `attribution.txt`
