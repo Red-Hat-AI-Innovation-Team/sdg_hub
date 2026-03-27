@@ -148,6 +148,7 @@ blocks:
     block_name: evaluate_faithfulness
     input_cols: faithfulness_messages
     output_cols: faithfulness_response
+    temperature: 0
     n: 1
     async_mode: true
 

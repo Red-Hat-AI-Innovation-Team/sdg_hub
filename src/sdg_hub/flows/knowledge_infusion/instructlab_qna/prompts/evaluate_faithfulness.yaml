@@ -6,12 +6,12 @@
 
 - role: user
   content: |
-    Determine if the provided answer is faithful to and supported by the given document context. Respond with YES if the document substantiates the answer, even partially. Answer NO if the document does not support the answer.
+    Determine if the provided answer is fully faithful to and supported by the given document context. Respond with YES only if the document substantiates all material claims in the answer. Answer NO if any significant claim lacks support.
 
     Guidelines:
-    - Answer YES when the document provides either direct or indirect evidence supporting the answer.
-    - Answer NO if the document lacks any supportive evidence, clearly contradicts the answer, or if the support is too vague or speculative.
-    - Also answer NO if the answer contains significant information not present in the document.
+    - Answer YES only when the document directly supports every significant claim in the answer. All key facts, figures, and assertions must be traceable to the source.
+    - Answer NO if the document lacks evidence for any material claim, clearly contradicts the answer, or if the support is too vague or speculative.
+    - Answer NO if the answer contains significant information not present in the document, even if some parts are supported.
 
     Strictly answer in this format:
     [Start of Explanation]
