@@ -47,9 +47,10 @@ class TestInstructLabQnAFlowYaml:
     def test_has_output_columns(self):
         """Flow must declare expected output columns."""
         outputs = self.config["metadata"]["output_columns"]
-        assert "question" in outputs
-        assert "answer" in outputs
-        assert "faithfulness_judgment" in outputs
+        assert "qna_yaml" in outputs
+        assert "attribution_txt" in outputs
+        assert "taxonomy_path" in outputs
+        assert "num_examples" in outputs
 
     def test_has_blocks(self):
         """Flow must have blocks section with entries."""
@@ -96,7 +97,7 @@ class TestInstructLabQnAFlowYaml:
                 )
 
     def test_pipeline_stages(self):
-        """Flow should have the three expected stages: question gen, answer gen, evaluation."""
+        """Flow should have all four stages: question gen, answer gen, evaluation, formatting."""
         block_names = [b["block_config"]["block_name"] for b in self.config["blocks"]]
         # Stage 1: question generation
         assert "generate_questions" in block_names
@@ -104,8 +105,10 @@ class TestInstructLabQnAFlowYaml:
         assert "generate_answers" in block_names
         # Stage 3: faithfulness evaluation
         assert "evaluate_faithfulness" in block_names
-        # Final filter
+        # Stage 3: filter
         assert "filter_unfaithful" in block_names
+        # Stage 4: format to qna.yaml
+        assert "format_qna_yaml" in block_names
 
     def test_faithfulness_filter_keeps_yes(self):
         """Faithfulness filter should keep only YES judgments."""

@@ -35,13 +35,10 @@ metadata:
       physics). Documents should be chunked to 300-500 words for best
       results.
   output_columns:
-  - question
-  - answer
-  - document_text
-  - domain
+  - qna_yaml
+  - attribution_txt
   - taxonomy_path
-  - faithfulness_explanation
-  - faithfulness_judgment
+  - num_examples
   id: bright-coral-421
 blocks:
 # --- Stage 1: Generate questions from document chunks ---
@@ -181,3 +178,21 @@ blocks:
     - faithfulness_judgment
     filter_value: 'YES'
     operation: eq
+
+# --- Stage 4: Format into InstructLab qna.yaml ---
+- block_type: InstructLabFormatterBlock
+  block_config:
+    block_name: format_qna_yaml
+    input_cols:
+      question: question
+      answer: answer
+      document_text: document_text
+      domain: domain
+      taxonomy_path: taxonomy_path
+    output_cols:
+    - qna_yaml
+    - attribution_txt
+    - taxonomy_path
+    - num_examples
+    created_by: sdg-hub
+    min_examples: 5

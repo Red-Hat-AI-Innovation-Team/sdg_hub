@@ -1,0 +1,177 @@
+# SPDX-License-Identifier: Apache-2.0
+"""InstructLab Q&A YAML formatter block.
+
+This module provides a block that formats Q&A pairs into InstructLab's
+qna.yaml schema, grouped by taxonomy path. Each group produces a complete
+YAML document with all required InstructLab metadata.
+"""
+
+# Standard
+from typing import Any
+
+from pydantic import Field
+
+# Third Party
+import pandas as pd
+import yaml
+
+# Local
+from ...utils.logger_config import setup_logger
+from ..base import BaseBlock
+from ..registry import BlockRegistry
+
+logger = setup_logger(__name__)
+
+
+@BlockRegistry.register(
+    "InstructLabFormatterBlock",
+    "transform",
+    "Formats Q&A pairs into InstructLab qna.yaml schema grouped by taxonomy path",
+)
+class InstructLabFormatterBlock(BaseBlock):
+    """Block that formats Q&A DataFrame rows into InstructLab qna.yaml documents.
+
+    Groups rows by taxonomy_path and produces one YAML document per group,
+    following InstructLab's version 3 schema. Each output row contains a
+    complete qna.yaml string and an attribution.txt string ready for
+    submission.
+
+    Input columns (configurable via input_cols dict):
+        question: The question text
+        answer: The answer text
+        document_text: Source document context
+        domain: Knowledge domain name
+        taxonomy_path: InstructLab taxonomy placement
+
+    Output columns:
+        qna_yaml: Complete qna.yaml content as a string
+        attribution_txt: Complete attribution.txt content
+        taxonomy_path: The taxonomy path for this group
+        num_examples: Number of Q&A pairs in this document
+
+    Attributes
+    ----------
+    created_by : str
+        GitHub username or identifier for the created_by field.
+    min_examples : int
+        Minimum Q&A pairs required per taxonomy group. Groups with fewer
+        pairs are dropped with a warning.
+    yaml_version : int
+        InstructLab YAML schema version (default 3).
+    """
+
+    block_type: str = "transform"
+
+    created_by: str = Field(
+        default="sdg-hub",
+        description="Value for the created_by field in qna.yaml",
+    )
+    min_examples: int = Field(
+        default=5,
+        description="Minimum Q&A pairs per taxonomy group (InstructLab requires 5)",
+    )
+    yaml_version: int = Field(
+        default=3,
+        description="InstructLab YAML schema version",
+    )
+
+    def _get_col(self, name: str) -> str:
+        """Resolve a logical column name to the actual DataFrame column.
+
+        If input_cols is a dict mapping, use the mapped name. Otherwise
+        fall back to the logical name directly.
+        """
+        if isinstance(self.input_cols, dict):
+            return self.input_cols.get(name, name)
+        return name
+
+    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
+        """Generate qna.yaml documents grouped by taxonomy path.
+
+        Parameters
+        ----------
+        samples : pd.DataFrame
+            Input DataFrame with question, answer, document_text, domain,
+            and taxonomy_path columns.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per taxonomy group with qna_yaml, attribution_txt,
+            taxonomy_path, and num_examples columns.
+        """
+        question_col = self._get_col("question")
+        answer_col = self._get_col("answer")
+        context_col = self._get_col("document_text")
+        domain_col = self._get_col("domain")
+        path_col = self._get_col("taxonomy_path")
+
+        results = []
+
+        for taxonomy_path, group in samples.groupby(path_col):
+            if len(group) < self.min_examples:
+                logger.warning(
+                    f"Skipping taxonomy path '{taxonomy_path}': "
+                    f"only {len(group)} examples (minimum {self.min_examples})"
+                )
+                continue
+
+            domain = group[domain_col].iloc[0]
+
+            seed_examples = []
+            for _, row in group.iterrows():
+                example = {
+                    "question": str(row[question_col]),
+                    "answer": str(row[answer_col]),
+                }
+                if context_col in row.index and pd.notna(row[context_col]):
+                    example["context"] = str(row[context_col])
+                seed_examples.append(example)
+
+            yaml_content = {
+                "version": self.yaml_version,
+                "domain": str(domain),
+                "task_description": f"Teach the model about {domain}",
+                "created_by": self.created_by,
+                "seed_examples": seed_examples,
+            }
+
+            qna_yaml = yaml.dump(
+                yaml_content,
+                default_flow_style=False,
+                allow_unicode=True,
+                sort_keys=False,
+                width=80,
+            )
+
+            attribution_txt = (
+                f"Title: {domain} knowledge contribution\n"
+                f"Creator: {self.created_by}\n"
+                f"Source: Generated by SDG Hub InstructLab Q&A flow\n"
+                f"License: Apache-2.0\n"
+            )
+
+            results.append(
+                {
+                    "qna_yaml": qna_yaml,
+                    "attribution_txt": attribution_txt,
+                    "taxonomy_path": str(taxonomy_path),
+                    "num_examples": len(seed_examples),
+                }
+            )
+
+        if not results:
+            logger.warning(
+                "No taxonomy groups met the minimum example threshold "
+                f"({self.min_examples}). Returning empty DataFrame."
+            )
+            return pd.DataFrame(
+                columns=["qna_yaml", "attribution_txt", "taxonomy_path", "num_examples"]
+            )
+
+        logger.info(
+            f"Formatted {len(results)} qna.yaml document(s) from "
+            f"{len(samples)} Q&A pairs"
+        )
+
+        return pd.DataFrame(results)

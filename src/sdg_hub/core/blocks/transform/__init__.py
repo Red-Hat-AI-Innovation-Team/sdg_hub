@@ -8,6 +8,7 @@ wide-to-long transformations, value selection, and majority value assignment.
 # Local
 from .duplicate_columns import DuplicateColumnsBlock
 from .index_based_mapper import IndexBasedMapperBlock
+from .instructlab_formatter import InstructLabFormatterBlock
 from .json_structure_block import JSONStructureBlock
 from .melt_columns import MeltColumnsBlock
 from .rename_columns import RenameColumnsBlock
@@ -19,6 +20,7 @@ from .uniform_col_val_setter import UniformColumnValueSetter
 __all__ = [
     "TextConcatBlock",
     "DuplicateColumnsBlock",
+    "InstructLabFormatterBlock",
     "JSONStructureBlock",
     "MeltColumnsBlock",
     "RowMultiplierBlock",
