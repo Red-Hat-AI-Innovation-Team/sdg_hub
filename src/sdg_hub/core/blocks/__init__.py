@@ -12,6 +12,12 @@ from .llm import (
     LLMResponseExtractorBlock,
     PromptBuilderBlock,
 )
+
+try:
+    from .mcp import MCPAgentBlock
+except ImportError:
+    # mcp package is an optional dependency
+    MCPAgentBlock = None  # type: ignore[assignment, misc]
 from .parsing import JSONParserBlock, RegexParserBlock, TagParserBlock, TextParserBlock
 from .registry import BlockRegistry
 from .transform import (
@@ -41,4 +47,5 @@ __all__ = [
     "UniformColumnValueSetter",
     "LLMChatBlock",
     "LLMResponseExtractorBlock",
+    "MCPAgentBlock",
 ]
