@@ -23,6 +23,7 @@ All flows support:
 | Flow Category | Flow Count | Primary Use Case | Tags |
 |---------------|------------|------------------|------|
 | [MCP Server Distillation](#mcp-server-distillation-flow) | 1 | Generate expert MCP tool-use trajectories for SFT data | `agentic`, `tool-use`, `mcp` |
+| [MCP Evaluation Benchmark Example](#mcp-evaluation-benchmark-example) | 1 | Generate synthetic MCP tool-use benchmarks and evaluate model trajectories | `agentic`, `evaluation`, `mcp` |
 | [Enhanced Multi-Summary QA](#enhanced-multi-summary-qa-flows) | 4 | Knowledge tuning dataset generation | `knowledge-tuning`, `document-internalization` |
 | [Multilingual QA](#japanese-multilingual-multi-summary-qa-flow) | 1 | Japanese language QA generation | `multilingual`, `japanese` |
 | [Text Analysis](#structured-text-insights-extraction-flow) | 1 | NLP insights extraction | `text-analysis`, `nlp` |
@@ -120,6 +121,23 @@ messages = tool_trace_to_messages(
     result[0]["tool_list"],
 )
 ```
+
+---
+
+## MCP Evaluation Benchmark Example
+
+**Purpose:** Build an end-to-end MCP tool-use benchmark by generating synthetic evaluation tasks with expert trajectories and scoring candidate models against those references.
+
+**Location:** `examples/agentic/mcp_evaluation/`
+
+### Included Assets
+
+- `demo.ipynb` - Notebook walkthrough for setup, task generation, and model evaluation.
+- `start_servers.sh` - Helper script to start and check all six MCP benchmark servers.
+- `outputs/*.jsonl` - Pre-generated synthetic evaluation tasks for Weather Data, Medical Calculator, Wikipedia, Car Price Evaluator, Reddit, and DEX Paprika.
+- `evaluation_results.jsonl` - Pre-computed benchmark scores for three example models.
+
+For setup details and runtime requirements, follow `examples/agentic/mcp_evaluation/README.md`.
 
 ---
 
