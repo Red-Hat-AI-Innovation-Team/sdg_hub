@@ -55,7 +55,7 @@ uv pip install fastmcp
 ### 2. Start the MCP server
 
 ```bash
-uv run python examples/agentic/ecommerce_mcp/server.py
+uv run python examples/agentic/mcp_distillation_training/server.py
 ```
 
 The server starts on port 8008 (configurable via `PORT` env var) using Streamable HTTP transport.

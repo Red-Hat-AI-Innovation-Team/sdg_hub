@@ -47,7 +47,7 @@ The servers come from [Accenture's mcp-bench](https://github.com/Accenture/mcp-b
 All commands below assume you are in the example directory:
 
 ```bash
-cd examples/agentic/mcp_evaluation
+cd examples/agentic/mcp_distillation_evaluation
 ```
 
 Clone mcp-bench as a sibling directory:
