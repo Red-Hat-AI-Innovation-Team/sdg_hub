@@ -15,8 +15,9 @@ from .llm import (
 
 try:
     from .mcp import MCPAgentBlock
-except ImportError:
-    # mcp package is an optional dependency
+except ImportError as _err:
+    if "mcp" not in str(_err).lower():
+        raise  # Don't mask unrelated ImportErrors
     MCPAgentBlock = None  # type: ignore[assignment, misc]
 from .parsing import JSONParserBlock, RegexParserBlock, TagParserBlock, TextParserBlock
 from .registry import BlockRegistry

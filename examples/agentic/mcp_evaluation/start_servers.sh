@@ -23,29 +23,20 @@ VENV_PYTHON="$PROJECT_ROOT/.venv/bin/python"
 
 if [[ ! -d "$MCP_SERVERS_DIR" ]]; then
     echo "ERROR: mcp-bench not found at $MCP_SERVERS_DIR"
-    echo "Clone it: git clone https://github.com/Accenture/mcp-bench.git $(dirname $MCP_SERVERS_DIR)"
+    echo "Clone it: git clone https://github.com/Accenture/mcp-bench.git $(dirname "$MCP_SERVERS_DIR")"
     exit 1
 fi
 
 # ── Server definitions ────────────────────────────────────────────────
-# Format: NAME|PORT|CWD|STDIO_CMD|INSTALL_CMD
+# Format: NAME|PORT|CWD|STDIO_CMD|INSTALL_CMD|DISPLAY_NAME
 # All servers are data-dependent (models genuinely need the tools)
 SERVERS=(
-    "weather-data|8001|weather_mcp|$VENV_PYTHON server.py|$VENV_PYTHON -m pip install -r requirements.txt -q"
-    "medical-calculator|8002|medcalc|$VENV_PYTHON medcalc/__main__.py|$VENV_PYTHON -m pip install -e . -q"
-    "wikipedia|8003|wikipedia-mcp|$VENV_PYTHON -m wikipedia_mcp|$VENV_PYTHON -m pip install -r requirements.txt -q"
-    "car-price|8004|car-price-mcp-main|$VENV_PYTHON server.py|$VENV_PYTHON -m pip install -r requirements.txt -q"
-    "reddit|8005|mcp-reddit|$VENV_PYTHON -m mcp_reddit.reddit_fetcher|$VENV_PYTHON -m pip install -e . -q"
-    "dex-paprika|8006|dexpaprika-mcp|node src/index.js|npm install -q"
-)
-
-declare -A SERVER_NAMES=(
-    ["weather-data"]="Weather Data"
-    ["medical-calculator"]="Medical Calculator"
-    ["wikipedia"]="Wikipedia"
-    ["car-price"]="Car Price Evaluator"
-    ["reddit"]="Reddit"
-    ["dex-paprika"]="DEX Paprika"
+    "weather-data|8001|weather_mcp|$VENV_PYTHON server.py|$VENV_PYTHON -m pip install -r requirements.txt -q|Weather Data"
+    "medical-calculator|8002|medcalc|$VENV_PYTHON medcalc/__main__.py|$VENV_PYTHON -m pip install -e . -q|Medical Calculator"
+    "wikipedia|8003|wikipedia-mcp|$VENV_PYTHON -m wikipedia_mcp|$VENV_PYTHON -m pip install -r requirements.txt -q|Wikipedia"
+    "car-price|8004|car-price-mcp-main|$VENV_PYTHON server.py|$VENV_PYTHON -m pip install -r requirements.txt -q|Car Price Evaluator"
+    "reddit|8005|mcp-reddit|$VENV_PYTHON -m mcp_reddit.reddit_fetcher|$VENV_PYTHON -m pip install -e . -q|Reddit"
+    "dex-paprika|8006|dexpaprika-mcp|node src/index.js|npm install -q|DEX Paprika"
 )
 
 check_port() {
@@ -62,8 +53,8 @@ if [[ "${1:-}" == "--check" ]]; then
     echo "MCP Server Status:"
     echo "─────────────────────────────────────────"
     for entry in "${SERVERS[@]}"; do
-        IFS='|' read -r name port cwd cmd install <<< "$entry"
-        bench_name="${SERVER_NAMES[$name]:-$name}"
+        IFS='|' read -r name port cwd cmd install display_name <<< "$entry"
+        bench_name="${display_name:-$name}"
         if check_port "$port"; then
             echo "  ✓ $bench_name (port $port)"
         else
@@ -77,11 +68,11 @@ fi
 if [[ "${1:-}" == "--stop" ]]; then
     echo "Stopping MCP servers..."
     for entry in "${SERVERS[@]}"; do
-        IFS='|' read -r name port cwd cmd install <<< "$entry"
+        IFS='|' read -r name port cwd cmd install display_name <<< "$entry"
         pid=$(lsof -ti :"$port" 2>/dev/null | head -1)
         if [ -n "$pid" ]; then
             kill "$pid" 2>/dev/null
-            echo "  ✗ ${SERVER_NAMES[$name]:-$name} (port $port) — stopped"
+            echo "  ✗ ${display_name:-$name} (port $port) — stopped"
         fi
     done
     exit 0
@@ -90,10 +81,10 @@ fi
 # ── Install + Start ──────────────────────────────────────────────────
 echo "Installing dependencies..."
 for entry in "${SERVERS[@]}"; do
-    IFS='|' read -r name port cwd cmd install <<< "$entry"
+    IFS='|' read -r name port cwd cmd install display_name <<< "$entry"
     server_dir="$MCP_SERVERS_DIR/$cwd"
     [[ ! -d "$server_dir" ]] && continue
-    echo "  ${SERVER_NAMES[$name]:-$name}..."
+    echo "  ${display_name:-$name}..."
     (cd "$server_dir" && eval "$install") 2>&1 | tail -1 || true
 done
 
@@ -101,16 +92,16 @@ echo ""
 echo "Starting servers..."
 PIDS=()
 for entry in "${SERVERS[@]}"; do
-    IFS='|' read -r name port cwd cmd install <<< "$entry"
+    IFS='|' read -r name port cwd cmd install display_name <<< "$entry"
     server_dir="$MCP_SERVERS_DIR/$cwd"
     [[ ! -d "$server_dir" ]] && continue
 
     if check_port "$port"; then
-        echo "  ✓ ${SERVER_NAMES[$name]:-$name} (port $port) — already running"
+        echo "  ✓ ${display_name:-$name} (port $port) — already running"
         continue
     fi
 
-    echo "  Starting ${SERVER_NAMES[$name]:-$name} on port $port..."
+    echo "  Starting ${display_name:-$name} on port $port..."
     (cd "$server_dir" && npx -y supergateway \
         --stdio "$cmd" --port "$port" \
         --outputTransport streamableHttp --stateful \
@@ -127,8 +118,8 @@ echo ""
 echo "Server Status:"
 echo "─────────────────────────────────────────"
 for entry in "${SERVERS[@]}"; do
-    IFS='|' read -r name port cwd cmd install <<< "$entry"
-    bench_name="${SERVER_NAMES[$name]:-$name}"
+    IFS='|' read -r name port cwd cmd install display_name <<< "$entry"
+    bench_name="${display_name:-$name}"
     if check_port "$port"; then
         echo "  ✓ $bench_name → http://localhost:$port/mcp"
     else
