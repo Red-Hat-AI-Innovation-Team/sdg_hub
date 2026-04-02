@@ -129,3 +129,81 @@ class TestToolTraceToMessages:
         ]
         msgs = tool_trace_to_messages(trace, SAMPLE_TOOL_LIST)
         assert msgs[2]["content"] == ""
+
+    # --- Edge cases for malformed traces (issue #646) ---
+
+    def test_missing_type_field(self):
+        """A step with no 'type' key is silently skipped."""
+        trace = [{"text": "hello"}]
+        msgs = tool_trace_to_messages(trace, SAMPLE_TOOL_LIST)
+        # Only the system message should be present
+        assert len(msgs) == 1
+        assert msgs[0]["role"] == "system"
+
+    def test_empty_content_list(self):
+        """Empty content list is falsy, so the entire output dict is JSON-serialized."""
+        trace = [
+            {
+                "type": "tool_use",
+                "name": "search_products",
+                "tool_input": {},
+                "output": {"content": []},
+            },
+        ]
+        msgs = tool_trace_to_messages(trace, SAMPLE_TOOL_LIST)
+        # Empty content list is falsy, so falls through to json.dumps(output)
+        assert json.loads(msgs[2]["content"]) == {"content": []}
+
+    def test_missing_header_field(self):
+        """A text step with no 'header' key defaults to assistant message."""
+        trace = [{"type": "text", "text": "no header here"}]
+        msgs = tool_trace_to_messages(trace, SAMPLE_TOOL_LIST)
+        assert len(msgs) == 2
+        assert msgs[1] == {"role": "assistant", "content": "no header here"}
+
+    def test_missing_text_in_content_item(self):
+        """Content item without 'text' key returns empty string."""
+        trace = [
+            {
+                "type": "tool_use",
+                "name": "search_products",
+                "tool_input": {},
+                "output": {"content": [{"type": "text"}]},
+            },
+        ]
+        msgs = tool_trace_to_messages(trace, SAMPLE_TOOL_LIST)
+        assert msgs[2]["content"] == ""
+
+    def test_non_list_content_field(self):
+        """Non-list content field falls through to structuredContent path."""
+        trace = [
+            {
+                "type": "tool_use",
+                "name": "search_products",
+                "tool_input": {},
+                "output": {"content": "not a list"},
+            },
+        ]
+        msgs = tool_trace_to_messages(trace, SAMPLE_TOOL_LIST)
+        # isinstance("not a list", list) is False, so falls through
+        assert json.loads(msgs[2]["content"]) == {"content": "not a list"}
+
+    def test_unknown_type_value(self):
+        """A step with an unrecognized type value is silently skipped."""
+        trace = [{"type": "image", "url": "http://example.com/img.png"}]
+        msgs = tool_trace_to_messages(trace, SAMPLE_TOOL_LIST)
+        assert len(msgs) == 1
+        assert msgs[0]["role"] == "system"
+
+    def test_numeric_tool_output(self):
+        """Non-dict, non-string, non-None output is JSON-serialized."""
+        trace = [
+            {
+                "type": "tool_use",
+                "name": "search_products",
+                "tool_input": {},
+                "output": 42,
+            },
+        ]
+        msgs = tool_trace_to_messages(trace, SAMPLE_TOOL_LIST)
+        assert msgs[2]["content"] == "42"
