@@ -23,7 +23,7 @@ Example
 """
 
 # Import agent module to register connectors
-from .agent import BaseAgentConnector, LangflowConnector
+from .agent import BaseAgentConnector, LangflowConnector, LangGraphConnector
 from .base import BaseConnector, ConnectorConfig
 from .exceptions import ConnectorError, ConnectorHTTPError
 from .http import HttpClient
@@ -36,6 +36,7 @@ __all__ = [
     # Agent connectors
     "BaseAgentConnector",
     "LangflowConnector",
+    "LangGraphConnector",
     # Registry
     "ConnectorRegistry",
     # HTTP utilities
