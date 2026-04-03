@@ -206,6 +206,37 @@ class TestMyNewBlock:
   - Comprehensive operator support
   - Good performance on large datasets
 
+## 🔌 Contributing Agent Connectors
+
+When adding a new agent framework connector under `src/sdg_hub/core/connectors/agent/`, implement runtime request/response support and extraction hooks used by `AgentResponseExtractorBlock`.
+
+### Connector requirements
+
+1. Register the connector with `@ConnectorRegistry.register("framework_name")`.
+2. Implement instance methods for runtime execution:
+   - `build_request(...)`
+   - `parse_response(...)`
+3. Implement class methods for response extraction:
+   - `extract_text(response)`
+   - `extract_session_id(response)`
+   - `extract_tool_trace(response)`
+
+`AgentResponseExtractorBlock` resolves the connector class from `agent_framework` and delegates extraction to these class methods, so new frameworks can add extraction support without changing block code.
+
+```python
+@ConnectorRegistry.register("myframework")
+class MyFrameworkConnector(BaseAgentConnector):
+    def build_request(self, **kwargs):
+        ...
+
+    def parse_response(self, response):
+        return response
+
+    @classmethod
+    def extract_text(cls, response):
+        return None
+```
+
 
 ## 🌊 Contributing Flows
 

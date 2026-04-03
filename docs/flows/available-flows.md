@@ -61,7 +61,7 @@ Response Completeness Filter
 - `question` - Grounded user question designed to require multi-tool execution
 - `target_tools` - Intended tool sequence for solving the question
 - `extract_agent_text_text` - Expert trajectory conversation text
-- `extract_agent_text_tool_trace` - Structured tool-use trace extracted from Langflow `content_blocks`
+- `extract_agent_text_tool_trace` - Structured tool-use trace extracted by the configured agent connector (Langflow uses `content_blocks`)
 - `completeness_rating` - Response quality rating used by final filtering
 
 ### Runtime Requirements
@@ -69,6 +69,7 @@ Response Completeness Filter
 - This flow includes both LLM and agent blocks, so configure both before calling `generate()`.
 - Use `flow.set_model_config(...)` for LLM blocks.
 - Use `flow.set_agent_config(...)` for agent connector settings such as `agent_framework`, `agent_url`, and `agent_api_key`.
+- Response field extraction (text, session ID, tool trace) is connector-driven, so behavior follows the selected `agent_framework`.
 
 ### Example Usage
 
