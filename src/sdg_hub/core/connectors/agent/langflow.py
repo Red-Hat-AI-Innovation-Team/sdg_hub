@@ -111,6 +111,101 @@ class LangflowConnector(BaseAgentConnector):
 
         return response
 
+    # ------------------------------------------------------------------
+    # Response field extraction
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def extract_text(cls, response: dict[str, Any]) -> str | None:
+        """Extract text content from a Langflow response.
+
+        Navigates ``outputs[0].outputs[0].results.message.text``.
+
+        Parameters
+        ----------
+        response : dict
+            Raw Langflow API response.
+
+        Returns
+        -------
+        str or None
+            Extracted text, empty string if the field is explicitly None,
+            or None if the path does not exist.
+        """
+        try:
+            text = response["outputs"][0]["outputs"][0]["results"]["message"]["text"]
+            if text is None:
+                logger.warning("Text field is None, using empty string instead")
+                return ""
+            return text
+        except (KeyError, IndexError, TypeError):
+            return None
+
+    @classmethod
+    def extract_session_id(cls, response: dict[str, Any]) -> str | None:
+        """Extract session ID from a Langflow response.
+
+        Parameters
+        ----------
+        response : dict
+            Raw Langflow API response.
+
+        Returns
+        -------
+        str or None
+            Extracted session ID, empty string if the field is explicitly
+            None, or None if the key is missing.
+        """
+        if "session_id" not in response:
+            return None
+        if response["session_id"] is None:
+            logger.warning("Session ID field is None, using empty string instead")
+            return ""
+        return response["session_id"]
+
+    @classmethod
+    def extract_tool_trace(
+        cls, response: dict[str, Any]
+    ) -> list[dict[str, Any]] | None:
+        """Extract tool call trace from Langflow content_blocks.
+
+        Langflow agent responses include an 'Agent Steps' content block
+        with structured entries for each step: user input (text), tool
+        calls (tool_use with name, tool_input, output), and final output
+        (text).
+
+        Parameters
+        ----------
+        response : dict
+            Raw Langflow API response.
+
+        Returns
+        -------
+        list[dict] or None
+            List of step dicts from content_blocks, or None if not found.
+        """
+        for path_fn in [
+            lambda r: r["outputs"][0]["outputs"][0]["results"]["message"]["data"][
+                "content_blocks"
+            ],
+            lambda r: r["outputs"][0]["outputs"][0]["results"]["message"][
+                "content_blocks"
+            ],
+        ]:
+            try:
+                content_blocks = path_fn(response)
+                if not content_blocks:
+                    continue
+                for block in content_blocks:
+                    contents = block.get("contents")
+                    if contents and isinstance(contents, list):
+                        return contents
+            except (KeyError, IndexError, TypeError):
+                continue
+
+        logger.warning("No content_blocks with tool trace found in Langflow response")
+        return None
+
     def _extract_last_user_message(self, messages: list[dict[str, Any]]) -> str:
         """Extract the last user message content.
 

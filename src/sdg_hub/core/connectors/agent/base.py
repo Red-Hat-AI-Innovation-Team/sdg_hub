@@ -226,3 +226,60 @@ class BaseAgentConnector(BaseConnector):
             messages=request["messages"],
             session_id=request.get("session_id", "default"),
         )
+
+    # ------------------------------------------------------------------
+    # Response field extraction class methods
+    # ------------------------------------------------------------------
+    # These allow AgentResponseExtractorBlock to extract fields from
+    # framework-specific responses without instantiating a connector.
+    # Subclasses override to provide framework-specific parsing.
+
+    @classmethod
+    def extract_text(cls, response: dict[str, Any]) -> str | None:
+        """Extract text content from a framework response.
+
+        Parameters
+        ----------
+        response : dict
+            Raw response from the agent framework.
+
+        Returns
+        -------
+        str or None
+            Extracted text, or None if not found.
+        """
+        return None
+
+    @classmethod
+    def extract_session_id(cls, response: dict[str, Any]) -> str | None:
+        """Extract session ID from a framework response.
+
+        Parameters
+        ----------
+        response : dict
+            Raw response from the agent framework.
+
+        Returns
+        -------
+        str or None
+            Extracted session ID, or None if not found.
+        """
+        return None
+
+    @classmethod
+    def extract_tool_trace(
+        cls, response: dict[str, Any]
+    ) -> list[dict[str, Any]] | None:
+        """Extract tool call trace from a framework response.
+
+        Parameters
+        ----------
+        response : dict
+            Raw response from the agent framework.
+
+        Returns
+        -------
+        list[dict] or None
+            List of tool call step dicts, or None if not found.
+        """
+        return None
