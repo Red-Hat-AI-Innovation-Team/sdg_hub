@@ -92,19 +92,24 @@ Open `demo.ipynb` and follow the steps.
 
 ## Results
 
-With 3 models (GPT-5, GPT-4o, GPT-4o-mini) evaluated on 112 synthetic tasks:
+6 models evaluated on 112 synthetic tasks across 6 servers. Scores are
+**per-server averages** — each server contributes equally to the overall
+ranking regardless of how many tasks it has.
 
-| Server | Tasks | GPT-5 | GPT-4o | GPT-4o-mini |
-|:---|---:|---:|---:|---:|
-| Medical Calculator | 38 | 0.974 | 0.944 | 0.927 |
-| Weather Data | 16 | 0.815 | 0.811 | 0.782 |
-| DEX Paprika | 20 | 0.760 | 0.640 | 0.612 |
-| Wikipedia | 27 | 0.705 | 0.728 | 0.694 |
-| Reddit | 6 | 0.686 | 0.646 | 0.678 |
-| Car Price Evaluator | 5 | 0.556 | 0.388 | 0.453 |
-| **OVERALL** | **112** | **0.814** | **0.778** | **0.759** |
+| Server | Tasks | Qwen3.5-35B | GPT-5 | Claude S4-6 | GPT-4o | GPT-4o-mini | Qwen3-32B |
+|:---|---:|---:|---:|---:|---:|---:|---:|
+| Medical Calculator | 38 | 0.895 | 0.974 | 0.886 | 0.944 | 0.927 | 0.374 |
+| Reddit | 6 | 0.850 | 0.686 | 0.653 | 0.646 | 0.678 | 0.350 |
+| Car Price Evaluator | 5 | 0.838 | 0.556 | 0.598 | 0.388 | 0.453 | 0.350 |
+| Weather Data | 16 | 0.836 | 0.815 | 0.817 | 0.811 | 0.782 | 0.353 |
+| Wikipedia | 27 | 0.775 | 0.705 | 0.733 | 0.728 | 0.694 | 0.343 |
+| DEX Paprika | 20 | 0.722 | 0.760 | 0.683 | 0.640 | 0.612 | 0.350 |
+| **OVERALL** | **112** | **0.819** | **0.749** | **0.728** | **0.693** | **0.691** | **0.353** |
 
-**Ranking: GPT-5 > GPT-4o > GPT-4o-mini**
+**Ranking: Qwen3.5-35B > GPT-5 > Claude S4-6 > GPT-4o > GPT-4o-mini > Qwen3-32B**
+
+Models include API-served (OpenAI, Anthropic via Vertex AI) and locally-served
+(Qwen via sglang).
 
 ## Validation against mcp-bench
 
@@ -114,35 +119,38 @@ provides an end-to-end pipeline for evaluating how effectively different LLMs ca
 select, and utilize tools to solve real-world tasks across 28 MCP servers.
 
 We validated our synthetic benchmark by running mcp-bench's own evaluator (TaskEvaluator with
-6-subdimension LLM judge) on the same 6 servers with the same 3 models, using mcp-bench's
-pre-existing benchmark tasks (2 per server, 12 total):
+6-subdimension LLM judge) on the same 6 servers with 5 common models, using mcp-bench's
+pre-existing benchmark tasks (2 per server). Qwen3.5-35B is excluded because one of its
+mcp-bench tasks failed (DEX Paprika context length exceeded).
 
-| Server | Tasks | GPT-5 | GPT-4o | GPT-4o-mini |
-|:---|---:|---:|---:|---:|
-| Medical Calculator | 2 | 0.608 | 0.475 | 0.400 |
-| Weather Data | 2 | 0.550 | 0.458 | 0.392 |
-| DEX Paprika | 2 | 0.517 | 0.367 | 0.383 |
-| Wikipedia | 2 | 0.475 | 0.400 | 0.367 |
-| Reddit | 2 | 0.458 | 0.408 | 0.400 |
-| Car Price Evaluator | 2 | 0.267 | 0.192 | 0.200 |
-| **OVERALL** | **12** | **0.479** | **0.383** | **0.357** |
+| Server | Tasks | GPT-5 | Claude S4-6 | GPT-4o | GPT-4o-mini | Qwen3-32B |
+|:---|---:|---:|---:|---:|---:|---:|
+| Medical Calculator | 2 | 0.608 | 0.583 | 0.475 | 0.400 | 0.125 |
+| Weather Data | 2 | 0.550 | 0.500 | 0.458 | 0.392 | 0.208 |
+| DEX Paprika | 2 | 0.517 | 0.467 | 0.367 | 0.383 | 0.150 |
+| Wikipedia | 2 | 0.475 | 0.508 | 0.400 | 0.367 | 0.125 |
+| Reddit | 2 | 0.458 | 0.542 | 0.408 | 0.400 | 0.183 |
+| Car Price Evaluator | 2 | 0.267 | 0.250 | 0.192 | 0.200 | 0.125 |
+| **OVERALL** | **12** | **0.479** | **0.475** | **0.383** | **0.357** | **0.153** |
 
-**mcp-bench ranking: GPT-5 > GPT-4o > GPT-4o-mini**
+**mcp-bench ranking: GPT-5 > Claude S4-6 > GPT-4o > GPT-4o-mini > Qwen3-32B**
 
 ### Rank comparison
 
-Both our synthetic benchmark and mcp-bench produce the same model ordering:
+Per-server averages on the 5 common models (each server weighted equally):
 
 ```
-Kendall's tau:   1.000
-Spearman's rho:  1.000
-Pairwise agree:  3/3
-Rank match:      YES
+Arm 1 (our flow):   GPT-5 > Claude-S4-6 > GPT-4o > GPT-4o-mini > Qwen3-32B
+Arm 2 (mcp-bench):  GPT-5 > Claude-S4-6 > GPT-4o > GPT-4o-mini > Qwen3-32B
+
+Kendall's tau:   1.000  (p=0.017)
+Spearman's rho:  1.000  (p=0.000)
+Pairwise agree:  10/10
 ```
 
-The absolute scores differ (our flow: 0.76-0.81, mcp-bench: 0.36-0.48) because the
-evaluation methods are different, but the **ranking signal is preserved** — which validates
-that our distillation flow generates evaluation-quality synthetic data.
+Perfect rank agreement across all 5 common models, statistically significant
+at p=0.017. Our distillation flow generates evaluation-quality synthetic data
+that produces the same model ordering as mcp-bench's benchmark tasks.
 
 ## How evaluation works
 
@@ -157,7 +165,9 @@ Each model is scored against the expert gold-standard trajectory on 6 metrics:
 | Tool usage | LLM judge (0-10) | Were tools used with correct parameters? |
 | Answer quality | LLM judge (0-10) | Is the final answer as complete as the expert's? |
 
-The overall score averages all 6 metrics (normalized to 0-1).
+The overall score per server averages all 6 metrics (judge scores normalized
+to 0-1). The aggregate overall is the mean of per-server scores — each server
+contributes equally regardless of task count.
 
 ## Evaluating local models
 
