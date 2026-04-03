@@ -96,7 +96,7 @@ Open `demo.ipynb` and follow the steps.
 **per-server averages** — each server contributes equally to the overall
 ranking regardless of how many tasks it has.
 
-| Server | Tasks | Qwen3.5-35B | GPT-5 | Claude S4-6 | GPT-4o | GPT-4o-mini | Qwen3-32B |
+| Server | Tasks | Qwen3.5-35B | GPT-5 | Claude Sonnet 4-6 | GPT-4o | GPT-4o-mini | Qwen3-32B |
 |:---|---:|---:|---:|---:|---:|---:|---:|
 | Medical Calculator | 38 | 0.895 | 0.974 | 0.886 | 0.944 | 0.927 | 0.374 |
 | Reddit | 6 | 0.850 | 0.686 | 0.653 | 0.646 | 0.678 | 0.350 |
@@ -106,7 +106,7 @@ ranking regardless of how many tasks it has.
 | DEX Paprika | 20 | 0.722 | 0.760 | 0.683 | 0.640 | 0.612 | 0.350 |
 | **OVERALL** | **112** | **0.819** | **0.749** | **0.728** | **0.693** | **0.691** | **0.353** |
 
-**Ranking: Qwen3.5-35B > GPT-5 > Claude S4-6 > GPT-4o > GPT-4o-mini > Qwen3-32B**
+**Ranking: Qwen3.5-35B > GPT-5 > Claude Sonnet 4-6 > GPT-4o > GPT-4o-mini > Qwen3-32B**
 
 Models include API-served (OpenAI, Anthropic via Vertex AI) and locally-served
 (Qwen via sglang).
@@ -120,10 +120,11 @@ select, and utilize tools to solve real-world tasks across 28 MCP servers.
 
 We validated our synthetic benchmark by running mcp-bench's own evaluator (TaskEvaluator with
 6-subdimension LLM judge) on the same 6 servers with 5 common models, using mcp-bench's
-pre-existing benchmark tasks (2 per server). Qwen3.5-35B is excluded because one of its
-mcp-bench tasks failed (DEX Paprika context length exceeded).
+pre-existing benchmark tasks (2 per server). Qwen3.5-35B is excluded from this comparison
+because its mcp-bench evaluation was not completed (one task exceeded the model's context
+window during the multi-tool conversation).
 
-| Server | Tasks | GPT-5 | Claude S4-6 | GPT-4o | GPT-4o-mini | Qwen3-32B |
+| Server | Tasks | GPT-5 | Claude Sonnet 4-6 | GPT-4o | GPT-4o-mini | Qwen3-32B |
 |:---|---:|---:|---:|---:|---:|---:|
 | Medical Calculator | 2 | 0.608 | 0.583 | 0.475 | 0.400 | 0.125 |
 | Weather Data | 2 | 0.550 | 0.500 | 0.458 | 0.392 | 0.208 |
@@ -133,15 +134,15 @@ mcp-bench tasks failed (DEX Paprika context length exceeded).
 | Car Price Evaluator | 2 | 0.267 | 0.250 | 0.192 | 0.200 | 0.125 |
 | **OVERALL** | **12** | **0.479** | **0.475** | **0.383** | **0.357** | **0.153** |
 
-**mcp-bench ranking: GPT-5 > Claude S4-6 > GPT-4o > GPT-4o-mini > Qwen3-32B**
+**mcp-bench ranking: GPT-5 > Claude Sonnet 4-6 > GPT-4o > GPT-4o-mini > Qwen3-32B**
 
 ### Rank comparison
 
 Per-server averages on the 5 common models (each server weighted equally):
 
 ```
-Arm 1 (our flow):   GPT-5 > Claude-S4-6 > GPT-4o > GPT-4o-mini > Qwen3-32B
-Arm 2 (mcp-bench):  GPT-5 > Claude-S4-6 > GPT-4o > GPT-4o-mini > Qwen3-32B
+Arm 1 (our flow):   GPT-5 > Claude Sonnet 4-6 > GPT-4o > GPT-4o-mini > Qwen3-32B
+Arm 2 (mcp-bench):  GPT-5 > Claude Sonnet 4-6 > GPT-4o > GPT-4o-mini > Qwen3-32B
 
 Kendall's tau:   1.000  (p=0.017)
 Spearman's rho:  1.000  (p=0.000)
