@@ -8,7 +8,7 @@ occurrence when similarity exceeds a configurable threshold.
 
 # Standard
 from difflib import SequenceMatcher
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from pydantic import Field
 
@@ -79,15 +79,19 @@ class SimilarityFilterBlock(BaseBlock):
         return SequenceMatcher(None, a, b).ratio()
 
     def _deduplicate_group(self, group: pd.DataFrame, col: str) -> pd.DataFrame:
-        """Remove near-duplicate rows within a single group."""
+        """Remove near-duplicate rows within a single group.
+
+        Note: This uses O(n*k) comparisons where n is the group size and k is
+        the number of kept rows.  For very large groups consider pre-sharding
+        or approximate methods (e.g. MinHash).
+        """
         kept_indices = []
         kept_texts: list[str] = []
 
         for idx, row in group.iterrows():
             text = str(row[col])
             is_duplicate = any(
-                self._similarity(text, kept) > self.threshold
-                for kept in kept_texts
+                self._similarity(text, kept) > self.threshold for kept in kept_texts
             )
             if not is_duplicate:
                 kept_indices.append(idx)
@@ -111,21 +115,26 @@ class SimilarityFilterBlock(BaseBlock):
         if samples.empty:
             return samples
 
-        input_cols = self.input_cols
-        if isinstance(input_cols, list):
-            compare_col = input_cols[0]
-        elif isinstance(input_cols, str):
-            compare_col = input_cols
-        else:
-            compare_col = list(input_cols.keys())[0]
+        input_cols = cast(list[str], self.input_cols)
+        compare_col = input_cols[0]
 
         original_len = len(samples)
+
+        if self.group_by and self.group_by not in samples.columns:
+            logger.warning(
+                "SimilarityFilterBlock '%s': group_by column '%s' not found, "
+                "applying global deduplication",
+                self.block_name,
+                self.group_by,
+            )
 
         if self.group_by and self.group_by in samples.columns:
             groups = []
             for _, group in samples.groupby(self.group_by):
                 groups.append(self._deduplicate_group(group, compare_col))
-            result = pd.concat(groups, ignore_index=True) if groups else samples.iloc[:0]
+            result = (
+                pd.concat(groups, ignore_index=True) if groups else samples.iloc[:0]
+            )
         else:
             result = self._deduplicate_group(samples, compare_col)
 

@@ -103,10 +103,33 @@ class TestSimilarityFilterBlock:
         assert len(strict.generate(df)) <= len(lenient.generate(df))
 
     def test_threshold_boundaries(self, make_block):
-        """Threshold of 0 keeps only first; threshold of 1 keeps all non-identical."""
-        df = pd.DataFrame({"text": ["aaa", "aab", "bbb"]})
+        """Threshold of 0 filters any row with non-zero similarity to kept rows."""
+        df = pd.DataFrame({"text": ["aaa", "aaa!", "bbb"]})
         block_zero = make_block(threshold=0.0)
         result = block_zero.generate(df)
-        # threshold=0 means any similarity > 0 is filtered, but identical empty
-        # strings would pass; with real strings, most get filtered
-        assert len(result) >= 1
+        # "aaa" kept, "aaa!" filtered (similarity > 0), "bbb" kept (similarity = 0)
+        assert len(result) == 2
+
+    def test_missing_column_raises_error(self, make_block):
+        """Should raise KeyError when input column is missing."""
+        block = make_block(input_cols=["nonexistent"])
+        df = pd.DataFrame({"other_col": ["a", "b"]})
+        with pytest.raises(KeyError):
+            block.generate(df)
+
+    def test_invalid_threshold_rejected(self):
+        """Threshold outside 0-1 should be rejected by Pydantic."""
+        with pytest.raises(ValueError):
+            SimilarityFilterBlock(
+                block_name="test",
+                input_cols=["text"],
+                threshold=1.5,
+            )
+
+    def test_group_by_missing_column_warns(self, make_block, caplog):
+        """When group_by column is missing, should warn and deduplicate globally."""
+        block = make_block(threshold=0.8, group_by="missing_col")
+        df = pd.DataFrame({"text": ["hello world", "hello world", "different"]})
+        result = block.generate(df)
+        assert len(result) == 2
+        assert "group_by column 'missing_col' not found" in caplog.text
