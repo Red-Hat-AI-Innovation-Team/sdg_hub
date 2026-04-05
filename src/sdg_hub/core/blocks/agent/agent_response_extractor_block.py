@@ -5,11 +5,12 @@ This module provides the AgentResponseExtractorBlock for extracting text content
 and other fields from agent framework response objects (e.g., Langflow responses).
 """
 
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 from pydantic import Field, PrivateAttr, model_validator
 import pandas as pd
 
+from ...connectors.agent.base import BaseAgentConnector
 from ...connectors.exceptions import ConnectorError
 from ...connectors.registry import ConnectorRegistry
 from ...utils.logger_config import setup_logger
@@ -63,7 +64,7 @@ class AgentResponseExtractorBlock(BaseBlock):
     """
 
     _flow_requires_jsonl_tmp: bool = True
-    _connector_cls: type = PrivateAttr(default=None)
+    _connector_cls: Optional[type[BaseAgentConnector]] = PrivateAttr(default=None)
 
     block_type: str = "agent_util"
 
@@ -177,23 +178,25 @@ class AgentResponseExtractorBlock(BaseBlock):
         """
         extracted: dict[str, Any] = {}
         missing_fields: list[str] = []
+        connector_cls = self._connector_cls
+        assert connector_cls is not None
 
         if self.extract_text:
-            text = self._connector_cls.extract_text(response)
+            text = connector_cls.extract_text(response)
             if text is not None:
                 extracted[self._text_field] = text
             else:
                 missing_fields.append("text")
 
         if self.extract_session_id:
-            session_id = self._connector_cls.extract_session_id(response)
+            session_id = connector_cls.extract_session_id(response)
             if session_id is not None:
                 extracted[self._session_id_field] = session_id
             else:
                 missing_fields.append("session_id")
 
         if self.extract_tool_trace:
-            tool_trace = self._connector_cls.extract_tool_trace(response)
+            tool_trace = connector_cls.extract_tool_trace(response)
             if tool_trace is not None:
                 extracted[self._tool_trace_field] = tool_trace
             else:
