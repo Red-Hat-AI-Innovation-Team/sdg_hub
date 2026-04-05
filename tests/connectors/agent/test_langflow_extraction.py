@@ -131,3 +131,4 @@ class TestLangflowExtractToolTrace:
         response = make_langflow_response("text", content_blocks=[])
         result = LangflowConnector.extract_tool_trace(response)
         assert result is None
+        assert "No content_blocks with tool trace found" in caplog.text

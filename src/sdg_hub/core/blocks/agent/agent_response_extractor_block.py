@@ -7,7 +7,7 @@ and other fields from agent framework response objects (e.g., Langflow responses
 
 from typing import Any, cast
 
-from pydantic import Field, model_validator
+from pydantic import Field, PrivateAttr, model_validator
 import pandas as pd
 
 from ...connectors.exceptions import ConnectorError
@@ -63,6 +63,7 @@ class AgentResponseExtractorBlock(BaseBlock):
     """
 
     _flow_requires_jsonl_tmp: bool = True
+    _connector_cls: type = PrivateAttr(default=None)
 
     block_type: str = "agent_util"
 
