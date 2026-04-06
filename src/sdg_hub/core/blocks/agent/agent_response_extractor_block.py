@@ -180,8 +180,10 @@ class AgentResponseExtractorBlock(BaseBlock):
         missing_fields: list[str] = []
         # Resolve connector at extraction time so that runtime changes
         # to agent_framework (e.g. via set_agent_config) are respected.
-        connector_cls = ConnectorRegistry.get(self.agent_framework)
-        assert connector_cls is not None
+        connector_cls = cast(
+            type[BaseAgentConnector],
+            ConnectorRegistry.get(self.agent_framework),
+        )
 
         if self.extract_text:
             text = connector_cls.extract_text(response)
