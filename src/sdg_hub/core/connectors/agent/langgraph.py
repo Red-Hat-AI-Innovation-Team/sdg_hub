@@ -165,7 +165,9 @@ class LangGraphConnector(BaseAgentConnector):
             payload={"metadata": {"session_id": session_id}},
             headers=headers,
         )
-        thread_id = thread_response["thread_id"]
+        thread_id = thread_response.get("thread_id")
+        if not thread_id:
+            raise ConnectorError("LangGraph /threads response missing 'thread_id'")
         logger.debug(f"Created thread {thread_id}")
 
         # Step 2: Run agent on the thread
