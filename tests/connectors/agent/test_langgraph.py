@@ -3,11 +3,12 @@
 
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from sdg_hub.core.connectors.agent.langgraph import LangGraphConnector
 from sdg_hub.core.connectors.base import ConnectorConfig
 from sdg_hub.core.connectors.exceptions import ConnectorError
 from sdg_hub.core.connectors.registry import ConnectorRegistry
-import pytest
 
 
 class TestLangGraphConnector:
@@ -169,3 +170,90 @@ class TestLangGraphConnector:
 
         run_payload = mock_client.post.call_args_list[1][1]["payload"]
         assert run_payload["assistant_id"] == "my-custom-graph"
+
+
+class TestLangGraphExtractText:
+    """Test LangGraphConnector.extract_text class method."""
+
+    def test_success(self):
+        response = {
+            "messages": [
+                {"type": "human", "content": "Hello"},
+                {"type": "ai", "content": "Hi there!"},
+            ]
+        }
+        assert LangGraphConnector.extract_text(response) == "Hi there!"
+
+    def test_role_key_fallback(self):
+        """Test extraction works with 'role' key instead of 'type'."""
+        response = {
+            "messages": [
+                {"role": "user", "content": "Hello"},
+                {"role": "assistant", "content": "Hi!"},
+            ]
+        }
+        assert LangGraphConnector.extract_text(response) == "Hi!"
+
+    def test_none_content_returns_empty_string(self):
+        response = {"messages": [{"type": "ai", "content": None}]}
+        assert LangGraphConnector.extract_text(response) == ""
+
+    def test_no_ai_message_returns_none(self):
+        response = {"messages": [{"type": "human", "content": "Hello"}]}
+        assert LangGraphConnector.extract_text(response) is None
+
+    def test_no_messages_returns_none(self):
+        assert LangGraphConnector.extract_text({}) is None
+        assert LangGraphConnector.extract_text({"messages": []}) is None
+        assert LangGraphConnector.extract_text({"other": "data"}) is None
+
+
+class TestLangGraphExtractSessionId:
+    """Test LangGraphConnector.extract_session_id class method."""
+
+    def test_always_returns_none(self):
+        """LangGraph uses thread-based state, no session_id in response."""
+        response = {
+            "messages": [{"type": "ai", "content": "Hi"}],
+            "session_id": "some-id",
+        }
+        assert LangGraphConnector.extract_session_id(response) is None
+
+
+class TestLangGraphExtractToolTrace:
+    """Test LangGraphConnector.extract_tool_trace class method."""
+
+    def test_success(self):
+        response = {
+            "messages": [
+                {"type": "human", "content": "What is the weather?"},
+                {
+                    "type": "ai",
+                    "content": "",
+                    "tool_calls": [
+                        {"name": "get_weather", "args": {"city": "NYC"}, "id": "c1"}
+                    ],
+                },
+                {"type": "tool", "name": "get_weather", "content": '{"temp": 72}'},
+                {"type": "ai", "content": "It's 72°F in NYC."},
+            ]
+        }
+        trace = LangGraphConnector.extract_tool_trace(response)
+        assert trace is not None
+        assert len(trace) == 2
+        assert trace[0]["type"] == "tool_use"
+        assert trace[0]["tool_calls"][0]["name"] == "get_weather"
+        assert trace[1]["type"] == "tool_result"
+        assert trace[1]["name"] == "get_weather"
+
+    def test_no_tool_calls_returns_none(self):
+        response = {
+            "messages": [
+                {"type": "human", "content": "Hello"},
+                {"type": "ai", "content": "Hi!"},
+            ]
+        }
+        assert LangGraphConnector.extract_tool_trace(response) is None
+
+    def test_no_messages_returns_none(self):
+        assert LangGraphConnector.extract_tool_trace({}) is None

@@ -180,3 +180,100 @@ class LangGraphConnector(BaseAgentConnector):
         logger.debug(f"Received response from {run_url}")
 
         return self.parse_response(raw_response)
+
+    # ------------------------------------------------------------------
+    # Response field extraction
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def extract_text(cls, response: dict[str, Any]) -> str | None:
+        """Extract text from the last AI message in LangGraph state.
+
+        Parameters
+        ----------
+        response : dict
+            LangGraph final graph state.
+
+        Returns
+        -------
+        str or None
+            Content of the last AI message, or None if not found.
+        """
+        messages = response.get("messages")
+        if not messages or not isinstance(messages, list):
+            return None
+
+        for msg in reversed(messages):
+            if not isinstance(msg, dict):
+                continue
+            role = msg.get("type") or msg.get("role", "")
+            if role in ("ai", "assistant"):
+                content = msg.get("content")
+                if content is None:
+                    logger.warning("AI message content is None, using empty string")
+                    return ""
+                return str(content)
+
+        return None
+
+    @classmethod
+    def extract_session_id(cls, response: dict[str, Any]) -> str | None:
+        """Extract session ID from a LangGraph response.
+
+        LangGraph uses thread-based state; there is no top-level
+        ``session_id`` in the run response.
+
+        Parameters
+        ----------
+        response : dict
+            LangGraph final graph state.
+
+        Returns
+        -------
+        None
+            Always returns None for LangGraph.
+        """
+        return None
+
+    @classmethod
+    def extract_tool_trace(
+        cls, response: dict[str, Any]
+    ) -> list[dict[str, Any]] | None:
+        """Extract tool call trace from LangGraph messages.
+
+        Collects AI messages with ``tool_calls`` and tool response
+        messages into a structured trace.
+
+        Parameters
+        ----------
+        response : dict
+            LangGraph final graph state.
+
+        Returns
+        -------
+        list[dict] or None
+            List of tool-related message dicts, or None if none found.
+        """
+        messages = response.get("messages")
+        if not messages or not isinstance(messages, list):
+            return None
+
+        tool_entries: list[dict[str, Any]] = []
+        for msg in messages:
+            if not isinstance(msg, dict):
+                continue
+            role = msg.get("type") or msg.get("role", "")
+            if role in ("ai", "assistant") and msg.get("tool_calls"):
+                tool_entries.append(
+                    {"type": "tool_use", "tool_calls": msg["tool_calls"]}
+                )
+            elif role == "tool":
+                tool_entries.append(
+                    {
+                        "type": "tool_result",
+                        "name": msg.get("name", ""),
+                        "content": msg.get("content", ""),
+                    }
+                )
+
+        return tool_entries if tool_entries else None
