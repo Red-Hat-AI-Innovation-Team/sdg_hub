@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for ConnectorRegistry."""
 
+import pytest
+
 from sdg_hub.core.connectors.base import BaseConnector
 from sdg_hub.core.connectors.exceptions import ConnectorError
 from sdg_hub.core.connectors.registry import ConnectorRegistry
-import pytest
 
 
 class TestConnectorRegistry:

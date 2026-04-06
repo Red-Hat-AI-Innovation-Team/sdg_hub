@@ -2,6 +2,8 @@
 
 # First Party
 # Third Party
+import pytest
+
 from sdg_hub.core.utils.error_handling import (
     APIConnectionError,
     BlockConfigurationError,
@@ -17,7 +19,6 @@ from sdg_hub.core.utils.error_handling import (
     FlowValidationError,
     SDGHubError,
 )
-import pytest
 
 
 class TestSDGHubError:

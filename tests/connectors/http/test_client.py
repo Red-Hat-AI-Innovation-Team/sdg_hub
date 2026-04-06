@@ -3,10 +3,11 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from sdg_hub.core.connectors.exceptions import ConnectorError
-from sdg_hub.core.connectors.http.client import HttpClient
 import httpx
 import pytest
+
+from sdg_hub.core.connectors.exceptions import ConnectorError
+from sdg_hub.core.connectors.http.client import HttpClient
 
 
 class TestHttpClient:

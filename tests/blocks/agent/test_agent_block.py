@@ -3,11 +3,12 @@
 
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
+import pytest
+
 from sdg_hub.core.blocks.agent import AgentBlock
 from sdg_hub.core.blocks.registry import BlockRegistry
 from sdg_hub.core.connectors.exceptions import ConnectorError
-import pandas as pd
-import pytest
 
 
 class TestAgentBlockRegistration:

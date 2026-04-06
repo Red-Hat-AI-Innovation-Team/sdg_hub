@@ -4,10 +4,11 @@
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from sdg_hub.core.connectors.agent.base import BaseAgentConnector
 from sdg_hub.core.connectors.base import ConnectorConfig
 from sdg_hub.core.connectors.exceptions import ConnectorError
-import pytest
 
 
 class ConcreteAgentConnector(BaseAgentConnector):

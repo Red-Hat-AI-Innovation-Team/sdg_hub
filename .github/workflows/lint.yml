@@ -24,7 +24,7 @@ concurrency:
 
 env:
   LC_ALL: en_US.UTF-8
-  RUFF_VERSION: "0.3.4"
+  RUFF_VERSION: "0.15.0"
 
 defaults:
   run:

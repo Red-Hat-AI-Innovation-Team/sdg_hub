@@ -5588,7 +5588,7 @@ requires-dist = [
     { name = "pytest-html", marker = "extra == 'dev'" },
     { name = "python-dotenv", specifier = ">=1.0.0,<2.0.0" },
     { name = "rich" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.3.4" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.15.0" },
     { name = "scikit-learn", marker = "extra == 'examples'" },
     { name = "sentence-transformers", marker = "extra == 'examples'" },
     { name = "spacy", marker = "extra == 'examples'" },

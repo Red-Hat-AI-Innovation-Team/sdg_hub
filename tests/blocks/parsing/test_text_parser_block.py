@@ -3,9 +3,10 @@
 
 import warnings
 
-from sdg_hub.core.blocks.parsing import TextParserBlock
 import pandas as pd
 import pytest
+
+from sdg_hub.core.blocks.parsing import TextParserBlock
 
 
 class TestDeprecationWarning:

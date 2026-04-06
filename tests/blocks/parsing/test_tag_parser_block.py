@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for TagParserBlock."""
 
-from sdg_hub.core.blocks.parsing import TagParserBlock
 import pandas as pd
 import pytest
+
+from sdg_hub.core.blocks.parsing import TagParserBlock
 
 
 @pytest.fixture

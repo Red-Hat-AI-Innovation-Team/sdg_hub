@@ -3,6 +3,9 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+import yaml
+
 from sdg_hub.core.utils.error_handling import APIConnectionError
 from sdg_hub.core.utils.translation import (
     _adapt_flow_yaml,
@@ -11,8 +14,6 @@ from sdg_hub.core.utils.translation import (
     _parse_flow_yaml,
     _validate_translation,
 )
-import pytest
-import yaml
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -248,8 +249,9 @@ class TestLlmCall:
 
     @patch("sdg_hub.core.utils.translation.litellm")
     def test_auth_error_raises_api_connection_error(self, mock_litellm):
-        from sdg_hub.core.utils.translation import _llm_call
         import litellm
+
+        from sdg_hub.core.utils.translation import _llm_call
 
         mock_litellm.AuthenticationError = litellm.AuthenticationError
         mock_litellm.completion.side_effect = litellm.AuthenticationError(

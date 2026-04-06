@@ -3,12 +3,12 @@
 # Standard
 import json
 
-# First Party
-from sdg_hub.core.blocks.transform import JSONStructureBlock
-
 # Third Party
 import pandas as pd
 import pytest
+
+# First Party
+from sdg_hub.core.blocks.transform import JSONStructureBlock
 
 
 @pytest.fixture

@@ -10,11 +10,11 @@ Covers the uncovered branches identified in issue #646:
 from unittest.mock import Mock, patch
 import logging
 
-from sdg_hub import Flow, FlowMetadata
-from sdg_hub.core.flow.metadata import RecommendedModels
 import pytest
 import yaml
 
+from sdg_hub import Flow, FlowMetadata
+from sdg_hub.core.flow.metadata import RecommendedModels
 from tests.flow.conftest import MockBlock
 
 
@@ -91,9 +91,9 @@ class TestAgentConfigCoverage:
         agent_block = _create_mock_agent_block("agent1")
         flow = Flow(blocks=[agent_block], metadata=test_metadata)
 
-        assert (
-            agent_block.model_config.get("extra") == "allow"
-        ), "Precondition: block must allow extra fields for this branch"
+        assert agent_block.model_config.get("extra") == "allow", (
+            "Precondition: block must allow extra fields for this branch"
+        )
         assert not hasattr(agent_block, "custom_timeout")
 
         flow.set_agent_config(
@@ -113,9 +113,9 @@ class TestAgentConfigCoverage:
         agent_block = _create_mock_agent_block("agent1")
         flow = Flow(blocks=[agent_block], metadata=test_metadata)
 
-        assert (
-            agent_block.model_config.get("extra") == "allow"
-        ), "Precondition: block must allow extra fields for this branch"
+        assert agent_block.model_config.get("extra") == "allow", (
+            "Precondition: block must allow extra fields for this branch"
+        )
         assert not hasattr(agent_block, "secret")
 
         with caplog.at_level(logging.DEBUG, logger="sdg_hub.core.flow.agent_config"):

@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for LangflowConnector."""
 
+import pytest
+
 from sdg_hub.core.connectors.agent.langflow import LangflowConnector
 from sdg_hub.core.connectors.base import ConnectorConfig
 from sdg_hub.core.connectors.exceptions import ConnectorError
 from sdg_hub.core.connectors.registry import ConnectorRegistry
-import pytest
 
 
 class TestLangflowConnector:

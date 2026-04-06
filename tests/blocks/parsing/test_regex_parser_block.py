@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for RegexParserBlock."""
 
-from sdg_hub.core.blocks.parsing import RegexParserBlock
 import pandas as pd
 import pytest
+
+from sdg_hub.core.blocks.parsing import RegexParserBlock
 
 
 @pytest.fixture

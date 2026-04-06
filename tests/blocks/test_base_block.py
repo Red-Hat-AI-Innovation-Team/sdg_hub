@@ -3,6 +3,10 @@
 # Standard
 from unittest.mock import patch
 
+# Third Party
+import pandas as pd
+import pytest
+
 # First Party
 from sdg_hub import BaseBlock
 from sdg_hub.core.utils.error_handling import (
@@ -12,10 +16,6 @@ from sdg_hub.core.utils.error_handling import (
     OutputColumnCollisionError,
 )
 from sdg_hub.core.utils.logger_config import setup_logger
-
-# Third Party
-import pandas as pd
-import pytest
 
 logger = setup_logger(__name__)
 
@@ -442,9 +442,11 @@ class TestCallMethod:
                 # Access the field to verify override worked
                 result = samples.copy()
                 result["test_output"] = result["input"].apply(
-                    lambda x: f"processed_{x}_{self.custom_field}"
-                    if pd.notna(x)
-                    else f"processed_unknown_{self.custom_field}"
+                    lambda x: (
+                        f"processed_{x}_{self.custom_field}"
+                        if pd.notna(x)
+                        else f"processed_unknown_{self.custom_field}"
+                    )
                 )
                 return result
 

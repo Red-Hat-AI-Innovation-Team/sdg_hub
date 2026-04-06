@@ -63,7 +63,7 @@ dev = [
     "pytest-cov",
     "pytest-env",
     "pytest-html",
-    "ruff>=0.3.4",
+    "ruff>=0.15.0",
 ]
 # Minimal dependencies for integration testing only
 # Integration tests run knowledge_generation.ipynb which only needs nest-asyncio
