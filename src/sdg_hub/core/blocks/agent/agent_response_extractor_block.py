@@ -178,7 +178,9 @@ class AgentResponseExtractorBlock(BaseBlock):
         """
         extracted: dict[str, Any] = {}
         missing_fields: list[str] = []
-        connector_cls = self._connector_cls
+        # Resolve connector at extraction time so that runtime changes
+        # to agent_framework (e.g. via set_agent_config) are respected.
+        connector_cls = ConnectorRegistry.get(self.agent_framework)
         assert connector_cls is not None
 
         if self.extract_text:
