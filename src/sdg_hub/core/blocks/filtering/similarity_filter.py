@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0
 """Similarity filter block for removing near-duplicate rows.
 
-This module provides a block that computes pairwise text similarity
-within groups and drops near-duplicate entries, keeping only the first
-occurrence when similarity exceeds a configurable threshold.
+This module provides a block that performs greedy sequential deduplication
+based on text similarity, comparing each row against previously retained
+rows and dropping entries whose similarity exceeds a configurable threshold.
 """
 
 # Standard
 from difflib import SequenceMatcher
 from typing import Any, Optional, cast
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 # Third Party
 import pandas as pd
@@ -31,9 +31,9 @@ logger = setup_logger(__name__)
 class SimilarityFilterBlock(BaseBlock):
     """A block that removes near-duplicate rows based on text similarity.
 
-    Compares rows pairwise within optional groups (e.g., per document)
-    and drops rows whose text similarity to any previously kept row
-    exceeds the threshold.
+    Performs greedy sequential deduplication within optional groups
+    (e.g., per document). Each row is compared against previously
+    retained rows and dropped if similarity exceeds the threshold.
 
     Attributes
     ----------
@@ -63,17 +63,25 @@ class SimilarityFilterBlock(BaseBlock):
         description="Column to group by before comparing similarity.",
     )
 
+    @field_validator("input_cols", mode="after")
+    @classmethod
+    def validate_input_cols_not_empty(cls, v: list[str]) -> list[str]:
+        """Validate that we have at least one input column."""
+        if not v or len(v) == 0:
+            raise ValueError("SimilarityFilterBlock requires at least one input column")
+        return v
+
     def model_post_init(self, __context: Any) -> None:
         """Initialize derived attributes after Pydantic validation."""
-        super().model_post_init(__context) if hasattr(
-            super(), "model_post_init"
-        ) else None
+        super().model_post_init(__context)
         if self.output_cols is None:
             self.output_cols = []
 
     @staticmethod
     def _similarity(a: str, b: str) -> float:
         """Compute similarity ratio between two strings."""
+        if not a and not b:
+            return 1.0
         if not a or not b:
             return 0.0
         return SequenceMatcher(None, a, b).ratio()
@@ -130,7 +138,7 @@ class SimilarityFilterBlock(BaseBlock):
 
         if self.group_by and self.group_by in samples.columns:
             groups = []
-            for _, group in samples.groupby(self.group_by):
+            for _, group in samples.groupby(self.group_by, dropna=False):
                 groups.append(self._deduplicate_group(group, compare_col))
             result = (
                 pd.concat(groups, ignore_index=True) if groups else samples.iloc[:0]
@@ -148,6 +156,14 @@ class SimilarityFilterBlock(BaseBlock):
                 self.threshold,
                 original_len,
                 len(result),
+            )
+        else:
+            logger.info(
+                "SimilarityFilterBlock '%s': no near-duplicates found "
+                "(threshold=%.2f, %d rows examined)",
+                self.block_name,
+                self.threshold,
+                original_len,
             )
 
         return result.reset_index(drop=True)
