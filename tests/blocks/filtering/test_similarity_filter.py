@@ -199,6 +199,19 @@ class TestSimilarityFilterBlock:
         # Both None rows become "None" string — second is a duplicate
         assert len(result) == 2
 
+    def test_uses_first_input_col_only(self, make_block):
+        """When multiple input_cols given, only the first is used for comparison."""
+        block = make_block(input_cols=["text", "other"])
+        df = pd.DataFrame(
+            {
+                "text": ["hello", "hello"],
+                "other": ["world", "universe"],
+            }
+        )
+        result = block(df)
+        # Should deduplicate based on "text" only
+        assert len(result) == 1
+
     def test_single_row_dataframe(self, make_block):
         """A single-row DataFrame should pass through unchanged."""
         block = make_block()
