@@ -5,12 +5,15 @@ Used by model_config.py and agent_config.py to avoid duplicating the
 hasattr / extra=="allow" / warning logic and sensitive-param redaction.
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 import logging
+
+if TYPE_CHECKING:
+    from ..blocks.base import BaseBlock
 
 
 def apply_config_to_blocks(
-    blocks: list,
+    blocks: "list[BaseBlock]",
     target_block_names: set[str],
     config_params: dict[str, Any],
     sensitive_params: set[str],
