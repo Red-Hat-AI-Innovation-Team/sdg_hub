@@ -160,7 +160,14 @@ class AgentBlock(BaseBlock):
                 timeout=self.timeout,
                 max_retries=self.max_retries,
             )
-            self._connector = connector_class(config=config, **self.connector_kwargs)
+            try:
+                self._connector = connector_class(
+                    config=config, **self.connector_kwargs
+                )
+            except TypeError as e:
+                raise ConnectorError(
+                    f"Invalid connector_kwargs for '{self.agent_framework}': {e}"
+                ) from e
             self._connector_config_key = config_key
         return self._connector
 
