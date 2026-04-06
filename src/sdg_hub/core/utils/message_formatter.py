@@ -114,12 +114,14 @@ def tool_trace_to_messages(
 
             # tool returns its result
             result_text = _extract_tool_output(output)
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tool_call_id,
-                "name": name,
-                "content": result_text,
-            })
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tool_call_id,
+                    "name": name,
+                    "content": result_text,
+                }
+            )
 
     return messages
 
