@@ -29,8 +29,9 @@ class LangGraphConnector(BaseAgentConnector):
     1. Creates a thread via ``POST {base_url}/threads``
     2. Runs the agent via ``POST {base_url}/threads/{thread_id}/runs/wait``
 
-    The ``session_id`` from :class:`AgentBlock` maps to the LangGraph
-    ``thread_id``, so rows sharing a session share conversation history.
+    Each call creates a new LangGraph thread. The ``session_id`` is
+    stored as thread metadata for traceability but does not cause
+    thread reuse -- each request starts a fresh conversation.
 
     Parameters
     ----------
@@ -55,6 +56,7 @@ class LangGraphConnector(BaseAgentConnector):
 
     assistant_id: str = Field(
         default="agent",
+        min_length=1,
         description="The assistant ID or graph name to run.",
     )
 
@@ -88,13 +90,24 @@ class LangGraphConnector(BaseAgentConnector):
         messages : list[dict]
             Messages in standard format.
         session_id : str
-            Session identifier (used as thread_id).
+            Session identifier. Not used in the run payload; included
+            for interface compatibility with ``BaseAgentConnector``.
 
         Returns
         -------
         dict
             LangGraph ``/runs/wait`` request payload.
+
+        Raises
+        ------
+        ConnectorError
+            If messages list is empty.
         """
+        if not messages:
+            raise ConnectorError(
+                "Cannot send empty messages list to LangGraph. "
+                "Expected at least one message with role and content."
+            )
         return {
             "assistant_id": self.assistant_id,
             "input": {"messages": messages},
@@ -125,6 +138,17 @@ class LangGraphConnector(BaseAgentConnector):
         if not isinstance(response, dict):
             raise ConnectorError(
                 f"Expected dict response, got {type(response).__name__}"
+            )
+        if not response:
+            raise ConnectorError(
+                "LangGraph API returned an empty response. "
+                "Verify the agent graph is configured correctly."
+            )
+        if "messages" not in response:
+            logger.warning(
+                "LangGraph response has no 'messages' key. "
+                f"Available keys: {list(response.keys())}. "
+                "This may indicate an API error or misconfigured graph."
             )
 
         return response

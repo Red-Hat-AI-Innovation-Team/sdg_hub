@@ -3,9 +3,10 @@
 
 from typing import Any, Optional
 import asyncio
+import json
 import uuid
 
-from pydantic import Field, PrivateAttr
+from pydantic import Field, PrivateAttr, ValidationError
 from tqdm import tqdm
 import pandas as pd
 
@@ -150,7 +151,7 @@ class AgentBlock(BaseBlock):
             self.agent_api_key,
             self.timeout,
             self.max_retries,
-            tuple(sorted(self.connector_kwargs.items())),
+            json.dumps(self.connector_kwargs, sort_keys=True, default=str),
         )
         if self._connector is None or self._connector_config_key != config_key:
             connector_class = ConnectorRegistry.get(self.agent_framework)
@@ -164,7 +165,7 @@ class AgentBlock(BaseBlock):
                 self._connector = connector_class(
                     config=config, **self.connector_kwargs
                 )
-            except TypeError as e:
+            except (TypeError, ValidationError) as e:
                 raise ConnectorError(
                     f"Invalid connector_kwargs for '{self.agent_framework}': {e}"
                 ) from e
