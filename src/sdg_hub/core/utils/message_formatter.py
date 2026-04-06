@@ -1,14 +1,16 @@
-"""Convert Langflow agent tool traces into structured function-calling conversations.
+"""Convert Langflow agent tool traces into structured tool-calling conversations.
 
-The output format is compatible with standard SFT training pipelines for
-tool-use models (system with tool declarations, user, assistant function_call /
-function response pairs, and final assistant answer).
+The output format uses the modern OpenAI tool_calls/tool message format,
+compatible with training pipelines for tool-use models (system with tool
+declarations, user, assistant tool_calls / tool response pairs, and final
+assistant answer).
 """
 
 from __future__ import annotations
 
 from typing import Any
 import json
+import uuid
 
 
 def tool_trace_to_messages(
@@ -16,7 +18,7 @@ def tool_trace_to_messages(
     tool_list: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Convert a Langflow tool trace and tool schemas into a structured
-    function-calling conversation.
+    tool-calling conversation.
 
     Parameters
     ----------
@@ -37,13 +39,13 @@ def tool_trace_to_messages(
     Returns
     -------
     list[dict]
-        A conversation in the function-calling message format::
+        A conversation in the tool-calling message format::
 
             [
                 {"role": "system",    "content": "<tool declarations>"},
                 {"role": "user",      "content": "question"},
-                {"role": "assistant", "content": "", "function_call": {"name": ..., "arguments": ...}},
-                {"role": "function",  "content": "result JSON", "name": "tool_name"},
+                {"role": "assistant", "content": null, "tool_calls": [...]},
+                {"role": "tool",      "content": "result", "tool_call_id": "...", "name": "..."},
                 ...
                 {"role": "assistant", "content": "final answer"},
             ]
@@ -90,21 +92,34 @@ def tool_trace_to_messages(
             tool_input = step.get("tool_input", {})
             output = step.get("output")
 
+            tool_call_id = f"call_{uuid.uuid4().hex[:24]}"
+
             # assistant decides to call a tool
             messages.append(
                 {
                     "role": "assistant",
-                    "content": "",
-                    "function_call": {
-                        "name": name,
-                        "arguments": json.dumps(tool_input),
-                    },
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": tool_call_id,
+                            "type": "function",
+                            "function": {
+                                "name": name,
+                                "arguments": json.dumps(tool_input),
+                            },
+                        }
+                    ],
                 }
             )
 
             # tool returns its result
             result_text = _extract_tool_output(output)
-            messages.append({"role": "function", "content": result_text, "name": name})
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call_id,
+                "name": name,
+                "content": result_text,
+            })
 
     return messages
 

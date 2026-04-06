@@ -19,7 +19,7 @@ SAMPLE_TOOL_LIST = [
 
 
 class TestToolTraceToMessages:
-    """Test converting Langflow tool traces to function-calling messages."""
+    """Test converting Langflow tool traces to tool-calling messages."""
 
     def test_basic_trace(self):
         """Test a trace with input, one tool call, and output."""
@@ -39,9 +39,10 @@ class TestToolTraceToMessages:
         assert msgs[0]["role"] == "system"
         assert msgs[1] == {"role": "user", "content": "find laptops"}
         assert msgs[2]["role"] == "assistant"
-        assert msgs[2]["function_call"]["name"] == "search_products"
-        assert msgs[3]["role"] == "function"
+        assert msgs[2]["tool_calls"][0]["function"]["name"] == "search_products"
+        assert msgs[3]["role"] == "tool"
         assert msgs[3]["name"] == "search_products"
+        assert msgs[3]["tool_call_id"] == msgs[2]["tool_calls"][0]["id"]
         assert msgs[4] == {"role": "assistant", "content": "No results."}
 
     def test_system_message_declares_all_tools(self):
@@ -78,8 +79,8 @@ class TestToolTraceToMessages:
         msgs = tool_trace_to_messages(trace, SAMPLE_TOOL_LIST)
 
         assert len(msgs) == 7  # system + user + 2*(call+response) + output
-        assert msgs[2]["function_call"]["name"] == "search_products"
-        assert msgs[4]["function_call"]["name"] == "get_details"
+        assert msgs[2]["tool_calls"][0]["function"]["name"] == "search_products"
+        assert msgs[4]["tool_calls"][0]["function"]["name"] == "get_details"
 
     def test_string_output(self):
         """Test tool_use with plain string output."""
@@ -92,6 +93,7 @@ class TestToolTraceToMessages:
             },
         ]
         msgs = tool_trace_to_messages(trace, SAMPLE_TOOL_LIST)
+        assert msgs[2]["role"] == "tool"
         assert msgs[2]["content"] == "plain text result"
 
     def test_structured_content_fallback(self):
@@ -105,6 +107,7 @@ class TestToolTraceToMessages:
             },
         ]
         msgs = tool_trace_to_messages(trace, SAMPLE_TOOL_LIST)
+        assert msgs[2]["role"] == "tool"
         assert json.loads(msgs[2]["content"]) == {"count": 5}
 
     def test_intermediate_reasoning(self):
@@ -128,6 +131,7 @@ class TestToolTraceToMessages:
             },
         ]
         msgs = tool_trace_to_messages(trace, SAMPLE_TOOL_LIST)
+        assert msgs[2]["role"] == "tool"
         assert msgs[2]["content"] == ""
 
     # --- Edge cases for malformed traces (issue #646) ---
@@ -152,6 +156,7 @@ class TestToolTraceToMessages:
         ]
         msgs = tool_trace_to_messages(trace, SAMPLE_TOOL_LIST)
         # Empty content list is falsy, so falls through to json.dumps(output)
+        assert msgs[2]["role"] == "tool"
         assert json.loads(msgs[2]["content"]) == {"content": []}
 
     def test_missing_header_field(self):
@@ -172,6 +177,7 @@ class TestToolTraceToMessages:
             },
         ]
         msgs = tool_trace_to_messages(trace, SAMPLE_TOOL_LIST)
+        assert msgs[2]["role"] == "tool"
         assert msgs[2]["content"] == ""
 
     def test_non_list_content_field(self):
@@ -186,6 +192,7 @@ class TestToolTraceToMessages:
         ]
         msgs = tool_trace_to_messages(trace, SAMPLE_TOOL_LIST)
         # isinstance("not a list", list) is False, so falls through
+        assert msgs[2]["role"] == "tool"
         assert json.loads(msgs[2]["content"]) == {"content": "not a list"}
 
     def test_unknown_type_value(self):
@@ -206,4 +213,5 @@ class TestToolTraceToMessages:
             },
         ]
         msgs = tool_trace_to_messages(trace, SAMPLE_TOOL_LIST)
+        assert msgs[2]["role"] == "tool"
         assert msgs[2]["content"] == "42"
