@@ -65,25 +65,24 @@ bash start_servers.sh --check  # verify they're running
 
 `start_servers.sh` uses paths relative to its own location, so it works from any directory.
 
-### 3. Set up Langflow agents
+### 3. Set up LangGraph agents
 
-Start Langflow (`uvx langflow run`) and create one agent flow per server:
+Each MCP server needs a LangGraph agent connected to it for task generation:
 
-1. Create a flow with an **Agent** + **MCP Tools** component
-2. Point MCP Tools at the server URL (e.g., `http://localhost:8001/mcp`)
-3. Set Agent max iterations to **100**
-4. Configure the Agent's LLM (e.g., GPT-5.2 via OpenAI key)
-5. Note the flow URL and add it to `.env`
+1. Define a LangGraph graph that connects to your MCP server (e.g., a ReAct agent with MCP tools)
+2. Serve it locally: `langgraph dev --port <port>`
+3. Deploy one agent per server on different ports (default: 2024-2029)
+4. Add each agent's URL to `.env`
 
-Repeat for each server. The exploration step may occasionally fail if the frontier model
-probes edge cases — simply re-run the cell if a server fails. Pre-generated tasks are
-provided in `outputs/` so you can skip task generation entirely if needed.
+The exploration step may occasionally fail if the frontier model probes edge cases —
+simply re-run the cell if a server fails. Pre-generated tasks are provided in `outputs/`
+so you can skip task generation entirely if needed.
 
 ### 4. Configure environment
 
 ```bash
 cp .env.example .env
-# Edit .env with your API keys and Langflow flow URLs
+# Edit .env with your API keys and LangGraph agent URLs
 ```
 
 ### 5. Run the notebook
