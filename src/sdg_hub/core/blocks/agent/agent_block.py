@@ -373,8 +373,13 @@ class AgentBlock(BaseBlock):
 
         if self.async_mode:
             # Async execution
+            has_running_loop = True
             try:
                 asyncio.get_running_loop()
+            except RuntimeError:
+                has_running_loop = False
+
+            if has_running_loop:
                 # Already in async context - use thread executor
                 import concurrent.futures
 
@@ -384,7 +389,7 @@ class AgentBlock(BaseBlock):
                         self._process_batch_async(df, connector, messages_col),
                     )
                     results = future.result()
-            except RuntimeError:
+            else:
                 # No event loop - create one
                 results = asyncio.run(
                     self._process_batch_async(df, connector, messages_col)

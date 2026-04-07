@@ -456,3 +456,49 @@ class TestAgentBlockConnectorIntegration:
 
         assert connector1 is not connector2
         assert connector2.config.url == "http://newhost:8080"
+
+
+class TestAgentBlockConnectorKwargs:
+    """Test connector_kwargs passthrough on AgentBlock."""
+
+    def test_connector_kwargs_passed_to_connector(self):
+        """Test that connector_kwargs are passed to the connector constructor."""
+        block = AgentBlock(
+            block_name="test",
+            agent_framework="langgraph",
+            agent_url="http://localhost:2024",
+            connector_kwargs={"assistant_id": "my-graph"},
+            input_cols=["messages"],
+            output_cols=["response"],
+        )
+        connector = block._get_connector()
+        assert connector.assistant_id == "my-graph"
+
+    def test_connector_kwargs_default_empty(self):
+        """Test connector_kwargs defaults to empty dict."""
+        block = AgentBlock(
+            block_name="test",
+            agent_framework="langflow",
+            agent_url="http://localhost:7860",
+            input_cols=["messages"],
+            output_cols=["response"],
+        )
+        assert block.connector_kwargs == {}
+
+    def test_connector_kwargs_invalidates_cache(self):
+        """Test that changing connector_kwargs creates a new connector."""
+        block = AgentBlock(
+            block_name="test",
+            agent_framework="langgraph",
+            agent_url="http://localhost:2024",
+            connector_kwargs={"assistant_id": "graph-1"},
+            input_cols=["messages"],
+            output_cols=["response"],
+        )
+        connector1 = block._get_connector()
+        assert connector1.assistant_id == "graph-1"
+
+        block.connector_kwargs = {"assistant_id": "graph-2"}
+        connector2 = block._get_connector()
+        assert connector2.assistant_id == "graph-2"
+        assert connector1 is not connector2
