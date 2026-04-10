@@ -3,12 +3,13 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pandas as pd
+import pytest
+
 from sdg_hub.core.blocks.code import PythonInterpreterBlock
 from sdg_hub.core.blocks.registry import BlockRegistry
 from sdg_hub.core.connectors.code_interpreter.base import CodeExecutionResult
 from sdg_hub.core.connectors.exceptions import ConnectorError
-import pandas as pd
-import pytest
 
 
 class TestPythonInterpreterBlock:
