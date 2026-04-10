@@ -136,14 +136,18 @@ def compute_tool_metrics(
             )
     order = dp[m][n] / len(expert_tools)
 
-    # Parameter match: compare arguments for matching tool calls
+    # Parameter match: compare arguments by occurrence order.
+    # Each model call is consumed once to handle repeated tool names correctly.
     param_match = 0.0
     if model_trace and expert_trace:
         matched, total = 0, 0
+        available = list(range(len(model_trace)))  # indices not yet consumed
         for et in expert_trace:
-            for mt in model_trace:
+            for idx in available:
+                mt = model_trace[idx]
                 if mt.get("name") == et.get("name"):
                     total += 1
+                    available.remove(idx)  # consume this match
                     e_in = et.get("input", {})
                     m_in = mt.get("input", {})
                     if not e_in and not m_in:
