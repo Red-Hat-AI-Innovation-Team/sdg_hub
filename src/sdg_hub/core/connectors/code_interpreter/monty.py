@@ -25,7 +25,7 @@ try:
     MONTY_AVAILABLE = True
 except ImportError:
     MONTY_AVAILABLE = False
-    pydantic_monty = None
+    pydantic_monty = None  # type: ignore[assignment]
 
 
 @ConnectorRegistry.register("monty")
@@ -136,6 +136,20 @@ class MontyConnector(BaseCodeInterpreterConnector):
             execution_time_ms=execution_time_ms,
         )
 
+    def _run_monty(
+        self,
+        code: str,
+        inputs: Optional[dict[str, Any]],
+        timeout: Optional[float],
+    ) -> tuple["pydantic_monty.Monty", dict]:
+        """Create Monty instance and build run kwargs."""
+        input_names = list(inputs.keys()) if inputs else None
+        monty = pydantic_monty.Monty(code, inputs=input_names)
+        run_kwargs: dict[str, Any] = {"limits": self._get_resource_limits(timeout)}
+        if inputs:
+            run_kwargs["inputs"] = inputs
+        return monty, run_kwargs
+
     def execute_code(
         self,
         code: str,
@@ -167,24 +181,17 @@ class MontyConnector(BaseCodeInterpreterConnector):
         ... )
         >>> print(result.output)  # "30\\n"
         """
-        input_names = list(inputs.keys()) if inputs else []
-        input_values = inputs or {}
-        limits = self._get_resource_limits(timeout)
         start_time = time.perf_counter()
 
         try:
-            monty = pydantic_monty.Monty(
-                code,
-                inputs=input_names,
-                external_functions=[],
+            monty, run_kwargs = self._run_monty(code, inputs, timeout)
+            captured: list[str] = []
+            run_kwargs["print_callback"] = lambda _file, content: captured.append(
+                content
             )
-            output = pydantic_monty.run_monty(
-                monty,
-                inputs=input_values,
-                external_functions={},
-                limits=limits,
-            )
-            return self._build_result(output, start_time)
+            monty.run(**run_kwargs)
+            output_str = "".join(captured)
+            return self._build_result(output_str, start_time)
 
         except Exception as e:
             return self._build_error(e, start_time, log_warning=True)
@@ -197,7 +204,7 @@ class MontyConnector(BaseCodeInterpreterConnector):
     ) -> CodeExecutionResult:
         """Execute Python code asynchronously.
 
-        Monty supports async execution natively via run_monty_async.
+        Monty supports async execution natively via run_async.
 
         Parameters
         ----------
@@ -213,24 +220,17 @@ class MontyConnector(BaseCodeInterpreterConnector):
         CodeExecutionResult
             Execution result.
         """
-        input_names = list(inputs.keys()) if inputs else []
-        input_values = inputs or {}
-        limits = self._get_resource_limits(timeout)
         start_time = time.perf_counter()
 
         try:
-            monty = pydantic_monty.Monty(
-                code,
-                inputs=input_names,
-                external_functions=[],
+            monty, run_kwargs = self._run_monty(code, inputs, timeout)
+            captured: list[str] = []
+            run_kwargs["print_callback"] = lambda _file, content: captured.append(
+                content
             )
-            output = await pydantic_monty.run_monty_async(
-                monty,
-                inputs=input_values,
-                external_functions={},
-                limits=limits,
-            )
-            return self._build_result(output, start_time)
+            await monty.run_async(**run_kwargs)
+            output_str = "".join(captured)
+            return self._build_result(output_str, start_time)
 
         except Exception as e:
             return self._build_error(e, start_time, log_warning=True)

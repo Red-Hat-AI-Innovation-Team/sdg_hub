@@ -29,45 +29,58 @@ class TestMontyConnector:
 
     @pytest.fixture
     def mock_monty(self):
-        """Create mock pydantic_monty module."""
+        """Create mock pydantic_monty module with instance-method API."""
         mock_module = MagicMock()
         mock_module.MontyError = Exception
 
+        # Monty() returns a mock instance with .run() method
+        mock_instance = MagicMock()
+        mock_module.Monty.return_value = mock_instance
+
         with patch.object(monty_module, "MONTY_AVAILABLE", True):
             with patch.object(monty_module, "pydantic_monty", mock_module):
-                yield mock_module
+                yield mock_module, mock_instance
 
     def test_execute_code_success(self, mock_monty):
         """Test successful code execution."""
         from sdg_hub.core.connectors.code_interpreter.monty import MontyConnector
 
-        mock_monty.run_monty.return_value = "42"
+        mock_module, mock_instance = mock_monty
+
+        # Simulate print_callback capturing output
+        def fake_run(**kwargs):
+            cb = kwargs.get("print_callback")
+            if cb:
+                cb("stdout", "42")
+                cb("stdout", "\n")
+
+        mock_instance.run.side_effect = fake_run
 
         connector = MontyConnector()
         result = connector.execute_code("print(21 * 2)")
 
         assert result.success is True
-        assert result.output == "42"
+        assert result.output == "42\n"
         assert result.error is None
 
     def test_execute_code_with_inputs(self, mock_monty):
         """Test code execution with input variables."""
         from sdg_hub.core.connectors.code_interpreter.monty import MontyConnector
 
-        mock_monty.run_monty.return_value = "30"
+        mock_module, mock_instance = mock_monty
 
         connector = MontyConnector()
-        result = connector.execute_code("print(x + y)", inputs={"x": 10, "y": 20})
+        connector.execute_code("print(x + y)", inputs={"x": 10, "y": 20})
 
-        assert result.success is True
-        mock_monty.Monty.assert_called_once()
-        assert set(mock_monty.Monty.call_args.kwargs["inputs"]) == {"x", "y"}
+        mock_module.Monty.assert_called_once()
+        assert set(mock_module.Monty.call_args.kwargs["inputs"]) == {"x", "y"}
 
     def test_execute_code_handles_error(self, mock_monty):
         """Test error handling during execution."""
         from sdg_hub.core.connectors.code_interpreter.monty import MontyConnector
 
-        mock_monty.run_monty.side_effect = mock_monty.MontyError("Division by zero")
+        mock_module, mock_instance = mock_monty
+        mock_instance.run.side_effect = mock_module.MontyError("Division by zero")
 
         connector = MontyConnector()
         result = connector.execute_code("1/0")
@@ -76,29 +89,27 @@ class TestMontyConnector:
         assert "Division by zero" in result.error
 
     def test_execute_code_passes_resource_limits(self, mock_monty):
-        """Test that resource limits are passed to run_monty."""
+        """Test that resource limits are passed to run."""
         from sdg_hub.core.connectors.code_interpreter.monty import MontyConnector
 
-        mock_monty.run_monty.return_value = "result"
+        mock_module, mock_instance = mock_monty
         mock_limits = MagicMock()
-        mock_monty.ResourceLimits.return_value = mock_limits
+        mock_module.ResourceLimits.return_value = mock_limits
 
         connector = MontyConnector()
         connector.execute_code("print(1)", timeout=30.0)
 
-        # Verify ResourceLimits was created with correct timeout
-        mock_monty.ResourceLimits.assert_called_once_with(max_duration_secs=30.0)
+        mock_module.ResourceLimits.assert_called_once_with(max_duration_secs=30.0)
 
-        # Verify limits were passed to run_monty
-        call_kwargs = mock_monty.run_monty.call_args.kwargs
+        call_kwargs = mock_instance.run.call_args.kwargs
         assert call_kwargs["limits"] == mock_limits
 
     def test_execute_code_timeout_exceeded(self, mock_monty):
         """Test that timeout errors are handled correctly."""
         from sdg_hub.core.connectors.code_interpreter.monty import MontyConnector
 
-        # Simulate Monty raising an error when execution exceeds time limit
-        mock_monty.run_monty.side_effect = mock_monty.MontyError(
+        mock_module, mock_instance = mock_monty
+        mock_instance.run.side_effect = mock_module.MontyError(
             "execution exceeded time limit"
         )
 
@@ -114,13 +125,12 @@ class TestMontyConnector:
         from sdg_hub.core.connectors.base import ConnectorConfig
         from sdg_hub.core.connectors.code_interpreter.monty import MontyConnector
 
-        mock_monty.run_monty.return_value = "result"
+        mock_module, mock_instance = mock_monty
 
         connector = MontyConnector(config=ConnectorConfig(timeout=60.0))
         connector.execute_code("print(1)")
 
-        # Verify ResourceLimits was created with config timeout
-        mock_monty.ResourceLimits.assert_called_once_with(max_duration_secs=60.0)
+        mock_module.ResourceLimits.assert_called_once_with(max_duration_secs=60.0)
 
     @pytest.fixture
     def mock_monty_async(self):
@@ -128,14 +138,19 @@ class TestMontyConnector:
         mock_module = MagicMock()
         mock_module.MontyError = Exception
 
-        async def mock_run_async(*args, **kwargs):
-            return "async result"
+        mock_instance = MagicMock()
+        mock_module.Monty.return_value = mock_instance
 
-        mock_module.run_monty_async = mock_run_async
+        async def mock_run_async(**kwargs):
+            cb = kwargs.get("print_callback")
+            if cb:
+                cb("stdout", "async result")
+
+        mock_instance.run_async = mock_run_async
 
         with patch.object(monty_module, "MONTY_AVAILABLE", True):
             with patch.object(monty_module, "pydantic_monty", mock_module):
-                yield mock_module
+                yield mock_module, mock_instance
 
     @pytest.mark.asyncio
     async def test_aexecute_code(self, mock_monty_async):
@@ -150,7 +165,7 @@ class TestMontyConnector:
 
     @pytest.mark.asyncio
     async def test_aexecute_code_passes_resource_limits(self):
-        """Test that resource limits are passed to run_monty_async."""
+        """Test that resource limits are passed to run_async."""
         from sdg_hub.core.connectors.code_interpreter.monty import MontyConnector
 
         mock_module = MagicMock()
@@ -158,23 +173,22 @@ class TestMontyConnector:
         mock_limits = MagicMock()
         mock_module.ResourceLimits.return_value = mock_limits
 
+        mock_instance = MagicMock()
+        mock_module.Monty.return_value = mock_instance
+
         captured_kwargs = {}
 
-        async def mock_run_async(*args, **kwargs):
+        async def mock_run_async(**kwargs):
             captured_kwargs.update(kwargs)
-            return "async result"
 
-        mock_module.run_monty_async = mock_run_async
+        mock_instance.run_async = mock_run_async
 
         with patch.object(monty_module, "MONTY_AVAILABLE", True):
             with patch.object(monty_module, "pydantic_monty", mock_module):
                 connector = MontyConnector()
                 await connector.aexecute_code("print(1)", timeout=15.0)
 
-        # Verify ResourceLimits was created with correct timeout
         mock_module.ResourceLimits.assert_called_once_with(max_duration_secs=15.0)
-
-        # Verify limits were passed to run_monty_async
         assert captured_kwargs["limits"] == mock_limits
 
 
