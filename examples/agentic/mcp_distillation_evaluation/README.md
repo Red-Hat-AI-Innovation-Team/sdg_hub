@@ -65,6 +65,40 @@ cp .env.example .env  # add your OPENAI_API_KEY
 # 5. Evaluate models (evaluate.ipynb)
 ```
 
+## Results
+
+7 models evaluated on 111 synthetic tasks across 6 MCP servers. Scores are
+**per-server averages** (each server contributes equally) using a 6-dimension
+LLM-as-judge with full trace comparison.
+
+| Server | Tasks | GPT-5 | Claude Sonnet 4-6 | GPT-4o | Qwen3.5-27B | GPT-4o-mini | Llama-3.3-70B | Qwen3-32B |
+|:---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Medical Calculator | 30 | 0.911 | 0.860 | 0.881 | 0.756 | 0.868 | 0.305 | 0.179 |
+| Weather Data | 17 | 0.756 | 0.770 | 0.732 | 0.696 | 0.753 | 0.670 | 0.134 |
+| DEX Paprika | 23 | 0.740 | 0.712 | 0.675 | 0.608 | 0.631 | 0.489 | 0.117 |
+| Reddit | 9 | 0.710 | 0.703 | 0.721 | 0.594 | 0.692 | 0.486 | 0.133 |
+| Wikipedia | 28 | 0.624 | 0.637 | 0.663 | 0.603 | 0.608 | 0.492 | 0.130 |
+| Car Price Evaluator | 4 | 0.582 | 0.580 | 0.507 | 0.813 | 0.479 | 0.530 | 0.120 |
+| **OVERALL** | **111** | **0.720** | **0.710** | **0.696** | **0.678** | **0.672** | **0.495** | **0.136** |
+
+**Ranking: GPT-5 > Claude Sonnet 4-6 > GPT-4o > Qwen3.5-27B > GPT-4o-mini > Llama-3.3-70B > Qwen3-32B**
+
+### Validation against mcp-bench
+
+We validated by running all 7 models through [mcp-bench's](https://github.com/Accenture/mcp-bench)
+own evaluation pipeline and comparing rankings:
+
+```
+Our synthetic benchmark: GPT-5 > Claude Sonnet 4-6 > GPT-4o > Qwen3.5-27B > GPT-4o-mini > Llama-3.3-70B > Qwen3-32B
+mcp-bench evaluation:    GPT-5 > Claude Sonnet 4-6 > GPT-4o > Qwen3.5-27B > GPT-4o-mini > Llama-3.3-70B > Qwen3-32B
+
+Kendall's tau:   1.000  (p=0.0004)
+Spearman's rho:  1.000  (p=0.0000)
+```
+
+Perfect rank agreement across all 7 models (4 proprietary + 3 open-source),
+statistically significant at p=0.0004.
+
 ## How evaluation works
 
 ### Programmatic metrics (computed from traces)
