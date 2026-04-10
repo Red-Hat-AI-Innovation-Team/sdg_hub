@@ -3,10 +3,11 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from sdg_hub.core.connectors.code_interpreter.base import CodeExecutionResult
 from sdg_hub.core.connectors.exceptions import ConnectorError
 from sdg_hub.core.connectors.registry import ConnectorRegistry
-import pytest
 import sdg_hub.core.connectors.code_interpreter.monty as monty_module
 
 
