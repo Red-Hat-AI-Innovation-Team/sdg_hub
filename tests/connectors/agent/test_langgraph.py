@@ -332,7 +332,12 @@ class TestLangGraphExtractToolTrace:
                         {"name": "get_weather", "args": {"city": "NYC"}, "id": "c1"}
                     ],
                 },
-                {"type": "tool", "name": "get_weather", "content": '{"temp": 72}'},
+                {
+                    "type": "tool",
+                    "name": "get_weather",
+                    "content": '{"temp": 72}',
+                    "tool_call_id": "c1",
+                },
                 {"type": "ai", "content": "It's 72°F in NYC."},
             ]
         }
@@ -343,6 +348,7 @@ class TestLangGraphExtractToolTrace:
         assert trace[0]["tool_calls"][0]["name"] == "get_weather"
         assert trace[1]["type"] == "tool_result"
         assert trace[1]["name"] == "get_weather"
+        assert trace[1]["tool_call_id"] == "c1"
 
     def test_no_tool_calls_returns_none(self):
         response = {

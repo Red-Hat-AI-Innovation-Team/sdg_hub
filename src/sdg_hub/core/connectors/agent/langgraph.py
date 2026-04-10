@@ -322,12 +322,14 @@ class LangGraphConnector(BaseAgentConnector):
                     {"type": "tool_use", "tool_calls": msg["tool_calls"]}
                 )
             elif role == "tool":
-                tool_entries.append(
-                    {
-                        "type": "tool_result",
-                        "name": msg.get("name", ""),
-                        "content": msg.get("content", ""),
-                    }
-                )
+                tool_result: dict[str, Any] = {
+                    "type": "tool_result",
+                    "name": msg.get("name", ""),
+                    "content": msg.get("content", ""),
+                }
+                tc_id = msg.get("tool_call_id") or msg.get("id")
+                if tc_id:
+                    tool_result["tool_call_id"] = tc_id
+                tool_entries.append(tool_result)
 
         return tool_entries if tool_entries else None
