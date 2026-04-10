@@ -17,7 +17,7 @@ This example showcases two core sdg_hub capabilities:
    model swapping via `run_config.configurable`, enabling the same agent to be used
    for both data generation (with a frontier model) and evaluation (with target models).
 
-## The story
+## Overview
 
 ```
 You have an agent (LangGraph + MCP servers)
