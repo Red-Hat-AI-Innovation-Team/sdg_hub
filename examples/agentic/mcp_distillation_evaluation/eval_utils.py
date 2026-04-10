@@ -28,6 +28,7 @@ def normalize_tool_trace(raw_trace: list[dict] | str) -> list[dict]:
         return []
 
     cleaned: list[dict] = []
+    pending: dict[str, dict] = {}  # tool_call id -> call dict
     for entry in raw_trace:
         if not isinstance(entry, dict):
             continue
@@ -36,12 +37,14 @@ def normalize_tool_trace(raw_trace: list[dict] | str) -> list[dict]:
             # LangGraph format
             if "tool_calls" in entry:
                 for tc in entry["tool_calls"]:
-                    cleaned.append(
-                        {
-                            "name": tc.get("name", ""),
-                            "input": tc.get("args", {}),
-                        }
-                    )
+                    call: dict = {
+                        "name": tc.get("name", ""),
+                        "input": tc.get("args", {}),
+                    }
+                    tc_id = tc.get("id")
+                    if tc_id:
+                        pending[tc_id] = call
+                    cleaned.append(call)
             # Langflow format
             elif "name" in entry:
                 step: dict = {
@@ -53,8 +56,11 @@ def normalize_tool_trace(raw_trace: list[dict] | str) -> list[dict]:
                 cleaned.append(step)
 
         elif entry.get("type") == "tool_result":
-            # Attach output to the previous tool call
-            if cleaned and "output" not in cleaned[-1]:
+            # Match by tool_call id if available, else fall back to last call
+            tc_id = entry.get("tool_call_id") or entry.get("id")
+            if tc_id and tc_id in pending:
+                pending[tc_id]["output"] = entry.get("content", "")
+            elif cleaned and "output" not in cleaned[-1]:
                 cleaned[-1]["output"] = entry.get("content", "")
 
     return cleaned
