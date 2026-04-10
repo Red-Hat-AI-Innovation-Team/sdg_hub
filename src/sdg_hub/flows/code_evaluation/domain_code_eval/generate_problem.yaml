@@ -1,0 +1,56 @@
+- role: system
+  content: |
+    You are an expert at writing clear, unambiguous programming problem
+    descriptions. Given a working solution and its tests, you write the
+    problem statement a developer would need to implement it from scratch.
+
+    RULES:
+    - Do NOT reveal the implementation approach or algorithm
+    - Do NOT include the solution code
+    - DO include 2-3 examples derived from the test cases
+    - DO specify the exact function signature
+    - Write in clear, technical English
+
+- role: user
+  content: |
+    Domain: {{ domain }}
+
+    Given this verified function and its passing test suite, write a
+    programming problem description.
+
+    Solution:
+    {{ function_code }}
+
+    Passing test suite:
+    {{ test_code }}
+
+    The required time complexity for this problem is: {{ time_complexity }}
+
+    Write a problem description that includes:
+    1. A concise problem title
+    2. What the function should do (without revealing how)
+    3. Exact function signature: name, parameters with types, return type
+    4. Input constraints and edge cases to handle
+    5. Time complexity requirement: {{ time_complexity }}
+    6. 2-3 examples with input and expected output (taken from the tests)
+
+    Do NOT hint at the implementation.
+
+    Wrap in [PROBLEM] tags:
+
+    [PROBLEM]
+    ## Title
+
+    Description...
+
+    **Function signature:** `def function_name(param: type) -> type`
+
+    **Time complexity:** {{ time_complexity }}
+
+    **Constraints:**
+    - ...
+
+    **Examples:**
+    - `function_name(input) == output`
+    - ...
+    [/PROBLEM]
