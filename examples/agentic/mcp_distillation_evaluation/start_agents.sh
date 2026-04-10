@@ -120,12 +120,12 @@ JSONEOF
 done
 
 # ── Find langgraph CLI ───────────────────────────────────────────────
-LANGGRAPH_CLI=""
-# Check common locations
+LANGGRAPH_CLI="${LANGGRAPH_CLI:-}"
+# Check common locations (command -v is safe under set -e)
 for candidate in \
-    "$(which langgraph 2>/dev/null)" \
+    "$(command -v langgraph 2>/dev/null || true)" \
     "$SCRIPT_DIR/../../../.venv/bin/langgraph" \
-    "$(find /workspace -maxdepth 5 -name langgraph -type f 2>/dev/null | head -1)"; do
+    "$(find /workspace -maxdepth 5 -name langgraph -type f 2>/dev/null | head -1 || true)"; do
     if [ -n "$candidate" ] && [ -x "$candidate" ]; then
         LANGGRAPH_CLI="$candidate"
         break

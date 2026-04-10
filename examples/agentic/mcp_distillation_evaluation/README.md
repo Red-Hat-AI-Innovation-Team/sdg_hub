@@ -52,10 +52,10 @@ All commands below assume you are in the example directory:
 cd examples/agentic/mcp_distillation_evaluation
 ```
 
-Clone mcp-bench as a sibling directory:
+Clone mcp-bench into the examples directory:
 
 ```bash
-git clone https://github.com/Accenture/mcp-bench.git ../mcp-bench
+git clone https://github.com/Accenture/mcp-bench.git ../../mcp-bench
 ```
 
 ### 2. Start MCP servers
