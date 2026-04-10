@@ -48,6 +48,7 @@ Learn about the modular block architecture that powers SDG Hub:
 - **[Block Overview](blocks/overview.md)** - Understanding the block system
 - **[LLM Blocks](blocks/llm-blocks.md)** - Chat, prompt building, and text parsing
 - **[Transform Blocks](blocks/transform-blocks.md)** - Data transformation and manipulation
+- **[Code Blocks](blocks/code-blocks.md)** - Sandboxed Python execution and validation
 - **[Filtering Blocks](blocks/filtering-blocks.md)** - Quality filtering and data validation
 - **[Custom Blocks](blocks/custom-blocks.md)** - Building your own processing blocks
 

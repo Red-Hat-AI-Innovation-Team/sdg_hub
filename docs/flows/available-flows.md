@@ -27,6 +27,7 @@ All flows support:
 | [Multilingual QA](#japanese-multilingual-multi-summary-qa-flow) | 1 | Japanese language QA generation | `multilingual`, `japanese` |
 | [Text Analysis](#structured-text-insights-extraction-flow) | 1 | NLP insights extraction | `text-analysis`, `nlp` |
 | [Red Team Prompt Generation](#red-team-prompt-generation-flow) | 1 | Adversarial prompt generation for safety testing | `red-team`, `safety-testing` |
+| [Code Evaluation](#domain-code-evaluation-benchmark-generator-flow) | 1 | Generate execution-verified domain code benchmarks | `code-evaluation`, `benchmark-generation` |
 
 ---
 
@@ -161,6 +162,73 @@ LLMResponseExtractorBlock → JSONParserBlock → Structured Prompt Dataset
 - Uses `SamplerBlock` with `num_samples: 1` and `return_scalar: true` so sampled dimensions are emitted as scalar values.
 - Uses `response_format.type: json_schema` for structured generation from the model.
 - Uses `JSONParserBlock` to expand parsed JSON fields into output columns and remove the raw extracted text when `drop_input: true`.
+
+---
+
+## Domain Code Evaluation Benchmark Generator Flow
+
+**Name:** `Domain Code Evaluation Benchmark Generator`
+
+**Purpose:** Generate domain-specific Python evaluation benchmarks by creating function implementations, generating tests, and execution-verifying each candidate in a sandbox before reverse-generating a problem description.
+
+**Location:** `src/sdg_hub/flows/code_evaluation/domain_code_eval/`
+
+### Architecture
+
+```yaml
+Domain Spec → Function Generation → Test Generation →
+TextConcatBlock (function + tests) → PythonInterpreterBlock (sandbox verify) →
+Problem Statement Generation → Verified Benchmark Rows
+```
+
+### Input Requirements
+
+| Column | Description | Required |
+|--------|-------------|----------|
+| `domain` | Target problem domain (e.g., "financial calculations") | Yes |
+| `function_spec` | Functional requirements for generated code | Yes |
+| `difficulty` | Difficulty level (`beginner`, `intermediate`, `advanced`) | Yes |
+| `time_complexity` | Expected complexity target (e.g., `O(n log n)`) | Yes |
+
+### Key Output Columns
+
+- `function_code` - Generated Python function implementation
+- `test_code` - Generated test suite for the function
+- `execution_result` - Structured sandbox execution result from `PythonInterpreterBlock`
+- `problem_description` - Reverse-generated problem statement derived from verified code
+
+### Runtime Notes
+
+- Install code execution dependencies before running this flow: `uv pip install .[code]`
+- The flow verifies composed `function_code + test_code` via `PythonInterpreterBlock` with `interpreter_framework: monty`
+- Tune `verify_execution.timeout` and `verify_execution.max_concurrency` via runtime parameters for longer or higher-volume workloads
+
+### Example Usage
+
+```python
+from datasets import Dataset
+from sdg_hub.core.flow import Flow, FlowRegistry
+
+FlowRegistry.discover_flows()
+flow_path = FlowRegistry.get_flow_path("Domain Code Evaluation Benchmark Generator")
+flow = Flow.from_yaml(flow_path)
+
+flow.set_model_config(
+    model="openai/gpt-5.1-codex-mini",
+    api_key="your-key",
+)
+
+seed = Dataset.from_dict(
+    {
+        "domain": ["financial calculations"],
+        "function_spec": ["Compute compound annual growth rate for two values."],
+        "difficulty": ["intermediate"],
+        "time_complexity": ["O(1)"],
+    }
+)
+
+result = flow.generate(seed, runtime_params={"verify_execution": {"timeout": 15.0}})
+```
 
 ---
 

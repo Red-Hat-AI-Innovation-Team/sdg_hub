@@ -37,6 +37,17 @@ pip install sdg-hub[vllm]
 uv pip install sdg-hub[vllm]
 ```
 
+### Code Interpreter Support
+For sandboxed Python code execution with `PythonInterpreterBlock`:
+
+```bash
+# With pip
+pip install sdg-hub[code]
+
+# With uv
+uv pip install sdg-hub[code]
+```
+
 ### Examples Dependencies
 For running example notebooks and workflows:
 
@@ -53,10 +64,10 @@ To install everything at once:
 
 ```bash
 # With pip
-pip install sdg-hub[vllm,examples]
+pip install sdg-hub[vllm,code,examples]
 
 # With uv
-uv pip install sdg-hub[vllm,examples]
+uv pip install sdg-hub[vllm,code,examples]
 ```
 
 ## 🛠️ Development Installation

@@ -23,6 +23,7 @@ SDG Hub organizes blocks into logical categories:
 |----------|---------|----------|
 | **LLM** | Language model operations | Chat, prompt building, text parsing |
 | **Transform** | Data manipulation | Column operations, text concatenation |
+| **Code** | Sandboxed code execution | Python snippet execution and validation |
 | **Filtering** | Quality control | Value-based filtering, threshold checks |
 | **Evaluation** | Quality assessment | Faithfulness scoring, relevancy evaluation |
 

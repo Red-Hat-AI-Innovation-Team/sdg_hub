@@ -8,6 +8,7 @@
   * [Overview](blocks/overview.md)
   * [LLM Blocks](blocks/llm-blocks.md)
   * [Transform Blocks](blocks/transform-blocks.md)
+  * [Code Blocks](blocks/code-blocks.md)
   * [Filtering Blocks](blocks/filtering-blocks.md)
   * [Custom Blocks](blocks/custom-blocks.md)
 

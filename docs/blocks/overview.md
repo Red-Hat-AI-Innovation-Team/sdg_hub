@@ -63,6 +63,10 @@ Data manipulation and transformation:
 - **MeltColumnsBlock** - Reshape wide data to long format
 - **SamplerBlock** - Randomly sample values from list or weighted pools
 
+### 💻 Code Blocks (`code/`)
+Sandboxed code execution and validation:
+- **PythonInterpreterBlock** - Execute Python code snippets and capture structured results
+
 ### 🔍 Filtering Blocks (`filtering/`)
 Quality control and data validation:
 - **ColumnValueFilterBlock** - Filter rows based on column values
@@ -196,5 +200,6 @@ Ready to dive deeper? Explore specific block categories:
 
 - **[LLM Blocks](blocks/llm-blocks.md)** - AI-powered language model operations
 - **[Transform Blocks](blocks/transform-blocks.md)** - Data manipulation and reshaping
+- **[Code Blocks](blocks/code-blocks.md)** - Sandboxed code execution and validation
 - **[Filtering Blocks](blocks/filtering-blocks.md)** - Quality control and validation
 - **[Custom Blocks](blocks/custom-blocks.md)** - Build your own processing blocks

@@ -45,6 +45,10 @@ src/sdg_hub/flows/                    # Built-in flows
 │   └── mcp_distillation/
 │       ├── flow.yaml
 │       └── prompts/
+├── code_evaluation/                  # Code generation and verification flows
+│   └── domain_code_eval/
+│       ├── flow.yaml
+│       └── prompts/
 ├── text_analysis/                    # Text analysis flows
 │   └── structured_insights/
 │       ├── flow.yaml
@@ -165,6 +169,8 @@ flows/
 │   └── japanese_multi_summary_qa/
 ├── agentic/             # Agentic tool-use and distillation flows
 │   └── mcp_distillation/
+├── code_evaluation/     # Code benchmark generation and verification flows
+│   └── domain_code_eval/
 ├── text_analysis/       # Text processing and insights
 │   └── structured_insights/
 └── evaluation/          # Quality assessment flows

@@ -52,6 +52,9 @@ uv pip install .[dev]
 # For vLLM support
 uv pip install sdg-hub[vllm]
 
+# For code interpreter support
+uv pip install sdg-hub[code]
+
 # For examples
 uv pip install sdg-hub[examples]
 ```
