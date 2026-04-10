@@ -138,14 +138,3 @@ MODEL_CONFIGS = {
 
 The model name and connection details are passed to the LangGraph agent at runtime
 via `configurable` — no agent redeployment needed.
-
-**Important**: When serving models via sglang for tool-use, enable the tool-call
-parser. Example for Qwen3.5:
-
-```bash
-python -m sglang.launch_server \
-    --model-path Qwen/Qwen3.5-27B \
-    --tp-size 4 --port 30000 \
-    --reasoning-parser qwen3 \
-    --tool-call-parser qwen3_coder
-```
