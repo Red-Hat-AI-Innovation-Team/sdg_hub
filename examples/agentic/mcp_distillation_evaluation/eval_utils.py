@@ -1,63 +1,71 @@
-"""Evaluation utilities for MCP benchmark.
+"""Utilities for MCP evaluation benchmark.
 
-Trace extraction, formatting, and programmatic metrics used by the
-evaluation notebook and any standalone evaluation scripts.
+Trace normalization, formatting, and programmatic metrics shared by
+both ``generate.ipynb`` and ``evaluate.ipynb``.
 """
 
 import json
 
-# ── Trace extraction (from MCPAgentBlock output) ─────────────────────
+# ── Trace normalization ──────────────────────────────────────────────
+# Convert framework-specific traces (LangGraph, Langflow) into a
+# canonical format: list of {"name": ..., "input": ..., "output": ...}.
 
 
-def extract_model_tools(trace: dict) -> list[str]:
-    """Extract ordered tool names from MCPAgentBlock trace."""
-    tools = []
-    for msg in trace.get("messages", []):
-        if msg.get("role") == "assistant" and msg.get("tool_calls"):
-            for tc in msg["tool_calls"]:
-                fn = tc.get("function", tc)
-                if fn.get("name"):
-                    tools.append(fn["name"])
-    return tools
+def normalize_tool_trace(raw_trace: list[dict] | str) -> list[dict]:
+    """Normalize a Langflow or LangGraph tool trace to canonical format.
 
+    Canonical format: ``[{"name": ..., "input": ..., "output": ...}, ...]``
 
-def extract_model_tool_trace(trace: dict) -> list[dict]:
-    """Extract full tool trace from MCPAgentBlock output.
+    Handles both:
+    - LangGraph: ``{"type": "tool_use", "tool_calls": [...]}`` + ``{"type": "tool_result", ...}``
+    - Langflow:  ``{"type": "tool_use", "name": ..., "tool_input": ..., "output": ...}``
 
-    Returns list of {"name": ..., "input": ..., "output": ...} dicts,
-    matching the canonical format of expert_tool_trace in benchmark_tasks.jsonl.
+    Strips UI metadata (duration, header, icon) and text-type entries.
     """
-    calls, pending = [], {}
-    for msg in trace.get("messages", []):
-        if msg.get("role") == "assistant" and msg.get("tool_calls"):
-            for tc in msg["tool_calls"]:
-                fn = tc.get("function", tc)
-                call = {"name": fn.get("name", ""), "input": fn.get("arguments", {})}
-                if isinstance(call["input"], str):
-                    try:
-                        call["input"] = json.loads(call["input"])
-                    except (json.JSONDecodeError, TypeError):
-                        pass
-                tc_id = tc.get("id")
-                if tc_id:
-                    pending[tc_id] = call
-                calls.append(call)
-        elif msg.get("role") == "tool":
-            tc_id = msg.get("tool_call_id")
-            if tc_id and tc_id in pending:
-                pending[tc_id]["output"] = msg.get("content", "")
-    return calls
+    if isinstance(raw_trace, str):
+        raw_trace = json.loads(raw_trace)
+    if not isinstance(raw_trace, list):
+        return []
+
+    cleaned: list[dict] = []
+    for entry in raw_trace:
+        if not isinstance(entry, dict):
+            continue
+
+        if entry.get("type") == "tool_use":
+            # LangGraph format
+            if "tool_calls" in entry:
+                for tc in entry["tool_calls"]:
+                    cleaned.append(
+                        {
+                            "name": tc.get("name", ""),
+                            "input": tc.get("args", {}),
+                        }
+                    )
+            # Langflow format
+            elif "name" in entry:
+                step: dict = {
+                    "name": entry["name"],
+                    "input": entry.get("tool_input", {}),
+                }
+                if entry.get("output"):
+                    step["output"] = entry["output"]
+                cleaned.append(step)
+
+        elif entry.get("type") == "tool_result":
+            # Attach output to the previous tool call
+            if cleaned and "output" not in cleaned[-1]:
+                cleaned[-1]["output"] = entry.get("content", "")
+
+    return cleaned
 
 
-def extract_model_answer(trace: dict) -> str:
-    """Extract final text answer from MCPAgentBlock trace."""
-    for msg in reversed(trace.get("messages", [])):
-        if msg.get("role") == "assistant" and not msg.get("tool_calls"):
-            return msg.get("content", "") or ""
-    return ""
+def extract_tool_names(trace: list[dict]) -> list[str]:
+    """Extract ordered list of tool names from a canonical trace."""
+    return [step["name"] for step in trace if "name" in step]
 
 
-# ── Trace formatting ─────────────────────────────────────────────────
+# ── Trace formatting ────────────────────────────────────────────────
 
 
 def format_trace_for_judge(
@@ -65,9 +73,10 @@ def format_trace_for_judge(
     max_args_len: int = 300,
     max_output_len: int = 200,
 ) -> str:
-    """Format a tool trace into a readable string for the judge prompt.
+    """Format a canonical tool trace into a readable string for the judge prompt.
 
-    Each tool call is formatted as:
+    Each tool call is formatted as::
+
       [N] tool_name({"arg": "value"})
           -> tool output (truncated)
     """
