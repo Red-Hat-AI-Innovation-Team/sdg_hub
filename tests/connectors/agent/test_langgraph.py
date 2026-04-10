@@ -60,6 +60,28 @@ class TestLangGraphConnector:
 
         assert request["assistant_id"] == "my-graph"
 
+    def test_build_request_with_run_config(self):
+        """Test request includes config when run_config is set."""
+        connector = LangGraphConnector(
+            config=ConnectorConfig(url="http://test"),
+            run_config={"configurable": {"model": "gpt-4o"}},
+        )
+
+        messages = [{"role": "user", "content": "Hello"}]
+        request = connector.build_request(messages, "session-1")
+
+        assert request["assistant_id"] == "agent"
+        assert request["config"] == {"configurable": {"model": "gpt-4o"}}
+
+    def test_build_request_without_run_config(self):
+        """Test request omits config key when run_config is empty."""
+        connector = LangGraphConnector(config=ConnectorConfig(url="http://test"))
+
+        messages = [{"role": "user", "content": "Hello"}]
+        request = connector.build_request(messages, "session-1")
+
+        assert "config" not in request
+
     def test_parse_response_valid(self):
         """Test response parsing returns raw dict."""
         connector = LangGraphConnector(config=ConnectorConfig(url="http://test"))

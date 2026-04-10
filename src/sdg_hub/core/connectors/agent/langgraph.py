@@ -59,6 +59,15 @@ class LangGraphConnector(BaseAgentConnector):
         min_length=1,
         description="The assistant ID or graph name to run.",
     )
+    run_config: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Optional configuration dict passed in the run payload. "
+            "Merged as the 'config' key in the LangGraph /runs/wait request. "
+            "Use this to pass runtime parameters to the graph via "
+            "'configurable', e.g. ``{'configurable': {'model': 'gpt-4o'}}``."
+        ),
+    )
 
     def _build_headers(self) -> dict[str, str]:
         """Build headers for LangGraph API.
@@ -108,10 +117,13 @@ class LangGraphConnector(BaseAgentConnector):
                 "Cannot send empty messages list to LangGraph. "
                 "Expected at least one message with role and content."
             )
-        return {
+        payload = {
             "assistant_id": self.assistant_id,
             "input": {"messages": messages},
         }
+        if self.run_config:
+            payload["config"] = self.run_config
+        return payload
 
     def parse_response(self, response: dict[str, Any]) -> dict[str, Any]:
         """Parse LangGraph response.
