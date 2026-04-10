@@ -1,10 +1,10 @@
 metadata:
-  name: MCP Model Evaluation
-  description: Scores an LLM agent's tool-use traces against expert gold-standard
-    traces using an LLM-as-judge. Evaluates 6 dimensions aligned with mcp-bench —
-    task fulfillment, grounding, tool appropriateness, parameter accuracy, dependency
-    awareness, and parallelism/efficiency. Designed to be called once per model after
-    running MCPAgentBlock separately.
+  name: Agent Tool-Use Evaluation
+  description: Scores an agent's tool-use traces against expert gold-standard
+    traces using an LLM-as-judge. Evaluates 6 dimensions — task fulfillment,
+    grounding, tool appropriateness, parameter accuracy, dependency awareness,
+    and parallelism/efficiency. Works with any agent framework that produces
+    tool call traces (LangGraph, Langflow, or direct MCP).
   version: 2.0.0
   author: SDG Hub Contributors
   license: Apache-2.0
