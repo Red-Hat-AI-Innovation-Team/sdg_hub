@@ -1,9 +1,0 @@
-# Generated artifacts — not committed to repo
-benchmark_tasks.jsonl
-evaluation_results.jsonl
-_*.py
-_*.log
-archive/
-_agent_configs/
-_langgraph_agent.py
-demo_backup.ipynb
