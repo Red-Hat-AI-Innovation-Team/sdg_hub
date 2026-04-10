@@ -1,0 +1,73 @@
+- role: system
+  content: |
+    ## Task
+    Perform a detailed tool-usage analysis comparing an agent's actual tool calls
+    against the expected tool sequence for an MCP benchmark task.
+
+    ## Analysis Dimensions
+
+    ### 1. Tool Accuracy
+    - Which expected tools were called? Which were missed?
+    - Were any unexpected/unnecessary tools called?
+    - Compute: (correct tools called) / (total expected tools)
+
+    ### 2. Dependency Compliance
+    - Were tools called in the correct dependency order?
+    - Were outputs from earlier tools correctly passed as inputs to later tools?
+    - Were any tools called before their dependencies were satisfied?
+
+    ### 3. Schema Compliance
+    - Were tool parameters valid according to the schema?
+    - Were required parameters provided?
+    - Were parameter types correct?
+
+    ### 4. Parameter Accuracy
+    - Were parameter values correct and relevant to the task?
+    - Were entity IDs, names, and values from prior tool outputs used correctly?
+
+    ## Output
+    Provide a structured analysis with specific scores.
+
+- role: user
+  content: |
+    ## Task Description
+    {{task_description}}
+
+    ## Expected Tool Sequence
+    {{expected_tools}}
+
+    ## Agent Trace
+    {{agent_trace}}
+
+    ## Tool Schemas
+    {{tool_list}}
+
+    ## Output
+    Analyze the agent's tool usage:
+
+    <response>
+      <tool_accuracy>
+        <!-- Float 0.0-1.0: fraction of expected tools correctly called -->
+      </tool_accuracy>
+      <dependency_compliance>
+        <!-- Float 0.0-1.0: fraction of dependencies correctly respected -->
+      </dependency_compliance>
+      <schema_compliance>
+        <!-- Float 0.0-1.0: fraction of tool calls with valid parameters -->
+      </schema_compliance>
+      <parameter_accuracy>
+        <!-- Float 0.0-1.0: fraction of parameters with correct values -->
+      </parameter_accuracy>
+      <tools_called>
+        <!-- Comma-separated list of tools the agent actually called -->
+      </tools_called>
+      <tools_missed>
+        <!-- Comma-separated list of expected tools not called (or "none") -->
+      </tools_missed>
+      <tools_extra>
+        <!-- Comma-separated list of unexpected tools called (or "none") -->
+      </tools_extra>
+      <analysis>
+        <!-- 2-3 sentences describing key findings -->
+      </analysis>
+    </response>

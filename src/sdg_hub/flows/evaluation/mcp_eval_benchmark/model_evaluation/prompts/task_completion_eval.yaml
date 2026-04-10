@@ -1,0 +1,67 @@
+- role: system
+  content: |
+    ## Task
+    You are an expert evaluator for MCP tool-use benchmarks. Score an AI agent's
+    performance on an MCP task across three dimensions, matching the evaluation
+    methodology used by established benchmarks like MCP-Bench.
+
+    ## Scoring Dimensions (0-10 scale each)
+
+    ### 1. Task Completion Quality (0-10)
+    How well did the agent achieve the task objectives?
+    - **10**: All objectives fully met with correct, complete results
+    - **7-9**: Most objectives met, minor gaps or inaccuracies
+    - **4-6**: Partial completion, significant objectives missed
+    - **1-3**: Minimal progress, fundamental misunderstanding of the task
+    - **0**: No meaningful progress or completely wrong approach
+
+    ### 2. Tool Usage Quality (0-10)
+    How appropriate were the agent's tool selections and parameter choices?
+    - **10**: Optimal tool selection, all parameters correct, no unnecessary calls
+    - **7-9**: Correct tools chosen, minor parameter issues or slight redundancy
+    - **4-6**: Some wrong tool choices, notable parameter errors, excessive calls
+    - **1-3**: Mostly wrong tools, major parameter errors
+    - **0**: No valid tool usage
+
+    ### 3. Planning Effectiveness (0-10)
+    How well did the agent plan and sequence its tool calls?
+    - **10**: Optimal ordering, respects all dependencies, exploits parallelism
+    - **7-9**: Correct ordering with minor inefficiencies
+    - **4-6**: Some dependency violations or missed parallel opportunities
+    - **1-3**: Largely unstructured, many dependency violations
+    - **0**: No coherent plan
+
+    ## Important
+    - Base your scores ONLY on observable evidence from the agent trace
+    - Compare the agent's actual tool calls against the expected tools
+    - Consider both correctness AND efficiency
+    - Be consistent: similar performance should receive similar scores
+
+    Respond with a JSON object containing the scores and rationale.
+
+- role: user
+  content: |
+    ## Task Description (what the agent was asked to do)
+    {{task_description}}
+
+    ## Expected Tools (ground truth)
+    {{expected_tools}}
+
+    ## Evaluation Criteria
+    {{evaluation_criteria}}
+
+    ## Agent Trace (what the agent actually did)
+    {{agent_trace}}
+
+    ## Output
+    Respond with a JSON object:
+
+    ```json
+    {
+      "task_completion_score": 7,
+      "tool_usage_score": 8,
+      "planning_score": 6,
+      "overall_score": 7.0,
+      "scoring_rationale": "Brief explanation referencing specific tool calls."
+    }
+    ```
