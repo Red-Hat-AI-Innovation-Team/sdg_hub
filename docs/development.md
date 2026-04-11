@@ -192,7 +192,7 @@ Minimal template:
 ```python
 from typing import Any
 
-from datasets import Dataset
+import pandas as pd
 
 from sdg_hub.core.blocks.base import BaseBlock
 from sdg_hub.core.blocks.registry import BlockRegistry
@@ -210,7 +210,7 @@ class MyBlock(BaseBlock):
 
     custom_param: str = "default"
 
-    def generate(self, samples: Dataset, **kwargs: Any) -> Dataset:
+    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         # Implementation here
         return samples
 ```
@@ -218,8 +218,8 @@ class MyBlock(BaseBlock):
 ### Block Test Template
 
 ```python
+import pandas as pd
 import pytest
-from datasets import Dataset
 
 from sdg_hub.core.blocks.transform.my_block import MyBlock
 
@@ -231,9 +231,9 @@ class TestMyBlock:
             input_cols=["text"],
             output_cols=["result"],
         )
-        ds = Dataset.from_dict({"text": ["hello", "world"]})
-        result = block.generate(ds)
-        assert "result" in result.column_names
+        df = pd.DataFrame({"text": ["hello", "world"]})
+        result = block(df)
+        assert "result" in result.columns
 
     def test_missing_column(self):
         block = MyBlock(
@@ -241,9 +241,9 @@ class TestMyBlock:
             input_cols=["missing"],
             output_cols=["result"],
         )
-        ds = Dataset.from_dict({"other": ["data"]})
+        df = pd.DataFrame({"other": ["data"]})
         with pytest.raises(Exception):
-            block.generate(ds)
+            block(df)
 ```
 
 ### Block Checklist

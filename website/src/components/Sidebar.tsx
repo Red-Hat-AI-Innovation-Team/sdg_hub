@@ -49,13 +49,13 @@ export function Sidebar() {
           </button>
 
           <div
-            className="overflow-hidden transition-all duration-200"
+            className="grid transition-all duration-200"
             style={{
-              maxHeight: collapsed[section.title] ? "0px" : "500px",
+              gridTemplateRows: collapsed[section.title] ? "0fr" : "1fr",
               opacity: collapsed[section.title] ? 0 : 1,
             }}
           >
-            <ul className="mt-1.5 space-y-0.5">
+            <ul className="mt-1.5 min-h-0 overflow-hidden space-y-0.5">
               {section.items.map((item) => {
                 const isActive = pathname === item.href;
                 return (

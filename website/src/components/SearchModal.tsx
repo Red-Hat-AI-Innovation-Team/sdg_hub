@@ -84,6 +84,8 @@ export function SearchModal() {
               background: "var(--color-bg-2)",
               boxShadow: "0 0 0 1px var(--color-border-strong), 0 24px 48px rgba(0,0,0,0.5)",
             }}
+            role="dialog"
+            aria-modal="true"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Search input */}

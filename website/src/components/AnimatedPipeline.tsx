@@ -20,30 +20,38 @@ export function AnimatedPipeline() {
 
     const packets = container.querySelectorAll<HTMLElement>(".packet");
     const nodes = container.querySelectorAll<HTMLElement>(".pipe-block");
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
 
     function runCycle() {
       packets.forEach((pkt, i) => {
-        setTimeout(() => {
-          // Reset and trigger animation
-          pkt.style.animation = "none";
-          pkt.offsetHeight; // force reflow
-          pkt.style.animation = "packet-move 0.8s ease-in-out forwards";
-
-          // Glow the destination node
+        timeouts.push(
           setTimeout(() => {
-            if (nodes[i]) {
-              nodes[i].style.animation = "none";
-              nodes[i].offsetHeight;
-              nodes[i].style.animation = "node-glow 0.6s ease-out";
-            }
-          }, 650);
-        }, i * 500);
+            // Reset and trigger animation
+            pkt.style.animation = "none";
+            pkt.offsetHeight; // force reflow
+            pkt.style.animation = "packet-move 0.8s ease-in-out forwards";
+
+            // Glow the destination node
+            timeouts.push(
+              setTimeout(() => {
+                if (nodes[i]) {
+                  nodes[i].style.animation = "none";
+                  nodes[i].offsetHeight;
+                  nodes[i].style.animation = "node-glow 0.6s ease-out";
+                }
+              }, 650)
+            );
+          }, i * 500)
+        );
       });
     }
 
     runCycle();
     const interval = setInterval(runCycle, 4000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      timeouts.forEach(clearTimeout);
+    };
   }, []);
 
   return (
