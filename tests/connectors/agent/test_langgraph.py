@@ -194,9 +194,9 @@ class TestLangGraphExtractText:
         }
         assert LangGraphConnector.extract_text(response) == "Hi!"
 
-    def test_none_content_returns_empty_string(self):
+    def test_none_content_returns_none(self):
         response = {"messages": [{"type": "ai", "content": None}]}
-        assert LangGraphConnector.extract_text(response) == ""
+        assert LangGraphConnector.extract_text(response) is None
 
     def test_no_ai_message_returns_none(self):
         response = {"messages": [{"type": "human", "content": "Hello"}]}

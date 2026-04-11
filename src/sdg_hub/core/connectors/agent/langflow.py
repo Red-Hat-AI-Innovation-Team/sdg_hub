@@ -129,14 +129,14 @@ class LangflowConnector(BaseAgentConnector):
         Returns
         -------
         str or None
-            Extracted text, empty string if the field is explicitly None,
-            or None if the path does not exist.
+            Extracted text, or None if the field is missing or
+            explicitly None.
         """
         try:
             text = response["outputs"][0]["outputs"][0]["results"]["message"]["text"]
             if text is None:
-                logger.warning("Text field is None, using empty string instead")
-                return ""
+                logger.warning("Text field is None")
+                return None
             return text
         except (KeyError, IndexError, TypeError):
             return None

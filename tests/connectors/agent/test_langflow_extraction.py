@@ -53,11 +53,11 @@ class TestLangflowExtractText:
         response = make_langflow_response("Hello world")
         assert LangflowConnector.extract_text(response) == "Hello world"
 
-    def test_none_returns_empty_string(self, caplog):
+    def test_none_returns_none(self, caplog):
         response = make_langflow_response(None)
         result = LangflowConnector.extract_text(response)
-        assert result == ""
-        assert "Text field is None, using empty string instead" in caplog.text
+        assert result is None
+        assert "Text field is None" in caplog.text
 
     def test_missing_path_returns_none(self):
         assert LangflowConnector.extract_text({"outputs": []}) is None

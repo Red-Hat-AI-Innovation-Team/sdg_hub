@@ -236,8 +236,8 @@ class LangGraphConnector(BaseAgentConnector):
             if role in ("ai", "assistant"):
                 content = msg.get("content")
                 if content is None:
-                    logger.warning("AI message content is None, using empty string")
-                    return ""
+                    logger.warning("AI message content is None")
+                    return None
                 return str(content)
 
         return None
