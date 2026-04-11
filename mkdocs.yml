@@ -1,0 +1,120 @@
+# SPDX-License-Identifier: Apache-2.0
+
+site_name: "SDG Hub"
+site_description: >-
+  A modular Python framework for building synthetic data generation pipelines
+  using composable blocks and flows.
+site_url: https://red-hat-ai-innovation-team.github.io/sdg_hub/
+repo_url: https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub
+repo_name: Red-Hat-AI-Innovation-Team/sdg_hub
+
+theme:
+  name: material
+  icon:
+    logo: material/cube-outline
+  palette:
+    - scheme: default
+      primary: slate
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          import:
+            - url: https://docs.python.org/3/objects.inv
+          options:
+            docstring_style: google
+            show_source: false
+            show_root_heading: true
+            members_order: source
+            merge_init_into_class: true
+            show_if_no_docstring: false
+  - llmstxt:
+      sections:
+        Getting Started:
+          - installation.md
+          - quickstart.md
+          - concepts.md
+        Blocks:
+          - blocks/index.md
+          - blocks/llm-blocks.md
+          - blocks/parsing-blocks.md
+          - blocks/transform-blocks.md
+          - blocks/filtering-blocks.md
+          - blocks/agent-blocks.md
+          - blocks/custom-blocks.md
+        Flows:
+          - flows/index.md
+          - flows/yaml-reference.md
+          - flows/built-in-flows.md
+          - flows/custom-flows.md
+        Connectors:
+          - connectors/index.md
+        API Reference:
+          - reference/index.md
+          - reference/blocks.md
+          - reference/flow.md
+          - reference/connectors.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: installation.md
+    - Quick Start: quickstart.md
+    - Core Concepts: concepts.md
+  - Blocks:
+    - Overview: blocks/index.md
+    - LLM Blocks: blocks/llm-blocks.md
+    - Parsing Blocks: blocks/parsing-blocks.md
+    - Transform Blocks: blocks/transform-blocks.md
+    - Filtering Blocks: blocks/filtering-blocks.md
+    - Agent Blocks: blocks/agent-blocks.md
+    - Custom Blocks: blocks/custom-blocks.md
+  - Flows:
+    - Overview: flows/index.md
+    - YAML Reference: flows/yaml-reference.md
+    - Built-in Flows: flows/built-in-flows.md
+    - Custom Flows: flows/custom-flows.md
+  - Connectors:
+    - Overview: connectors/index.md
+  - API Reference:
+    - Overview: reference/index.md
+    - Blocks: reference/blocks.md
+    - Flow: reference/flow.md
+    - Connectors: reference/connectors.md
+  - Development: development.md

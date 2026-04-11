@@ -87,6 +87,12 @@ examples = [
     "fastapi",
     "ipykernel",
 ]
+docs = [
+    "mkdocs-material>=9.6",
+    "mkdocstrings[python]>=0.29",
+    "griffe-pydantic>=1.1",
+    "mkdocs-llmstxt>=0.2",
+]
 
 [tool.uv]
 required-version = ">=0.10.0"
