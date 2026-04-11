@@ -52,7 +52,7 @@ class MessageFormatterBlock(BaseBlock):
             input_cols:
               tool_trace: extract_agent_text_tool_trace
               tool_list: tool_list
-            output_cols: messages
+            output_cols: [messages]
 
     Attributes
     ----------
