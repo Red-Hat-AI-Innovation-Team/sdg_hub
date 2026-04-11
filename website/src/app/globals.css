@@ -1,0 +1,496 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-bg: #ffffff;
+  --color-bg-subtle: #f7f7f8;
+  --color-bg-sidebar: #fafafa;
+  --color-bg-code: #1e1e2e;
+
+  --color-text: #1a1a2e;
+  --color-text-muted: #6b7280;
+  --color-text-code: #e2e8f0;
+
+  --color-accent: #e63946;
+  --color-accent-hover: #c1121f;
+
+  --color-border: #e5e7eb;
+
+  --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", monospace;
+}
+
+/* ── Base ───────────────────────────────────── */
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+/* ── Prose: markdown content ────────────────── */
+
+.prose {
+  max-width: 720px;
+}
+
+.prose h1 {
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: var(--color-text);
+}
+
+.prose h2 {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.prose h3 {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  color: var(--color-text);
+}
+
+.prose h4 {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--color-text);
+}
+
+.prose p {
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+}
+
+.prose a {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.prose a:hover {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
+}
+
+/* ── Lists ──────────────────────────────────── */
+
+.prose ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.prose ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.prose li {
+  margin-bottom: 0.35rem;
+}
+
+.prose li > ul,
+.prose li > ol {
+  margin-top: 0.35rem;
+  margin-bottom: 0;
+}
+
+/* ── Code ───────────────────────────────────── */
+
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+.prose :not(pre) > code {
+  background: #fdf2f2;
+  color: #b91c1c;
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+.prose pre {
+  position: relative;
+  background-color: var(--color-bg-code) !important;
+  color: var(--color-text-code) !important;
+  font-family: var(--font-mono);
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+/* Language label in top-right corner */
+.prose pre[data-language]::after {
+  content: attr(data-language);
+  position: absolute;
+  top: 0.4rem;
+  right: 0.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Hide the label when there is no language */
+.prose pre[data-language=""]::after {
+  content: none;
+}
+
+.prose pre code {
+  background: transparent !important;
+  color: inherit !important;
+  font-family: inherit;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+/* ── Tables ─────────────────────────────────── */
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.prose thead th {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.prose tbody td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.prose tbody tr:nth-child(even) {
+  background: var(--color-bg-subtle);
+}
+
+/* ── Blockquotes ────────────────────────────── */
+
+.prose blockquote {
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-bg-subtle);
+  padding: 0.75rem 1rem;
+  margin: 0 0 1.25rem 0;
+  border-radius: 0 6px 6px 0;
+}
+
+.prose blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Horizontal rules ───────────────────────── */
+
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 2rem 0;
+}
+
+/* ── Images ─────────────────────────────────── */
+
+.prose img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+/* ── Strong / Em ────────────────────────────── */
+
+.prose strong {
+  font-weight: 600;
+}
+
+/* ── Callout component ──────────────────────── */
+
+.callout {
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  border-left: 4px solid;
+  font-size: 0.925rem;
+}
+
+.callout-info {
+  background: #eff6ff;
+  border-color: #3b82f6;
+}
+
+.callout-warning {
+  background: #fffbeb;
+  border-color: #f59e0b;
+}
+
+.callout-error {
+  background: #fef2f2;
+  border-color: #ef4444;
+}
+
+.callout p:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Heading anchors ────────────────────────── */
+
+.prose h2 .heading-anchor,
+.prose h3 .heading-anchor {
+  opacity: 0;
+  margin-left: 0.35em;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+
+.prose h2:hover .heading-anchor,
+.prose h3:hover .heading-anchor {
+  opacity: 1;
+}
+
+/* ── API Reference ─────────────────────────── */
+
+.api-reference-content {
+  padding: 2rem 2.5rem 4rem;
+  max-width: 960px;
+}
+
+/* Class section */
+.api-class-section {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.api-class-section:first-of-type {
+  border-top: none;
+}
+
+.api-breadcrumb {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.api-class-name {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 0.5rem;
+  line-height: 1.3;
+}
+
+.api-class-anchor {
+  color: inherit;
+  text-decoration: none;
+}
+
+.api-class-anchor:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--color-border);
+  text-underline-offset: 4px;
+}
+
+/* Import block */
+.api-import-block {
+  display: flex;
+  align-items: center;
+  background: #f7f7f8;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-text);
+  overflow-x: auto;
+}
+
+/* Docstring */
+.api-docstring {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--color-text);
+  margin-bottom: 1.25rem;
+  max-width: 640px;
+}
+
+/* Section headings (Fields, Methods) */
+.api-section {
+  margin-top: 1.25rem;
+}
+
+.api-section-heading {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  margin: 0 0 0.5rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Tables */
+.api-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.api-table th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.api-table td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid #f0f0f2;
+  vertical-align: top;
+}
+
+.api-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.api-table-compact {
+  font-size: 12px;
+}
+
+.api-table-compact td,
+.api-table-compact th {
+  padding: 0.3rem 0.5rem;
+}
+
+/* Field name styling */
+.api-field-name {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text);
+  background: transparent;
+  padding: 0;
+}
+
+/* Type annotations -- indigo like Stripe */
+.api-type {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #6366f1;
+  background: transparent;
+  padding: 0;
+  word-break: break-word;
+}
+
+/* Required indicator */
+.api-required-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
+/* Default values */
+.api-default code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #6b7280;
+  background: transparent;
+  padding: 0;
+}
+
+/* Methods */
+.api-method {
+  background: #fafafa;
+  border: 1px solid #eeeef0;
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+}
+
+.api-method-header {
+  margin-bottom: 0.25rem;
+}
+
+.api-method-name {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+  background: transparent;
+  padding: 0;
+}
+
+.api-signature {
+  background: #f7f7f8;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.35rem 0.6rem;
+  margin-bottom: 0.5rem;
+  overflow-x: auto;
+}
+
+.api-signature code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text);
+  background: transparent;
+  padding: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.api-method-doc {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+  margin: 0;
+}

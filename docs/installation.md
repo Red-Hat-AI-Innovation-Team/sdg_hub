@@ -4,25 +4,25 @@ SDG Hub requires **Python 3.10+** and can be installed from PyPI or from source 
 
 ## Basic Installation
 
-=== "pip"
+**pip:**
 
-    ```bash
-    pip install sdg-hub
-    ```
+```bash
+pip install sdg-hub
+```
 
-=== "uv (recommended)"
+**uv (recommended):**
 
-    ```bash
-    uv pip install sdg-hub
-    ```
+```bash
+uv pip install sdg-hub
+```
 
-    Or add it to an existing uv project:
+Or add it to an existing uv project:
 
-    ```bash
-    uv init my-sdg-project
-    cd my-sdg-project
-    uv add sdg-hub
-    ```
+```bash
+uv init my-sdg-project
+cd my-sdg-project
+uv add sdg-hub
+```
 
 ## Optional Dependencies
 
@@ -34,17 +34,17 @@ Heavy dependencies for running example notebooks (document parsing, knowledge mi
 
 Includes: tabulate, transformers, langchain-text-splitters, docling, scikit-learn, polars, matplotlib, spacy, nltk, sentence-transformers, instructor, fastapi, ipykernel.
 
-=== "pip"
+**pip:**
 
-    ```bash
-    pip install sdg-hub[examples]
-    ```
+```bash
+pip install sdg-hub[examples]
+```
 
-=== "uv"
+**uv:**
 
-    ```bash
-    uv pip install sdg-hub[examples]
-    ```
+```bash
+uv pip install sdg-hub[examples]
+```
 
 ### integration
 
@@ -52,17 +52,17 @@ Minimal dependencies for integration testing.
 
 Includes: nest-asyncio.
 
-=== "pip"
+**pip:**
 
-    ```bash
-    pip install sdg-hub[integration]
-    ```
+```bash
+pip install sdg-hub[integration]
+```
 
-=== "uv"
+**uv:**
 
-    ```bash
-    uv pip install sdg-hub[integration]
-    ```
+```bash
+uv pip install sdg-hub[integration]
+```
 
 ### docs
 
@@ -70,17 +70,17 @@ Dependencies for building the documentation site.
 
 Includes: mkdocs-material, mkdocstrings, griffe-pydantic, mkdocs-llmstxt.
 
-=== "pip"
+**pip:**
 
-    ```bash
-    pip install sdg-hub[docs]
-    ```
+```bash
+pip install sdg-hub[docs]
+```
 
-=== "uv"
+**uv:**
 
-    ```bash
-    uv pip install sdg-hub[docs]
-    ```
+```bash
+uv pip install sdg-hub[docs]
+```
 
 ### dev
 
