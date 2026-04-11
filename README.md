@@ -7,9 +7,7 @@
 [![codecov](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub/graph/badge.svg?token=SP75BCXWO2)](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Red-Hat-AI-Innovation-Team/sdg_hub)
 
-<p align="center">
-  <img src="docs/assets/sdg-hub-cover.png" alt="SDG Hub Cover" width="400">
-</p>
+<p align="center"><img src="docs/assets/sdg-hub-banner.svg" alt="SDG Hub" width="600"></p>
 
 A modular Python framework for building synthetic data generation pipelines using composable blocks and flows. Transform datasets through **building-block composition** - mix and match LLM-powered and traditional processing blocks to create sophisticated data generation workflows.
 

@@ -26,6 +26,9 @@ export const metadata: Metadata = {
   title: "SDG Hub",
   description:
     "A modular Python framework for building synthetic data generation pipelines using composable blocks and flows.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export const viewport: Viewport = {

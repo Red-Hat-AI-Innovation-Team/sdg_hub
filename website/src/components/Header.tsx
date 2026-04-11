@@ -3,12 +3,12 @@ import { SearchModal } from "@/components/SearchModal";
 
 function LogoBlocks() {
   return (
-    <div className="flex gap-[3px]">
-      <div className="h-[10px] w-[10px] rounded-[2px]" style={{ background: "#e8975d" }} />
-      <div className="h-[10px] w-[10px] rounded-[2px]" style={{ background: "#7daa8c" }} />
-      <div className="h-[10px] w-[10px] rounded-[2px]" style={{ background: "#8097c4" }} />
-      <div className="h-[10px] w-[10px] rounded-[2px]" style={{ background: "#a88bb8" }} />
-    </div>
+    <svg width="50" height="12" viewBox="0 0 100 24" xmlns="http://www.w3.org/2000/svg" className="block">
+      <line x1="0" y1="12" x2="100" y2="12" stroke="#505058" strokeWidth="2" strokeLinecap="round" strokeDasharray="4 3"/>
+      <rect x="8" y="2" width="20" height="20" rx="4.5" fill="#e8975d"/>
+      <rect x="40" y="2" width="20" height="20" rx="4.5" fill="#7daa8c"/>
+      <rect x="72" y="2" width="20" height="20" rx="4.5" fill="#8097c4"/>
+    </svg>
   );
 }
 
