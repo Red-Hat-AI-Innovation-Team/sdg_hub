@@ -16,6 +16,10 @@
 
 ---
 
+<p align="center">
+  <img src="docs/assets/demo.gif" alt="SDG Hub Demo" width="700">
+</p>
+
 SDG Hub is a Python framework for building synthetic data generation pipelines. Chain LLM, parsing, transform, filtering, and agent blocks into YAML-defined flows -- then generate training data at scale.
 
 ## Get Started
