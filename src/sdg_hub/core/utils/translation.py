@@ -8,6 +8,7 @@ hardcoded file lists.  Accepts a flow id or flow name.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 import copy
 import logging
@@ -523,6 +524,128 @@ def _adapt_flow_yaml(
 
 
 # ---------------------------------------------------------------------------
+# Translation config
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class TranslationConfig:
+    """Configuration for flow translation models and behaviour.
+
+    Groups the many model/credential/retry parameters into a single object
+    so that helpers can accept one argument instead of eight.
+
+    Parameters
+    ----------
+    translator_model : str
+        Model identifier for translation.
+    verifier_model : str
+        Model identifier for verification.
+    translator_api_key : str | None
+        API key for the translator model.
+    translator_api_base : str | None
+        API base URL for the translator model.
+    verifier_api_key : str | None
+        API key for the verifier model.
+    verifier_api_base : str | None
+        API base URL for the verifier model.
+    max_retries : int
+        Maximum translation attempts per prompt message.
+    """
+
+    translator_model: str = "gpt-5.2"
+    verifier_model: str = "gpt-5.2"
+    translator_api_key: str | None = None
+    translator_api_base: str | None = None
+    verifier_api_key: str | None = None
+    verifier_api_base: str | None = None
+    max_retries: int = 3
+
+
+# ---------------------------------------------------------------------------
+# Internal orchestration helpers
+# ---------------------------------------------------------------------------
+
+
+def _translate_all_prompts(
+    prompt_mapping: dict[Path, Path],
+    lang: str,
+    cfg: TranslationConfig,
+    *,
+    structural_tags: frozenset[str],
+    tag_rule: str,
+    lang_code: str,
+) -> list[str]:
+    """Translate every prompt YAML in *prompt_mapping*, collecting issues.
+
+    Parameters
+    ----------
+    prompt_mapping : dict[Path, Path]
+        Mapping from source prompt path to output path.
+    lang : str
+        Target language name.
+    cfg : TranslationConfig
+        Model/credential/retry configuration.
+    structural_tags : frozenset[str]
+        Structural tags that must not be translated.
+    tag_rule : str
+        Tag-rule string for the translation system prompt.
+    lang_code : str
+        ISO 639-1 language code.
+
+    Returns
+    -------
+    list[str]
+        Unresolved validation issues across all prompts.
+    """
+    all_issues: list[str] = []
+    for source_path, out_path in prompt_mapping.items():
+        issues = _translate_prompt_yaml(
+            source_path,
+            out_path,
+            lang,
+            cfg.translator_model,
+            cfg.translator_api_key,
+            cfg.translator_api_base,
+            cfg.verifier_model,
+            cfg.verifier_api_key,
+            cfg.verifier_api_base,
+            cfg.max_retries,
+            structural_tags=structural_tags,
+            tag_rule=tag_rule,
+            lang_code=lang_code,
+        )
+        all_issues.extend(issues)
+    return all_issues
+
+
+def _resolve_output_path(
+    flow_yaml: Path,
+    output_dir: str | None,
+    lang_code: str,
+) -> Path:
+    """Resolve the output directory for a translated flow.
+
+    Parameters
+    ----------
+    flow_yaml : Path
+        Resolved path to the source flow YAML.
+    output_dir : str | None
+        Explicit output directory, or None for the default.
+    lang_code : str
+        ISO 639-1 language code.
+
+    Returns
+    -------
+    Path
+        Resolved output directory path.
+    """
+    if output_dir is None:
+        return Path.cwd() / f"{flow_yaml.parent.name}_{lang_code}"
+    return Path(output_dir).resolve()
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -580,16 +703,21 @@ def translate_flow(
     if verbose:
         logger.setLevel(logging.DEBUG)
 
+    cfg = TranslationConfig(
+        translator_model=translator_model,
+        verifier_model=verifier_model,
+        translator_api_key=translator_api_key,
+        translator_api_base=translator_api_base,
+        verifier_api_key=verifier_api_key,
+        verifier_api_base=verifier_api_base,
+        max_retries=max_retries,
+    )
+
     # Resolve flow identifier to a filesystem path
     flow_yaml = Path(FlowRegistry.get_flow_path_safe(flow)).resolve()
+    output_path = _resolve_output_path(flow_yaml, output_dir, lang_code)
 
-    # Derive default output_dir from source flow's parent directory name
-    if output_dir is None:
-        output_path = Path.cwd() / f"{flow_yaml.parent.name}_{lang_code}"
-    else:
-        output_path = Path(output_dir).resolve()
-
-    # Skip if already translated — check registry and output directory
+    # Skip if already translated -- check registry and output directory
     translated_id = f"{flow}-{lang_code}"
     if FlowRegistry.get_flow_path(translated_id) is not None:
         logger.info("Flow '%s' already registered, skipping translation", translated_id)
@@ -600,11 +728,11 @@ def translate_flow(
         )
         return Flow.from_yaml(str(output_path / flow_yaml.name))
 
-    # Parse flow YAML once — discover prompts and structural tags together
+    # Parse flow YAML once -- discover prompts and structural tags together
     prompt_yamls, structural_tags = _parse_flow_yaml(flow_yaml)
     tag_rule = _build_tag_rule(structural_tags)
 
-    # Compute output paths — check for basename collisions
+    # Compute output paths -- check for basename collisions
     flow_out = output_path / flow_yaml.name
     prompts_dir = output_path / "prompts"
     stems = [src.stem for src in prompt_yamls]
@@ -618,7 +746,7 @@ def translate_flow(
     }
 
     logger.info(
-        "Translating flow '%s' to %s (%s) — %d prompt(s)",
+        "Translating flow '%s' to %s (%s) -- %d prompt(s)",
         flow,
         lang,
         lang_code,
@@ -626,26 +754,16 @@ def translate_flow(
     )
 
     # Translate prompt YAMLs
-    all_issues: list[str] = []
-    for source_path, out_path in prompt_mapping.items():
-        issues = _translate_prompt_yaml(
-            source_path,
-            out_path,
-            lang,
-            translator_model,
-            translator_api_key,
-            translator_api_base,
-            verifier_model,
-            verifier_api_key,
-            verifier_api_base,
-            max_retries,
-            structural_tags=structural_tags,
-            tag_rule=tag_rule,
-            lang_code=lang_code,
-        )
-        all_issues.extend(issues)
+    all_issues = _translate_all_prompts(
+        prompt_mapping,
+        lang,
+        cfg,
+        structural_tags=structural_tags,
+        tag_rule=tag_rule,
+        lang_code=lang_code,
+    )
 
-    # Adapt flow YAML — only rewrite paths for prompts we actually translated
+    # Adapt flow YAML -- only rewrite paths for prompts we actually translated
     translated_basenames = {src.name for src in prompt_yamls}
     _adapt_flow_yaml(flow_yaml, flow_out, lang, lang_code, translated_basenames)
 
@@ -653,7 +771,7 @@ def translate_flow(
     if all_issues:
         for issue in all_issues:
             logger.warning("Validation issue: %s", issue)
-    logger.info("Translation complete — output: %s", output_path)
+    logger.info("Translation complete -- output: %s", output_path)
 
     # Register translated flows with FlowRegistry
     if register:

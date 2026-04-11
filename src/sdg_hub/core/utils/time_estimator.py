@@ -191,6 +191,170 @@ def calculate_time_with_pipeline(
     return base_time
 
 
+def _estimate_sync_blocks(dry_run: Dict, total_dataset_size: int, samples: int) -> Dict:
+    """Estimate execution time for synchronous (single dry run) blocks.
+
+    Parameters
+    ----------
+    dry_run : Dict
+        Results from the dry run containing 'blocks_executed' and 'execution_time_seconds'.
+    total_dataset_size : int
+        Size of the full dataset to estimate for.
+    samples : int
+        Number of samples used in the dry run.
+
+    Returns
+    -------
+    Dict
+        Estimation results with estimated_time_seconds, total_estimated_requests, and note.
+    """
+    blocks_executed = dry_run.get("blocks_executed", [])
+    if not blocks_executed:
+        # Fallback to simple scaling if no block details available
+        total_time = dry_run["execution_time_seconds"]
+        simple_estimate = (total_time / samples) * total_dataset_size
+        simple_estimate = simple_estimate * ESTIMATION_BUFFER_FACTOR
+        return {
+            "estimated_time_seconds": simple_estimate,
+            "total_estimated_requests": 0,
+            "note": "Synchronous execution - linear scaling from dry run",
+        }
+
+    # Calculate time for each block and sum them
+    total_estimated_time: float = 0.0
+    for block in blocks_executed:
+        block_time = block.get("execution_time_seconds", 0)
+        input_rows = block.get("input_rows", samples)
+
+        if input_rows > 0:
+            time_per_row = block_time / input_rows
+            block_total_time = time_per_row * total_dataset_size
+            total_estimated_time += block_total_time
+
+    total_estimated_time = total_estimated_time * ESTIMATION_BUFFER_FACTOR
+    return {
+        "estimated_time_seconds": total_estimated_time,
+        "total_estimated_requests": 0,
+        "note": "Synchronous execution - no concurrency",
+    }
+
+
+def _estimate_single_block(
+    block_1: Dict,
+    block_2: Dict,
+    samples_1: int,
+    samples_2: int,
+    total_dataset_size: int,
+    max_concurrency: int,
+) -> Optional[Dict]:
+    """Estimate execution time for a single async LLM block from two dry runs.
+
+    Parameters
+    ----------
+    block_1 : Dict
+        Block execution info from first dry run.
+    block_2 : Dict
+        Block execution info from second dry run.
+    samples_1 : int
+        Number of samples in first dry run.
+    samples_2 : int
+        Number of samples in second dry run.
+    total_dataset_size : int
+        Size of the full dataset to estimate for.
+    max_concurrency : int
+        Maximum concurrent requests allowed.
+
+    Returns
+    -------
+    Optional[Dict]
+        Per-block estimate dict, or None if this block is not an LLM block.
+    """
+    if not is_llm_using_block(block_1):
+        return None
+
+    analysis = calculate_block_throughput(block_1, block_2, samples_1, samples_2)
+
+    estimated_requests = total_dataset_size * analysis["amplification"]
+
+    block_time = calculate_time_with_pipeline(
+        estimated_requests,
+        analysis["throughput"],
+        analysis["startup_overhead"],
+        max_concurrency,
+    )
+
+    return {
+        "block": block_1["block_name"],
+        "estimated_requests": estimated_requests,
+        "throughput": analysis["throughput"],
+        "estimated_time": block_time,
+        "amplification": analysis["amplification"],
+        "startup_overhead": analysis["startup_overhead"],
+    }
+
+
+def _estimate_async_blocks(
+    dry_run_1: Dict,
+    dry_run_2: Dict,
+    total_dataset_size: int,
+    max_concurrency: int,
+) -> Dict:
+    """Estimate execution time for async blocks using two dry runs.
+
+    Parameters
+    ----------
+    dry_run_1 : Dict
+        Results from first dry run.
+    dry_run_2 : Dict
+        Results from second dry run.
+    total_dataset_size : int
+        Size of the full dataset to estimate for.
+    max_concurrency : int
+        Maximum concurrent requests allowed.
+
+    Returns
+    -------
+    Dict
+        Aggregated estimation results with block_estimates.
+    """
+    samples_1 = dry_run_1["sample_size"]
+    samples_2 = dry_run_2["sample_size"]
+
+    block_estimates = []
+    total_time: float = 0
+    total_requests: float = 0
+
+    blocks_1 = dry_run_1.get("blocks_executed", [])
+    blocks_2 = dry_run_2.get("blocks_executed", [])
+
+    for i, block_1 in enumerate(blocks_1):
+        if i >= len(blocks_2):
+            break
+
+        estimate = _estimate_single_block(
+            block_1,
+            blocks_2[i],
+            samples_1,
+            samples_2,
+            total_dataset_size,
+            max_concurrency,
+        )
+        if estimate is None:
+            continue
+
+        total_time += estimate["estimated_time"]
+        total_requests += estimate["estimated_requests"]
+        block_estimates.append(estimate)
+
+    total_time = total_time * ESTIMATION_BUFFER_FACTOR
+
+    return {
+        "estimated_time_seconds": total_time,
+        "total_estimated_requests": int(total_requests),
+        "block_estimates": block_estimates,
+    }
+
+
 def estimate_execution_time(
     dry_run_1: Dict,
     dry_run_2: Optional[Dict] = None,
@@ -239,7 +403,6 @@ def estimate_execution_time(
     >>> result = estimate_execution_time(dry_run_1, dry_run_2, total_dataset_size=1000)
     >>> assert result["estimated_time_seconds"] > 0
     """
-    # Set defaults
     if max_concurrency is None:
         max_concurrency = DRY_RUN_MAX_CONCURRENT
 
@@ -248,97 +411,11 @@ def estimate_execution_time(
             "original_dataset_size", dry_run_1["sample_size"]
         )
 
-    # Get sample sizes
     samples_1 = dry_run_1["sample_size"]
-    samples_2 = (
-        dry_run_2["sample_size"] if dry_run_2 else 5
-    )  # Default to 5 if not provided
 
-    # If only one dry run, do simple scaling
     if dry_run_2 is None:
-        # Process each block individually for synchronous execution
-        blocks_executed = dry_run_1.get("blocks_executed", [])
-        if not blocks_executed:
-            # Fallback to simple scaling if no block details available
-            total_time = dry_run_1["execution_time_seconds"]
-            simple_estimate = (total_time / samples_1) * total_dataset_size
-            # Apply conservative buffer
-            simple_estimate = simple_estimate * ESTIMATION_BUFFER_FACTOR
-            return {
-                "estimated_time_seconds": simple_estimate,
-                "total_estimated_requests": 0,
-                "note": "Synchronous execution - linear scaling from dry run",
-            }
+        return _estimate_sync_blocks(dry_run_1, total_dataset_size, samples_1)
 
-        # Calculate time for each block and sum them
-        total_estimated_time: float = 0.0
-        for block in blocks_executed:
-            block_time = block.get("execution_time_seconds", 0)
-            input_rows = block.get("input_rows", samples_1)
-
-            # Calculate time per row for this block
-            if input_rows > 0:
-                time_per_row = block_time / input_rows
-                block_total_time = time_per_row * total_dataset_size
-                total_estimated_time += block_total_time
-
-        # Apply conservative buffer
-        total_estimated_time = total_estimated_time * ESTIMATION_BUFFER_FACTOR
-        return {
-            "estimated_time_seconds": total_estimated_time,
-            "total_estimated_requests": 0,
-            "note": "Synchronous execution - no concurrency",
-        }
-
-    # Analyze each block with async execution
-    block_estimates = []
-    total_time = 0
-    total_requests = 0
-
-    # Process each block
-    for i, block_1 in enumerate(dry_run_1.get("blocks_executed", [])):
-        if i >= len(dry_run_2.get("blocks_executed", [])):
-            break
-
-        block_2 = dry_run_2["blocks_executed"][i]
-
-        # Only process LLM blocks
-        if not is_llm_using_block(block_1):
-            continue
-
-        # Calculate throughput and amplification
-        analysis = calculate_block_throughput(block_1, block_2, samples_1, samples_2)
-
-        # Estimate requests for full dataset
-        estimated_requests = total_dataset_size * analysis["amplification"]
-
-        # Calculate time with pipeline model
-        block_time = calculate_time_with_pipeline(
-            estimated_requests,
-            analysis["throughput"],
-            analysis["startup_overhead"],
-            max_concurrency,
-        )
-
-        total_time += block_time
-        total_requests += estimated_requests
-
-        block_estimates.append(
-            {
-                "block": block_1["block_name"],
-                "estimated_requests": estimated_requests,
-                "throughput": analysis["throughput"],
-                "estimated_time": block_time,
-                "amplification": analysis["amplification"],
-                "startup_overhead": analysis["startup_overhead"],
-            }
-        )
-
-    # Apply conservative buffer to account for API variability, network issues, etc.
-    total_time = total_time * ESTIMATION_BUFFER_FACTOR
-
-    return {
-        "estimated_time_seconds": total_time,
-        "total_estimated_requests": int(total_requests),
-        "block_estimates": block_estimates,
-    }
+    return _estimate_async_blocks(
+        dry_run_1, dry_run_2, total_dataset_size, max_concurrency
+    )

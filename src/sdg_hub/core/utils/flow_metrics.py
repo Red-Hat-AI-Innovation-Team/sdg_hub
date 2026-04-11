@@ -72,6 +72,74 @@ def aggregate_block_metrics(entries: list[dict[str, Any]]) -> list[dict[str, Any
     return result
 
 
+def _format_block_row(metrics: dict[str, Any]) -> tuple[str, str, str, str]:
+    """Format a single block's metrics into table cell values.
+
+    Parameters
+    ----------
+    metrics : dict[str, Any]
+        Block metrics dict with execution_time, status, input_rows, etc.
+
+    Returns
+    -------
+    tuple[str, str, str, str]
+        (duration, row_change, col_change, status) formatted for the table.
+    """
+    duration = f"{metrics['execution_time']:.2f}s"
+
+    if metrics["status"] == "success":
+        row_change = f"{metrics['input_rows']:,} → {metrics['output_rows']:,}"
+    else:
+        row_change = f"{metrics['input_rows']:,} → ❌"
+
+    added = len(metrics["added_cols"])
+    removed = len(metrics["removed_cols"])
+    if added > 0 and removed > 0:
+        col_change = f"+{added}/-{removed}"
+    elif added > 0:
+        col_change = f"+{added}"
+    elif removed > 0:
+        col_change = f"-{removed}"
+    else:
+        col_change = "—"
+
+    status = "[green]✓[/green]" if metrics["status"] == "success" else "[red]✗[/red]"
+
+    return duration, row_change, col_change, status
+
+
+def _resolve_panel_style(
+    flow_name: str,
+    failed_blocks: int,
+    final_dataset: Optional[pd.DataFrame],
+) -> tuple[str, str]:
+    """Determine the panel title and border style based on execution outcome.
+
+    Parameters
+    ----------
+    flow_name : str
+        Name of the flow.
+    failed_blocks : int
+        Number of blocks that failed.
+    final_dataset : Optional[pd.DataFrame]
+        Final dataset, or None if the flow failed entirely.
+
+    Returns
+    -------
+    tuple[str, str]
+        (title, border_style) for the Rich Panel.
+    """
+    if final_dataset is None:
+        label, color, border = "Failed", "red", "bright_red"
+    elif failed_blocks == 0:
+        label, color, border = "Complete", "green", "bright_green"
+    else:
+        label, color, border = "Partial", "yellow", "bright_yellow"
+
+    title = f"[bold bright_white]{flow_name}[/bold bright_white] - [{color}]{label}[/{color}]"
+    return title, border
+
+
 def display_metrics_summary(
     block_metrics: list[dict[str, Any]],
     flow_name: str,
@@ -110,35 +178,11 @@ def display_metrics_summary(
     successful_blocks = 0
 
     for metrics in block_metrics:
-        # Format duration
-        duration = f"{metrics['execution_time']:.2f}s"
         total_time += metrics["execution_time"]
-
-        # Format row changes
         if metrics["status"] == "success":
-            row_change = f"{metrics['input_rows']:,} → {metrics['output_rows']:,}"
             successful_blocks += 1
-        else:
-            row_change = f"{metrics['input_rows']:,} → ❌"
 
-        # Format column changes
-        added = len(metrics["added_cols"])
-        removed = len(metrics["removed_cols"])
-        if added > 0 and removed > 0:
-            col_change = f"+{added}/-{removed}"
-        elif added > 0:
-            col_change = f"+{added}"
-        elif removed > 0:
-            col_change = f"-{removed}"
-        else:
-            col_change = "—"
-
-        # Format status with color
-        if metrics["status"] == "success":
-            status = "[green]✓[/green]"
-        else:
-            status = "[red]✗[/red]"
-
+        duration, row_change, col_change, status = _format_block_row(metrics)
         table.add_row(
             metrics["block_name"],
             metrics["block_class"],
@@ -167,22 +211,8 @@ def display_metrics_summary(
     # Display the table with panel
     console.print()
 
-    # Determine panel title and border color based on execution status
     failed_blocks = len(block_metrics) - successful_blocks
-    if final_dataset is None:
-        # Flow failed completely
-        title = (
-            f"[bold bright_white]{flow_name}[/bold bright_white] - [red]Failed[/red]"
-        )
-        border_style = "bright_red"
-    elif failed_blocks == 0:
-        # All blocks succeeded
-        title = f"[bold bright_white]{flow_name}[/bold bright_white] - [green]Complete[/green]"
-        border_style = "bright_green"
-    else:
-        # Some blocks failed but flow completed
-        title = f"[bold bright_white]{flow_name}[/bold bright_white] - [yellow]Partial[/yellow]"
-        border_style = "bright_yellow"
+    title, border_style = _resolve_panel_style(flow_name, failed_blocks, final_dataset)
 
     console.print(
         Panel(
@@ -192,6 +222,108 @@ def display_metrics_summary(
         )
     )
     console.print()
+
+
+def _format_time_str(seconds: float) -> str:
+    """Format a duration in seconds into a human-readable string.
+
+    Parameters
+    ----------
+    seconds : float
+        Duration in seconds.
+
+    Returns
+    -------
+    str
+        Formatted string like "45.5 seconds", "30.0 minutes (0.50 hours)", etc.
+    """
+    if seconds < 60:
+        return f"{seconds:.1f} seconds"
+    if seconds < 3600:
+        return f"{seconds / 60:.1f} minutes ({seconds / 3600:.2f} hours)"
+    return f"{seconds / 3600:.2f} hours ({seconds / 60:.0f} minutes)"
+
+
+def _build_summary_table(
+    time_estimation: dict[str, Any],
+    dataset_size: int,
+    max_concurrency: Optional[int],
+) -> Table:
+    """Build the top-level summary table for time estimation.
+
+    Parameters
+    ----------
+    time_estimation : dict[str, Any]
+        Time estimation results.
+    dataset_size : int
+        Total number of samples.
+    max_concurrency : Optional[int]
+        Max concurrency value, or None.
+
+    Returns
+    -------
+    Table
+        A Rich Table with summary rows.
+    """
+    summary_table = Table(show_header=False, box=None, padding=(0, 1))
+    summary_table.add_column("Metric", style="bright_cyan")
+    summary_table.add_column("Value", style="bright_white")
+
+    summary_table.add_row(
+        "Estimated Time:",
+        _format_time_str(time_estimation["estimated_time_seconds"]),
+    )
+    summary_table.add_row(
+        "Total LLM Requests:",
+        f"{time_estimation.get('total_estimated_requests', 0):,}",
+    )
+
+    if time_estimation.get("total_estimated_requests", 0) > 0:
+        requests_per_sample = time_estimation["total_estimated_requests"] / dataset_size
+        summary_table.add_row("Requests per Sample:", f"{requests_per_sample:.1f}")
+
+    if max_concurrency is not None:
+        summary_table.add_row("Max Concurrency:", str(max_concurrency))
+
+    return summary_table
+
+
+def _build_block_breakdown_table(block_estimates: list[dict[str, Any]]) -> Table:
+    """Build the per-block breakdown table for time estimation.
+
+    Parameters
+    ----------
+    block_estimates : list[dict[str, Any]]
+        Per-block estimation dicts.
+
+    Returns
+    -------
+    Table
+        A Rich Table with one row per block.
+    """
+    block_table = Table(show_header=True, header_style="bold bright_white")
+    block_table.add_column("Block Name", style="bright_cyan", width=20)
+    block_table.add_column("Time", justify="right", style="bright_yellow", width=10)
+    block_table.add_column("Requests", justify="right", style="bright_green", width=10)
+    block_table.add_column("Throughput", justify="right", style="bright_blue", width=12)
+    block_table.add_column("Amplif.", justify="right", style="bright_magenta", width=10)
+
+    for block in block_estimates:
+        block_seconds = block["estimated_time"]
+        time_str = (
+            f"{block_seconds:.1f}s"
+            if block_seconds < 60
+            else f"{block_seconds / 60:.1f}min"
+        )
+        block_table.add_row(
+            block["block"],
+            time_str,
+            f"{block['estimated_requests']:,.0f}",
+            f"{block['throughput']:.2f}/s",
+            f"{block['amplification']:.1f}x",
+        )
+
+    return block_table
 
 
 def display_time_estimation_summary(
@@ -212,37 +344,8 @@ def display_time_estimation_summary(
     """
     console = Console()
 
-    # Create main summary table
-    summary_table = Table(
-        show_header=False,
-        box=None,
-        padding=(0, 1),
-    )
-    summary_table.add_column("Metric", style="bright_cyan")
-    summary_table.add_column("Value", style="bright_white")
+    summary_table = _build_summary_table(time_estimation, dataset_size, max_concurrency)
 
-    # Format time
-    est_seconds = time_estimation["estimated_time_seconds"]
-    if est_seconds < 60:
-        time_str = f"{est_seconds:.1f} seconds"
-    elif est_seconds < 3600:
-        time_str = f"{est_seconds / 60:.1f} minutes ({est_seconds / 3600:.2f} hours)"
-    else:
-        time_str = f"{est_seconds / 3600:.2f} hours ({est_seconds / 60:.0f} minutes)"
-
-    summary_table.add_row("Estimated Time:", time_str)
-    summary_table.add_row(
-        "Total LLM Requests:", f"{time_estimation.get('total_estimated_requests', 0):,}"
-    )
-
-    if time_estimation.get("total_estimated_requests", 0) > 0:
-        requests_per_sample = time_estimation["total_estimated_requests"] / dataset_size
-        summary_table.add_row("Requests per Sample:", f"{requests_per_sample:.1f}")
-
-    if max_concurrency is not None:
-        summary_table.add_row("Max Concurrency:", str(max_concurrency))
-
-    # Display summary panel
     console.print()
     console.print(
         Panel(
@@ -252,53 +355,10 @@ def display_time_estimation_summary(
         )
     )
 
-    # Display per-block breakdown if available
     block_estimates = time_estimation.get("block_estimates", [])
     if block_estimates:
         console.print()
-
-        # Create per-block table
-        block_table = Table(
-            show_header=True,
-            header_style="bold bright_white",
-        )
-        block_table.add_column("Block Name", style="bright_cyan", width=20)
-        block_table.add_column("Time", justify="right", style="bright_yellow", width=10)
-        block_table.add_column(
-            "Requests", justify="right", style="bright_green", width=10
-        )
-        block_table.add_column(
-            "Throughput", justify="right", style="bright_blue", width=12
-        )
-        block_table.add_column(
-            "Amplif.", justify="right", style="bright_magenta", width=10
-        )
-
-        for block in block_estimates:
-            # Format time
-            block_seconds = block["estimated_time"]
-            if block_seconds < 60:
-                time_str = f"{block_seconds:.1f}s"
-            else:
-                time_str = f"{block_seconds / 60:.1f}min"
-
-            # Format requests
-            requests_str = f"{block['estimated_requests']:,.0f}"
-
-            # Format throughput
-            throughput_str = f"{block['throughput']:.2f}/s"
-
-            # Format amplification
-            amplif_str = f"{block['amplification']:.1f}x"
-
-            block_table.add_row(
-                block["block"],
-                time_str,
-                requests_str,
-                throughput_str,
-                amplif_str,
-            )
-
+        block_table = _build_block_breakdown_table(block_estimates)
         console.print(
             Panel(
                 block_table,

@@ -13,6 +13,101 @@ import json
 import uuid
 
 
+def _build_system_message(tool_list: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build the system message containing tool declarations.
+
+    Parameters
+    ----------
+    tool_list : list[dict[str, Any]]
+        Tool schemas with ``name``, ``description``, and ``inputSchema`` keys.
+
+    Returns
+    -------
+    dict[str, Any]
+        System message dict with tool declarations in the content.
+    """
+    tools_json = json.dumps(
+        [
+            {
+                "type": "function",
+                "function": {
+                    "name": t["name"],
+                    "description": t["description"],
+                    "parameters": t["inputSchema"],
+                },
+            }
+            for t in tool_list
+        ]
+    )
+    return {
+        "role": "system",
+        "content": f"<|im_system|>tool_declare<|im_middle|>{tools_json}<|im_end|>",
+    }
+
+
+def _handle_text_step(step: dict[str, Any]) -> dict[str, Any]:
+    """Convert a text trace step into a user or assistant message.
+
+    Parameters
+    ----------
+    step : dict[str, Any]
+        A trace step with ``type == "text"``.
+
+    Returns
+    -------
+    dict[str, Any]
+        A message dict with role "user" (for Input) or "assistant" (otherwise).
+    """
+    title = step.get("header", {}).get("title", "")
+    text = step.get("text", "")
+    role = "user" if title == "Input" else "assistant"
+    return {"role": role, "content": text}
+
+
+def _handle_tool_use_step(step: dict[str, Any]) -> list[dict[str, Any]]:
+    """Convert a tool_use trace step into assistant + tool message pair.
+
+    Parameters
+    ----------
+    step : dict[str, Any]
+        A trace step with ``type == "tool_use"``.
+
+    Returns
+    -------
+    list[dict[str, Any]]
+        A two-element list: the assistant tool_calls message and the tool response.
+    """
+    name = step.get("name", "")
+    tool_input = step.get("tool_input", {})
+    output = step.get("output")
+
+    tool_call_id = f"call_{uuid.uuid4().hex[:24]}"
+
+    assistant_msg = {
+        "role": "assistant",
+        "content": None,
+        "tool_calls": [
+            {
+                "id": tool_call_id,
+                "type": "function",
+                "function": {
+                    "name": name,
+                    "arguments": json.dumps(tool_input),
+                },
+            }
+        ],
+    }
+
+    tool_msg = {
+        "role": "tool",
+        "tool_call_id": tool_call_id,
+        "name": name,
+        "content": _extract_tool_output(output),
+    }
+
+    return [assistant_msg, tool_msg]
+
+
 def tool_trace_to_messages(
     tool_trace: list[dict[str, Any]],
     tool_list: list[dict[str, Any]],
@@ -50,78 +145,15 @@ def tool_trace_to_messages(
                 {"role": "assistant", "content": "final answer"},
             ]
     """
-    # -- system message with tool declarations --------------------------------
-    tools_json = json.dumps(
-        [
-            {
-                "type": "function",
-                "function": {
-                    "name": t["name"],
-                    "description": t["description"],
-                    "parameters": t["inputSchema"],
-                },
-            }
-            for t in tool_list
-        ]
-    )
-    messages: list[dict[str, Any]] = [
-        {
-            "role": "system",
-            "content": (
-                f"<|im_system|>tool_declare<|im_middle|>{tools_json}<|im_end|>"
-            ),
-        }
-    ]
+    messages: list[dict[str, Any]] = [_build_system_message(tool_list)]
 
-    # -- walk through each trace step -----------------------------------------
     for step in tool_trace:
         step_type = step.get("type")
 
         if step_type == "text":
-            title = step.get("header", {}).get("title", "")
-            text = step.get("text", "")
-            if title == "Input":
-                messages.append({"role": "user", "content": text})
-            elif title == "Output":
-                messages.append({"role": "assistant", "content": text})
-            else:
-                messages.append({"role": "assistant", "content": text})
-
+            messages.append(_handle_text_step(step))
         elif step_type == "tool_use":
-            name = step.get("name", "")
-            tool_input = step.get("tool_input", {})
-            output = step.get("output")
-
-            tool_call_id = f"call_{uuid.uuid4().hex[:24]}"
-
-            # assistant decides to call a tool
-            messages.append(
-                {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [
-                        {
-                            "id": tool_call_id,
-                            "type": "function",
-                            "function": {
-                                "name": name,
-                                "arguments": json.dumps(tool_input),
-                            },
-                        }
-                    ],
-                }
-            )
-
-            # tool returns its result
-            result_text = _extract_tool_output(output)
-            messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tool_call_id,
-                    "name": name,
-                    "content": result_text,
-                }
-            )
+            messages.extend(_handle_tool_use_step(step))
 
     return messages
 
