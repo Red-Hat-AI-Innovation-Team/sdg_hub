@@ -12,6 +12,9 @@ if TYPE_CHECKING:
 
 logger = setup_logger(__name__)
 
+# Default Langflow agent endpoint URL for local development.
+DEFAULT_AGENT_URL = "http://localhost:7860/api/v1/run/my-flow"
+
 
 def detect_agent_blocks(flow: "Flow") -> list[str]:
     """Detect blocks with block_type='agent'.
@@ -113,16 +116,17 @@ def set_agent_config(
     Examples
     --------
     >>> flow = Flow.from_yaml("path/to/flow.yaml")
+    >>> from sdg_hub.core.flow.agent_config import DEFAULT_AGENT_URL
     >>> flow.set_agent_config(
     ...     agent_framework="langflow",
-    ...     agent_url="http://localhost:7860/api/v1/run/my-flow",
+    ...     agent_url=DEFAULT_AGENT_URL,
     ...     agent_api_key="your_key",
     ... )
     >>> result = flow.generate(dataset)
 
     >>> # Configure only specific blocks
     >>> flow.set_agent_config(
-    ...     agent_url="http://localhost:7860/api/v1/run/my-flow",
+    ...     agent_url=DEFAULT_AGENT_URL,
     ...     blocks=["my_agent_block"]
     ... )
 

@@ -15,6 +15,9 @@ if TYPE_CHECKING:
 
 logger = setup_logger(__name__)
 
+# Default API base URL for local vLLM / OpenAI-compatible model servers.
+DEFAULT_API_BASE = "http://localhost:8101/v1"
+
 
 def detect_llm_blocks(flow: "Flow") -> list[str]:
     """Detect blocks with block_type='llm'.
@@ -168,7 +171,7 @@ def set_model_config(
     model : Optional[str]
         Model name to configure (e.g., "hosted_vllm/openai/gpt-oss-120b").
     api_base : Optional[str]
-        API base URL to configure (e.g., "http://localhost:8101/v1").
+        API base URL to configure (e.g., DEFAULT_API_BASE).
     api_key : Optional[str]
         API key to configure.
     blocks : Optional[list[str]]
@@ -180,9 +183,10 @@ def set_model_config(
     --------
     >>> # Recommended workflow: discover -> initialize -> set_model_config -> generate
     >>> flow = Flow.from_yaml("path/to/flow.yaml")  # Initialize flow
+    >>> from sdg_hub.core.flow.model_config import DEFAULT_API_BASE
     >>> flow.set_model_config(  # Configure model settings
     ...     model="hosted_vllm/openai/gpt-oss-120b",
-    ...     api_base="http://localhost:8101/v1",
+    ...     api_base=DEFAULT_API_BASE,
     ...     api_key="your_key",
     ...     temperature=0.7,
     ...     max_tokens=2048
@@ -192,7 +196,7 @@ def set_model_config(
     >>> # Configure only specific blocks
     >>> flow.set_model_config(
     ...     model="hosted_vllm/openai/gpt-oss-120b",
-    ...     api_base="http://localhost:8101/v1",
+    ...     api_base=DEFAULT_API_BASE,
     ...     blocks=["gen_detailed_summary", "knowledge_generation"]
     ... )
 

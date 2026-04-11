@@ -6,12 +6,13 @@ Example
 >>> from sdg_hub.core.connectors import (
 ...     ConnectorConfig,
 ...     ConnectorRegistry,
+...     DEFAULT_LANGFLOW_URL,
 ...     LangflowConnector,
 ... )
 >>>
 >>> # Using the registry
 >>> connector_class = ConnectorRegistry.get("langflow")
->>> config = ConnectorConfig(url="http://localhost:7860/api/v1/run/flow")
+>>> config = ConnectorConfig(url=DEFAULT_LANGFLOW_URL)
 >>> connector = connector_class(config=config)
 >>>
 >>> # Direct instantiation
@@ -29,6 +30,12 @@ from .exceptions import ConnectorError, ConnectorHTTPError
 from .http import HttpClient
 from .registry import ConnectorRegistry
 
+# Default Langflow API endpoint URL for local development.
+DEFAULT_LANGFLOW_URL = "http://localhost:7860/api/v1/run/flow"
+
+# Default LangGraph API endpoint URL for local development.
+DEFAULT_LANGGRAPH_URL = "http://localhost:2024"
+
 __all__ = [
     # Base classes
     "BaseConnector",
@@ -44,4 +51,7 @@ __all__ = [
     # Exceptions
     "ConnectorError",
     "ConnectorHTTPError",
+    # Default URLs
+    "DEFAULT_LANGFLOW_URL",
+    "DEFAULT_LANGGRAPH_URL",
 ]

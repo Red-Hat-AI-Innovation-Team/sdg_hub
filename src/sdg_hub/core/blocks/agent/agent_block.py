@@ -20,6 +20,9 @@ from ..registry import BlockRegistry
 
 logger = setup_logger(__name__)
 
+# Default Langflow agent endpoint URL for local development.
+DEFAULT_AGENT_URL = "http://localhost:7860/api/v1/run/my-flow"
+
 
 @BlockRegistry.register(
     "AgentBlock",
@@ -62,7 +65,7 @@ class AgentBlock(BaseBlock):
       block_config:
         block_name: my_agent
         agent_framework: langflow
-        agent_url: http://localhost:7860/api/v1/run/my-flow
+        agent_url: http://localhost:7860/api/v1/run/my-flow  # see DEFAULT_AGENT_URL
         agent_api_key: ${LANGFLOW_API_KEY}
         input_cols:
           messages: messages_col
@@ -75,7 +78,7 @@ class AgentBlock(BaseBlock):
     >>> block = AgentBlock(
     ...     block_name="qa_agent",
     ...     agent_framework="langflow",
-    ...     agent_url="http://localhost:7860/api/v1/run/qa-flow",
+    ...     agent_url=DEFAULT_AGENT_URL,
     ...     input_cols={"messages": "question"},
     ...     output_cols=["response"],
     ... )

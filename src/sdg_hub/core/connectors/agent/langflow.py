@@ -10,6 +10,9 @@ from .base import BaseAgentConnector
 
 logger = setup_logger(__name__)
 
+# Default Langflow API endpoint URL for local development.
+DEFAULT_LANGFLOW_URL = "http://localhost:7860/api/v1/run/my-flow"
+
 
 @ConnectorRegistry.register("langflow")
 class LangflowConnector(BaseAgentConnector):
@@ -29,7 +32,7 @@ class LangflowConnector(BaseAgentConnector):
     >>> from sdg_hub.core.connectors import ConnectorConfig, LangflowConnector
     >>>
     >>> config = ConnectorConfig(
-    ...     url="http://localhost:7860/api/v1/run/my-flow",
+    ...     url=DEFAULT_LANGFLOW_URL,
     ...     api_key="your-api-key",
     ... )
     >>> connector = LangflowConnector(config=config)

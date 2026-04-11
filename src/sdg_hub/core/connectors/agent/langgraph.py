@@ -12,6 +12,9 @@ from .base import BaseAgentConnector
 
 logger = setup_logger(__name__)
 
+# Default LangGraph API endpoint URL for local development.
+DEFAULT_LANGGRAPH_URL = "http://localhost:2024"
+
 
 @ConnectorRegistry.register("langgraph")
 class LangGraphConnector(BaseAgentConnector):
@@ -44,7 +47,7 @@ class LangGraphConnector(BaseAgentConnector):
     >>> from sdg_hub.core.connectors import ConnectorConfig, LangGraphConnector
     >>>
     >>> config = ConnectorConfig(
-    ...     url="http://localhost:2024",
+    ...     url=DEFAULT_LANGGRAPH_URL,
     ...     api_key="your-api-key",
     ... )
     >>> connector = LangGraphConnector(config=config)
