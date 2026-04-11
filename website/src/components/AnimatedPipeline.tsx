@@ -11,8 +11,8 @@ const steps = [
   { label: "enriched", type: "output" },
 ];
 
-const SEGMENT_DURATION = 1500; // ms per connector segment
-const PAUSE_DURATION = 400; // ms pause/glow at each block
+const SEGMENT_DURATION = 800; // ms per connector segment
+const PAUSE_DURATION = 200; // ms pause/glow at each block
 const TOTAL_SEGMENTS = steps.length - 1; // 5 connectors
 const CYCLE_DURATION =
   TOTAL_SEGMENTS * SEGMENT_DURATION + (TOTAL_SEGMENTS - 1) * PAUSE_DURATION; // ~9.1s total
