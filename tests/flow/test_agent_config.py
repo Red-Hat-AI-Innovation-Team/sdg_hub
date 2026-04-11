@@ -118,7 +118,7 @@ class TestAgentConfigCoverage:
         )
         assert not hasattr(agent_block, "secret")
 
-        with caplog.at_level(logging.DEBUG, logger="sdg_hub.core.flow.agent_config"):
+        with caplog.at_level(logging.DEBUG, logger="sdg_hub.core.utils.config_helpers"):
             flow.set_agent_config(
                 agent_url="http://new:7860",
                 secret="super-secret-value",

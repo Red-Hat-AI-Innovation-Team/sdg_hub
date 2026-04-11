@@ -1471,7 +1471,7 @@ class TestFlow:
         )
         flow = Flow(metadata=self.test_metadata, blocks=[llm_block])
 
-        with caplog.at_level(logging.INFO, logger="sdg_hub.core.flow.model_config"):
+        with caplog.at_level(logging.INFO, logger="sdg_hub.core.utils.config_helpers"):
             flow.set_model_config(
                 model="openai/gpt-4",
                 api_key="sk-secret-key",
