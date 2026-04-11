@@ -1,10 +1,24 @@
 # Connectors API Reference
 
-Auto-generated reference for the connector subsystem.
+This page provides auto-generated API documentation from source docstrings.
+When reading raw markdown, refer to the quick reference below.
+
+## Quick Reference
+
+| Class | Import | Description |
+|-------|--------|-------------|
+| BaseConnector | `from sdg_hub.core.connectors import BaseConnector` | Abstract base class for all connectors |
+| ConnectorConfig | `from sdg_hub.core.connectors import ConnectorConfig` | Base configuration for connectors (url, api_key, timeout, retries) |
+| ConnectorRegistry | `from sdg_hub.core.connectors import ConnectorRegistry` | Global registry for connector discovery and retrieval by name |
+| BaseAgentConnector | `from sdg_hub.core.connectors import BaseAgentConnector` | Base class for agent framework connectors (async-first pattern) |
+| LangflowConnector | `from sdg_hub.core.connectors import LangflowConnector` | Connector for Langflow visual LLM app builder |
+| LangGraphConnector | `from sdg_hub.core.connectors import LangGraphConnector` | Connector for LangGraph stateful multi-actor agent framework |
 
 ---
 
-## Base Classes
+## Detailed API (auto-generated)
+
+### Base Classes
 
 ::: sdg_hub.core.connectors.base.BaseConnector
     options:
@@ -23,7 +37,7 @@ Auto-generated reference for the connector subsystem.
 
 ---
 
-## Agent Connectors
+### Agent Connectors
 
 ::: sdg_hub.core.connectors.agent.base.BaseAgentConnector
     options:

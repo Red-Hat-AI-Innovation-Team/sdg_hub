@@ -1,10 +1,26 @@
 # Flow API Reference
 
-Auto-generated reference for the flow orchestration system.
+This page provides auto-generated API documentation from source docstrings.
+When reading raw markdown, refer to the quick reference below.
+
+## Quick Reference
+
+| Class | Import | Description |
+|-------|--------|-------------|
+| Flow | `from sdg_hub import Flow` | Pydantic-based flow for chaining data generation blocks into pipelines |
+| FlowRegistry | `from sdg_hub import FlowRegistry` | Registry for managing and discovering contributed flows |
+| FlowMetadata | `from sdg_hub import FlowMetadata` | Flow metadata including name, version, author, and descriptions |
+| RecommendedModels | `from sdg_hub.core.flow.metadata import RecommendedModels` | Recommended model configurations for a flow |
+| DatasetRequirements | `from sdg_hub.core.flow.metadata import DatasetRequirements` | Dataset column and format requirements for a flow |
+| FlowValidator | `from sdg_hub import FlowValidator` | Validator for flow YAML configurations and execution readiness |
+
+**Key entry points:** `Flow.from_yaml()`, `flow.generate()`, `flow.dry_run()`, `flow.set_model_config()`
 
 ---
 
-## Core
+## Detailed API (auto-generated)
+
+### Core
 
 ::: sdg_hub.core.flow.base.Flow
     options:
@@ -18,7 +34,7 @@ Auto-generated reference for the flow orchestration system.
 
 ---
 
-## Metadata
+### Metadata
 
 ::: sdg_hub.core.flow.metadata.FlowMetadata
     options:
@@ -37,7 +53,7 @@ Auto-generated reference for the flow orchestration system.
 
 ---
 
-## Validation
+### Validation
 
 ::: sdg_hub.core.flow.validation.FlowValidator
     options:
