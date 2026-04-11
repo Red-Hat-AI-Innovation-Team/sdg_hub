@@ -536,7 +536,7 @@ body::before {
   color: var(--color-purple);
   background: transparent;
   padding: 0;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* Required indicator */
@@ -596,7 +596,7 @@ body::before {
   background: transparent;
   padding: 0;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .api-method-doc {
