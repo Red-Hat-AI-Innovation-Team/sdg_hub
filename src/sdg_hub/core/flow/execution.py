@@ -4,6 +4,7 @@
 # Standard
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
+import logging
 import time
 import uuid
 
@@ -56,7 +57,9 @@ def _validate_max_concurrency(max_concurrency: Optional[int]) -> None:
             )
 
 
-def _close_flow_logger(flow_logger, module_logger) -> None:
+def _close_flow_logger(
+    flow_logger: logging.Logger, module_logger: logging.Logger
+) -> None:
     """Close file handlers on a flow-specific logger.
 
     Parameters
@@ -71,9 +74,10 @@ def _close_flow_logger(flow_logger, module_logger) -> None:
             try:
                 h.flush()
                 h.close()
-            except Exception:
+            except (OSError, ValueError):
                 # Ignore errors during cleanup - handler may already be closed
-                # or in an invalid state. We still want to remove it.
+                # (ValueError) or the underlying stream may be in an invalid
+                # state (OSError). We still want to remove it.
                 pass
             finally:
                 flow_logger.removeHandler(h)
@@ -185,11 +189,203 @@ def prepare_block_kwargs(
     return runtime_params.get(block.block_name, {})
 
 
+def _record_block_success_metrics(
+    flow: "Flow",
+    block: BaseBlock,
+    execution_time: float,
+    input_rows: int,
+    input_cols: set[str],
+    current_dataset: pd.DataFrame,
+    exec_logger: logging.Logger,
+) -> None:
+    """Record metrics for a successfully executed block.
+
+    Parameters
+    ----------
+    flow : Flow
+        The flow instance (metrics are appended to flow._block_metrics).
+    block : BaseBlock
+        The block that was executed.
+    execution_time : float
+        Wall-clock time the block took to execute.
+    input_rows : int
+        Number of rows in the input dataset.
+    input_cols : set[str]
+        Column names in the input dataset.
+    current_dataset : pd.DataFrame
+        The dataset produced by the block.
+    exec_logger : logging.Logger
+        Logger for this execution.
+    """
+    output_cols = set(current_dataset.columns)
+    flow._block_metrics.append(
+        {
+            "block_name": block.block_name,
+            "block_class": block.__class__.__name__,
+            "execution_time": execution_time,
+            "input_rows": input_rows,
+            "output_rows": len(current_dataset),
+            "added_cols": list(output_cols - input_cols),
+            "removed_cols": list(input_cols - output_cols),
+            "status": "success",
+        }
+    )
+    exec_logger.info(
+        f"Block '{block.block_name}' completed successfully: "
+        f"{len(current_dataset)} samples, "
+        f"{len(current_dataset.columns)} columns"
+    )
+
+
+def _record_block_failure_metrics(
+    flow: "Flow",
+    block: BaseBlock,
+    execution_time: float,
+    input_rows: int,
+    exc: Exception,
+    exec_logger: logging.Logger,
+) -> None:
+    """Record metrics for a failed block and re-raise as FlowValidationError.
+
+    Parameters
+    ----------
+    flow : Flow
+        The flow instance (metrics are appended to flow._block_metrics).
+    block : BaseBlock
+        The block that failed.
+    execution_time : float
+        Wall-clock time before the failure.
+    input_rows : int
+        Number of rows in the input dataset.
+    exc : Exception
+        The exception that occurred.
+    exec_logger : logging.Logger
+        Logger for this execution.
+
+    Raises
+    ------
+    FlowValidationError
+        Always raised, wrapping the original exception.
+    """
+    flow._block_metrics.append(
+        {
+            "block_name": block.block_name,
+            "block_class": block.__class__.__name__,
+            "execution_time": execution_time,
+            "input_rows": input_rows,
+            "output_rows": 0,
+            "added_cols": [],
+            "removed_cols": [],
+            "status": "failed",
+            "error": str(exc),
+        }
+    )
+    exec_logger.error(f"Block '{block.block_name}' failed during execution: {exc}")
+    raise FlowValidationError(
+        f"Block '{block.block_name}' execution failed: {exc}"
+    ) from exc
+
+
+def _execute_single_block(
+    flow: "Flow",
+    block: BaseBlock,
+    block_index: int,
+    current_dataset: pd.DataFrame,
+    runtime_params: dict[str, dict[str, Any]],
+    exec_logger: logging.Logger,
+    max_concurrency: Optional[int] = None,
+    column_tracker: Optional[ColumnDependencyTracker] = None,
+) -> pd.DataFrame:
+    """Execute a single block on the dataset and record metrics.
+
+    Parameters
+    ----------
+    flow : Flow
+        The flow instance.
+    block : BaseBlock
+        The block to execute.
+    block_index : int
+        Index of the block in the flow (0-based).
+    current_dataset : pd.DataFrame
+        Dataset to pass to the block.
+    runtime_params : dict[str, dict[str, Any]]
+        Runtime parameters for block execution.
+    exec_logger : logging.Logger
+        Logger for this execution.
+    max_concurrency : Optional[int], optional
+        Maximum concurrency for LLM requests.
+    column_tracker : Optional[ColumnDependencyTracker], optional
+        Tracker for early dropping of unused columns.
+
+    Returns
+    -------
+    pd.DataFrame
+        Dataset after processing through the block (and optional column dropping).
+    """
+    exec_logger.info(
+        f"Executing block {block_index + 1}/{len(flow.blocks)}: "
+        f"{block.block_name} ({block.__class__.__name__})"
+    )
+
+    # Prepare block execution parameters
+    block_kwargs = prepare_block_kwargs(block, runtime_params)
+    if max_concurrency is not None:
+        block_kwargs["_flow_max_concurrency"] = max_concurrency
+
+    # Capture metrics before execution
+    start_time = time.perf_counter()
+    input_rows = len(current_dataset)
+    input_cols = set(current_dataset.columns)
+
+    try:
+        current_dataset = block(current_dataset, **block_kwargs)
+
+        if len(current_dataset) == 0:
+            raise EmptyDatasetError(block.block_name)
+
+        execution_time = time.perf_counter() - start_time
+        _record_block_success_metrics(
+            flow,
+            block,
+            execution_time,
+            input_rows,
+            input_cols,
+            current_dataset,
+            exec_logger,
+        )
+    except EmptyDatasetError:
+        raise
+    except Exception as exc:
+        execution_time = time.perf_counter() - start_time
+        _record_block_failure_metrics(
+            flow,
+            block,
+            execution_time,
+            input_rows,
+            exc,
+            exec_logger,
+        )
+
+    # Drop columns no longer needed by downstream blocks (outside try/except
+    # so failures here are not misattributed as block execution errors)
+    if column_tracker is not None:
+        cols_to_drop = column_tracker.get_droppable_columns(
+            block_index, set(current_dataset.columns)
+        )
+        if cols_to_drop:
+            exec_logger.info(
+                f"Dropping {len(cols_to_drop)} unused columns: {sorted(cols_to_drop)}"
+            )
+            current_dataset = current_dataset.drop(columns=cols_to_drop)
+
+    return current_dataset
+
+
 def execute_blocks_on_dataset(
     flow: "Flow",
     dataset: pd.DataFrame,
     runtime_params: dict[str, dict[str, Any]],
-    flow_logger=None,
+    flow_logger: Optional[logging.Logger] = None,
     max_concurrency: Optional[int] = None,
     column_tracker: Optional[ColumnDependencyTracker] = None,
 ) -> pd.DataFrame:
@@ -215,103 +411,20 @@ def execute_blocks_on_dataset(
     pd.DataFrame
         Dataset after processing through all blocks.
     """
-    # Use provided logger or fall back to global logger
     exec_logger = flow_logger if flow_logger is not None else logger
     current_dataset = dataset
 
-    # Execute blocks in sequence
     for i, block in enumerate(flow.blocks):
-        exec_logger.info(
-            f"Executing block {i + 1}/{len(flow.blocks)}: "
-            f"{block.block_name} ({block.__class__.__name__})"
+        current_dataset = _execute_single_block(
+            flow,
+            block,
+            i,
+            current_dataset,
+            runtime_params,
+            exec_logger,
+            max_concurrency,
+            column_tracker,
         )
-
-        # Prepare block execution parameters
-        block_kwargs = prepare_block_kwargs(block, runtime_params)
-
-        # Add max_concurrency to block kwargs if provided
-        if max_concurrency is not None:
-            block_kwargs["_flow_max_concurrency"] = max_concurrency
-
-        # Capture metrics before execution
-        start_time = time.perf_counter()
-        input_rows = len(current_dataset)
-        input_cols = set(current_dataset.columns)
-
-        try:
-            # Execute block with validation and logging
-            current_dataset = block(current_dataset, **block_kwargs)
-
-            # Validate output
-            if len(current_dataset) == 0:
-                raise EmptyDatasetError(block.block_name)
-
-            # Capture metrics after successful execution
-            execution_time = time.perf_counter() - start_time
-            output_rows = len(current_dataset)
-            output_cols = set(current_dataset.columns)
-            added_cols = output_cols - input_cols
-            removed_cols = input_cols - output_cols
-
-            # Store block metrics
-            flow._block_metrics.append(
-                {
-                    "block_name": block.block_name,
-                    "block_class": block.__class__.__name__,
-                    "execution_time": execution_time,
-                    "input_rows": input_rows,
-                    "output_rows": output_rows,
-                    "added_cols": list(added_cols),
-                    "removed_cols": list(removed_cols),
-                    "status": "success",
-                }
-            )
-
-            exec_logger.info(
-                f"Block '{block.block_name}' completed successfully: "
-                f"{len(current_dataset)} samples, "
-                f"{len(current_dataset.columns)} columns"
-            )
-
-        except EmptyDatasetError:
-            # Re-raise EmptyDatasetError directly without wrapping
-            raise
-        except Exception as exc:
-            # Capture metrics for failed execution
-            execution_time = time.perf_counter() - start_time
-            flow._block_metrics.append(
-                {
-                    "block_name": block.block_name,
-                    "block_class": block.__class__.__name__,
-                    "execution_time": execution_time,
-                    "input_rows": input_rows,
-                    "output_rows": 0,
-                    "added_cols": [],
-                    "removed_cols": [],
-                    "status": "failed",
-                    "error": str(exc),
-                }
-            )
-
-            exec_logger.error(
-                f"Block '{block.block_name}' failed during execution: {exc}"
-            )
-            raise FlowValidationError(
-                f"Block '{block.block_name}' execution failed: {exc}"
-            ) from exc
-
-        # Drop columns no longer needed by downstream blocks (outside try/except
-        # so failures here are not misattributed as block execution errors)
-        if column_tracker is not None:
-            cols_to_drop = column_tracker.get_droppable_columns(
-                i, set(current_dataset.columns)
-            )
-            if cols_to_drop:
-                exec_logger.info(
-                    f"Dropping {len(cols_to_drop)} unused columns: "
-                    f"{sorted(cols_to_drop)}"
-                )
-                current_dataset = current_dataset.drop(columns=cols_to_drop)
 
     return current_dataset
 
@@ -363,6 +476,375 @@ def _cleanup_final_columns(
         dataset = dataset.drop(columns=list(cols_to_drop))
 
     return dataset
+
+
+def _setup_flow_logger(
+    log_dir: Optional[str],
+    flow_metadata_name: str,
+) -> tuple[logging.Logger, Optional[str], Optional[str]]:
+    """Create a flow-specific logger if log_dir is provided.
+
+    Parameters
+    ----------
+    log_dir : Optional[str]
+        Directory to save execution logs. If None, returns the module logger.
+    flow_metadata_name : str
+        Name from flow metadata, used to build the log filename.
+
+    Returns
+    -------
+    tuple[logging.Logger, Optional[str], Optional[str]]
+        (flow_logger, timestamp, flow_name).  timestamp and flow_name are None
+        when log_dir is None.
+    """
+    if log_dir is None:
+        return logger, None, None
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    flow_name = flow_metadata_name.replace(" ", "_").lower()
+    log_filename = f"{flow_name}_{timestamp}.log"
+
+    unique_id = str(uuid.uuid4())[:8]
+    flow_logger_name = f"{__name__}.flow_{flow_name}_{timestamp}_{unique_id}"
+    flow_logger = setup_logger(
+        flow_logger_name, log_dir=log_dir, log_filename=log_filename
+    )
+    flow_logger.propagate = False
+    flow_logger.info(
+        f"Flow logging enabled - logs will be saved to: {log_dir}/{log_filename}"
+    )
+    return flow_logger, timestamp, flow_name
+
+
+def _validate_flow_preconditions(
+    flow: "Flow",
+    dataset: pd.DataFrame,
+    save_freq: Optional[int],
+    max_concurrency: Optional[int],
+) -> None:
+    """Validate all preconditions before flow execution.
+
+    Checks blocks, dataset, model config, agent config, and dataset requirements.
+
+    Parameters
+    ----------
+    flow : Flow
+        The flow instance.
+    dataset : pd.DataFrame
+        Input dataset.
+    save_freq : Optional[int]
+        Checkpoint save frequency.
+    max_concurrency : Optional[int]
+        Maximum concurrency for LLM requests.
+
+    Raises
+    ------
+    FlowValidationError
+        If any precondition is not met.
+    """
+    # Import here to avoid circular imports
+    from .agent_config import detect_agent_blocks
+    from .model_config import detect_llm_blocks
+
+    if save_freq is not None and save_freq <= 0:
+        raise FlowValidationError(f"save_freq must be greater than 0, got {save_freq}")
+
+    _validate_max_concurrency(max_concurrency)
+
+    if not flow.blocks:
+        raise FlowValidationError("Cannot generate with empty flow")
+
+    if len(dataset) == 0:
+        raise FlowValidationError("Input dataset is empty")
+
+    validate_no_duplicates(dataset)
+
+    llm_blocks = detect_llm_blocks(flow)
+    if llm_blocks and not flow._model_config_set:
+        raise FlowValidationError(
+            f"Model configuration required before generate(). "
+            f"Found {len(llm_blocks)} LLM blocks: {sorted(llm_blocks)}. "
+            f"Call flow.set_model_config() first."
+        )
+
+    agent_blocks = detect_agent_blocks(flow)
+    if agent_blocks and not flow._agent_config_set:
+        raise FlowValidationError(
+            f"Agent configuration required before generate(). "
+            f"Found {len(agent_blocks)} agent blocks: {sorted(agent_blocks)}. "
+            f"Call flow.set_agent_config() first."
+        )
+
+    dataset_errors = validate_flow_dataset(flow, dataset)
+    if dataset_errors:
+        raise FlowValidationError(
+            "Dataset validation failed:\n" + "\n".join(dataset_errors)
+        )
+
+
+def _initialize_checkpointer(
+    flow: "Flow",
+    dataset: pd.DataFrame,
+    checkpoint_dir: Optional[str],
+    save_freq: Optional[int],
+    effective_output_columns: Optional[set[str]],
+    original_columns: set[str],
+    was_dataset: bool,
+    flow_logger: logging.Logger,
+    log_dir: Optional[str],
+) -> tuple[
+    Optional[FlowCheckpointer],
+    Optional[pd.DataFrame],
+    pd.DataFrame,
+    Optional[Union[pd.DataFrame, datasets.Dataset]],
+]:
+    """Set up checkpointer and load existing progress if available.
+
+    Parameters
+    ----------
+    flow : Flow
+        The flow instance.
+    dataset : pd.DataFrame
+        Input dataset.
+    checkpoint_dir : Optional[str]
+        Directory to save/load checkpoints.
+    save_freq : Optional[int]
+        Save frequency for checkpoints.
+    effective_output_columns : Optional[set[str]]
+        Output columns for cleanup.
+    original_columns : set[str]
+        Original input columns.
+    was_dataset : bool
+        Whether input was a datasets.Dataset.
+    flow_logger : logging.Logger
+        Logger for this execution.
+    log_dir : Optional[str]
+        Log directory (used to decide if logger needs closing).
+
+    Returns
+    -------
+    tuple
+        (checkpointer, completed_dataset, remaining_dataset, early_return).
+        If early_return is not None, the caller should return it immediately.
+    """
+    if not checkpoint_dir:
+        return None, None, dataset, None
+
+    checkpointer = FlowCheckpointer(
+        checkpoint_dir=checkpoint_dir,
+        save_freq=save_freq,
+        flow_id=flow.metadata.id,
+    )
+
+    remaining_dataset, completed_dataset = checkpointer.load_existing_progress(dataset)
+
+    if len(remaining_dataset) == 0:
+        flow_logger.info("All samples already completed, returning existing results")
+
+        if effective_output_columns is not None:
+            completed_dataset = _cleanup_final_columns(
+                completed_dataset,
+                effective_output_columns,
+                original_columns,
+                flow_logger,
+            )
+
+        if log_dir is not None:
+            _close_flow_logger(flow_logger, logger)
+
+        return (
+            checkpointer,
+            completed_dataset,
+            remaining_dataset,
+            convert_from_dataframe(completed_dataset, was_dataset),
+        )
+
+    flow_logger.info(f"Resuming with {len(remaining_dataset)} remaining samples")
+    return checkpointer, completed_dataset, remaining_dataset, None
+
+
+def _process_with_checkpointing(
+    flow: "Flow",
+    dataset: pd.DataFrame,
+    checkpointer: FlowCheckpointer,
+    save_freq: int,
+    completed_dataset: Optional[pd.DataFrame],
+    runtime_params: dict[str, dict[str, Any]],
+    flow_logger: logging.Logger,
+    max_concurrency: Optional[int],
+    column_tracker: Optional[ColumnDependencyTracker],
+) -> pd.DataFrame:
+    """Process dataset in chunks with checkpoint saves.
+
+    Parameters
+    ----------
+    flow : Flow
+        The flow instance.
+    dataset : pd.DataFrame
+        Dataset to process.
+    checkpointer : FlowCheckpointer
+        Active checkpointer.
+    save_freq : int
+        Number of samples per checkpoint chunk.
+    completed_dataset : Optional[pd.DataFrame]
+        Previously completed samples (may be None or empty).
+    runtime_params : dict[str, dict[str, Any]]
+        Runtime parameters for block execution.
+    flow_logger : logging.Logger
+        Logger for this execution.
+    max_concurrency : Optional[int]
+        Maximum concurrency for LLM requests.
+    column_tracker : Optional[ColumnDependencyTracker]
+        Tracker for early dropping of unused columns.
+
+    Returns
+    -------
+    pd.DataFrame
+        Combined dataset of all processed chunks and any prior completed data.
+    """
+    all_processed = []
+
+    for i in range(0, len(dataset), save_freq):
+        chunk_end = min(i + save_freq, len(dataset))
+        chunk_dataset = dataset.iloc[i:chunk_end]
+
+        flow_logger.info(
+            f"Processing chunk {i // save_freq + 1}: samples {i} to {chunk_end - 1}"
+        )
+
+        processed_chunk = execute_blocks_on_dataset(
+            flow,
+            chunk_dataset,
+            runtime_params,
+            flow_logger,
+            max_concurrency,
+            column_tracker,
+        )
+        all_processed.append(processed_chunk)
+        checkpointer.add_completed_samples(processed_chunk)
+
+    checkpointer.save_final_checkpoint()
+
+    final_dataset = safe_concatenate_with_validation(
+        all_processed, "processed chunks from flow execution"
+    )
+
+    if completed_dataset is not None and not completed_dataset.empty:
+        final_dataset = safe_concatenate_with_validation(
+            [completed_dataset, final_dataset],
+            "completed checkpoint data with newly processed data",
+        )
+
+    return final_dataset
+
+
+def _process_without_checkpointing(
+    flow: "Flow",
+    dataset: pd.DataFrame,
+    checkpointer: Optional[FlowCheckpointer],
+    completed_dataset: Optional[pd.DataFrame],
+    runtime_params: dict[str, dict[str, Any]],
+    flow_logger: logging.Logger,
+    max_concurrency: Optional[int],
+    column_tracker: Optional[ColumnDependencyTracker],
+) -> pd.DataFrame:
+    """Process entire dataset at once, optionally saving a final checkpoint.
+
+    Parameters
+    ----------
+    flow : Flow
+        The flow instance.
+    dataset : pd.DataFrame
+        Dataset to process.
+    checkpointer : Optional[FlowCheckpointer]
+        Checkpointer (may be None if checkpointing is disabled).
+    completed_dataset : Optional[pd.DataFrame]
+        Previously completed samples.
+    runtime_params : dict[str, dict[str, Any]]
+        Runtime parameters for block execution.
+    flow_logger : logging.Logger
+        Logger for this execution.
+    max_concurrency : Optional[int]
+        Maximum concurrency for LLM requests.
+    column_tracker : Optional[ColumnDependencyTracker]
+        Tracker for early dropping of unused columns.
+
+    Returns
+    -------
+    pd.DataFrame
+        Processed dataset, combined with any prior completed data.
+    """
+    final_dataset = execute_blocks_on_dataset(
+        flow,
+        dataset,
+        runtime_params,
+        flow_logger,
+        max_concurrency,
+        column_tracker,
+    )
+
+    if checkpointer:
+        checkpointer.add_completed_samples(final_dataset)
+        checkpointer.save_final_checkpoint()
+
+        if completed_dataset is not None and not completed_dataset.empty:
+            final_dataset = safe_concatenate_with_validation(
+                [completed_dataset, final_dataset],
+                "completed checkpoint data with newly processed data",
+            )
+
+    return final_dataset
+
+
+def _finalize_flow_metrics(
+    flow: "Flow",
+    final_dataset: Optional[pd.DataFrame],
+    execution_successful: bool,
+    run_start: float,
+    log_dir: Optional[str],
+    timestamp: Optional[str],
+    flow_name: Optional[str],
+    flow_logger: logging.Logger,
+) -> None:
+    """Display and persist flow metrics, then close the flow logger.
+
+    This function is intended to be called in a ``finally`` block so that
+    metrics are always emitted regardless of success or failure.
+
+    Parameters
+    ----------
+    flow : Flow
+        The flow instance.
+    final_dataset : Optional[pd.DataFrame]
+        The final dataset (may be None on failure).
+    execution_successful : bool
+        Whether the execution completed without error.
+    run_start : float
+        Start time from ``time.perf_counter()``.
+    log_dir : Optional[str]
+        Log directory.
+    timestamp : Optional[str]
+        Timestamp string for the log file.
+    flow_name : Optional[str]
+        Sanitised flow name for the log file.
+    flow_logger : logging.Logger
+        Logger for this execution.
+    """
+    display_metrics_summary(flow._block_metrics, flow.metadata.name, final_dataset)
+
+    if log_dir is not None:
+        save_metrics_to_json(
+            flow._block_metrics,
+            flow.metadata.name,
+            flow.metadata.version,
+            execution_successful,
+            run_start,
+            log_dir,
+            timestamp,
+            flow_name,
+            flow_logger,
+        )
+        _close_flow_logger(flow_logger, logger)
 
 
 def execute_flow(
@@ -419,125 +901,42 @@ def execute_flow(
         If flow validation fails, input dataset is empty, or model configuration
         is required but not set.
     """
-    # Import here to avoid circular imports
-    from .agent_config import detect_agent_blocks
-    from .model_config import detect_llm_blocks
-
     # Convert to DataFrame if needed (backwards compatibility)
     dataset, was_dataset = convert_to_dataframe(dataset)
 
-    # Capture original columns for preservation during cleanup
     original_columns = set(dataset.columns)
-
-    # Determine effective output columns from metadata
     effective_output_columns = (
         set(flow.metadata.output_columns) if flow.metadata.output_columns else None
     )
-
-    # Normalize runtime_params early
     runtime_params = runtime_params or {}
 
-    # Validate save_freq parameter early to prevent range() errors
-    if save_freq is not None and save_freq <= 0:
-        raise FlowValidationError(f"save_freq must be greater than 0, got {save_freq}")
+    # Validate all preconditions
+    _validate_flow_preconditions(flow, dataset, save_freq, max_concurrency)
 
-    # Validate max_concurrency parameter
-    _validate_max_concurrency(max_concurrency)
+    # Set up logging
+    flow_logger, timestamp, flow_name = _setup_flow_logger(
+        log_dir,
+        flow.metadata.name,
+    )
 
-    # Set up file logging if log_dir is provided
-    flow_logger = logger  # Use global logger by default
-    timestamp = None
-    flow_name = None
-    if log_dir is not None:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        flow_name = flow.metadata.name.replace(" ", "_").lower()
-        log_filename = f"{flow_name}_{timestamp}.log"
-
-        # Create a flow-specific logger for this execution
-        unique_id = str(uuid.uuid4())[:8]  # Short unique ID
-        flow_logger_name = f"{__name__}.flow_{flow_name}_{timestamp}_{unique_id}"
-        flow_logger = setup_logger(
-            flow_logger_name, log_dir=log_dir, log_filename=log_filename
-        )
-        flow_logger.propagate = False
-        flow_logger.info(
-            f"Flow logging enabled - logs will be saved to: {log_dir}/{log_filename}"
-        )
-
-    # Validate preconditions
-    if not flow.blocks:
-        raise FlowValidationError("Cannot generate with empty flow")
-
-    if len(dataset) == 0:
-        raise FlowValidationError("Input dataset is empty")
-
-    validate_no_duplicates(dataset)
-
-    # Check if model configuration has been set for flows with LLM blocks
-    llm_blocks = detect_llm_blocks(flow)
-    if llm_blocks and not flow._model_config_set:
-        raise FlowValidationError(
-            f"Model configuration required before generate(). "
-            f"Found {len(llm_blocks)} LLM blocks: {sorted(llm_blocks)}. "
-            f"Call flow.set_model_config() first."
-        )
-
-    # Check if agent configuration has been set for flows with agent blocks
-    agent_blocks = detect_agent_blocks(flow)
-    if agent_blocks and not flow._agent_config_set:
-        raise FlowValidationError(
-            f"Agent configuration required before generate(). "
-            f"Found {len(agent_blocks)} agent blocks: {sorted(agent_blocks)}. "
-            f"Call flow.set_agent_config() first."
-        )
-
-    # Validate dataset requirements
-    dataset_errors = validate_flow_dataset(flow, dataset)
-    if dataset_errors:
-        raise FlowValidationError(
-            "Dataset validation failed:\n" + "\n".join(dataset_errors)
-        )
+    # Initialize checkpointer and handle fully-completed case
+    checkpointer, completed_dataset, dataset, early_return = _initialize_checkpointer(
+        flow,
+        dataset,
+        checkpoint_dir,
+        save_freq,
+        effective_output_columns,
+        original_columns,
+        was_dataset,
+        flow_logger,
+        log_dir,
+    )
+    if early_return is not None:
+        return early_return
 
     # Log concurrency control if specified
     if max_concurrency is not None:
         flow_logger.info(f"Using max_concurrency={max_concurrency} for LLM requests")
-
-    # Initialize checkpointer if enabled
-    checkpointer = None
-    completed_dataset = None
-    if checkpoint_dir:
-        checkpointer = FlowCheckpointer(
-            checkpoint_dir=checkpoint_dir,
-            save_freq=save_freq,
-            flow_id=flow.metadata.id,
-        )
-
-        # Load existing progress
-        remaining_dataset, completed_dataset = checkpointer.load_existing_progress(
-            dataset
-        )
-
-        if len(remaining_dataset) == 0:
-            flow_logger.info(
-                "All samples already completed, returning existing results"
-            )
-
-            # Apply column cleanup so checkpointed results match normal output
-            if effective_output_columns is not None:
-                completed_dataset = _cleanup_final_columns(
-                    completed_dataset,
-                    effective_output_columns,
-                    original_columns,
-                    flow_logger,
-                )
-
-            if log_dir is not None:
-                _close_flow_logger(flow_logger, logger)
-
-            return convert_from_dataframe(completed_dataset, was_dataset)
-
-        dataset = remaining_dataset
-        flow_logger.info(f"Resuming with {len(dataset)} remaining samples")
 
     flow_logger.info(
         f"Starting flow '{flow.metadata.name}' v{flow.metadata.version} "
@@ -564,74 +963,29 @@ def execute_flow(
     execution_successful = False
 
     try:
-        # Process dataset in chunks if checkpointing with save_freq
         if checkpointer and save_freq:
-            all_processed = []
-
-            # Process in chunks of save_freq
-            for i in range(0, len(dataset), save_freq):
-                chunk_end = min(i + save_freq, len(dataset))
-                chunk_dataset = dataset.iloc[i:chunk_end]
-
-                flow_logger.info(
-                    f"Processing chunk {i // save_freq + 1}: samples {i} to {chunk_end - 1}"
-                )
-
-                # Execute all blocks on this chunk
-                processed_chunk = execute_blocks_on_dataset(
-                    flow,
-                    chunk_dataset,
-                    runtime_params,
-                    flow_logger,
-                    max_concurrency,
-                    column_tracker,
-                )
-                all_processed.append(processed_chunk)
-
-                # Save checkpoint after chunk completion
-                checkpointer.add_completed_samples(processed_chunk)
-
-            # Save final checkpoint for any remaining samples
-            checkpointer.save_final_checkpoint()
-
-            # Combine all processed chunks
-            final_dataset = safe_concatenate_with_validation(
-                all_processed, "processed chunks from flow execution"
-            )
-
-            # Combine with previously completed samples if any
-            if (
-                checkpointer
-                and completed_dataset is not None
-                and not completed_dataset.empty
-            ):
-                final_dataset = safe_concatenate_with_validation(
-                    [completed_dataset, final_dataset],
-                    "completed checkpoint data with newly processed data",
-                )
-
-        else:
-            # Process entire dataset at once
-            final_dataset = execute_blocks_on_dataset(
+            final_dataset = _process_with_checkpointing(
                 flow,
                 dataset,
+                checkpointer,
+                save_freq,
+                completed_dataset,
                 runtime_params,
                 flow_logger,
                 max_concurrency,
                 column_tracker,
             )
-
-            # Save final checkpoint if checkpointing enabled
-            if checkpointer:
-                checkpointer.add_completed_samples(final_dataset)
-                checkpointer.save_final_checkpoint()
-
-                # Combine with previously completed samples if any
-                if completed_dataset is not None and not completed_dataset.empty:
-                    final_dataset = safe_concatenate_with_validation(
-                        [completed_dataset, final_dataset],
-                        "completed checkpoint data with newly processed data",
-                    )
+        else:
+            final_dataset = _process_without_checkpointing(
+                flow,
+                dataset,
+                checkpointer,
+                completed_dataset,
+                runtime_params,
+                flow_logger,
+                max_concurrency,
+                column_tracker,
+            )
 
         execution_successful = True
 
@@ -645,26 +999,16 @@ def execute_flow(
             )
 
     finally:
-        # Always display metrics and save JSON, even if execution failed
-        display_metrics_summary(flow._block_metrics, flow.metadata.name, final_dataset)
-
-        # Save metrics to JSON if log_dir is provided
-        if log_dir is not None:
-            save_metrics_to_json(
-                flow._block_metrics,
-                flow.metadata.name,
-                flow.metadata.version,
-                execution_successful,
-                run_start,
-                log_dir,
-                timestamp,
-                flow_name,
-                flow_logger,
-            )
-
-        # Close file handlers if we opened a flow-specific logger
-        if log_dir is not None:
-            _close_flow_logger(flow_logger, logger)
+        _finalize_flow_metrics(
+            flow,
+            final_dataset,
+            execution_successful,
+            run_start,
+            log_dir,
+            timestamp,
+            flow_name,
+            flow_logger,
+        )
 
     # Keep a basic log entry (only if execution was successful)
     if execution_successful and final_dataset is not None:
@@ -675,6 +1019,144 @@ def execute_flow(
         )
 
     return convert_from_dataframe(final_dataset, was_dataset)
+
+
+def _validate_dry_run_preconditions(
+    flow: "Flow",
+    dataset: pd.DataFrame,
+    max_concurrency: Optional[int],
+) -> None:
+    """Validate preconditions for a dry run.
+
+    Parameters
+    ----------
+    flow : Flow
+        The flow instance.
+    dataset : pd.DataFrame
+        Input dataset.
+    max_concurrency : Optional[int]
+        Maximum concurrency value.
+
+    Raises
+    ------
+    FlowValidationError
+        If preconditions are not met.
+    """
+    if not flow.blocks:
+        raise FlowValidationError("Cannot dry run empty flow")
+
+    if len(dataset) == 0:
+        raise FlowValidationError("Input dataset is empty")
+
+    validate_no_duplicates(dataset)
+    _validate_max_concurrency(max_concurrency)
+
+
+def _execute_dry_run_blocks(
+    flow: "Flow",
+    sample_dataset: pd.DataFrame,
+    runtime_params: dict[str, dict[str, Any]],
+    max_concurrency: Optional[int],
+) -> tuple[pd.DataFrame, list[dict[str, Any]]]:
+    """Execute all blocks on the sample dataset and collect per-block info.
+
+    Parameters
+    ----------
+    flow : Flow
+        The flow instance.
+    sample_dataset : pd.DataFrame
+        Subset of the dataset to run through the blocks.
+    runtime_params : dict[str, dict[str, Any]]
+        Runtime parameters for block execution.
+    max_concurrency : Optional[int]
+        Maximum concurrency for LLM requests.
+
+    Returns
+    -------
+    tuple[pd.DataFrame, list[dict[str, Any]]]
+        (final_dataset, blocks_executed_info).
+    """
+    current_dataset = sample_dataset
+    blocks_executed: list[dict[str, Any]] = []
+
+    for i, block in enumerate(flow.blocks):
+        block_start_time = time.perf_counter()
+        input_rows = len(current_dataset)
+
+        logger.info(
+            f"Dry run executing block {i + 1}/{len(flow.blocks)}: "
+            f"{block.block_name} ({block.__class__.__name__})"
+        )
+
+        block_kwargs = prepare_block_kwargs(block, runtime_params)
+        if max_concurrency is not None:
+            block_kwargs["_flow_max_concurrency"] = max_concurrency
+
+        current_dataset = block(current_dataset, **block_kwargs)
+
+        block_execution_time = time.perf_counter() - block_start_time
+
+        blocks_executed.append(
+            {
+                "block_name": block.block_name,
+                "block_class": block.__class__.__name__,
+                "execution_time_seconds": block_execution_time,
+                "input_rows": input_rows,
+                "output_rows": len(current_dataset),
+                "output_columns": current_dataset.columns.tolist(),
+                "parameters_used": block_kwargs,
+            }
+        )
+
+        logger.info(
+            f"Dry run block '{block.block_name}' completed: "
+            f"{len(current_dataset)} samples, "
+            f"{len(current_dataset.columns)} columns, "
+            f"{block_execution_time:.2f}s"
+        )
+
+    return current_dataset, blocks_executed
+
+
+def _build_dry_run_results(
+    flow: "Flow",
+    actual_sample_size: int,
+    original_dataset_size: int,
+    max_concurrency: Optional[int],
+    input_columns: list[str],
+) -> dict[str, Any]:
+    """Create the initial dry-run results dict.
+
+    Parameters
+    ----------
+    flow : Flow
+        The flow instance.
+    actual_sample_size : int
+        Number of samples actually used.
+    original_dataset_size : int
+        Size of the full input dataset.
+    max_concurrency : Optional[int]
+        Maximum concurrency value.
+    input_columns : list[str]
+        Column names from the input dataset.
+
+    Returns
+    -------
+    dict[str, Any]
+        Initialised dry-run results dictionary.
+    """
+    return {
+        "flow_name": flow.metadata.name,
+        "flow_version": flow.metadata.version,
+        "sample_size": actual_sample_size,
+        "original_dataset_size": original_dataset_size,
+        "max_concurrency": max_concurrency,
+        "input_columns": input_columns,
+        "blocks_executed": [],
+        "final_dataset": None,
+        "execution_successful": True,
+        "execution_time_seconds": 0,
+    }
 
 
 def run_dry_run(
@@ -716,97 +1198,37 @@ def run_dry_run(
     FlowValidationError
         If input dataset is empty or any block fails during dry run execution.
     """
-    # Convert to DataFrame if needed (backwards compatibility)
     dataset, _ = convert_to_dataframe(dataset)
+    _validate_dry_run_preconditions(flow, dataset, max_concurrency)
 
-    # Validate preconditions
-    if not flow.blocks:
-        raise FlowValidationError("Cannot dry run empty flow")
-
-    if len(dataset) == 0:
-        raise FlowValidationError("Input dataset is empty")
-
-    validate_no_duplicates(dataset)
-
-    # Validate max_concurrency parameter
-    _validate_max_concurrency(max_concurrency)
-
-    # Use smaller sample size if dataset is smaller
     actual_sample_size = min(sample_size, len(dataset))
+    runtime_params = runtime_params or {}
 
     logger.info(
         f"Starting dry run for flow '{flow.metadata.name}' "
         f"with {actual_sample_size} samples"
     )
 
-    # Create subset dataset
     sample_dataset = dataset.iloc[:actual_sample_size]
-
-    # Initialize dry run results
-    dry_run_results = {
-        "flow_name": flow.metadata.name,
-        "flow_version": flow.metadata.version,
-        "sample_size": actual_sample_size,
-        "original_dataset_size": len(dataset),
-        "max_concurrency": max_concurrency,
-        "input_columns": dataset.columns.tolist(),
-        "blocks_executed": [],
-        "final_dataset": None,
-        "execution_successful": True,
-        "execution_time_seconds": 0,
-    }
+    dry_run_results = _build_dry_run_results(
+        flow,
+        actual_sample_size,
+        len(dataset),
+        max_concurrency,
+        dataset.columns.tolist(),
+    )
 
     start_time = time.perf_counter()
 
     try:
-        # Execute the flow with sample data
-        current_dataset = sample_dataset
-        runtime_params = runtime_params or {}
+        current_dataset, blocks_executed = _execute_dry_run_blocks(
+            flow,
+            sample_dataset,
+            runtime_params,
+            max_concurrency,
+        )
 
-        for i, block in enumerate(flow.blocks):
-            block_start_time = time.perf_counter()
-            input_rows = len(current_dataset)
-
-            logger.info(
-                f"Dry run executing block {i + 1}/{len(flow.blocks)}: "
-                f"{block.block_name} ({block.__class__.__name__})"
-            )
-
-            # Prepare block execution parameters
-            block_kwargs = prepare_block_kwargs(block, runtime_params)
-
-            # Add max_concurrency to block kwargs if provided
-            if max_concurrency is not None:
-                block_kwargs["_flow_max_concurrency"] = max_concurrency
-
-            # Execute block with validation and logging
-            current_dataset = block(current_dataset, **block_kwargs)
-
-            block_execution_time = (
-                time.perf_counter() - block_start_time
-            )  # Fixed: use perf_counter consistently
-
-            # Record block execution info
-            block_info = {
-                "block_name": block.block_name,
-                "block_class": block.__class__.__name__,
-                "execution_time_seconds": block_execution_time,
-                "input_rows": input_rows,
-                "output_rows": len(current_dataset),
-                "output_columns": current_dataset.columns.tolist(),
-                "parameters_used": block_kwargs,
-            }
-
-            dry_run_results["blocks_executed"].append(block_info)
-
-            logger.info(
-                f"Dry run block '{block.block_name}' completed: "
-                f"{len(current_dataset)} samples, "
-                f"{len(current_dataset.columns)} columns, "
-                f"{block_execution_time:.2f}s"
-            )
-
-        # Store final results
+        dry_run_results["blocks_executed"] = blocks_executed
         dry_run_results["final_dataset"] = {
             "rows": len(current_dataset),
             "columns": current_dataset.columns.tolist(),
@@ -823,7 +1245,6 @@ def run_dry_run(
             f"in {execution_time:.2f}s"
         )
 
-        # Perform time estimation if requested (displays table but doesn't store in results)
         if enable_time_estimation:
             estimate_total_time(
                 flow, dry_run_results, dataset, runtime_params, max_concurrency
@@ -832,7 +1253,6 @@ def run_dry_run(
         return dry_run_results
 
     except (EmptyDatasetError, FlowValidationError):
-        # Re-raise these errors directly without wrapping
         raise
     except Exception as exc:
         execution_time = time.perf_counter() - start_time
