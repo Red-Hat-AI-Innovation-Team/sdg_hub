@@ -5,6 +5,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+import logging
 import os
 import warnings
 
@@ -19,6 +20,7 @@ from ..utils.yaml_utils import save_flow_yaml
 from .metadata import FlowMetadata
 
 logger = setup_logger(__name__)
+_console = Console()
 
 # Deprecated flows mapping: flow name/id -> (deprecation message, suggested alternative)
 DEPRECATED_FLOWS: Dict[str, Tuple[str, Optional[str]]] = {
@@ -375,10 +377,10 @@ class FlowRegistry:
         cls._discover_flows()
 
         if not cls._entries:
-            print(
+            logger.info(
                 "No flows discovered. Try adding search paths with register_search_path()"
             )
-            print("Note: Only flows with 'metadata' section are discoverable.")
+            logger.info("Note: Only flows with 'metadata' section are discoverable.")
             return
 
         # Prepare data with fallbacks
@@ -400,9 +402,6 @@ class FlowRegistry:
         flow_data.sort(key=lambda x: x["id"])
 
         # Display Rich table
-        # Third Party
-
-        console = Console()
         table = Table(show_header=True, header_style="bold bright_magenta")
 
         # Add columns with better visibility colors
@@ -422,4 +421,5 @@ class FlowRegistry:
                 flow["description"],
             )
 
-        console.print(table)
+        if logger.isEnabledFor(logging.INFO):
+            _console.print(table)

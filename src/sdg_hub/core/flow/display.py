@@ -3,6 +3,7 @@
 
 # Standard
 from typing import TYPE_CHECKING, Any, Optional
+import logging
 
 from rich.console import Console
 from rich.panel import Panel
@@ -13,7 +14,11 @@ from rich.tree import Tree
 import pandas as pd
 
 # Local
+from ..utils.logger_config import setup_logger
 from .metadata import DatasetRequirements
+
+logger = setup_logger(__name__)
+_console = Console()
 
 if TYPE_CHECKING:
     from .base import Flow
@@ -178,7 +183,6 @@ def print_flow_info(flow: "Flow") -> None:
     -------
     None
     """
-    console = Console()
 
     # Create main tree structure
     flow_tree = Tree(f"[bold bright_blue]{flow.metadata.name}[/bold bright_blue] Flow")
@@ -214,20 +218,21 @@ def print_flow_info(flow: "Flow") -> None:
         )
 
     # Print everything
-    console.print()
-    console.print(
-        Panel(
-            flow_tree,
-            title="[bold bright_white]Flow Information[/bold bright_white]",
-            border_style="bright_blue",
+    if logger.isEnabledFor(logging.INFO):
+        _console.print()
+        _console.print(
+            Panel(
+                flow_tree,
+                title="[bold bright_white]Flow Information[/bold bright_white]",
+                border_style="bright_blue",
+            )
         )
-    )
-    console.print()
-    console.print(
-        Panel(
-            blocks_table,
-            title="[bold bright_white]Block Details[/bold bright_white]",
-            border_style="bright_magenta",
+        _console.print()
+        _console.print(
+            Panel(
+                blocks_table,
+                title="[bold bright_white]Block Details[/bold bright_white]",
+                border_style="bright_magenta",
+            )
         )
-    )
-    console.print()
+        _console.print()

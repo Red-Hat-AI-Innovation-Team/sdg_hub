@@ -8,6 +8,7 @@ with unified constructor patterns, column handling, and common functionality.
 # Standard
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Optional, Union
+import logging
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from rich.console import Console
@@ -26,7 +27,7 @@ from ..utils.error_handling import (
 from ..utils.logger_config import setup_logger
 
 logger = setup_logger(__name__)
-console = Console()
+_console = Console()
 
 
 class BaseBlock(BaseModel, ABC):
@@ -217,9 +218,14 @@ class BaseBlock(BaseModel, ABC):
             else "None specified"
         )
         content.append(f"Expected Output Columns: {expected}", style="green")
-        console.print(
-            Panel(content, title=f"[bold]{self.block_name}[/bold]", border_style="blue")
-        )
+        if logger.isEnabledFor(logging.INFO):
+            _console.print(
+                Panel(
+                    content,
+                    title=f"[bold]{self.block_name}[/bold]",
+                    border_style="blue",
+                )
+            )
 
     def _log_output_data(self, input_df: pd.DataFrame, output_df: pd.DataFrame) -> None:
         """Print a Rich panel summarizing output DataFrame differences."""
@@ -243,13 +249,14 @@ class BaseBlock(BaseModel, ABC):
         content.append(
             f"\U0001f4cb Final Columns: {', '.join(sorted(out_cols))}", style="white"
         )
-        console.print(
-            Panel(
-                content,
-                title=f"[bold green]{self.block_name} - Complete[/bold green]",
-                border_style="green",
+        if logger.isEnabledFor(logging.INFO):
+            _console.print(
+                Panel(
+                    content,
+                    title=f"[bold green]{self.block_name} - Complete[/bold green]",
+                    border_style="green",
+                )
             )
-        )
 
     @abstractmethod
     def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:

@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from difflib import get_close_matches
 from typing import Optional
 import inspect
+import logging
 
 # Third Party
 from rich.console import Console
@@ -19,7 +20,7 @@ from rich.table import Table
 from ..utils.logger_config import setup_logger
 
 logger = setup_logger(__name__)
-console = Console()
+_console = Console()
 
 
 @dataclass
@@ -308,7 +309,7 @@ class BlockRegistry:
     def discover_blocks(cls) -> None:
         """Print a Rich-formatted table of all available blocks."""
         if not cls._metadata:
-            console.print("[yellow]No blocks registered yet.[/yellow]")
+            logger.warning("No blocks registered yet.")
             return
 
         table = Table(
@@ -331,15 +332,16 @@ class BlockRegistry:
 
             table.add_row(block_name, metadata.category, description)
 
-        console.print(table)
+        if logger.isEnabledFor(logging.INFO):
+            _console.print(table)
 
         # Show summary
         total_blocks = len(cls._metadata)
         total_categories = len(cls._categories)
         deprecated_count = sum(1 for m in cls._metadata.values() if m.deprecated)
 
-        console.print(
-            f"\n[bold]Summary:[/bold] {total_blocks} blocks across {total_categories} categories"
+        logger.info(
+            f"Summary: {total_blocks} blocks across {total_categories} categories"
         )
         if deprecated_count > 0:
-            console.print(f"[yellow]⚠️  {deprecated_count} deprecated blocks[/yellow]")
+            logger.warning(f"{deprecated_count} deprecated blocks")

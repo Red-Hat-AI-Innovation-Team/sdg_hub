@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 import json
+import logging
 import time
 
 from rich.console import Console
@@ -14,6 +15,12 @@ from rich.table import Table
 
 # Third Party
 import pandas as pd
+
+# Local
+from .logger_config import setup_logger
+
+logger = setup_logger(__name__)
+_console = Console()
 
 
 def aggregate_block_metrics(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -159,8 +166,6 @@ def display_metrics_summary(
     if not block_metrics:
         return
 
-    console = Console()
-
     # Create the metrics table
     table = Table(
         show_header=True,
@@ -209,19 +214,19 @@ def display_metrics_summary(
     )
 
     # Display the table with panel
-    console.print()
-
     failed_blocks = len(block_metrics) - successful_blocks
     title, border_style = _resolve_panel_style(flow_name, failed_blocks, final_dataset)
 
-    console.print(
-        Panel(
-            table,
-            title=title,
-            border_style=border_style,
+    if logger.isEnabledFor(logging.INFO):
+        _console.print()
+        _console.print(
+            Panel(
+                table,
+                title=title,
+                border_style=border_style,
+            )
         )
-    )
-    console.print()
+        _console.print()
 
 
 def _format_time_str(seconds: float) -> str:
@@ -342,12 +347,13 @@ def display_time_estimation_summary(
     max_concurrency : Optional[int], optional
         Maximum concurrency used for estimation.
     """
-    console = Console()
+    if not logger.isEnabledFor(logging.INFO):
+        return
 
     summary_table = _build_summary_table(time_estimation, dataset_size, max_concurrency)
 
-    console.print()
-    console.print(
+    _console.print()
+    _console.print(
         Panel(
             summary_table,
             title=f"[bold bright_white]Time Estimation for {dataset_size:,} Samples[/bold bright_white]",
@@ -357,9 +363,9 @@ def display_time_estimation_summary(
 
     block_estimates = time_estimation.get("block_estimates", [])
     if block_estimates:
-        console.print()
+        _console.print()
         block_table = _build_block_breakdown_table(block_estimates)
-        console.print(
+        _console.print(
             Panel(
                 block_table,
                 title="[bold bright_white]Per-Block Breakdown[/bold bright_white]",
@@ -367,7 +373,7 @@ def display_time_estimation_summary(
             )
         )
 
-    console.print()
+    _console.print()
 
 
 def save_metrics_to_json(

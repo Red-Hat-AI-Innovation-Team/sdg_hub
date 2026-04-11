@@ -98,19 +98,19 @@ class TestAggregateBlockMetrics:
 class TestDisplayMetricsSummary:
     """Tests for display_metrics_summary function."""
 
-    @patch("sdg_hub.core.utils.flow_metrics.Console")
+    @patch("sdg_hub.core.utils.flow_metrics._console")
     def test_display_with_no_metrics(self, mock_console):
         """Test display when no metrics are provided."""
         display_metrics_summary([], "Test Flow")
 
-        # Console should not be instantiated if no metrics
-        mock_console.assert_not_called()
+        # Console should not be used if no metrics
+        mock_console.print.assert_not_called()
 
-    @patch("sdg_hub.core.utils.flow_metrics.Console")
-    def test_display_with_successful_blocks(self, mock_console):
+    @patch("sdg_hub.core.utils.flow_metrics._console")
+    @patch("sdg_hub.core.utils.flow_metrics.logger")
+    def test_display_with_successful_blocks(self, mock_logger, mock_console):
         """Test display with successful block execution."""
-        mock_console_instance = MagicMock()
-        mock_console.return_value = mock_console_instance
+        mock_logger.isEnabledFor.return_value = True
 
         metrics = [
             {
@@ -128,14 +128,14 @@ class TestDisplayMetricsSummary:
         dataset = pd.DataFrame({"col1": list(range(10))})
         display_metrics_summary(metrics, "Test Flow", dataset)
 
-        # Verify console.print was called
-        assert mock_console_instance.print.call_count >= 2
+        # Verify _console.print was called
+        assert mock_console.print.call_count >= 2
 
-    @patch("sdg_hub.core.utils.flow_metrics.Console")
-    def test_display_with_failed_blocks(self, mock_console):
+    @patch("sdg_hub.core.utils.flow_metrics._console")
+    @patch("sdg_hub.core.utils.flow_metrics.logger")
+    def test_display_with_failed_blocks(self, mock_logger, mock_console):
         """Test display with failed block execution."""
-        mock_console_instance = MagicMock()
-        mock_console.return_value = mock_console_instance
+        mock_logger.isEnabledFor.return_value = True
 
         metrics = [
             {
@@ -153,14 +153,14 @@ class TestDisplayMetricsSummary:
 
         display_metrics_summary(metrics, "Test Flow", None)
 
-        # Verify console.print was called
-        assert mock_console_instance.print.call_count >= 2
+        # Verify _console.print was called
+        assert mock_console.print.call_count >= 2
 
-    @patch("sdg_hub.core.utils.flow_metrics.Console")
-    def test_display_with_added_and_removed_columns(self, mock_console):
+    @patch("sdg_hub.core.utils.flow_metrics._console")
+    @patch("sdg_hub.core.utils.flow_metrics.logger")
+    def test_display_with_added_and_removed_columns(self, mock_logger, mock_console):
         """Test display with blocks that both add and remove columns."""
-        mock_console_instance = MagicMock()
-        mock_console.return_value = mock_console_instance
+        mock_logger.isEnabledFor.return_value = True
 
         metrics = [
             {
@@ -178,14 +178,14 @@ class TestDisplayMetricsSummary:
         dataset = pd.DataFrame({"col1": list(range(10)), "col2": list(range(10))})
         display_metrics_summary(metrics, "Test Flow", dataset)
 
-        # Verify console.print was called
-        assert mock_console_instance.print.call_count >= 2
+        # Verify _console.print was called
+        assert mock_console.print.call_count >= 2
 
-    @patch("sdg_hub.core.utils.flow_metrics.Console")
-    def test_display_with_removed_columns_only(self, mock_console):
+    @patch("sdg_hub.core.utils.flow_metrics._console")
+    @patch("sdg_hub.core.utils.flow_metrics.logger")
+    def test_display_with_removed_columns_only(self, mock_logger, mock_console):
         """Test display with a block that only removes columns."""
-        mock_console_instance = MagicMock()
-        mock_console.return_value = mock_console_instance
+        mock_logger.isEnabledFor.return_value = True
 
         metrics = [
             {
@@ -203,14 +203,14 @@ class TestDisplayMetricsSummary:
         dataset = pd.DataFrame({"col1": list(range(10))})
         display_metrics_summary(metrics, "Test Flow", dataset)
 
-        assert mock_console_instance.print.call_count >= 2
+        assert mock_console.print.call_count >= 2
         assert _format_block_row(metrics[0])[2] == "-1"
 
-    @patch("sdg_hub.core.utils.flow_metrics.Console")
-    def test_display_with_partial_completion(self, mock_console):
+    @patch("sdg_hub.core.utils.flow_metrics._console")
+    @patch("sdg_hub.core.utils.flow_metrics.logger")
+    def test_display_with_partial_completion(self, mock_logger, mock_console):
         """Test display with some blocks succeeded and some failed."""
-        mock_console_instance = MagicMock()
-        mock_console.return_value = mock_console_instance
+        mock_logger.isEnabledFor.return_value = True
 
         metrics = [
             {
@@ -240,18 +240,18 @@ class TestDisplayMetricsSummary:
         dataset = pd.DataFrame({"col1": list(range(10))})
         display_metrics_summary(metrics, "Test Flow", dataset)
 
-        # Verify console.print was called
-        assert mock_console_instance.print.call_count >= 2
+        # Verify _console.print was called
+        assert mock_console.print.call_count >= 2
 
 
 class TestDisplayTimeEstimationSummary:
     """Tests for display_time_estimation_summary function."""
 
-    @patch("sdg_hub.core.utils.flow_metrics.Console")
-    def test_display_time_under_60_seconds(self, mock_console):
+    @patch("sdg_hub.core.utils.flow_metrics._console")
+    @patch("sdg_hub.core.utils.flow_metrics.logger")
+    def test_display_time_under_60_seconds(self, mock_logger, mock_console):
         """Test display when estimated time is under 60 seconds."""
-        mock_console_instance = MagicMock()
-        mock_console.return_value = mock_console_instance
+        mock_logger.isEnabledFor.return_value = True
 
         time_estimation = {
             "estimated_time_seconds": 45.5,
@@ -260,14 +260,14 @@ class TestDisplayTimeEstimationSummary:
 
         display_time_estimation_summary(time_estimation, 100)
 
-        # Verify console was used
-        assert mock_console_instance.print.call_count >= 2
+        # Verify _console was used
+        assert mock_console.print.call_count >= 2
 
-    @patch("sdg_hub.core.utils.flow_metrics.Console")
-    def test_display_time_between_60_and_3600_seconds(self, mock_console):
+    @patch("sdg_hub.core.utils.flow_metrics._console")
+    @patch("sdg_hub.core.utils.flow_metrics.logger")
+    def test_display_time_between_60_and_3600_seconds(self, mock_logger, mock_console):
         """Test display when estimated time is between 1 minute and 1 hour."""
-        mock_console_instance = MagicMock()
-        mock_console.return_value = mock_console_instance
+        mock_logger.isEnabledFor.return_value = True
 
         time_estimation = {
             "estimated_time_seconds": 1800,  # 30 minutes
@@ -276,14 +276,14 @@ class TestDisplayTimeEstimationSummary:
 
         display_time_estimation_summary(time_estimation, 100)
 
-        # Verify console was used
-        assert mock_console_instance.print.call_count >= 2
+        # Verify _console was used
+        assert mock_console.print.call_count >= 2
 
-    @patch("sdg_hub.core.utils.flow_metrics.Console")
-    def test_display_time_over_3600_seconds(self, mock_console):
+    @patch("sdg_hub.core.utils.flow_metrics._console")
+    @patch("sdg_hub.core.utils.flow_metrics.logger")
+    def test_display_time_over_3600_seconds(self, mock_logger, mock_console):
         """Test display when estimated time is over 1 hour."""
-        mock_console_instance = MagicMock()
-        mock_console.return_value = mock_console_instance
+        mock_logger.isEnabledFor.return_value = True
 
         time_estimation = {
             "estimated_time_seconds": 7200,  # 2 hours
@@ -292,14 +292,14 @@ class TestDisplayTimeEstimationSummary:
 
         display_time_estimation_summary(time_estimation, 100)
 
-        # Verify console was used
-        assert mock_console_instance.print.call_count >= 2
+        # Verify _console was used
+        assert mock_console.print.call_count >= 2
 
-    @patch("sdg_hub.core.utils.flow_metrics.Console")
-    def test_display_with_requests_per_sample(self, mock_console):
+    @patch("sdg_hub.core.utils.flow_metrics._console")
+    @patch("sdg_hub.core.utils.flow_metrics.logger")
+    def test_display_with_requests_per_sample(self, mock_logger, mock_console):
         """Test display includes requests per sample when requests > 0."""
-        mock_console_instance = MagicMock()
-        mock_console.return_value = mock_console_instance
+        mock_logger.isEnabledFor.return_value = True
 
         time_estimation = {
             "estimated_time_seconds": 300,
@@ -308,14 +308,14 @@ class TestDisplayTimeEstimationSummary:
 
         display_time_estimation_summary(time_estimation, 100)
 
-        # Verify console was used
-        assert mock_console_instance.print.call_count >= 2
+        # Verify _console was used
+        assert mock_console.print.call_count >= 2
 
-    @patch("sdg_hub.core.utils.flow_metrics.Console")
-    def test_display_without_requests(self, mock_console):
+    @patch("sdg_hub.core.utils.flow_metrics._console")
+    @patch("sdg_hub.core.utils.flow_metrics.logger")
+    def test_display_without_requests(self, mock_logger, mock_console):
         """Test display when total_estimated_requests is 0."""
-        mock_console_instance = MagicMock()
-        mock_console.return_value = mock_console_instance
+        mock_logger.isEnabledFor.return_value = True
 
         time_estimation = {
             "estimated_time_seconds": 300,
@@ -324,14 +324,14 @@ class TestDisplayTimeEstimationSummary:
 
         display_time_estimation_summary(time_estimation, 100)
 
-        # Verify console was used
-        assert mock_console_instance.print.call_count >= 2
+        # Verify _console was used
+        assert mock_console.print.call_count >= 2
 
-    @patch("sdg_hub.core.utils.flow_metrics.Console")
-    def test_display_with_max_concurrency(self, mock_console):
+    @patch("sdg_hub.core.utils.flow_metrics._console")
+    @patch("sdg_hub.core.utils.flow_metrics.logger")
+    def test_display_with_max_concurrency(self, mock_logger, mock_console):
         """Test display includes max concurrency when provided."""
-        mock_console_instance = MagicMock()
-        mock_console.return_value = mock_console_instance
+        mock_logger.isEnabledFor.return_value = True
 
         time_estimation = {
             "estimated_time_seconds": 300,
@@ -340,14 +340,16 @@ class TestDisplayTimeEstimationSummary:
 
         display_time_estimation_summary(time_estimation, 100, max_concurrency=50)
 
-        # Verify console was used
-        assert mock_console_instance.print.call_count >= 2
+        # Verify _console was used
+        assert mock_console.print.call_count >= 2
 
-    @patch("sdg_hub.core.utils.flow_metrics.Console")
-    def test_display_with_block_estimates_under_60_seconds(self, mock_console):
+    @patch("sdg_hub.core.utils.flow_metrics._console")
+    @patch("sdg_hub.core.utils.flow_metrics.logger")
+    def test_display_with_block_estimates_under_60_seconds(
+        self, mock_logger, mock_console
+    ):
         """Test display with per-block estimates (time < 60 seconds)."""
-        mock_console_instance = MagicMock()
-        mock_console.return_value = mock_console_instance
+        mock_logger.isEnabledFor.return_value = True
 
         time_estimation = {
             "estimated_time_seconds": 300,
@@ -365,14 +367,16 @@ class TestDisplayTimeEstimationSummary:
 
         display_time_estimation_summary(time_estimation, 100)
 
-        # Verify console was used, should include block table
-        assert mock_console_instance.print.call_count >= 3
+        # Verify _console was used, should include block table
+        assert mock_console.print.call_count >= 3
 
-    @patch("sdg_hub.core.utils.flow_metrics.Console")
-    def test_display_with_block_estimates_over_60_seconds(self, mock_console):
+    @patch("sdg_hub.core.utils.flow_metrics._console")
+    @patch("sdg_hub.core.utils.flow_metrics.logger")
+    def test_display_with_block_estimates_over_60_seconds(
+        self, mock_logger, mock_console
+    ):
         """Test display with per-block estimates (time > 60 seconds)."""
-        mock_console_instance = MagicMock()
-        mock_console.return_value = mock_console_instance
+        mock_logger.isEnabledFor.return_value = True
 
         time_estimation = {
             "estimated_time_seconds": 300,
@@ -397,14 +401,14 @@ class TestDisplayTimeEstimationSummary:
 
         display_time_estimation_summary(time_estimation, 100)
 
-        # Verify console was used, should include block table
-        assert mock_console_instance.print.call_count >= 3
+        # Verify _console was used, should include block table
+        assert mock_console.print.call_count >= 3
 
-    @patch("sdg_hub.core.utils.flow_metrics.Console")
-    def test_display_without_block_estimates(self, mock_console):
+    @patch("sdg_hub.core.utils.flow_metrics._console")
+    @patch("sdg_hub.core.utils.flow_metrics.logger")
+    def test_display_without_block_estimates(self, mock_logger, mock_console):
         """Test display without per-block estimates."""
-        mock_console_instance = MagicMock()
-        mock_console.return_value = mock_console_instance
+        mock_logger.isEnabledFor.return_value = True
 
         time_estimation = {
             "estimated_time_seconds": 300,
@@ -414,8 +418,8 @@ class TestDisplayTimeEstimationSummary:
 
         display_time_estimation_summary(time_estimation, 100)
 
-        # Verify console was used, but no extra prints for block table
-        assert mock_console_instance.print.call_count >= 2
+        # Verify _console was used, but no extra prints for block table
+        assert mock_console.print.call_count >= 2
 
 
 class TestSaveMetricsToJson:

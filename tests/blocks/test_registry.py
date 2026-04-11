@@ -470,11 +470,9 @@ class TestBlockRegistry:
 
     def test_print_blocks_empty_registry(self):
         """Test printing blocks when registry is empty."""
-        with patch("sdg_hub.core.blocks.registry.console") as mock_console:
+        with patch("sdg_hub.core.blocks.registry.logger") as mock_logger:
             BlockRegistry.discover_blocks()
-            mock_console.print.assert_called_once_with(
-                "[yellow]No blocks registered yet.[/yellow]"
-            )
+            mock_logger.warning.assert_called_once_with("No blocks registered yet.")
 
     def test_print_blocks_with_blocks(self):
         """Test printing blocks with Rich formatting."""
@@ -491,15 +489,19 @@ class TestBlockRegistry:
             def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
                 return samples
 
-        with patch("sdg_hub.core.blocks.registry.console") as mock_console:
+        with (
+            patch("sdg_hub.core.blocks.registry._console") as mock_console,
+            patch("sdg_hub.core.blocks.registry.logger") as mock_logger,
+        ):
+            mock_logger.isEnabledFor.return_value = True
             BlockRegistry.discover_blocks()
 
-            # Check that console.print was called (for table and summary)
-            assert mock_console.print.call_count >= 2
+            # Check that _console.print was called for the table
+            assert mock_console.print.call_count >= 1
 
-            # Check that Table was created and used
+            # Check that logger.info was called with summary
             assert any(
-                "Summary" in str(call) for call in mock_console.print.call_args_list
+                "Summary" in str(call) for call in mock_logger.info.call_args_list
             )
 
     def test_fallback_validation_without_baseblock(self):
