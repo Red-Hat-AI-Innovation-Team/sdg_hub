@@ -248,6 +248,32 @@ body::before {
   box-shadow: none;
 }
 
+/* Shiki highlighted output */
+.prose pre code span {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+.prose .shiki {
+  background-color: var(--code-bg) !important;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  box-shadow:
+    0 0 0 1px var(--color-border-strong),
+    0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.prose .shiki code {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
 /* ── Tables ─────────────────────────────────── */
 
 .prose table {

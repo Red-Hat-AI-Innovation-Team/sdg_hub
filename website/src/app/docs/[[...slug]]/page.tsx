@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getDocPage, getAllDocSlugs, extractHeadings } from "@/lib/content";
 import { getPrevNext } from "@/lib/navigation";
-import { MarkdocRenderer } from "@/components/MarkdocRenderer";
+// MarkdocRenderer unused -- we render pre-highlighted HTML directly
 import { TableOfContents } from "@/components/TableOfContents";
 
 export async function generateStaticParams() {
@@ -32,7 +32,10 @@ export default async function DocsPage({
     <div className="mx-auto flex max-w-5xl gap-10 px-6 py-10 lg:px-10">
       {/* Article */}
       <article className="min-w-0 flex-1">
-        <MarkdocRenderer content={page.content} />
+        <div
+          className="prose"
+          dangerouslySetInnerHTML={{ __html: page.htmlContent }}
+        />
 
         {/* Prev / Next navigation */}
         <div
