@@ -34,10 +34,10 @@ export function AnimatedPipeline() {
             // Glow the destination node
             timeouts.push(
               setTimeout(() => {
-                if (nodes[i]) {
-                  nodes[i].style.animation = "none";
-                  nodes[i].offsetHeight;
-                  nodes[i].style.animation = "node-glow 0.6s ease-out";
+                if (nodes[i + 1]) {
+                  nodes[i + 1].style.animation = "none";
+                  nodes[i + 1].offsetHeight;
+                  nodes[i + 1].style.animation = "node-glow 0.6s ease-out";
                 }
               }, 650)
             );
