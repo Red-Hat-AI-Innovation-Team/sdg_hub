@@ -1,12 +1,3 @@
-# `sdg_hub`: Synthetic Data Generation Toolkit
-
-[![Build](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/pypi.yml/badge.svg?branch=main)](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/pypi.yml)
-[![Release](https://img.shields.io/github/v/release/Red-Hat-AI-Innovation-Team/sdg_hub)](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/releases)
-[![License](https://img.shields.io/github/license/Red-Hat-AI-Innovation-Team/sdg_hub)](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/blob/main/LICENSE)
-[![Tests](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml/badge.svg)](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub/graph/badge.svg?token=SP75BCXWO2)](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Red-Hat-AI-Innovation-Team/sdg_hub)
-
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-banner-dark.svg">
@@ -15,8 +6,17 @@
   </picture>
 </p>
 <p align="center"><em>Composable blocks and flows for synthetic data generation</em></p>
+<p align="center">
+  <a href="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml"><img src="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
+  <a href="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/releases"><img src="https://img.shields.io/github/v/release/Red-Hat-AI-Innovation-Team/sdg_hub" alt="Release"></a>
+  <a href="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Red-Hat-AI-Innovation-Team/sdg_hub" alt="License"></a>
+  <a href="https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub"><img src="https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub/graph/badge.svg?token=SP75BCXWO2" alt="codecov"></a>
+  <a href="https://deepwiki.com/Red-Hat-AI-Innovation-Team/sdg_hub"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+</p>
 
-A modular Python framework for building synthetic data generation pipelines using composable blocks and flows. Transform datasets through **building-block composition** - mix and match LLM-powered and traditional processing blocks to create sophisticated data generation workflows.
+---
+
+A modular Python framework for building synthetic data generation pipelines using composable blocks and flows. Transform datasets through **building-block composition** -- mix and match LLM-powered and traditional processing blocks to create sophisticated data generation workflows.
 
 Full documentation available in the [`docs/`](docs/) directory or at [DeepWiki](https://deepwiki.com/Red-Hat-AI-Innovation-Team/sdg_hub).
 
