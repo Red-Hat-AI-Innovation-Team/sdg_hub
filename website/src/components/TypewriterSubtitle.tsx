@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 const phrases = [
   "Generate training data from documents",
@@ -15,6 +15,7 @@ export function TypewriterSubtitle() {
   const [charIndex, setCharIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [text, setText] = useState("");
+  const pauseTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const tick = useCallback(() => {
     const currentPhrase = phrases[phraseIndex];
@@ -26,7 +27,7 @@ export function TypewriterSubtitle() {
         setCharIndex((prev) => prev + 1);
       } else {
         // Pause at end, then start deleting
-        setTimeout(() => setIsDeleting(true), 2000);
+        pauseTimer.current = setTimeout(() => setIsDeleting(true), 2000);
         return;
       }
     } else {
@@ -45,7 +46,10 @@ export function TypewriterSubtitle() {
   useEffect(() => {
     const speed = isDeleting ? 30 : 50;
     const timer = setTimeout(tick, speed);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(pauseTimer.current);
+    };
   }, [tick, isDeleting]);
 
   return (
