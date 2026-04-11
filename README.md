@@ -60,114 +60,95 @@ uv pip install sdg-hub[examples]
 
 ### Core Concepts
 
-**Blocks** are composable units that transform datasets - think of them as data processing Lego pieces. Each block performs a specific task: LLM chat, text parsing, evaluation, or transformation.
+**Blocks** are composable units that transform datasets. Each block performs a specific task: LLM chat, text parsing, agent tool-calling, filtering, or transformation.
 
-**Flows** orchestrate multiple blocks into complete pipelines defined in YAML. Chain blocks together to create complex data generation workflows with validation and parameter management.
+**Flows** orchestrate multiple blocks into complete pipelines defined in YAML. Chain blocks together to create sophisticated data generation workflows.
 
-```python
-# Simple concept: Blocks transform data, Flows chain blocks together
-dataset → Block₁ → Block₂ → Block₃ → enriched_dataset
+```
+dataset --> Block1 --> Block2 --> Block3 --> enriched_dataset
 ```
 
-### Try it out!
+### Example: MCP Server Distillation
 
-#### Flow Discovery
-```python
-from sdg_hub import FlowRegistry, Flow
+This example uses the built-in **MCP Server Distillation** flow to generate tool-use training data. The flow takes an MCP server's tool definitions, uses a frontier model to explore the server, synthesizes realistic questions, and captures expert tool-calling trajectories -- producing supervised fine-tuning data so a smaller model can learn to use the same tools.
 
-# Auto-discover all available flows (no setup needed!)
-FlowRegistry.discover_flows()
-
-# List available flows
-flows = FlowRegistry.list_flows()
-print(f"Available flows: {flows}")
-
-# Search for specific types
-qa_flows = FlowRegistry.search_flows(tag="question-generation")
-print(f"QA flows: {qa_flows}")
-```
-
-Each flow has a **unique, human-readable ID** automatically generated from its name. These IDs provide a convenient shorthand for referencing flows:
-
-```python
-# Every flow gets a deterministic ID 
-# Same flow name always generates the same ID
-flow_id = "small-rock-799" 
-
-# Use ID to reference the flow
-flow_path = FlowRegistry.get_flow_path(flow_id)
-flow = Flow.from_yaml(flow_path)
-```
-
-#### Discovering Models and Configuring them
-```python
-# Discover recommended models
-default_model = flow.get_default_model()
-recommendations = flow.get_model_recommendations()
-
-# Configure model settings at runtime
-# This assumes you have a hosted vLLM instance of meta-llama/Llama-3.3-70B-Instruct running at http://localhost:8000/v1
-flow.set_model_config(
-    model=f"hosted_vllm/{default_model}",
-    api_base="http://localhost:8000/v1",
-    api_key="your_key",
-)
-```
-#### Discover dataset requirements and create your dataset
 ```python
 import pandas as pd
+from sdg_hub import FlowRegistry, Flow
 
-# First, discover what data the flow needs
-# Get an empty DataFrame with the exact schema needed
-schema_df = flow.get_dataset_schema()
-print(f"Required columns: {list(schema_df.columns)}")
+# Discover available flows
+FlowRegistry.discover_flows()
 
-# Option 1: Add data directly using pandas concat
-new_row = pd.DataFrame([{
-    'document': 'Your document text here...',
-    'document_outline': '1. Topic A; 2. Topic B; 3. Topic C',
-    'domain': 'Computer Science',
-    'icl_document': 'Example document for in-context learning...',
-    'icl_query_1': 'Example question 1?',
-    'icl_response_1': 'Example answer 1',
-    'icl_query_2': 'Example question 2?',
-    'icl_response_2': 'Example answer 2',
-    'icl_query_3': 'Example question 3?',
-    'icl_response_3': 'Example answer 3'
-}])
-dataset = pd.concat([schema_df, new_row], ignore_index=True)
+# Load the MCP distillation flow by name or ID
+flow_path = FlowRegistry.get_flow_path("MCP Server Distillation")
+flow = Flow.from_yaml(flow_path)
 
-# Option 2: Validate your own dataset against the schema
-my_dataset = pd.DataFrame(my_data_dict)
-if set(my_dataset.columns) == set(schema_df.columns):
-    print("Schema matches - ready to generate!")
-    dataset = my_dataset
-else:
-    print("Schema mismatch - check your columns")
-
-# Option 3: Get raw requirements for detailed inspection
+# Check what the flow needs
 requirements = flow.get_dataset_requirements()
-if requirements:
-    print(f"Required: {requirements.required_columns}")
-    print(f"Optional: {requirements.optional_columns}")
-    print(f"Min samples: {requirements.min_samples}")
-```
+print(f"Required columns: {requirements.required_columns}")
+# -> ['tool_list', 'mcp_server_name', 'mcp_server_description']
 
-#### Dry Run and Generate
-```python
-# Quick Testing with Dry Run
+# Prepare your dataset -- one row per MCP server
+dataset = pd.DataFrame({
+    "tool_list": [[
+        {
+            "name": "search_products",
+            "description": "Search product catalog by query",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"query": {"type": "string"}},
+                "required": ["query"],
+            },
+        },
+        {
+            "name": "get_inventory",
+            "description": "Check inventory levels for a product",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"product_id": {"type": "string"}},
+                "required": ["product_id"],
+            },
+        },
+    ]],
+    "mcp_server_name": ["ShopInsights Analytics"],
+    "mcp_server_description": ["E-commerce analytics platform for product search and inventory"],
+})
+
+# Configure the frontier model and agent endpoint
+flow.set_model_config(
+    model="openai/gpt-4o",
+    api_key="your-openai-key",
+)
+flow.set_agent_config(
+    agent_framework="langflow",
+    agent_url="http://localhost:7860/api/v1/run/default",
+)
+
+# Dry run to validate the pipeline
 dry_result = flow.dry_run(dataset, sample_size=1)
-print(f"Dry run completed in {dry_result['execution_time_seconds']:.2f}s")
 print(f"Output columns: {dry_result['final_dataset']['columns']}")
 
-# Generate high-quality QA pairs
+# Generate training data
 result = flow.generate(dataset)
+```
 
-# Access generated content
-questions = result['question']
-answers = result['response']
-faithfulness_scores = result['faithfulness_judgment']
-relevancy_scores = result['relevancy_score']
+The output contains question-trajectory pairs ready for supervised fine-tuning: each row has a realistic user question, the tools that should be called, and the full expert tool-calling trace with arguments and outputs.
+
+### Flow Discovery
+
+Every flow has a unique, human-readable ID for easy reference:
+
+```python
+from sdg_hub import FlowRegistry
+
+# Search by tag
+agentic_flows = FlowRegistry.search_flows(tag="agentic")
+eval_flows = FlowRegistry.search_flows(tag="evaluation")
+
+# Browse by category
+categories = FlowRegistry.get_flows_by_category()
+for category, flows in categories.items():
+    print(f"{category}: {[f['name'] for f in flows]}")
 ```
 
 
