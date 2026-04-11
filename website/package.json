@@ -9,11 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.52",
-    "@ai-sdk/react": "^3.0.160",
     "@markdoc/markdoc": "^0.5.7",
     "@markdoc/next.js": "^0.5.0",
-    "ai": "^6.0.158",
     "gray-matter": "^4.0.3",
     "next": "16.2.3",
     "playwright": "^1.59.1",
