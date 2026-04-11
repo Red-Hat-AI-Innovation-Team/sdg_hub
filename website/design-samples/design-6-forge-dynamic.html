@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SDG Hub - Design 6: Forge Dynamic</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=General+Sans:wght@300;400;500;600;700&family=Fragment+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* ================================================================
+     DESIGN 6: FORGE DYNAMIC
+     All dynamic elements demonstrated in one mockup.
+     ================================================================ */
+
+  @keyframes fade-up { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes shimmer { 0% { background-position:200% center; } 100% { background-position:-200% center; } }
+  @keyframes glow-pulse { 0%,100% { opacity:.15; } 50% { opacity:.35; } }
+  @keyframes cursor-blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+  @keyframes check-pop { 0% { transform:scale(0); } 60% { transform:scale(1.2); } 100% { transform:scale(1); } }
+
+  /* Pipeline data packet */
+  @keyframes packet-flow {
+    0% { left: 0%; opacity:0; }
+    5% { opacity:1; }
+    95% { opacity:1; }
+    100% { left: 100%; opacity:0; }
+  }
+
+  /* Block glow when packet arrives */
+  @keyframes block-glow {
+    0%,100% { box-shadow: 0 0 0 1px rgba(232,151,93,0.2); }
+    50% { box-shadow: 0 0 16px 2px rgba(232,151,93,0.25), 0 0 0 1px rgba(232,151,93,0.4); }
+  }
+
+  :root {
+    --bg-0:#09090b; --bg-1:#0f0f12; --bg-2:#16161a; --bg-3:#1e1e23; --bg-4:#27272d;
+    --bg-hover:rgba(255,255,255,0.03); --bg-glass:rgba(9,9,11,0.7);
+    --text-0:#fafaf9; --text-1:#a8a29e; --text-2:#6b6560; --text-3:#44403c;
+    --accent:#e8975d; --accent-bright:#f0a96e; --accent-muted:#c47a45;
+    --accent-glow:rgba(232,151,93,0.08); --accent-glow-md:rgba(232,151,93,0.14);
+    --accent-border:rgba(232,151,93,0.2);
+    --block-1:#e8975d; --block-2:#7daa8c; --block-3:#8097c4; --block-4:#a88bb8;
+    --green:#7daa8c; --blue:#8097c4; --purple:#a88bb8; --red:#c47070; --cream:#d4cdc4;
+    --border:rgba(255,255,255,0.06); --border-strong:rgba(255,255,255,0.1);
+    --border-hover:rgba(255,255,255,0.14);
+    --ring:0 0 0 1px var(--border); --ring-hover:0 0 0 1px var(--border-hover);
+    --ring-accent:0 0 0 1px var(--accent-border);
+    --shadow-sm:0 1px 2px rgba(0,0,0,0.3); --shadow-md:0 4px 16px rgba(0,0,0,0.4);
+    --radius-sm:6px; --radius-md:10px; --radius-lg:14px;
+    --sidebar-w:248px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+
+  body {
+    font-family:'General Sans',-apple-system,sans-serif;
+    background:var(--bg-0); color:var(--text-0);
+    font-size:15px; line-height:1.75; font-weight:400;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* Noise */
+  body::after {
+    content:''; position:fixed; inset:0; z-index:10000; pointer-events:none; opacity:.35;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    background-size:200px;
+  }
+
+  /* ===== HEADER ===== */
+  header {
+    position:fixed; top:0; left:0; right:0; z-index:200; height:56px;
+    background:var(--bg-glass); backdrop-filter:blur(20px) saturate(160%);
+    border-bottom:1px solid var(--border);
+    display:flex; align-items:center; padding:0 20px;
+  }
+
+  .logo { display:flex; align-items:center; gap:10px; text-decoration:none; }
+  .logo-blocks { display:flex; gap:2px; }
+  .logo-block { width:7px; height:7px; border-radius:2px; transition:transform 0.2s; }
+  .logo:hover .logo-block { transform:scale(1.2); }
+  .logo-block:nth-child(1) { background:var(--block-1); }
+  .logo-block:nth-child(2) { background:var(--block-2); }
+  .logo-block:nth-child(3) { background:var(--block-3); }
+  .logo-block:nth-child(4) { background:var(--block-4); opacity:.7; }
+  .logo-name { font-family:'Fraunces',serif; font-size:17px; font-weight:600; color:var(--text-0); letter-spacing:-0.03em; }
+
+  .header-nav { margin-left:auto; display:flex; align-items:center; gap:2px; }
+  .header-nav a { color:var(--text-2); text-decoration:none; font-size:13px; padding:6px 12px; border-radius:var(--radius-sm); transition:all 0.15s; }
+  .header-nav a:hover { color:var(--text-1); background:var(--bg-hover); }
+  .header-nav a.active { color:var(--text-0); background:var(--bg-3); }
+
+  .search-trigger {
+    display:flex; align-items:center; gap:6px; margin-left:12px;
+    padding:5px 10px 5px 12px; border-radius:var(--radius-sm);
+    background:var(--bg-2); box-shadow:var(--ring);
+    font-size:13px; color:var(--text-3); cursor:pointer; transition:all 0.15s;
+    border:none; font-family:inherit;
+  }
+  .search-trigger:hover { box-shadow:var(--ring-hover); color:var(--text-2); }
+  .search-trigger kbd { font-family:'Fragment Mono',monospace; font-size:10px; padding:1px 5px; border-radius:3px; background:var(--bg-3); box-shadow:var(--ring); color:var(--text-3); }
+
+  /* ===== CMD+K SEARCH MODAL ===== */
+  .search-overlay {
+    position:fixed; inset:0; z-index:500;
+    background:rgba(0,0,0,0.6); backdrop-filter:blur(4px);
+    display:none; align-items:flex-start; justify-content:center;
+    padding-top:20vh;
+  }
+  .search-overlay.open { display:flex; }
+
+  .search-modal {
+    width:560px; max-height:420px;
+    background:var(--bg-2); border:1px solid var(--border-strong);
+    border-radius:var(--radius-lg); box-shadow:0 24px 64px rgba(0,0,0,0.6);
+    overflow:hidden;
+    animation:fade-up 0.15s ease-out;
+  }
+
+  .search-input-wrap {
+    display:flex; align-items:center; gap:10px;
+    padding:14px 18px; border-bottom:1px solid var(--border);
+  }
+
+  .search-icon { color:var(--text-3); font-size:16px; flex-shrink:0; }
+
+  .search-input {
+    flex:1; background:none; border:none; outline:none;
+    font-family:'General Sans',sans-serif; font-size:15px;
+    color:var(--text-0); font-weight:400;
+  }
+  .search-input::placeholder { color:var(--text-3); }
+
+  .search-esc {
+    font-family:'Fragment Mono',monospace; font-size:10px;
+    padding:2px 6px; border-radius:3px;
+    background:var(--bg-3); box-shadow:var(--ring); color:var(--text-3);
+  }
+
+  .search-results { padding:8px; }
+
+  .search-result {
+    display:flex; align-items:center; gap:10px;
+    padding:8px 12px; border-radius:var(--radius-sm);
+    cursor:pointer; transition:all 0.1s;
+  }
+  .search-result:hover, .search-result.selected { background:var(--accent-glow); }
+  .search-result.selected { box-shadow:var(--ring-accent); }
+
+  .search-result-icon { font-size:12px; color:var(--text-3); width:20px; text-align:center; }
+  .search-result-text { font-size:13.5px; color:var(--text-1); }
+  .search-result.selected .search-result-text { color:var(--accent); }
+  .search-result-path { font-family:'Fragment Mono',monospace; font-size:11px; color:var(--text-3); margin-left:auto; }
+
+  .search-footer {
+    padding:8px 18px; border-top:1px solid var(--border);
+    font-family:'Fragment Mono',monospace; font-size:10px; color:var(--text-3);
+    display:flex; gap:16px;
+  }
+
+  /* ===== LANDING ===== */
+  .landing { padding-top:56px; min-height:100vh; position:relative; overflow:hidden; }
+  .landing-glow { position:absolute; width:600px; height:600px; border-radius:50%; filter:blur(120px); pointer-events:none; }
+  .landing-glow.g1 { top:-100px; left:30%; background:var(--accent); opacity:.12; }
+  .landing-glow.g2 { top:200px; right:-100px; background:var(--blue); opacity:.08; }
+
+  .landing-hero {
+    text-align:center; padding:100px 24px 48px;
+    max-width:680px; margin:0 auto; position:relative; z-index:1;
+  }
+
+  .landing-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    font-family:'Fragment Mono',monospace; font-size:11px; color:var(--accent);
+    padding:4px 12px 4px 8px; border-radius:20px;
+    background:var(--accent-glow); box-shadow:var(--ring-accent);
+    margin-bottom:28px; animation:fade-up 0.6s ease-out;
+  }
+  .landing-badge .dot { width:6px; height:6px; background:var(--accent); border-radius:50%; animation:glow-pulse 2s ease-in-out infinite; }
+
+  .landing-hero h1 {
+    font-family:'Fraunces',serif; font-size:48px; font-weight:700;
+    letter-spacing:-0.045em; line-height:1.08; margin-bottom:20px;
+    animation:fade-up 0.6s ease-out 0.1s backwards;
+  }
+  .landing-hero h1 .highlight {
+    background:linear-gradient(135deg,var(--accent) 0%,var(--accent-bright) 50%,var(--accent) 100%);
+    background-size:200% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    background-clip:text; animation:shimmer 4s linear infinite;
+  }
+
+  /* == TYPEWRITER SUBTITLE == */
+  .typewriter-wrap {
+    height:52px; margin-bottom:32px;
+    animation:fade-up 0.6s ease-out 0.2s backwards;
+  }
+  .typewriter {
+    font-size:17px; color:var(--text-1); font-weight:300;
+    line-height:1.55;
+  }
+  .typewriter .cursor {
+    display:inline-block; width:2px; height:1.1em;
+    background:var(--accent); margin-left:2px;
+    vertical-align:text-bottom;
+    animation:cursor-blink 0.8s step-end infinite;
+  }
+
+  .landing-buttons { display:flex; justify-content:center; gap:10px; animation:fade-up 0.6s ease-out 0.3s backwards; }
+  .btn { font-size:13.5px; font-weight:500; padding:9px 20px; border-radius:var(--radius-sm); text-decoration:none; transition:all 0.2s; cursor:pointer; border:none; font-family:inherit; }
+  .btn-primary { background:var(--accent); color:#0c0b0e; box-shadow:0 1px 3px rgba(232,151,93,0.3); }
+  .btn-primary:hover { background:var(--accent-bright); box-shadow:0 2px 12px rgba(232,151,93,0.4); transform:translateY(-1px); }
+  .btn-secondary { background:var(--bg-3); color:var(--text-0); box-shadow:var(--ring); }
+  .btn-secondary:hover { background:var(--bg-4); box-shadow:var(--ring-hover); transform:translateY(-1px); }
+
+  /* == ANIMATED PIPELINE == */
+  .pipeline-section {
+    padding:20px 24px 48px;
+    animation:fade-up 0.6s ease-out 0.4s backwards;
+    position:relative; z-index:1;
+  }
+
+  .pipeline {
+    display:flex; align-items:center; justify-content:center;
+    gap:0; position:relative;
+  }
+
+  .pipe-node {
+    font-family:'Fragment Mono',monospace; font-size:12px;
+    padding:8px 16px; border-radius:var(--radius-sm);
+    background:var(--bg-2); box-shadow:var(--ring);
+    color:var(--text-2); white-space:nowrap;
+    transition:all 0.3s; position:relative; z-index:2;
+  }
+  .pipe-node.block { background:var(--accent-glow); color:var(--accent); box-shadow:var(--ring-accent); }
+  .pipe-node.block.glowing { animation:block-glow 0.6s ease-out; }
+  .pipe-node.output { background:rgba(125,170,140,0.08); color:var(--green); box-shadow:0 0 0 1px rgba(125,170,140,0.2); }
+
+  .pipe-connector {
+    width:36px; height:2px; position:relative;
+    overflow:visible; flex-shrink:0;
+  }
+
+  .pipe-connector-line {
+    position:absolute; top:0; left:0; right:0; height:2px;
+    background:var(--bg-3);
+  }
+
+  .pipe-connector-line::after {
+    content:''; position:absolute; top:50%; right:-1px; transform:translateY(-50%);
+    width:0; height:0;
+    border-left:4px solid var(--bg-3);
+    border-top:3px solid transparent;
+    border-bottom:3px solid transparent;
+  }
+
+  .pipe-packet {
+    position:absolute; top:-3px; width:8px; height:8px;
+    border-radius:50%; background:var(--accent);
+    box-shadow:0 0 8px rgba(232,151,93,0.6);
+    opacity:0; z-index:3;
+  }
+
+  .pipe-packet.active { animation:packet-flow 0.8s ease-in-out forwards; }
+
+  /* == INTERACTIVE CARDS == */
+  .landing-cards {
+    display:grid; grid-template-columns:repeat(2,1fr);
+    gap:12px; max-width:640px; margin:0 auto;
+    padding:0 24px; position:relative; z-index:1;
+  }
+
+  .landing-card {
+    padding:22px 24px; border-radius:var(--radius-md);
+    background:var(--bg-1); box-shadow:var(--ring);
+    text-decoration:none; transition:all 0.25s; display:block;
+    cursor:pointer; position:relative; overflow:hidden;
+  }
+  .landing-card:hover { box-shadow:var(--ring-hover); background:var(--bg-2); transform:translateY(-2px); }
+
+  .card-icon { width:32px; height:32px; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; font-size:14px; margin-bottom:14px; }
+  .card-icon.i1 { background:rgba(232,151,93,0.12); color:var(--accent); }
+  .card-icon.i2 { background:rgba(128,151,196,0.12); color:var(--blue); }
+  .card-icon.i3 { background:rgba(125,170,140,0.12); color:var(--green); }
+  .card-icon.i4 { background:rgba(168,139,184,0.12); color:var(--purple); }
+
+  .landing-card h3 { font-size:15px; font-weight:600; color:var(--text-0); margin-bottom:6px; letter-spacing:-0.01em; }
+  .landing-card p.card-desc { font-size:13.5px; color:var(--text-2); line-height:1.55; margin:0; font-weight:300; }
+
+  /* Card hover code preview */
+  .card-preview {
+    margin-top:12px; padding:10px 12px;
+    background:var(--bg-0); border-radius:var(--radius-sm);
+    border:1px solid var(--border);
+    font-family:'Fragment Mono',monospace; font-size:11px;
+    line-height:1.6; color:var(--cream);
+    max-height:0; overflow:hidden; opacity:0;
+    transition:all 0.3s ease;
+  }
+  .landing-card:hover .card-preview { max-height:120px; opacity:1; margin-top:12px; }
+
+  .kw { color:#c4746e; } .str { color:#8ea383; } .fn { color:#7e9cba; }
+  .cm { color:#3d3a36; font-style:italic; } .op { color:#a09b93; } .typ { color:#a88bb8; }
+
+  /* ===== DOCS SECTION ===== */
+  .docs-section {
+    margin-top:40px;
+    border-top:1px solid var(--border);
+    position:relative; z-index:1;
+  }
+
+  .docs-section-header {
+    text-align:center; padding:60px 24px 40px;
+  }
+  .docs-section-header h2 {
+    font-family:'Fraunces',serif; font-size:28px; font-weight:600;
+    letter-spacing:-0.03em; color:var(--text-0); margin-bottom:8px;
+  }
+  .docs-section-header p { color:var(--text-2); font-size:15px; font-weight:300; }
+
+  .docs-demo {
+    max-width:900px; margin:0 auto; padding:0 24px;
+  }
+
+  .docs-layout-demo {
+    display:grid; grid-template-columns:200px 1fr;
+    border:1px solid var(--border-strong);
+    border-radius:var(--radius-lg);
+    overflow:hidden; background:var(--bg-1);
+    box-shadow:var(--shadow-md);
+  }
+
+  /* Mini sidebar */
+  .demo-sidebar {
+    background:var(--bg-1); border-right:1px solid var(--border);
+    padding:16px 0;
+  }
+  .demo-sidebar-label { font-family:'Fragment Mono',monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:var(--text-3); padding:0 14px 4px; }
+  .demo-sidebar-group { margin-bottom:14px; }
+  .demo-sidebar a { display:block; padding:3px 14px; font-size:12px; color:var(--text-2); text-decoration:none; transition:all 0.12s; border-radius:var(--radius-sm); margin:0 6px; }
+  .demo-sidebar a:hover { color:var(--text-1); background:var(--bg-hover); }
+  .demo-sidebar a.active { color:var(--accent); background:var(--accent-glow); }
+
+  /* Mini content */
+  .demo-content { padding:24px 32px; }
+  .demo-content h3 { font-family:'Fraunces',serif; font-size:22px; font-weight:600; letter-spacing:-0.02em; margin-bottom:6px; }
+  .demo-content .demo-sub { font-size:13px; color:var(--text-1); margin-bottom:20px; font-weight:300; }
+
+  /* == CODE BLOCK WITH COPY BUTTON == */
+  .demo-code {
+    background:#13111a; border:1px solid var(--border-strong);
+    border-radius:var(--radius-md); padding:16px 18px;
+    margin:12px 0; position:relative; overflow:hidden;
+  }
+
+  .demo-code pre { margin:0; background:none; border:none; box-shadow:none; padding:0; }
+  .demo-code code { font-family:'Fragment Mono',monospace; font-size:12px; line-height:1.7; color:var(--cream); }
+
+  .copy-btn {
+    position:absolute; top:8px; right:8px;
+    font-family:'Fragment Mono',monospace; font-size:10px;
+    color:var(--text-3); background:var(--bg-3);
+    border:none; border-radius:4px; padding:3px 8px;
+    cursor:pointer; transition:all 0.15s;
+    display:flex; align-items:center; gap:4px;
+    box-shadow:var(--ring);
+  }
+  .copy-btn:hover { color:var(--text-1); background:var(--bg-4); }
+  .copy-btn.copied { color:var(--green); background:rgba(125,170,140,0.12); box-shadow:0 0 0 1px rgba(125,170,140,0.2); }
+  .copy-btn .check { display:none; animation:check-pop 0.3s ease-out; }
+  .copy-btn.copied .check { display:inline; }
+  .copy-btn.copied .copy-text { display:none; }
+
+  /* == SCROLL REVEAL == */
+  .reveal {
+    opacity:0; transform:translateY(20px);
+    transition:opacity 0.5s ease, transform 0.5s ease;
+  }
+  .reveal.visible { opacity:1; transform:translateY(0); }
+
+  /* == COLLAPSIBLE SIDEBAR SECTIONS == */
+  .collapse-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 14px 4px; cursor:pointer;
+    user-select:none;
+  }
+  .collapse-header .label { font-family:'Fragment Mono',monospace; font-size:9px; text-transform:uppercase; letter-spacing:0.12em; color:var(--text-3); }
+  .collapse-arrow { font-size:10px; color:var(--text-3); transition:transform 0.2s; }
+  .collapse-header.open .collapse-arrow { transform:rotate(180deg); }
+  .collapse-body { overflow:hidden; transition:max-height 0.25s ease; }
+  .collapse-body.collapsed { max-height:0 !important; }
+
+  /* == TOAST == */
+  .toast {
+    position:fixed; bottom:80px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--bg-3); box-shadow:var(--ring), var(--shadow-md);
+    border-radius:var(--radius-sm); padding:8px 16px;
+    font-size:12px; color:var(--green);
+    display:flex; align-items:center; gap:6px;
+    opacity:0; transition:all 0.3s ease; z-index:400;
+    pointer-events:none;
+  }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* Footer */
+  .landing-footer { text-align:center; padding:60px 24px 40px; font-size:12px; color:var(--text-3); position:relative; z-index:1; }
+
+  /* Label bar */
+  .demo-label {
+    text-align:center; padding:24px 0 8px;
+    font-family:'Fragment Mono',monospace; font-size:10px;
+    text-transform:uppercase; letter-spacing:0.1em;
+    color:var(--text-3);
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <a class="logo" href="#">
+    <div class="logo-blocks"><div class="logo-block"></div><div class="logo-block"></div><div class="logo-block"></div><div class="logo-block"></div></div>
+    <div class="logo-name">sdg hub</div>
+  </a>
+  <div class="header-nav">
+    <a href="#" class="active">Docs</a>
+    <a href="#">API Reference</a>
+    <a href="#">GitHub</a>
+  </div>
+  <button class="search-trigger" onclick="openSearch()">
+    <span>Search docs...</span>
+    <kbd>&thinsp;/&thinsp;</kbd>
+  </button>
+</header>
+
+<!-- CMD+K SEARCH MODAL -->
+<div class="search-overlay" id="searchOverlay" onclick="if(event.target===this)closeSearch()">
+  <div class="search-modal">
+    <div class="search-input-wrap">
+      <span class="search-icon">&#128269;</span>
+      <input class="search-input" id="searchInput" type="text" placeholder="Search documentation..." autofocus>
+      <span class="search-esc" onclick="closeSearch()">esc</span>
+    </div>
+    <div class="search-results">
+      <div class="search-result selected">
+        <span class="search-result-icon">&#9632;</span>
+        <span class="search-result-text">LLMChatBlock</span>
+        <span class="search-result-path">blocks/llm</span>
+      </div>
+      <div class="search-result">
+        <span class="search-result-icon">&#9654;</span>
+        <span class="search-result-text">Flow.from_yaml()</span>
+        <span class="search-result-path">flows/overview</span>
+      </div>
+      <div class="search-result">
+        <span class="search-result-icon">&#9673;</span>
+        <span class="search-result-text">FlowRegistry.discover_flows()</span>
+        <span class="search-result-path">flows/discovery</span>
+      </div>
+      <div class="search-result">
+        <span class="search-result-icon">&#9881;</span>
+        <span class="search-result-text">set_model_config()</span>
+        <span class="search-result-path">quickstart</span>
+      </div>
+      <div class="search-result">
+        <span class="search-result-icon">&#9632;</span>
+        <span class="search-result-text">MCPAgentBlock</span>
+        <span class="search-result-path">blocks/agent</span>
+      </div>
+    </div>
+    <div class="search-footer">
+      <span>&#8593;&#8595; navigate</span>
+      <span>&#8629; select</span>
+      <span>esc close</span>
+    </div>
+  </div>
+</div>
+
+<!-- LANDING -->
+<div class="landing">
+  <div class="landing-glow g1"></div>
+  <div class="landing-glow g2"></div>
+
+  <div class="landing-hero">
+    <div class="landing-badge"><span class="dot"></span>v1.0 &mdash; now with MCP distillation</div>
+    <h1>Build synthetic data<br>pipelines with <span class="highlight">composable blocks</span></h1>
+    <div class="typewriter-wrap">
+      <div class="typewriter"><span id="typewriterText"></span><span class="cursor"></span></div>
+    </div>
+    <div class="landing-buttons">
+      <a class="btn btn-primary" href="#">Get Started</a>
+      <a class="btn btn-secondary" href="#">API Reference</a>
+    </div>
+  </div>
+
+  <!-- ANIMATED PIPELINE -->
+  <div class="pipeline-section">
+    <div class="pipeline" id="pipeline">
+      <div class="pipe-node" id="pn-input">dataset</div>
+      <div class="pipe-connector"><div class="pipe-connector-line"></div><div class="pipe-packet" id="pp1"></div></div>
+      <div class="pipe-node block" id="pn-1">PromptBuilder</div>
+      <div class="pipe-connector"><div class="pipe-connector-line"></div><div class="pipe-packet" id="pp2"></div></div>
+      <div class="pipe-node block" id="pn-2">LLMChat</div>
+      <div class="pipe-connector"><div class="pipe-connector-line"></div><div class="pipe-packet" id="pp3"></div></div>
+      <div class="pipe-node block" id="pn-3">TagParser</div>
+      <div class="pipe-connector"><div class="pipe-connector-line"></div><div class="pipe-packet" id="pp4"></div></div>
+      <div class="pipe-node block" id="pn-4">Filter</div>
+      <div class="pipe-connector"><div class="pipe-connector-line"></div><div class="pipe-packet" id="pp5"></div></div>
+      <div class="pipe-node output" id="pn-output">enriched</div>
+    </div>
+  </div>
+
+  <!-- INTERACTIVE CARDS WITH HOVER PREVIEW -->
+  <div class="landing-cards">
+    <a class="landing-card" href="#">
+      <div class="card-icon i1">&#9632;</div>
+      <h3>Composable Blocks</h3>
+      <p class="card-desc">21 built-in blocks across 6 categories. Mix and match like Lego.</p>
+      <div class="card-preview">
+<span class="kw">from</span> <span class="typ">sdg_hub</span> <span class="kw">import</span> BlockRegistry
+BlockRegistry.<span class="fn">discover_blocks</span>()
+<span class="cm"># 21 blocks across 6 categories</span></div>
+    </a>
+    <a class="landing-card" href="#">
+      <div class="card-icon i2">&#9654;</div>
+      <h3>YAML Flows</h3>
+      <p class="card-desc">Define multi-step pipelines in YAML. Portable and reproducible.</p>
+      <div class="card-preview">
+flow = Flow.<span class="fn">from_yaml</span>(<span class="str">"flow.yaml"</span>)
+result = flow.<span class="fn">generate</span>(dataset)
+<span class="cm"># That's it.</span></div>
+    </a>
+    <a class="landing-card" href="#">
+      <div class="card-icon i3">&#9673;</div>
+      <h3>Auto-Discovery</h3>
+      <p class="card-desc">BlockRegistry and FlowRegistry find everything. Zero config.</p>
+      <div class="card-preview">
+FlowRegistry.<span class="fn">discover_flows</span>()
+flows = FlowRegistry.<span class="fn">list_flows</span>()
+<span class="cm"># [{id: "new-night-835", ...}]</span></div>
+    </a>
+    <a class="landing-card" href="#">
+      <div class="card-icon i4">&#9881;</div>
+      <h3>100+ LLM Providers</h3>
+      <p class="card-desc">Async execution via LiteLLM. OpenAI, Anthropic, vLLM, and more.</p>
+      <div class="card-preview">
+flow.<span class="fn">set_model_config</span>(
+  model=<span class="str">"openai/gpt-4o"</span>,
+)
+<span class="cm"># or: hosted_vllm/..., anthropic/...</span></div>
+    </a>
+  </div>
+
+  <!-- DOCS DEMO WITH SCROLL REVEAL -->
+  <div class="docs-section reveal" id="docsDemo">
+    <div class="docs-section-header">
+      <h2>Developer-first documentation</h2>
+      <p>Clean, searchable, with copy-paste code blocks that just work.</p>
+    </div>
+
+    <div class="demo-label">interactive demo &mdash; try the copy buttons and collapsible sections</div>
+
+    <div class="docs-demo">
+      <div class="docs-layout-demo">
+        <!-- Mini sidebar with collapsible -->
+        <div class="demo-sidebar">
+          <div class="demo-sidebar-group">
+            <div class="collapse-header open" onclick="toggleCollapse(this)">
+              <span class="label">getting_started</span>
+              <span class="collapse-arrow">&#9660;</span>
+            </div>
+            <div class="collapse-body" style="max-height:200px">
+              <a href="#">Introduction</a>
+              <a href="#" class="active">Quick Start</a>
+              <a href="#">Core Concepts</a>
+            </div>
+          </div>
+          <div class="demo-sidebar-group">
+            <div class="collapse-header open" onclick="toggleCollapse(this)">
+              <span class="label">blocks</span>
+              <span class="collapse-arrow">&#9660;</span>
+            </div>
+            <div class="collapse-body" style="max-height:200px">
+              <a href="#">Overview</a>
+              <a href="#">LLM Blocks</a>
+              <a href="#">Parsing</a>
+              <a href="#">Transform</a>
+              <a href="#">Agent</a>
+            </div>
+          </div>
+          <div class="demo-sidebar-group">
+            <div class="collapse-header" onclick="toggleCollapse(this)">
+              <span class="label">flows</span>
+              <span class="collapse-arrow">&#9660;</span>
+            </div>
+            <div class="collapse-body collapsed" style="max-height:200px">
+              <a href="#">Overview</a>
+              <a href="#">YAML Reference</a>
+              <a href="#">Built-in Flows</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mini content with copy buttons -->
+        <div class="demo-content">
+          <h3>Quick Start</h3>
+          <p class="demo-sub">Load a flow, configure a model, generate synthetic data.</p>
+
+          <div class="demo-code">
+            <button class="copy-btn" onclick="copyCode(this)">
+              <span class="copy-text">Copy</span>
+              <span class="check">&#10003; Copied</span>
+            </button>
+            <pre><code><span class="kw">from</span> <span class="typ">sdg_hub</span> <span class="kw">import</span> FlowRegistry, Flow
+
+<span class="cm"># Discover and load a flow</span>
+FlowRegistry.<span class="fn">discover_flows</span>()
+path = FlowRegistry.<span class="fn">get_flow_path</span>(<span class="str">"MCP Server Distillation"</span>)
+flow = Flow.<span class="fn">from_yaml</span>(path)</code></pre>
+          </div>
+
+          <div class="demo-code">
+            <button class="copy-btn" onclick="copyCode(this)">
+              <span class="copy-text">Copy</span>
+              <span class="check">&#10003; Copied</span>
+            </button>
+            <pre><code><span class="cm"># Configure model</span>
+flow.<span class="fn">set_model_config</span>(
+    model=<span class="str">"openai/gpt-4o"</span>,
+    api_key=<span class="str">"sk-..."</span>,
+)
+
+<span class="cm"># Generate</span>
+result = flow.<span class="fn">generate</span>(dataset)</code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="landing-footer">Built by Red Hat AI Innovation Team &middot; Apache 2.0</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">&#10003; Copied to clipboard</div>
+
+<script>
+// === TYPEWRITER ===
+const phrases = [
+  "Generate QA pairs from documents",
+  "Distill MCP tool-use trajectories",
+  "Build red-team evaluation sets",
+  "Create multilingual training data",
+  "Synthesize knowledge tuning datasets"
+];
+let phraseIdx = 0, charIdx = 0, deleting = false, pauseCount = 0;
+const typeEl = document.getElementById('typewriterText');
+
+function typewrite() {
+  const phrase = phrases[phraseIdx];
+  if (!deleting) {
+    typeEl.textContent = phrase.substring(0, charIdx + 1);
+    charIdx++;
+    if (charIdx === phrase.length) {
+      pauseCount = 0;
+      setTimeout(typewrite, 2000);
+      deleting = true;
+      return;
+    }
+    setTimeout(typewrite, 45 + Math.random() * 30);
+  } else {
+    typeEl.textContent = phrase.substring(0, charIdx - 1);
+    charIdx--;
+    if (charIdx === 0) {
+      deleting = false;
+      phraseIdx = (phraseIdx + 1) % phrases.length;
+      setTimeout(typewrite, 400);
+      return;
+    }
+    setTimeout(typewrite, 20);
+  }
+}
+setTimeout(typewrite, 1000);
+
+// === PIPELINE ANIMATION ===
+const packets = ['pp1','pp2','pp3','pp4','pp5'];
+const blocks = ['pn-1','pn-2','pn-3','pn-4','pn-output'];
+let pipelineRunning = true;
+
+function runPipeline() {
+  if (!pipelineRunning) return;
+  packets.forEach((id, i) => {
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      el.classList.remove('active');
+      void el.offsetWidth;
+      el.classList.add('active');
+      // Glow the destination block
+      setTimeout(() => {
+        const block = document.getElementById(blocks[i]);
+        block.classList.remove('glowing');
+        void block.offsetWidth;
+        block.classList.add('glowing');
+      }, 700);
+    }, i * 500);
+  });
+  setTimeout(runPipeline, 4000);
+}
+setTimeout(runPipeline, 1500);
+
+// === SEARCH ===
+function openSearch() {
+  document.getElementById('searchOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('searchInput').focus(), 50);
+}
+function closeSearch() {
+  document.getElementById('searchOverlay').classList.remove('open');
+  document.getElementById('searchInput').value = '';
+}
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); openSearch(); }
+  if (e.key === 'Escape') closeSearch();
+  if (e.key === '/') {
+    if (document.activeElement.tagName !== 'INPUT') { e.preventDefault(); openSearch(); }
+  }
+});
+
+// === COPY BUTTON ===
+function copyCode(btn) {
+  const code = btn.parentElement.querySelector('code').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    btn.classList.add('copied');
+    showToast();
+    setTimeout(() => btn.classList.remove('copied'), 2000);
+  });
+}
+
+function showToast() {
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// === SCROLL REVEAL ===
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.15 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// === COLLAPSIBLE SIDEBAR ===
+function toggleCollapse(header) {
+  header.classList.toggle('open');
+  const body = header.nextElementSibling;
+  body.classList.toggle('collapsed');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SDG Hub - Design 4: Forge</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=General+Sans:wght@300;400;500;600&family=Fragment+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  @keyframes grain {
+    0%, 100% { transform: translate(0, 0); }
+    10% { transform: translate(-5%, -10%); }
+    20% { transform: translate(-15%, 5%); }
+    30% { transform: translate(7%, -25%); }
+    40% { transform: translate(-5%, 25%); }
+    50% { transform: translate(-15%, 10%); }
+    60% { transform: translate(15%, 0%); }
+    70% { transform: translate(0%, 15%); }
+    80% { transform: translate(3%, 35%); }
+    90% { transform: translate(-10%, 10%); }
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+  }
+
+  @keyframes float-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+  }
+
+  :root {
+    --bg-0: #0c0b0e;
+    --bg-1: #110f14;
+    --bg-2: #18161d;
+    --bg-3: #201e27;
+    --bg-4: #2a2733;
+    --bg-warm: #13111a;
+    --text-0: #ede9e3;
+    --text-1: #a09b93;
+    --text-2: #605c56;
+    --text-3: #3d3a36;
+    --accent: #e8975d;
+    --accent-bright: #f0a96e;
+    --accent-dim: #b56e3a;
+    --accent-glow: rgba(232, 151, 93, 0.07);
+    --accent-glow-md: rgba(232, 151, 93, 0.12);
+    --accent-glow-strong: rgba(232, 151, 93, 0.18);
+    --warm-red: #d45d5d;
+    --warm-green: #8faa6d;
+    --warm-blue: #7d9cc0;
+    --warm-purple: #a88dc7;
+    --warm-yellow: #d4b76a;
+    --warm-orange: #d4956a;
+    --warm-cream: #c8bfb0;
+    --border: rgba(237, 233, 227, 0.06);
+    --border-strong: rgba(237, 233, 227, 0.1);
+    --ring: 0 0 0 1px rgba(237, 233, 227, 0.06);
+    --ring-focus: 0 0 0 1px rgba(232, 151, 93, 0.3);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'General Sans', sans-serif;
+    background: var(--bg-0);
+    color: var(--text-0);
+    font-size: 15px;
+    line-height: 1.75;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* === NOISE TEXTURE === */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 9999;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+    animation: grain 8s steps(10) infinite;
+    opacity: 0.5;
+  }
+
+  /* === HEADER === */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    height: 54px;
+    background: rgba(12, 11, 14, 0.6);
+    backdrop-filter: blur(24px) saturate(150%);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 24px;
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .logo-blocks {
+    display: flex; gap: 2px;
+  }
+
+  .logo-block {
+    width: 7px; height: 7px; border-radius: 1.5px;
+  }
+
+  .logo-block:nth-child(1) { background: var(--accent); }
+  .logo-block:nth-child(2) { background: var(--warm-green); }
+  .logo-block:nth-child(3) { background: var(--warm-blue); }
+  .logo-block:nth-child(4) { background: var(--warm-purple); opacity: 0.6; }
+
+  .logo-text {
+    font-family: 'Fraunces', serif;
+    font-size: 17px; font-weight: 600;
+    color: var(--text-0);
+    letter-spacing: -0.03em;
+  }
+
+  .logo-text span { font-weight: 400; color: var(--text-2); }
+
+  .header-sep {
+    width: 1px; height: 18px;
+    background: var(--border-strong);
+    margin: 0 16px;
+  }
+
+  .header-ctx {
+    font-family: 'Fragment Mono', monospace;
+    font-size: 11px; color: var(--text-2);
+    letter-spacing: 0.03em;
+  }
+
+  nav { margin-left: auto; display: flex; gap: 2px; }
+
+  nav a {
+    color: var(--text-1); text-decoration: none;
+    font-size: 13px; font-weight: 400;
+    padding: 5px 12px; border-radius: 6px;
+    transition: all 0.2s;
+  }
+
+  nav a:hover { background: var(--bg-3); color: var(--text-0); }
+
+  nav a.active {
+    background: var(--accent-glow-md);
+    color: var(--accent);
+    box-shadow: var(--ring-focus);
+  }
+
+  /* === LAYOUT === */
+  .layout {
+    display: grid;
+    grid-template-columns: 230px 1fr;
+    margin-top: 54px;
+    min-height: calc(100vh - 54px);
+  }
+
+  /* === SIDEBAR === */
+  .sidebar {
+    background: var(--bg-1);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    position: fixed; top: 54px; bottom: 0; left: 0;
+    width: 230px;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .sidebar::-webkit-scrollbar { display: none; }
+
+  .sidebar-group { margin-bottom: 22px; }
+
+  .sidebar-label {
+    font-family: 'Fragment Mono', monospace;
+    font-size: 10px; font-weight: 400;
+    text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--text-3); padding: 0 20px;
+    margin-bottom: 5px;
+  }
+
+  .sidebar a {
+    display: block; padding: 5px 20px;
+    color: var(--text-2); text-decoration: none;
+    font-size: 13px; font-weight: 400;
+    transition: all 0.15s;
+    position: relative;
+  }
+
+  .sidebar a:hover { color: var(--text-1); }
+
+  .sidebar a.active {
+    color: var(--accent);
+    background: var(--accent-glow);
+  }
+
+  .sidebar a.active::before {
+    content: '';
+    position: absolute; left: 0; top: 4px; bottom: 4px;
+    width: 2px;
+    background: var(--accent);
+    border-radius: 0 1px 1px 0;
+  }
+
+  /* === CONTENT === */
+  .content {
+    margin-left: 230px;
+    max-width: 720px;
+    padding: 44px 56px 140px;
+    animation: float-in 0.5s ease-out;
+  }
+
+  /* === BREADCRUMB === */
+  .breadcrumb {
+    font-family: 'Fragment Mono', monospace;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: var(--text-3);
+    margin-bottom: 24px;
+    letter-spacing: 0.02em;
+  }
+
+  .breadcrumb a { color: var(--text-3); text-decoration: none; }
+  .breadcrumb a:hover { color: var(--text-2); }
+  .breadcrumb .sep { color: var(--text-3); opacity: 0.5; }
+  .breadcrumb .current { color: var(--text-2); }
+
+  /* === TYPOGRAPHY === */
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 38px; font-weight: 700;
+    letter-spacing: -0.04em; line-height: 1.1;
+    margin-bottom: 12px;
+    color: var(--text-0);
+  }
+
+  h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 22px; font-weight: 600;
+    margin-top: 56px; margin-bottom: 16px;
+    letter-spacing: -0.025em;
+    color: var(--text-0);
+    position: relative;
+    padding-left: 16px;
+  }
+
+  h2::before {
+    content: '';
+    position: absolute; left: 0; top: 4px; bottom: 4px;
+    width: 3px;
+    background: linear-gradient(180deg, var(--accent) 0%, var(--accent-dim) 100%);
+    border-radius: 2px;
+  }
+
+  h3 {
+    font-size: 15px; font-weight: 600;
+    margin-top: 32px; margin-bottom: 10px;
+    color: var(--text-0);
+    letter-spacing: -0.01em;
+  }
+
+  .subtitle {
+    color: var(--text-1);
+    font-size: 16px; margin-bottom: 40px;
+    line-height: 1.7; font-weight: 300;
+  }
+
+  p { margin-bottom: 16px; color: var(--text-1); font-weight: 300; }
+
+  a.text-link {
+    color: var(--accent); text-decoration: none;
+    background-image: linear-gradient(var(--accent-dim), var(--accent-dim));
+    background-size: 100% 1px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    transition: background-size 0.2s;
+  }
+
+  a.text-link:hover {
+    background-size: 100% 2px;
+    color: var(--accent-bright);
+  }
+
+  strong { color: var(--text-0); font-weight: 500; }
+  em { color: var(--text-1); }
+
+  /* === CODE BLOCKS - KANAGAWA WARM THEME === */
+  pre {
+    background: #1a1820;
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin: 18px 0;
+    overflow-x: auto;
+    position: relative;
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  }
+
+  pre::before {
+    content: attr(data-lang);
+    position: absolute; top: 10px; right: 14px;
+    font-family: 'Fragment Mono', monospace;
+    font-size: 9px; color: var(--text-3);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    background: var(--bg-3); padding: 2px 7px;
+    border-radius: 3px;
+    box-shadow: var(--ring);
+  }
+
+  code {
+    font-family: 'Fragment Mono', monospace;
+    font-size: 13px; line-height: 1.75;
+  }
+
+  pre code { color: var(--warm-cream); }
+
+  code.inline {
+    background: var(--bg-3);
+    box-shadow: var(--ring);
+    padding: 2px 7px; border-radius: 4px;
+    font-size: 12.5px; color: var(--accent);
+  }
+
+  /* Kanagawa-inspired warm syntax colors */
+  .kw { color: #c4746e; }       /* keywords - warm red */
+  .str { color: #a4b87c; }      /* strings - sage green */
+  .fn { color: #8ea4c0; }       /* functions - steel blue */
+  .cm { color: #4a4640; font-style: italic; }  /* comments - warm gray */
+  .op { color: #a09b93; }       /* operators - warm stone */
+  .num { color: #d4956a; }      /* numbers - warm orange */
+  .type { color: #a88dc7; }     /* types - soft purple */
+  .const { color: #e8975d; }    /* constants - amber */
+  .param { color: #c8bfb0; }    /* params - warm cream */
+
+  /* === TABLE === */
+  table {
+    width: 100%; margin: 18px 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    box-shadow: var(--ring);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  th {
+    text-align: left;
+    font-family: 'Fragment Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-3); font-weight: 400;
+    padding: 10px 18px;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--border-strong);
+  }
+
+  td {
+    padding: 11px 18px; font-size: 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-1); font-weight: 300;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  td:first-child {
+    font-family: 'Fragment Mono', monospace;
+    font-size: 13px; color: var(--accent);
+    font-weight: 400;
+  }
+
+  /* === CALLOUT === */
+  .callout {
+    background: var(--accent-glow);
+    border: 1px solid rgba(232, 151, 93, 0.1);
+    border-left: 3px solid var(--accent);
+    border-radius: 2px 8px 8px 2px;
+    padding: 14px 18px;
+    margin: 20px 0;
+  }
+
+  .callout p { margin: 0; font-size: 14px; color: var(--text-1); }
+  .callout strong { color: var(--accent); font-weight: 500; }
+
+  /* === PIPELINE VISUAL === */
+  .pipeline {
+    display: flex; align-items: center; gap: 0;
+    margin: 32px 0;
+    padding: 20px 0;
+    overflow-x: auto;
+  }
+
+  .pipeline-node {
+    font-family: 'Fragment Mono', monospace;
+    font-size: 12px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    white-space: nowrap;
+    box-shadow: var(--ring);
+    position: relative;
+  }
+
+  .pipeline-node.input {
+    background: var(--bg-3);
+    color: var(--text-1);
+  }
+
+  .pipeline-node.block {
+    background: var(--accent-glow-md);
+    color: var(--accent);
+    box-shadow: var(--ring-focus);
+  }
+
+  .pipeline-node.output {
+    background: rgba(143, 170, 109, 0.1);
+    color: var(--warm-green);
+    box-shadow: 0 0 0 1px rgba(143, 170, 109, 0.2);
+  }
+
+  .pipeline-arrow {
+    font-size: 16px; color: var(--text-3);
+    padding: 0 8px;
+    flex-shrink: 0;
+  }
+
+  /* === STEP INDICATOR === */
+  .steps { counter-reset: step; }
+
+  .step {
+    position: relative;
+    padding-left: 40px;
+    margin-bottom: 28px;
+    counter-increment: step;
+  }
+
+  .step::before {
+    content: counter(step);
+    position: absolute; left: 0; top: 2px;
+    width: 24px; height: 24px;
+    background: var(--bg-3);
+    box-shadow: var(--ring);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Fragment Mono', monospace;
+    font-size: 11px; color: var(--text-2);
+    font-weight: 400;
+  }
+
+  .step.active::before {
+    background: var(--accent-glow-strong);
+    box-shadow: var(--ring-focus);
+    color: var(--accent);
+  }
+
+  .step h3 {
+    margin-top: 0;
+    font-family: 'General Sans', sans-serif;
+    font-size: 15px; font-weight: 500;
+    color: var(--text-0);
+  }
+
+  .step p { font-size: 14px; }
+
+  /* === DIVIDER === */
+  .divider {
+    height: 1px;
+    margin: 40px 0;
+    background: var(--border);
+    position: relative;
+  }
+
+  .divider::after {
+    content: '';
+    position: absolute;
+    left: 0; top: 0;
+    width: 60px; height: 1px;
+    background: linear-gradient(90deg, var(--accent-dim), transparent);
+  }
+
+  /* === PREV/NEXT === */
+  .page-nav {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; margin-top: 56px;
+  }
+
+  .page-nav a {
+    padding: 16px 20px;
+    border-radius: 10px;
+    text-decoration: none;
+    box-shadow: var(--ring);
+    background: var(--bg-2);
+    transition: all 0.2s;
+  }
+
+  .page-nav a:hover {
+    box-shadow: var(--ring-focus);
+    background: var(--accent-glow);
+  }
+
+  .page-nav .label {
+    font-family: 'Fragment Mono', monospace;
+    font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--text-3);
+    margin-bottom: 4px;
+  }
+
+  .page-nav .title {
+    font-size: 14px; color: var(--text-0);
+    font-weight: 500;
+  }
+
+  .page-nav a:last-child { text-align: right; }
+
+  /* === ANIMATIONS === */
+  .content > * {
+    animation: float-in 0.4s ease-out backwards;
+  }
+  .content > *:nth-child(1) { animation-delay: 0.05s; }
+  .content > *:nth-child(2) { animation-delay: 0.1s; }
+  .content > *:nth-child(3) { animation-delay: 0.15s; }
+  .content > *:nth-child(4) { animation-delay: 0.2s; }
+  .content > *:nth-child(5) { animation-delay: 0.25s; }
+
+  .design-tag {
+    position: fixed; bottom: 20px; right: 20px;
+    background: var(--bg-2); box-shadow: var(--ring);
+    padding: 6px 14px; border-radius: 6px;
+    font-family: 'Fragment Mono', monospace;
+    font-size: 10px; color: var(--text-3);
+    letter-spacing: 0.05em;
+    z-index: 101;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-blocks">
+      <div class="logo-block"></div>
+      <div class="logo-block"></div>
+      <div class="logo-block"></div>
+      <div class="logo-block"></div>
+    </div>
+    <div class="logo-text">sdg<span>/</span>hub</div>
+  </div>
+  <div class="header-sep"></div>
+  <div class="header-ctx">docs</div>
+  <nav>
+    <a href="#" class="active">Docs</a>
+    <a href="#">API Reference</a>
+    <a href="#">GitHub</a>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-group">
+      <div class="sidebar-label">getting_started</div>
+      <a href="#">Introduction</a>
+      <a href="#" class="active">Installation</a>
+      <a href="#">Quick Start</a>
+      <a href="#">Core Concepts</a>
+    </div>
+    <div class="sidebar-group">
+      <div class="sidebar-label">blocks</div>
+      <a href="#">Overview</a>
+      <a href="#">LLM Blocks</a>
+      <a href="#">Parsing Blocks</a>
+      <a href="#">Transform Blocks</a>
+      <a href="#">Filtering Blocks</a>
+      <a href="#">Agent Blocks</a>
+      <a href="#">Custom Blocks</a>
+    </div>
+    <div class="sidebar-group">
+      <div class="sidebar-label">flows</div>
+      <a href="#">Overview</a>
+      <a href="#">YAML Reference</a>
+      <a href="#">Built-in Flows</a>
+      <a href="#">Custom Flows</a>
+    </div>
+    <div class="sidebar-group">
+      <div class="sidebar-label">connectors</div>
+      <a href="#">Overview</a>
+    </div>
+    <div class="sidebar-group">
+      <div class="sidebar-label">reference</div>
+      <a href="#">API Reference</a>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div class="breadcrumb">
+      <a href="#">docs</a>
+      <span class="sep">/</span>
+      <a href="#">getting_started</a>
+      <span class="sep">/</span>
+      <span class="current">installation</span>
+    </div>
+
+    <h1>Installation</h1>
+    <p class="subtitle">SDG Hub requires <strong>Python 3.10+</strong> and can be installed from PyPI or from source for development.</p>
+
+    <div class="pipeline">
+      <div class="pipeline-node input">dataset</div>
+      <div class="pipeline-arrow">&rarr;</div>
+      <div class="pipeline-node block">Block 1</div>
+      <div class="pipeline-arrow">&rarr;</div>
+      <div class="pipeline-node block">Block 2</div>
+      <div class="pipeline-arrow">&rarr;</div>
+      <div class="pipeline-node block">Block 3</div>
+      <div class="pipeline-arrow">&rarr;</div>
+      <div class="pipeline-node output">enriched</div>
+    </div>
+
+    <h2>Install</h2>
+
+    <pre data-lang="bash"><code><span class="fn">pip</span> <span class="op">install</span> sdg-hub</code></pre>
+
+    <p>With <a class="text-link" href="#">uv</a> (recommended):</p>
+
+    <pre data-lang="bash"><code><span class="fn">uv</span> <span class="op">pip install</span> sdg-hub</code></pre>
+
+    <p>Or add to an existing project:</p>
+
+    <pre data-lang="bash"><code><span class="fn">uv</span> init my-sdg-project
+<span class="kw">cd</span> my-sdg-project
+<span class="fn">uv</span> add sdg-hub</code></pre>
+
+    <h2>Optional Dependencies</h2>
+
+    <table>
+      <thead>
+        <tr><th>group</th><th>purpose</th><th>install</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>dev</td>
+          <td>Testing, linting, type checking</td>
+          <td><code class="inline">sdg-hub[dev]</code></td>
+        </tr>
+        <tr>
+          <td>examples</td>
+          <td>Example notebooks and workflows</td>
+          <td><code class="inline">sdg-hub[examples]</code></td>
+        </tr>
+        <tr>
+          <td>docs</td>
+          <td>Documentation site tooling</td>
+          <td><code class="inline">sdg-hub[docs]</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Development Setup</h2>
+
+    <div class="steps">
+      <div class="step active">
+        <h3>Clone and install</h3>
+        <pre data-lang="bash"><code><span class="fn">git</span> clone https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
+<span class="kw">cd</span> sdg_hub
+<span class="fn">uv</span> sync --extra dev</code></pre>
+      </div>
+
+      <div class="step">
+        <h3>Install pre-commit hooks</h3>
+        <div class="callout">
+          <p><strong>Required</strong> &mdash; hooks enforce code formatting and conventional commit messages.</p>
+        </div>
+        <pre data-lang="bash"><code><span class="fn">uv</span> run pre-commit install
+<span class="fn">uv</span> run pre-commit install --hook-type commit-msg</code></pre>
+      </div>
+
+      <div class="step">
+        <h3>Verify</h3>
+        <pre data-lang="python"><code><span class="kw">from</span> <span class="type">sdg_hub</span> <span class="kw">import</span> FlowRegistry, BlockRegistry
+
+<span class="cm"># Discover available components</span>
+FlowRegistry.<span class="fn">discover_flows</span>()
+BlockRegistry.<span class="fn">discover_blocks</span>()
+
+<span class="fn">print</span>(<span class="str">f"Flows: </span>{<span class="fn">len</span>(FlowRegistry.<span class="fn">list_flows</span>())}<span class="str">"</span>)
+<span class="fn">print</span>(<span class="str">f"Blocks: </span>{<span class="fn">len</span>(BlockRegistry.<span class="fn">list_blocks</span>())}<span class="str">"</span>)</code></pre>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="page-nav">
+      <a href="#">
+        <div class="label">&larr; previous</div>
+        <div class="title">Introduction</div>
+      </a>
+      <a href="#">
+        <div class="label">next &rarr;</div>
+        <div class="title">Quick Start</div>
+      </a>
+    </div>
+  </main>
+</div>
+
+<div class="design-tag">design 4 &mdash; forge</div>
+
+</body>
+</html>

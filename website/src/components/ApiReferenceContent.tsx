@@ -99,7 +99,8 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="ml-2 inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[11px] text-text-muted transition-colors hover:bg-border hover:text-text"
+      className="ml-2 inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[11px] text-text-3 transition-colors hover:text-text-1"
+      style={{ background: "var(--color-bg-3)" }}
       title="Copy import"
     >
       <svg className="mr-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -119,12 +120,20 @@ function CopyButton({ text }: { text: string }) {
 
 function Badge({ children, variant }: { children: React.ReactNode; variant: "abstract" | "classmethod" | "static" }) {
   const colors = {
-    abstract: "bg-amber-50 text-amber-700 border-amber-200",
-    classmethod: "bg-indigo-50 text-indigo-700 border-indigo-200",
-    static: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    abstract: { background: "rgba(232, 151, 93, 0.1)", color: "var(--color-accent)", border: "rgba(232, 151, 93, 0.2)" },
+    classmethod: { background: "rgba(128, 151, 196, 0.1)", color: "var(--color-blue)", border: "rgba(128, 151, 196, 0.2)" },
+    static: { background: "rgba(125, 170, 140, 0.1)", color: "var(--color-green)", border: "rgba(125, 170, 140, 0.2)" },
   };
+  const style = colors[variant];
   return (
-    <span className={`inline-block rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${colors[variant]}`}>
+    <span
+      className="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+      style={{
+        background: style.background,
+        color: style.color,
+        boxShadow: `0 0 0 1px ${style.border}`,
+      }}
+    >
       {children}
     </span>
   );
@@ -164,7 +173,7 @@ function FieldsTable({ fields }: { fields: FieldDef[] }) {
                     <code>{formatDefault(f.default)}</code>
                   )}
                 </td>
-                <td className="text-text-muted">{f.description || "--"}</td>
+                <td className="text-text-2">{f.description || "--"}</td>
               </tr>
             ))}
           </tbody>
@@ -228,7 +237,7 @@ function MethodBlock({ method, className }: { method: MethodDef; className: stri
       )}
       {method.return_type && (
         <div className="mt-2 text-[13px]">
-          <span className="font-medium text-text-muted">Returns </span>
+          <span className="font-medium text-text-2">Returns </span>
           <code className="api-type">{shortType(method.return_type)}</code>
         </div>
       )}
@@ -259,7 +268,7 @@ function ClassBlock({ section }: { section: ClassSection }) {
 
       {/* Bases */}
       {cls.bases.length > 0 && (
-        <div className="mb-3 text-[13px] text-text-muted">
+        <div className="mb-3 text-[13px] text-text-2">
           Bases: {cls.bases.map((b, i) => (
             <span key={b}>
               {i > 0 && ", "}
@@ -320,11 +329,14 @@ export function ApiReferenceContent({
   return (
     <div className="api-reference-content">
       {/* Page header */}
-      <div className="mb-10 border-b border-border pb-8">
-        <h1 className="font-serif text-3xl font-bold tracking-tight text-text">
+      <div className="mb-10 pb-8" style={{ borderBottom: "1px solid var(--color-border)" }}>
+        <h1
+          className="text-3xl font-bold tracking-tight text-text-0"
+          style={{ fontFamily: "var(--font-heading)" }}
+        >
           API Reference
         </h1>
-        <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-text-muted">
+        <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-text-2">
           Complete reference for all public classes in SDG Hub. Every block, flow component, and connector is documented with its fields, methods, and type signatures.
         </p>
       </div>

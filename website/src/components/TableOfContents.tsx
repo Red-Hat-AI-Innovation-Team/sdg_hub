@@ -40,10 +40,16 @@ export function TableOfContents({ headings }: { headings: Heading[] }) {
   return (
     <nav className="hidden xl:block">
       <div className="sticky top-24">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">
-          On this page
+        <p
+          className="mb-3 text-[11px] tracking-wider text-text-3"
+          style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}
+        >
+          on_this_page
         </p>
-        <ul className="space-y-1.5 border-l border-border pl-3 text-sm">
+        <ul
+          className="space-y-1.5 pl-3 text-sm"
+          style={{ borderLeft: "1px solid var(--color-border)" }}
+        >
           {headings.map((heading) => (
             <li key={heading.id}>
               <a
@@ -53,7 +59,7 @@ export function TableOfContents({ headings }: { headings: Heading[] }) {
                 } ${
                   activeId === heading.id
                     ? "font-medium text-accent"
-                    : "text-text-muted hover:text-text"
+                    : "text-text-3 hover:text-text-1"
                 }`}
               >
                 {heading.text}

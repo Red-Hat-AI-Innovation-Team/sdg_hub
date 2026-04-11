@@ -122,7 +122,7 @@ export default function ApiReferencePage() {
   return (
     <div className="flex flex-1">
       <ApiReferenceSidebar navigation={navigation} />
-      <main className="flex-1 lg:pl-[240px]">
+      <main className="flex-1 lg:pl-[248px]">
         <ApiReferenceContent sections={sections} />
       </main>
     </div>

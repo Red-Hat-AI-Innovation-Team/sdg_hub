@@ -17,6 +17,11 @@ interface NavCategory {
   subcategories: NavSubcategory[];
 }
 
+/** Convert "Base" to "base" for snake_case display */
+function toSnakeLabel(str: string): string {
+  return str.toLowerCase().replace(/\s+/g, "_");
+}
+
 export function ApiReferenceSidebar({
   navigation,
 }: {
@@ -77,19 +82,23 @@ export function ApiReferenceSidebar({
   const sidebarContent = (
     <nav className="px-3 py-5">
       <div className="mb-4 px-2">
-        <span className="text-xs font-bold uppercase tracking-widest text-text-muted">
-          API Reference
+        <span
+          className="text-[11px] tracking-wider text-text-2"
+          style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}
+        >
+          api_reference
         </span>
       </div>
       {navigation.map((category) => (
         <div key={category.label} className="mb-4">
           <button
             onClick={() => toggleSection(category.label)}
-            className="flex w-full items-center justify-between px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-text"
+            className="flex w-full items-center justify-between px-2 py-1.5 text-[11px] tracking-wider text-text-0 transition-colors hover:text-accent"
+            style={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}
           >
-            {category.label}
+            {toSnakeLabel(category.label)}
             <svg
-              className={`h-3 w-3 transform text-text-muted transition-transform ${
+              className={`h-3 w-3 transform text-text-3 transition-transform duration-200 ${
                 collapsed[category.label] ? "-rotate-90" : ""
               }`}
               fill="none"
@@ -104,12 +113,21 @@ export function ApiReferenceSidebar({
               />
             </svg>
           </button>
-          {!collapsed[category.label] && (
+          <div
+            className="overflow-hidden transition-all duration-200"
+            style={{
+              maxHeight: collapsed[category.label] ? "0px" : "1000px",
+              opacity: collapsed[category.label] ? 0 : 1,
+            }}
+          >
             <div className="mt-1">
               {category.subcategories.map((sub) => (
                 <div key={sub.label} className="mb-1">
-                  <span className="block px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-                    {sub.label}
+                  <span
+                    className="block px-2 py-1 text-[10px] tracking-wider text-text-3"
+                    style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}
+                  >
+                    {toSnakeLabel(sub.label)}
                   </span>
                   <ul>
                     {sub.entries.map((entry) => {
@@ -118,11 +136,12 @@ export function ApiReferenceSidebar({
                         <li key={entry.id}>
                           <button
                             onClick={() => handleClick(entry.id)}
-                            className={`block w-full truncate rounded px-3 py-1 text-left font-mono text-[13px] transition-colors ${
+                            className={`block w-full truncate rounded-md px-3 py-1 text-left text-[13px] transition-colors ${
                               isActive
-                                ? "bg-accent/8 font-medium text-accent"
-                                : "text-text-muted hover:bg-bg-subtle hover:text-text"
+                                ? "sidebar-active-link font-medium"
+                                : "text-text-2 hover:bg-bg-3/50 hover:text-text-1"
                             }`}
+                            style={{ fontFamily: "var(--font-mono)" }}
                           >
                             {entry.name}
                           </button>
@@ -133,7 +152,7 @@ export function ApiReferenceSidebar({
                 </div>
               ))}
             </div>
-          )}
+          </div>
         </div>
       ))}
     </nav>
@@ -144,7 +163,11 @@ export function ApiReferenceSidebar({
       {/* Mobile toggle */}
       <button
         onClick={() => setMobileOpen(!mobileOpen)}
-        className="fixed bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-text text-bg shadow-lg lg:hidden"
+        className="fixed bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full shadow-lg lg:hidden"
+        style={{
+          background: "var(--color-accent)",
+          color: "var(--color-bg-0)",
+        }}
         aria-label="Toggle API navigation"
       >
         <svg
@@ -174,16 +197,20 @@ export function ApiReferenceSidebar({
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/30 lg:hidden"
+          className="search-overlay fixed inset-0 z-40 lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-16 z-40 h-[calc(100vh-4rem)] w-[240px] overflow-y-auto border-r border-border bg-bg-sidebar transition-transform lg:translate-x-0 ${
+        className={`sidebar-hidden-scrollbar fixed top-16 z-40 h-[calc(100vh-4rem)] w-[248px] overflow-y-auto transition-transform lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
+        style={{
+          background: "var(--color-bg-1)",
+          boxShadow: "1px 0 0 var(--color-border)",
+        }}
       >
         {sidebarContent}
       </aside>

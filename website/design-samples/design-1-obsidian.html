@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SDG Hub - Design 1: Obsidian</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #08080c;
+    --bg-secondary: #0e0e14;
+    --bg-tertiary: #14141c;
+    --bg-card: #111118;
+    --bg-code: #0c0c12;
+    --text-primary: #e8e4df;
+    --text-secondary: #9a9590;
+    --text-muted: #5c5856;
+    --accent: #c9a55a;
+    --accent-dim: #a0833e;
+    --accent-glow: rgba(201, 165, 90, 0.08);
+    --border: #1e1e28;
+    --border-subtle: #161620;
+    --red-soft: #c45c5c;
+    --green-soft: #6daa6d;
+    --blue-soft: #6d8faa;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 15px;
+    line-height: 1.75;
+    font-weight: 300;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* === HEADER === */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    height: 56px;
+    background: rgba(8, 8, 12, 0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex; align-items: center; padding: 0 32px;
+  }
+
+  .logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+  }
+
+  .logo span { color: var(--accent); }
+
+  nav { margin-left: auto; display: flex; gap: 32px; }
+
+  nav a {
+    color: var(--text-secondary); text-decoration: none;
+    font-size: 13px; font-weight: 400; letter-spacing: 0.03em;
+    transition: color 0.2s;
+  }
+
+  nav a:hover, nav a.active { color: var(--accent); }
+
+  /* === LAYOUT === */
+  .layout {
+    display: flex; margin-top: 56px; min-height: calc(100vh - 56px);
+  }
+
+  /* === SIDEBAR === */
+  .sidebar {
+    width: 240px; flex-shrink: 0;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-subtle);
+    padding: 28px 0;
+    position: fixed; top: 56px; bottom: 0; left: 0;
+    overflow-y: auto;
+  }
+
+  .sidebar-group { margin-bottom: 24px; }
+
+  .sidebar-label {
+    font-size: 10px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--text-muted); padding: 0 24px;
+    margin-bottom: 8px;
+  }
+
+  .sidebar a {
+    display: block; padding: 5px 24px;
+    color: var(--text-secondary); text-decoration: none;
+    font-size: 13px; font-weight: 400;
+    transition: all 0.15s; border-left: 2px solid transparent;
+  }
+
+  .sidebar a:hover {
+    color: var(--text-primary);
+    background: var(--accent-glow);
+  }
+
+  .sidebar a.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: var(--accent-glow);
+  }
+
+  /* === CONTENT === */
+  .content {
+    margin-left: 240px;
+    flex: 1;
+    max-width: 720px;
+    padding: 48px 56px 120px;
+  }
+
+  /* === TYPOGRAPHY === */
+  h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 36px; font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.2;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+  }
+
+  h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px; font-weight: 600;
+    margin-top: 48px; margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+  }
+
+  h3 {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px; font-weight: 500;
+    margin-top: 32px; margin-bottom: 12px;
+    color: var(--text-primary);
+  }
+
+  .subtitle {
+    color: var(--text-secondary);
+    font-size: 16px; margin-bottom: 40px;
+    line-height: 1.7;
+  }
+
+  p { margin-bottom: 16px; color: var(--text-secondary); }
+
+  a.inline { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-dim); }
+  a.inline:hover { border-bottom-color: var(--accent); }
+
+  strong { color: var(--text-primary); font-weight: 500; }
+
+  /* === CODE === */
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 20px 0;
+    overflow-x: auto;
+    position: relative;
+  }
+
+  pre::before {
+    content: attr(data-lang);
+    position: absolute; top: 8px; right: 12px;
+    font-size: 10px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; line-height: 1.65;
+  }
+
+  pre code { color: #c5c0b8; }
+
+  code.inline {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    padding: 2px 7px; border-radius: 4px;
+    font-size: 13px; color: var(--accent);
+  }
+
+  .kw { color: #c9a55a; }
+  .str { color: #8fbc8f; }
+  .fn { color: #87b5d6; }
+  .cm { color: #5c5856; }
+  .op { color: #9a9590; }
+  .num { color: #d4a574; }
+
+  /* === TABLE === */
+  table {
+    width: 100%; margin: 20px 0;
+    border-collapse: collapse;
+  }
+
+  th {
+    text-align: left; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-muted); font-weight: 500;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 10px 12px; font-size: 14px;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+  }
+
+  td:first-child {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; color: var(--text-primary);
+  }
+
+  /* === CALLOUT === */
+  .callout {
+    border-left: 2px solid var(--accent-dim);
+    background: var(--accent-glow);
+    padding: 14px 20px;
+    margin: 20px 0;
+    border-radius: 0 6px 6px 0;
+  }
+
+  .callout p { margin: 0; font-size: 14px; }
+  .callout strong { color: var(--accent); }
+
+  /* === BADGE === */
+  .badge {
+    display: inline-block;
+    font-size: 10px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 2px 8px; border-radius: 3px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    vertical-align: middle; margin-left: 8px;
+  }
+
+  .design-tag {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--bg-tertiary); border: 1px solid var(--border);
+    padding: 8px 16px; border-radius: 6px;
+    font-size: 11px; color: var(--text-muted);
+    letter-spacing: 0.05em;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">SDG <span>Hub</span></div>
+  <nav>
+    <a href="#" class="active">Docs</a>
+    <a href="#">API Reference</a>
+    <a href="#">GitHub</a>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-group">
+      <div class="sidebar-label">Getting Started</div>
+      <a href="#">Introduction</a>
+      <a href="#" class="active">Installation</a>
+      <a href="#">Quick Start</a>
+      <a href="#">Core Concepts</a>
+    </div>
+    <div class="sidebar-group">
+      <div class="sidebar-label">Blocks</div>
+      <a href="#">Overview</a>
+      <a href="#">LLM Blocks</a>
+      <a href="#">Parsing Blocks</a>
+      <a href="#">Transform Blocks</a>
+      <a href="#">Filtering Blocks</a>
+      <a href="#">Agent Blocks</a>
+      <a href="#">Custom Blocks</a>
+    </div>
+    <div class="sidebar-group">
+      <div class="sidebar-label">Flows</div>
+      <a href="#">Overview</a>
+      <a href="#">YAML Reference</a>
+      <a href="#">Built-in Flows</a>
+      <a href="#">Custom Flows</a>
+    </div>
+    <div class="sidebar-group">
+      <div class="sidebar-label">Connectors</div>
+      <a href="#">Overview</a>
+    </div>
+  </aside>
+
+  <main class="content">
+    <h1>Installation</h1>
+    <p class="subtitle">SDG Hub requires <strong>Python 3.10+</strong> and can be installed from PyPI or from source for development.</p>
+
+    <h2>Basic Installation</h2>
+
+    <p>Install the core package with pip or uv:</p>
+
+    <pre data-lang="bash"><code><span class="fn">pip</span> install sdg-hub</code></pre>
+
+    <pre data-lang="bash"><code><span class="cm"># recommended</span>
+<span class="fn">uv</span> pip install sdg-hub</code></pre>
+
+    <p>Or add it to an existing uv project:</p>
+
+    <pre data-lang="bash"><code><span class="fn">uv</span> init my-sdg-project
+<span class="kw">cd</span> my-sdg-project
+<span class="fn">uv</span> add sdg-hub</code></pre>
+
+    <h2>Optional Dependencies</h2>
+
+    <p>SDG Hub defines several optional dependency groups for different use cases. Install them by appending the group name in brackets.</p>
+
+    <table>
+      <thead>
+        <tr><th>Group</th><th>Purpose</th><th>Install</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>dev</td>
+          <td>Testing, linting, type checking</td>
+          <td><code class="inline">pip install sdg-hub[dev]</code></td>
+        </tr>
+        <tr>
+          <td>examples</td>
+          <td>Example notebooks and workflows</td>
+          <td><code class="inline">pip install sdg-hub[examples]</code></td>
+        </tr>
+        <tr>
+          <td>docs</td>
+          <td>Documentation building (MkDocs)</td>
+          <td><code class="inline">pip install sdg-hub[docs]</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Development Setup</h2>
+
+    <p>For contributing to SDG Hub, clone the repo and install with development dependencies:</p>
+
+    <pre data-lang="bash"><code><span class="fn">git</span> clone https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
+<span class="kw">cd</span> sdg_hub
+<span class="fn">uv</span> sync --extra dev</code></pre>
+
+    <div class="callout">
+      <p><strong>Important:</strong> Always install pre-commit hooks after cloning. They enforce code formatting and commit message conventions.</p>
+    </div>
+
+    <pre data-lang="bash"><code><span class="fn">uv</span> run pre-commit install
+<span class="fn">uv</span> run pre-commit install --hook-type commit-msg</code></pre>
+
+    <h2>Verify Installation</h2>
+
+    <pre data-lang="python"><code><span class="kw">from</span> sdg_hub <span class="kw">import</span> FlowRegistry, BlockRegistry
+
+<span class="cm"># Discover available components</span>
+FlowRegistry.<span class="fn">discover_flows</span>()
+BlockRegistry.<span class="fn">discover_blocks</span>()
+
+<span class="fn">print</span>(<span class="str">f"Flows: </span>{<span class="fn">len</span>(FlowRegistry.<span class="fn">list_flows</span>())}<span class="str">"</span>)
+<span class="fn">print</span>(<span class="str">f"Blocks: </span>{<span class="fn">len</span>(BlockRegistry.<span class="fn">list_blocks</span>())}<span class="str">"</span>)</code></pre>
+  </main>
+</div>
+
+<div class="design-tag">Design 1 &mdash; Obsidian</div>
+
+</body>
+</html>

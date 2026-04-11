@@ -35,11 +35,14 @@ export default async function DocsPage({
         <MarkdocRenderer content={page.content} />
 
         {/* Prev / Next navigation */}
-        <div className="mt-12 flex items-center justify-between border-t border-border pt-6 text-sm">
+        <div
+          className="mt-12 flex items-center justify-between pt-6 text-sm"
+          style={{ borderTop: "1px solid var(--color-border)" }}
+        >
           {prev ? (
             <Link
               href={prev.href}
-              className="group flex items-center gap-1 text-text-muted transition-colors hover:text-accent"
+              className="group flex items-center gap-1 text-text-2 transition-colors hover:text-accent"
             >
               <span className="transition-transform group-hover:-translate-x-0.5">
                 &larr;
@@ -52,7 +55,7 @@ export default async function DocsPage({
           {next ? (
             <Link
               href={next.href}
-              className="group flex items-center gap-1 text-text-muted transition-colors hover:text-accent"
+              className="group flex items-center gap-1 text-text-2 transition-colors hover:text-accent"
             >
               {next.title}
               <span className="transition-transform group-hover:translate-x-0.5">

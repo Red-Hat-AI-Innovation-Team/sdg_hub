@@ -5,6 +5,11 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { navigation } from "@/lib/navigation";
 
+/** Convert "Getting Started" to "getting_started" for display */
+function toSnakeCase(str: string): string {
+  return str.toLowerCase().replace(/\s+/g, "_");
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -17,16 +22,17 @@ export function Sidebar() {
   };
 
   const sidebarContent = (
-    <nav className="space-y-6 px-4 py-6">
+    <nav className="px-4 py-6">
       {navigation.map((section) => (
-        <div key={section.title}>
+        <div key={section.title} className="mb-5">
           <button
             onClick={() => toggleSection(section.title)}
-            className="flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wider text-text-muted"
+            className="flex w-full items-center justify-between px-1 py-1 text-[11px] tracking-wider text-text-2 transition-colors hover:text-text-1"
+            style={{ fontFamily: "var(--font-mono)", fontWeight: 600, textTransform: "none" }}
           >
-            {section.title}
+            {toSnakeCase(section.title)}
             <svg
-              className={`h-3 w-3 transform transition-transform ${
+              className={`h-3 w-3 transform transition-transform duration-200 ${
                 collapsed[section.title] ? "-rotate-90" : ""
               }`}
               fill="none"
@@ -42,8 +48,14 @@ export function Sidebar() {
             </svg>
           </button>
 
-          {!collapsed[section.title] && (
-            <ul className="mt-2 space-y-0.5">
+          <div
+            className="overflow-hidden transition-all duration-200"
+            style={{
+              maxHeight: collapsed[section.title] ? "0px" : "500px",
+              opacity: collapsed[section.title] ? 0 : 1,
+            }}
+          >
+            <ul className="mt-1.5 space-y-0.5">
               {section.items.map((item) => {
                 const isActive = pathname === item.href;
                 return (
@@ -53,8 +65,8 @@ export function Sidebar() {
                       onClick={() => setMobileOpen(false)}
                       className={`block rounded-md px-3 py-1.5 text-sm transition-colors ${
                         isActive
-                          ? "bg-accent/10 font-medium text-accent"
-                          : "text-text-muted hover:bg-bg-subtle hover:text-text"
+                          ? "sidebar-active-link font-medium"
+                          : "text-text-2 hover:bg-bg-3/50 hover:text-text-1"
                       }`}
                     >
                       {item.title}
@@ -63,7 +75,7 @@ export function Sidebar() {
                 );
               })}
             </ul>
-          )}
+          </div>
         </div>
       ))}
     </nav>
@@ -74,7 +86,11 @@ export function Sidebar() {
       {/* Mobile toggle */}
       <button
         onClick={() => setMobileOpen(!mobileOpen)}
-        className="fixed bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-text text-bg shadow-lg lg:hidden"
+        className="fixed bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full shadow-lg lg:hidden"
+        style={{
+          background: "var(--color-accent)",
+          color: "var(--color-bg-0)",
+        }}
         aria-label="Toggle navigation"
       >
         <svg
@@ -104,16 +120,20 @@ export function Sidebar() {
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/30 lg:hidden"
+          className="search-overlay fixed inset-0 z-40 lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       {/* Sidebar panel */}
       <aside
-        className={`fixed top-16 z-40 h-[calc(100vh-4rem)] w-[260px] overflow-y-auto border-r border-border bg-bg-sidebar transition-transform lg:translate-x-0 ${
+        className={`sidebar-hidden-scrollbar fixed top-16 z-40 h-[calc(100vh-4rem)] w-[248px] overflow-y-auto transition-transform lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
+        style={{
+          background: "var(--color-bg-1)",
+          boxShadow: "1px 0 0 var(--color-border)",
+        }}
       >
         {sidebarContent}
       </aside>
