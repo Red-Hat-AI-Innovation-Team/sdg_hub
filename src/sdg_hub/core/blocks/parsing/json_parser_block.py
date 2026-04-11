@@ -100,6 +100,42 @@ class JSONParserBlock(BaseBlock):
             json_str = re.sub(r",\s*]", "]", json_str)
         return json_str
 
+    def _extract_delimited(
+        self, text: str, open_char: str, close_char: str
+    ) -> Optional[str]:
+        """Extract text between the first open_char and last close_char.
+
+        Returns
+        -------
+        Optional[str]
+            The extracted substring (inclusive of delimiters), or None.
+        """
+        start = text.find(open_char)
+        end = text.rfind(close_char)
+        if start != -1 and end != -1 and end > start:
+            return text[start : end + 1]
+        return None
+
+    def _recover_truncated_object(self, text: str) -> Optional[str]:
+        """Attempt to recover a truncated JSON object by appending '}'.
+
+        Returns
+        -------
+        Optional[str]
+            Recovered JSON string, or None if no opening brace found.
+        """
+        start = text.find("{")
+        if start == -1:
+            return None
+        end = text.rfind("}")
+        if end != -1 and end > start:
+            return None  # Not truncated
+        logger.warning(
+            "JSON object appears truncated (missing closing brace). "
+            "Attempting recovery by appending '}'."
+        )
+        return text[start:].rstrip() + "}"
+
     def _extract_json(self, text: str) -> Optional[str]:
         """Extract JSON from text, handling embedded JSON.
 
@@ -116,33 +152,31 @@ class JSONParserBlock(BaseBlock):
         if not text:
             return None
 
-        if self.extract_embedded:
-            # Find the JSON object - extract from first { to last }
-            start = text.find("{")
-            end = text.rfind("}")
-
-            if start != -1 and end != -1 and end > start:
-                return text[start : end + 1]
-
-            # Try recovering truncated JSON by appending closing brace
-            if start != -1 and (end == -1 or end <= start):
-                logger.warning(
-                    "JSON object appears truncated (missing closing brace). "
-                    "Attempting recovery by appending '}'."
-                )
-                return text[start:].rstrip() + "}"
-
-            # Try finding JSON array
-            start = text.find("[")
-            end = text.rfind("]")
-
-            if start != -1 and end != -1 and end > start:
-                return text[start : end + 1]
-
-            return None
-        else:
-            # Assume the entire text is JSON
+        if not self.extract_embedded:
             return text.strip()
+
+        result = self._extract_delimited(text, "{", "}")
+        if result is not None:
+            return result
+
+        recovered = self._recover_truncated_object(text)
+        if recovered is not None:
+            return recovered
+
+        return self._extract_delimited(text, "[", "]")
+
+    @staticmethod
+    def _normalize_parsed(parsed: Any) -> dict[str, Any]:
+        """Normalize a parsed JSON value into a dict.
+
+        Dicts pass through unchanged; lists are wrapped as ``{"items": ...}``;
+        scalars are wrapped as ``{"value": ...}``.
+        """
+        if isinstance(parsed, dict):
+            return parsed
+        if isinstance(parsed, list):
+            return {"items": parsed}
+        return {"value": parsed}
 
     def _parse_json(self, text: str) -> dict[str, Any]:
         """Parse JSON from text.
@@ -169,19 +203,49 @@ class JSONParserBlock(BaseBlock):
 
         try:
             parsed = json.loads(json_str, strict=False)
-            if isinstance(parsed, dict):
-                return parsed
-            elif isinstance(parsed, list):
-                # If it's a list, wrap it
-                return {"items": parsed}
-            else:
-                return {"value": parsed}
+            return self._normalize_parsed(parsed)
         except json.JSONDecodeError as e:
             logger.warning(
                 f"JSON parse error at position {e.pos}: {e.msg}. "
                 f"Problematic area: ...{json_str[max(0, e.pos - 30) : e.pos + 30]}..."
             )
             return {}
+
+    def _filter_output_columns(self, parsed_df: pd.DataFrame) -> pd.DataFrame:
+        """Filter parsed DataFrame to only the requested output columns.
+
+        Logs warnings for missing columns. If none of the requested columns
+        are found, all parsed columns are kept as a fallback.
+
+        Parameters
+        ----------
+        parsed_df : pd.DataFrame
+            DataFrame of parsed JSON fields.
+
+        Returns
+        -------
+        pd.DataFrame
+            Filtered DataFrame.
+        """
+        if not self.output_cols:
+            return parsed_df
+
+        existing_cols = [col for col in self.output_cols if col in parsed_df.columns]
+        missing_cols = [col for col in self.output_cols if col not in parsed_df.columns]
+
+        if missing_cols:
+            logger.warning(
+                f"Requested columns not found in JSON: {missing_cols}. "
+                f"Available columns: {list(parsed_df.columns)}"
+            )
+
+        if existing_cols:
+            return parsed_df[existing_cols]
+
+        logger.warning(
+            "None of the requested output columns found in JSON. Keeping all fields."
+        )
+        return parsed_df
 
     def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         """Generate a dataset with JSON fields expanded into columns.
@@ -199,49 +263,20 @@ class JSONParserBlock(BaseBlock):
         input_col = cast(list[str], self.input_cols)[0]
         result = samples.copy()
 
-        # Parse JSON from each row
+        # Parse JSON from each row and expand into columns
         parsed_series = result[input_col].apply(self._parse_json)
-
-        # Expand parsed JSON into columns
         parsed_df = parsed_series.apply(pd.Series)
 
         # Remove phantom '0' column created when all rows return empty dicts
         if 0 in parsed_df.columns:
             parsed_df = parsed_df.drop(columns=[0])
 
-        # Filter to specific output columns if specified
-        if self.output_cols:
-            # Only keep columns that were requested and exist in parsed data
-            existing_cols = [
-                col for col in self.output_cols if col in parsed_df.columns
-            ]
-            missing_cols = [
-                col for col in self.output_cols if col not in parsed_df.columns
-            ]
+        parsed_df = self._filter_output_columns(parsed_df)
 
-            if missing_cols:
-                logger.warning(
-                    f"Requested columns not found in JSON: {missing_cols}. "
-                    f"Available columns: {list(parsed_df.columns)}"
-                )
-
-            if existing_cols:
-                parsed_df = parsed_df[existing_cols]
-            else:
-                # No requested columns found, keep all
-                logger.warning(
-                    "None of the requested output columns found in JSON. Keeping all fields."
-                )
-
-        # Add prefix to column names if specified
         if self.field_prefix:
             parsed_df = parsed_df.add_prefix(self.field_prefix)
 
-        # Drop input column if requested
         if self.drop_input:
             result = result.drop(columns=[input_col])
 
-        # Concatenate the parsed columns
-        result = pd.concat([result, parsed_df], axis=1)
-
-        return result
+        return pd.concat([result, parsed_df], axis=1)

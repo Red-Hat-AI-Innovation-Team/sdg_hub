@@ -96,30 +96,41 @@ class TagParserBlock(BaseBlock):
             for values in zip(*(parsed[col] for col in output_cols))
         ]
 
+    def _accumulate_parsed_rows(
+        self, rows: list[dict], all_parsed: dict[str, list[str]]
+    ) -> None:
+        """Accumulate parsed column values from rows into the aggregation dict."""
+        output_cols = cast(list[str], self.output_cols)
+        for row in rows:
+            for col in output_cols:
+                if col in row:
+                    all_parsed[col].append(row[col])
+
+    def _parse_list_input(self, sample: dict, items: list) -> list[dict]:
+        """Parse a list of text items and merge results into a single row."""
+        output_cols = cast(list[str], self.output_cols)
+        all_parsed: dict[str, list[str]] = {col: [] for col in output_cols}
+        valid = 0
+        for item in items:
+            if not isinstance(item, str) or not item:
+                continue
+            rows = self._parse_single_text(sample, item)
+            if rows:
+                valid += 1
+                self._accumulate_parsed_rows(rows, all_parsed)
+        if valid == 0:
+            return []
+        return [{**sample, **all_parsed}]
+
     def _parse_row(self, sample: dict) -> list[dict]:
         input_cols = cast(list[str], self.input_cols)
-        output_cols = cast(list[str], self.output_cols)
         text = sample[input_cols[0]]
 
         if isinstance(text, list):
             if not text:
                 logger.warning(f"Input column '{input_cols[0]}' contains empty list")
                 return []
-            all_parsed: dict[str, list[str]] = {col: [] for col in output_cols}
-            valid = 0
-            for item in text:
-                if not isinstance(item, str) or not item:
-                    continue
-                rows = self._parse_single_text(sample, item)
-                if rows:
-                    valid += 1
-                    for row in rows:
-                        for col in output_cols:
-                            if col in row:
-                                all_parsed[col].append(row[col])
-            if valid == 0:
-                return []
-            return [{**sample, **all_parsed}]
+            return self._parse_list_input(sample, text)
 
         if not isinstance(text, str) or not text:
             return []
