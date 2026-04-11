@@ -187,9 +187,8 @@ class MCPAgentBlock(BaseBlock):
         BlockValidationError
             If required configuration is missing.
         """
-        # input_cols is guaranteed to be list[str] by validator
-        input_col = cast(list[str], self.input_cols)[0]
-        queries = samples[input_col].tolist()
+        input_cols = cast(list[str], self.input_cols)
+        queries = samples[input_cols[0]].tolist()
 
         logger.info(
             "Starting MCP agent generation for %d samples",
@@ -201,30 +200,7 @@ class MCPAgentBlock(BaseBlock):
             },
         )
 
-        # Run agent for each query
-        # Check if there's a running event loop
-        has_running_loop = True
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            has_running_loop = False
-
-        if not has_running_loop:
-            # No running loop; safe to create one
-            responses = asyncio.run(self._generate_all(queries))
-        else:
-            # Check if nest_asyncio is applied
-            nest_asyncio_applied = (
-                hasattr(loop, "_nest_patched")
-                or getattr(asyncio.run, "__module__", "") == "nest_asyncio"
-            )
-            if nest_asyncio_applied:
-                responses = asyncio.run(self._generate_all(queries))
-            else:
-                raise BlockValidationError(
-                    f"MCPAgentBlock cannot be used from within a running event loop for '{self.block_name}'. "
-                    "Use an async entrypoint or apply nest_asyncio.apply() in notebook environments."
-                )
+        responses = self._run_async(self._generate_all(queries))
 
         logger.info(
             "MCP agent generation completed for %d samples",
@@ -236,11 +212,42 @@ class MCPAgentBlock(BaseBlock):
             },
         )
 
+        output_cols = cast(list[str], self.output_cols)
         result = samples.copy()
-        # output_cols is guaranteed to be list[str] by validator
-        output_col = cast(list[str], self.output_cols)[0]
-        result[output_col] = responses
+        result[output_cols[0]] = responses
         return result
+
+    def _run_async(self, coro: Any) -> Any:
+        """Run an async coroutine, handling event loop detection.
+
+        Parameters
+        ----------
+        coro : Coroutine
+            The coroutine to execute.
+
+        Returns
+        -------
+        Any
+            The result of the coroutine.
+
+        Raises
+        ------
+        BlockValidationError
+            If called from within a running event loop without nest_asyncio.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+            if (
+                hasattr(loop, "_nest_patched")
+                or getattr(asyncio.run, "__module__", "") == "nest_asyncio"
+            ):
+                return asyncio.run(coro)
+            raise BlockValidationError(
+                f"MCPAgentBlock cannot be used from within a running event loop for '{self.block_name}'. "
+                "Use an async entrypoint or apply nest_asyncio.apply() in notebook environments."
+            )
+        except RuntimeError:
+            return asyncio.run(coro)
 
     async def _generate_all(self, queries: list[str]) -> list[dict[str, Any]]:
         """Generate responses for all queries.
@@ -305,121 +312,159 @@ class MCPAgentBlock(BaseBlock):
         ):
             async with ClientSession(read, write) as session:
                 await session.initialize()
+                return await self._agentic_loop(session, query)
 
-                # Get available tools from MCP server
-                tools_response = await session.list_tools()
-                tools = self._to_openai_format(tools_response.tools)
+    async def _agentic_loop(self, session: ClientSession, query: str) -> dict[str, Any]:
+        """Execute the agentic tool-call loop within an MCP session.
 
-                logger.debug(
-                    "Retrieved %d tools from MCP server",
-                    len(tools),
-                    extra={
-                        "block_name": self.block_name,
-                        "tool_count": len(tools),
-                    },
-                )
+        Parameters
+        ----------
+        session : ClientSession
+            An initialized MCP client session.
+        query : str
+            The user query to process.
 
-                # Build initial messages
-                messages: list[dict[str, Any]] = []
-                if self.system_prompt:
-                    messages.append({"role": "system", "content": self.system_prompt})
-                messages.append({"role": "user", "content": query})
+        Returns
+        -------
+        dict[str, Any]
+            Agent trace with messages, iteration count, and completion status.
+        """
+        tools_response = await session.list_tools()
+        tools = self._to_openai_format(tools_response.tools)
 
-                # Build completion kwargs
-                completion_kwargs = self._build_completion_kwargs()
+        logger.debug(
+            "Retrieved %d tools from MCP server",
+            len(tools),
+            extra={
+                "block_name": self.block_name,
+                "tool_count": len(tools),
+            },
+        )
 
-                # Track iterations for the trace
-                iterations_completed = 0
+        messages = self._build_initial_messages(query)
+        completion_kwargs = self._build_completion_kwargs()
+        iterations_completed = 0
 
-                # Agentic loop
-                for iteration in range(self.max_iterations):
-                    iterations_completed = iteration + 1
-                    logger.debug(
-                        "Agent iteration %d/%d",
-                        iterations_completed,
-                        self.max_iterations,
-                        extra={
-                            "block_name": self.block_name,
-                            "iteration": iterations_completed,
-                        },
-                    )
+        for iteration in range(self.max_iterations):
+            iterations_completed = iteration + 1
+            logger.debug(
+                "Agent iteration %d/%d",
+                iterations_completed,
+                self.max_iterations,
+                extra={
+                    "block_name": self.block_name,
+                    "iteration": iterations_completed,
+                },
+            )
 
-                    response = await acompletion(
-                        messages=messages,
-                        tools=tools if tools else None,
-                        **completion_kwargs,
-                    )
+            response = await acompletion(
+                messages=messages,
+                tools=tools if tools else None,
+                **completion_kwargs,
+            )
 
-                    msg = response.choices[0].message
+            msg = response.choices[0].message
+            messages.append(msg.model_dump())
 
-                    # Append assistant message to history
-                    messages.append(msg.model_dump())
-
-                    # Check if done (no tool calls)
-                    if not msg.tool_calls:
-                        return {
-                            "messages": messages,
-                            "iterations": iterations_completed,
-                            "max_iterations_reached": False,
-                        }
-
-                    # Execute tool calls
-                    for tc in msg.tool_calls:
-                        tool_name = tc.function.name
-                        try:
-                            tool_args = json.loads(tc.function.arguments)
-                        except json.JSONDecodeError:
-                            tool_args = {}
-
-                        logger.debug(
-                            "Calling tool '%s'",
-                            tool_name,
-                            extra={
-                                "block_name": self.block_name,
-                                "tool_name": tool_name,
-                            },
-                        )
-
-                        try:
-                            result = await session.call_tool(tool_name, tool_args)
-                            # Serialize tool result to string for message content
-                            result_content = self._serialize_tool_result(result)
-                        except Exception as e:
-                            logger.warning(
-                                "Tool call '%s' failed: %s",
-                                tool_name,
-                                str(e),
-                                extra={
-                                    "block_name": self.block_name,
-                                    "tool_name": tool_name,
-                                    "error": str(e),
-                                },
-                            )
-                            result_content = json.dumps({"error": str(e)})
-
-                        messages.append(
-                            {
-                                "role": "tool",
-                                "tool_call_id": tc.id,
-                                "content": result_content,
-                            }
-                        )
-
-                # Max iterations reached
-                logger.warning(
-                    "Max iterations (%d) reached without final response",
-                    self.max_iterations,
-                    extra={
-                        "block_name": self.block_name,
-                        "max_iterations": self.max_iterations,
-                    },
-                )
-
+            if not msg.tool_calls:
                 return {
                     "messages": messages,
                     "iterations": iterations_completed,
-                    "max_iterations_reached": True,
+                    "max_iterations_reached": False,
                 }
+
+            await self._execute_tool_calls(session, msg.tool_calls, messages)
+
+        logger.warning(
+            "Max iterations (%d) reached without final response",
+            self.max_iterations,
+            extra={
+                "block_name": self.block_name,
+                "max_iterations": self.max_iterations,
+            },
+        )
+
+        return {
+            "messages": messages,
+            "iterations": iterations_completed,
+            "max_iterations_reached": True,
+        }
+
+    def _build_initial_messages(self, query: str) -> list[dict[str, Any]]:
+        """Build the initial message list for the agentic loop.
+
+        Parameters
+        ----------
+        query : str
+            The user query.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            Initial messages including optional system prompt and user query.
+        """
+        messages: list[dict[str, Any]] = []
+        if self.system_prompt:
+            messages.append({"role": "system", "content": self.system_prompt})
+        messages.append({"role": "user", "content": query})
+        return messages
+
+    async def _execute_tool_calls(
+        self,
+        session: ClientSession,
+        tool_calls: list[Any],
+        messages: list[dict[str, Any]],
+    ) -> None:
+        """Execute tool calls from an LLM response and append results to messages.
+
+        Parameters
+        ----------
+        session : ClientSession
+            The MCP client session for making tool calls.
+        tool_calls : list[Any]
+            Tool calls from the LLM response.
+        messages : list[dict[str, Any]]
+            Conversation history to append tool results to (modified in place).
+        """
+        for tc in tool_calls:
+            tool_name = tc.function.name
+            try:
+                tool_args = json.loads(tc.function.arguments)
+            except json.JSONDecodeError:
+                tool_args = {}
+
+            logger.debug(
+                "Calling tool '%s'",
+                tool_name,
+                extra={
+                    "block_name": self.block_name,
+                    "tool_name": tool_name,
+                },
+            )
+
+            try:
+                result = await session.call_tool(tool_name, tool_args)
+                result_content = self._serialize_tool_result(result)
+            except Exception as e:
+                logger.warning(
+                    "Tool call '%s' failed: %s",
+                    tool_name,
+                    str(e),
+                    extra={
+                        "block_name": self.block_name,
+                        "tool_name": tool_name,
+                        "error": str(e),
+                    },
+                )
+                result_content = json.dumps({"error": str(e)})
+
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": result_content,
+                }
+            )
 
     def _to_openai_format(self, mcp_tools: list[Any]) -> list[dict[str, Any]]:
         """Convert MCP tools to OpenAI function calling format.

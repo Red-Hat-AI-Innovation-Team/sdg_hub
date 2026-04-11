@@ -201,78 +201,27 @@ class LLMChatBlock(BaseBlock):
         BlockValidationError
             If model is not configured before calling generate().
         """
-        # Validate that model is configured
         if not self.model:
             raise BlockValidationError(
                 f"Model not configured for block '{self.block_name}'. "
                 f"Call flow.set_model_config() before generating."
             )
 
-        # Extract flow-specific parameters (BaseBlock already handled block field overrides)
         flow_max_concurrency = kwargs.pop("_flow_max_concurrency", None)
-
-        # Build completion kwargs from ALL fields + runtime overrides
         completion_kwargs = self._build_completion_kwargs(**kwargs)
 
         input_cols = cast(list[str], self.input_cols)
-
-        # Extract messages from pandas DataFrame
         messages_list = samples[input_cols[0]].tolist()
 
-        # Log generation start
-        logger.info(
-            "Starting %s generation for %d samples%s",
-            "async" if self.async_mode else "sync",
-            len(messages_list),
-            (
-                f" (max_concurrency={flow_max_concurrency})"
-                if flow_max_concurrency
-                else ""
-            ),
-            extra={
-                "block_name": self.block_name,
-                "model": self.model,
-                "batch_size": len(messages_list),
-                "async_mode": self.async_mode,
-                "flow_max_concurrency": flow_max_concurrency,
-            },
-        )
+        self._log_generation_start(len(messages_list), flow_max_concurrency)
 
-        # Generate responses
         if self.async_mode:
-            try:
-                # Check if there's already a running event loop
-                loop = asyncio.get_running_loop()
-                # Check if nest_asyncio is applied (allows nested asyncio.run)
-                nest_asyncio_applied = (
-                    hasattr(loop, "_nest_patched")
-                    or getattr(asyncio.run, "__module__", "") == "nest_asyncio"
-                )
-
-                if nest_asyncio_applied:
-                    # nest_asyncio is applied, safe to use asyncio.run
-                    responses = asyncio.run(
-                        self._generate_async(
-                            messages_list, completion_kwargs, flow_max_concurrency
-                        )
-                    )
-                else:
-                    # Running inside an event loop without nest_asyncio
-                    raise BlockValidationError(
-                        f"async_mode=True cannot be used from within a running event loop for '{self.block_name}'. "
-                        "Use an async entrypoint, set async_mode=False, or apply nest_asyncio.apply() in notebook environments."
-                    )
-            except RuntimeError:
-                # No running loop; safe to create one
-                responses = asyncio.run(
-                    self._generate_async(
-                        messages_list, completion_kwargs, flow_max_concurrency
-                    )
-                )
+            responses = self._run_async_generation(
+                messages_list, completion_kwargs, flow_max_concurrency
+            )
         else:
             responses = self._generate_sync(messages_list, completion_kwargs)
 
-        # Log completion
         logger.info(
             "Generation completed successfully for %d samples",
             len(responses),
@@ -284,11 +233,83 @@ class LLMChatBlock(BaseBlock):
         )
 
         output_cols = cast(list[str], self.output_cols)
-
-        # Add responses as new column
         result = samples.copy()
         result[output_cols[0]] = responses
         return result
+
+    def _log_generation_start(
+        self, batch_size: int, flow_max_concurrency: Optional[int]
+    ) -> None:
+        """Log the start of a generation run.
+
+        Parameters
+        ----------
+        batch_size : int
+            Number of samples being processed.
+        flow_max_concurrency : Optional[int]
+            Maximum concurrency setting, if any.
+        """
+        logger.info(
+            "Starting %s generation for %d samples%s",
+            "async" if self.async_mode else "sync",
+            batch_size,
+            (
+                f" (max_concurrency={flow_max_concurrency})"
+                if flow_max_concurrency
+                else ""
+            ),
+            extra={
+                "block_name": self.block_name,
+                "model": self.model,
+                "batch_size": batch_size,
+                "async_mode": self.async_mode,
+                "flow_max_concurrency": flow_max_concurrency,
+            },
+        )
+
+    def _run_async_generation(
+        self,
+        messages_list: list[list[dict[str, Any]]],
+        completion_kwargs: dict[str, Any],
+        flow_max_concurrency: Optional[int],
+    ) -> list[list[dict[str, Any]]]:
+        """Run async generation, handling event loop detection.
+
+        Parameters
+        ----------
+        messages_list : list[list[dict[str, Any]]]
+            List of message lists to process.
+        completion_kwargs : dict[str, Any]
+            Kwargs for LiteLLM acompletion.
+        flow_max_concurrency : Optional[int]
+            Maximum concurrency for async requests.
+
+        Returns
+        -------
+        list[list[dict[str, Any]]]
+            List of response lists.
+
+        Raises
+        ------
+        BlockValidationError
+            If called from within a running event loop without nest_asyncio.
+        """
+        coro = self._generate_async(
+            messages_list, completion_kwargs, flow_max_concurrency
+        )
+        try:
+            loop = asyncio.get_running_loop()
+            if (
+                hasattr(loop, "_nest_patched")
+                or getattr(asyncio.run, "__module__", "") == "nest_asyncio"
+            ):
+                return asyncio.run(coro)
+            raise BlockValidationError(
+                f"async_mode=True cannot be used from within a running event loop for '{self.block_name}'. "
+                "Use an async entrypoint, set async_mode=False, or apply nest_asyncio.apply() in notebook environments."
+            )
+        except RuntimeError:
+            return asyncio.run(coro)
 
     def _build_completion_kwargs(self, **overrides) -> dict[str, Any]:
         """Build kwargs for LiteLLM completion call.
