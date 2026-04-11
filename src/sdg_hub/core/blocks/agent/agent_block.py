@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Agent block for integrating external agent frameworks."""
 
-from typing import Any, Optional
+from typing import Any, Optional, cast
 import asyncio
 import json
 import uuid
@@ -177,14 +177,16 @@ class AgentBlock(BaseBlock):
                         f"Valid options: {sorted(valid_fields)}"
                     )
             try:
-                self._connector = connector_class(
-                    config=config, **self.connector_kwargs
+                self._connector = cast(
+                    BaseAgentConnector,
+                    connector_class(config=config, **self.connector_kwargs),
                 )
             except (TypeError, ValidationError) as e:
                 raise ConnectorError(
                     f"Invalid connector_kwargs for '{self.agent_framework}': {e}"
                 ) from e
             self._connector_config_key = config_key
+        assert self._connector is not None  # guaranteed by the branch above
         return self._connector
 
     def _get_messages_col(self) -> str:

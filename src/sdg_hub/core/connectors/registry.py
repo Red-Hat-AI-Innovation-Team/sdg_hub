@@ -1,10 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0
 """Registry for connector classes."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 import inspect
 
 from ..utils.logger_config import setup_logger
 from .exceptions import ConnectorError
+
+if TYPE_CHECKING:
+    from .base import BaseConnector
 
 logger = setup_logger(__name__)
 
@@ -23,7 +29,7 @@ class ConnectorRegistry:
     >>> connector_class = ConnectorRegistry.get("my_connector")
     """
 
-    _connectors: dict[str, type] = {}
+    _connectors: dict[str, type[BaseConnector]] = {}
 
     @classmethod
     def register(cls, name: str):
@@ -46,7 +52,7 @@ class ConnectorRegistry:
         ...     pass
         """
 
-        def decorator(connector_class: type) -> type:
+        def decorator(connector_class: type[BaseConnector]) -> type[BaseConnector]:
             # Validate the class
             if not inspect.isclass(connector_class):
                 raise ConnectorError(f"Expected a class, got {type(connector_class)}")
@@ -68,7 +74,7 @@ class ConnectorRegistry:
         return decorator
 
     @classmethod
-    def get(cls, name: str) -> type:
+    def get(cls, name: str) -> type[BaseConnector]:
         """Get a connector class by name.
 
         Parameters
@@ -78,7 +84,7 @@ class ConnectorRegistry:
 
         Returns
         -------
-        type
+        type[BaseConnector]
             The connector class.
 
         Raises
