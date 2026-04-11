@@ -7,11 +7,11 @@
 </p>
 <p align="center"><em>Composable blocks and flows for synthetic data generation</em></p>
 <p align="center">
-  <a href="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml"><img src="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
-  <a href="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/releases"><img src="https://img.shields.io/github/v/release/Red-Hat-AI-Innovation-Team/sdg_hub" alt="Release"></a>
-  <a href="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Red-Hat-AI-Innovation-Team/sdg_hub" alt="License"></a>
-  <a href="https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub"><img src="https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub/graph/badge.svg?token=SP75BCXWO2" alt="codecov"></a>
-  <a href="https://deepwiki.com/Red-Hat-AI-Innovation-Team/sdg_hub"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+  <a href="https://pypi.org/project/sdg-hub/"><img src="https://img.shields.io/pypi/v/sdg-hub?style=flat-square" alt="PyPI"></a>
+  <a href="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/Red-Hat-AI-Innovation-Team/sdg_hub/test.yml?style=flat-square&label=tests" alt="Tests"></a>
+  <img src="https://img.shields.io/badge/python-3.10%2B-brightgreen?style=flat-square" alt="Python 3.10+">
+  <a href="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Red-Hat-AI-Innovation-Team/sdg_hub?style=flat-square" alt="License"></a>
+  <a href="https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub"><img src="https://img.shields.io/codecov/c/github/Red-Hat-AI-Innovation-Team/sdg_hub?style=flat-square" alt="Coverage"></a>
 </p>
 
 ---
