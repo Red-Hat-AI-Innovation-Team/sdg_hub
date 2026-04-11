@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { TypewriterSubtitle } from "@/components/TypewriterSubtitle";
 import { AnimatedPipeline } from "@/components/AnimatedPipeline";
+import { FeatureCard } from "@/components/FeatureCard";
 
 const features = [
   {
@@ -13,6 +14,8 @@ const features = [
     title: "Composable Blocks",
     description:
       "Chain LLM, parsing, transform, filtering, and agent blocks in any order. Each block does one thing well.",
+    href: "/docs/concepts/blocks",
+    glowColor: "rgba(232, 151, 93, 0.15)",
   },
   {
     icon: (
@@ -23,6 +26,8 @@ const features = [
     title: "YAML Flows",
     description:
       "Define multi-step pipelines in YAML. Portable, reproducible, and version-controlled by design.",
+    href: "/docs/concepts/flows",
+    glowColor: "rgba(128, 151, 196, 0.15)",
   },
   {
     icon: (
@@ -33,6 +38,8 @@ const features = [
     title: "Auto-Discovery",
     description:
       "BlockRegistry and FlowRegistry find and catalog all available components automatically. Zero boilerplate.",
+    href: "/docs/concepts/blocks",
+    glowColor: "rgba(168, 139, 184, 0.15)",
   },
   {
     icon: (
@@ -43,6 +50,8 @@ const features = [
     title: "Async Performance",
     description:
       "100+ LLM providers through LiteLLM with async execution. Built for throughput from the ground up.",
+    href: "/docs",
+    glowColor: "rgba(125, 170, 140, 0.15)",
   },
 ];
 
@@ -74,7 +83,7 @@ export default function Home() {
             className="pulse-dot inline-block h-2 w-2 rounded-full"
             style={{ background: "var(--color-green)" }}
           />
-          v0.5.x
+          Open Source
         </div>
 
         {/* Title */}
@@ -128,25 +137,14 @@ export default function Home() {
       >
         <div className="mx-auto grid w-full max-w-4xl gap-6 sm:grid-cols-2">
           {features.map((feature) => (
-            <div
+            <FeatureCard
               key={feature.title}
-              className="rounded-xl p-6 transition-colors"
-              style={{
-                background: "var(--color-bg-2)",
-                boxShadow: "0 0 0 1px var(--color-border)",
-              }}
-            >
-              <div className="mb-3 text-accent">{feature.icon}</div>
-              <h3
-                className="text-lg font-semibold text-text-0"
-                style={{ fontFamily: "var(--font-heading)" }}
-              >
-                {feature.title}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-text-2">
-                {feature.description}
-              </p>
-            </div>
+              icon={feature.icon}
+              title={feature.title}
+              description={feature.description}
+              href={feature.href}
+              glowColor={feature.glowColor}
+            />
           ))}
         </div>
       </section>

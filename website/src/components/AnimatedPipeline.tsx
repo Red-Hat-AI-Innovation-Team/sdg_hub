@@ -11,6 +11,12 @@ const steps = [
   { label: "enriched", type: "output" },
 ];
 
+const SEGMENT_DURATION = 1500; // ms per connector segment
+const PAUSE_DURATION = 400; // ms pause/glow at each block
+const TOTAL_SEGMENTS = steps.length - 1; // 5 connectors
+const CYCLE_DURATION =
+  TOTAL_SEGMENTS * SEGMENT_DURATION + (TOTAL_SEGMENTS - 1) * PAUSE_DURATION; // ~9.1s total
+
 export function AnimatedPipeline() {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -22,32 +28,55 @@ export function AnimatedPipeline() {
     const nodes = container.querySelectorAll<HTMLElement>(".pipe-block");
     const timeouts: ReturnType<typeof setTimeout>[] = [];
 
-    function runCycle() {
-      packets.forEach((pkt, i) => {
-        timeouts.push(
-          setTimeout(() => {
-            // Reset and trigger animation
-            pkt.style.animation = "none";
-            pkt.offsetHeight; // force reflow
-            pkt.style.animation = "packet-move 0.8s ease-in-out forwards";
-
-            // Glow the destination node
-            timeouts.push(
-              setTimeout(() => {
-                if (nodes[i + 1]) {
-                  nodes[i + 1].style.animation = "none";
-                  nodes[i + 1].offsetHeight;
-                  nodes[i + 1].style.animation = "node-glow 0.6s ease-out";
-                }
-              }, 650)
-            );
-          }, i * 500)
-        );
+    function hideAllPackets() {
+      packets.forEach((pkt) => {
+        pkt.style.opacity = "0";
+        pkt.style.animation = "none";
       });
     }
 
+    function runCycle() {
+      hideAllPackets();
+
+      for (let i = 0; i < TOTAL_SEGMENTS; i++) {
+        const startDelay = i * (SEGMENT_DURATION + PAUSE_DURATION);
+
+        // Animate packet across connector i
+        timeouts.push(
+          setTimeout(() => {
+            // Hide all packets first, then show only the current one
+            hideAllPackets();
+            const pkt = packets[i];
+            if (!pkt) return;
+            pkt.style.animation = "none";
+            pkt.offsetHeight; // force reflow
+            pkt.style.animation = `packet-move ${SEGMENT_DURATION}ms ease-in-out forwards`;
+          }, startDelay)
+        );
+
+        // Glow the destination node when packet arrives
+        timeouts.push(
+          setTimeout(() => {
+            const targetNode = nodes[i + 1];
+            if (!targetNode) return;
+            targetNode.style.animation = "none";
+            targetNode.offsetHeight;
+            targetNode.style.animation = "node-glow 0.6s ease-out";
+          }, startDelay + SEGMENT_DURATION - 100)
+        );
+
+        // Hide packet after it finishes (before next segment starts)
+        timeouts.push(
+          setTimeout(() => {
+            const pkt = packets[i];
+            if (pkt) pkt.style.opacity = "0";
+          }, startDelay + SEGMENT_DURATION)
+        );
+      }
+    }
+
     runCycle();
-    const interval = setInterval(runCycle, 4000);
+    const interval = setInterval(runCycle, CYCLE_DURATION + 1500); // 1.5s rest between cycles
     return () => {
       clearInterval(interval);
       timeouts.forEach(clearTimeout);
@@ -125,8 +154,8 @@ export function AnimatedPipeline() {
                   position: "absolute",
                   top: -3,
                   left: 0,
-                  width: 8,
-                  height: 8,
+                  width: 7,
+                  height: 7,
                   borderRadius: "50%",
                   background: "var(--color-accent)",
                   boxShadow: "0 0 8px rgba(232, 151, 93, 0.6)",
@@ -148,7 +177,7 @@ export function AnimatedPipeline() {
           0% { left: 0; opacity: 0; }
           10% { opacity: 1; }
           90% { opacity: 1; }
-          100% { left: calc(100% - 8px); opacity: 0; }
+          100% { left: calc(100% - 7px); opacity: 0; }
         }
         @keyframes node-glow {
           0% { box-shadow: 0 0 0 1px rgba(232, 151, 93, 0.2); }
