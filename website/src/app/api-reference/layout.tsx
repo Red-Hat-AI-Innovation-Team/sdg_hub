@@ -8,7 +8,9 @@ export default function ApiReferenceLayout({
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "var(--color-bg-0)" }}>
       <Header />
-      {children}
+      <div className="flex flex-1 overflow-hidden">
+        {children}
+      </div>
     </div>
   );
 }

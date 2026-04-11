@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { TypewriterSubtitle } from "@/components/TypewriterSubtitle";
+import { AnimatedPipeline } from "@/components/AnimatedPipeline";
 
 const features = [
   {
@@ -45,22 +46,13 @@ const features = [
   },
 ];
 
-const pipelineSteps = [
-  { label: "dataset", color: "var(--color-text-2)" },
-  { label: "PromptBuilder", color: "var(--color-accent)" },
-  { label: "LLMChat", color: "var(--color-green)" },
-  { label: "TagParser", color: "var(--color-blue)" },
-  { label: "Filter", color: "var(--color-purple)" },
-  { label: "enriched", color: "var(--color-text-2)" },
-];
-
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col" style={{ background: "var(--color-bg-0)" }}>
+    <div className="flex min-h-screen w-full flex-col overflow-x-hidden" style={{ background: "var(--color-bg-0)" }}>
       <Header />
 
       {/* Hero */}
-      <section className="relative flex flex-1 flex-col items-center justify-center px-6 py-28 text-center">
+      <section className="relative flex w-full flex-1 flex-col items-center justify-center px-4 py-28 text-center sm:px-6">
         {/* Amber glow background */}
         <div
           className="pointer-events-none absolute inset-0"
@@ -87,7 +79,7 @@ export default function Home() {
 
         {/* Title */}
         <h1
-          className="relative text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl"
+          className="relative max-w-4xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl"
           style={{
             fontFamily: "var(--font-heading)",
             color: "var(--color-text-0)",
@@ -123,41 +115,18 @@ export default function Home() {
         </div>
 
         {/* Pipeline visualization */}
-        <div className="relative mt-16 flex flex-wrap items-center justify-center gap-2 sm:gap-3" style={{ fontFamily: "var(--font-mono)" }}>
-          {pipelineSteps.map((step, i) => (
-            <span key={step.label} className="flex items-center gap-2 sm:gap-3">
-              <span
-                className="rounded-lg px-3 py-1.5 text-xs sm:text-sm"
-                style={{
-                  background: "var(--color-bg-2)",
-                  color: step.color,
-                  boxShadow: "0 0 0 1px var(--color-border)",
-                }}
-              >
-                {step.label}
-              </span>
-              {i < pipelineSteps.length - 1 && (
-                <span
-                  className="pipeline-arrow text-text-3"
-                  style={{ animationDelay: `${i * 0.2}s` }}
-                >
-                  &rarr;
-                </span>
-              )}
-            </span>
-          ))}
-        </div>
+        <AnimatedPipeline />
       </section>
 
       {/* Features */}
       <section
-        className="px-6 py-20"
+        className="w-full px-4 py-20 sm:px-6"
         style={{
           borderTop: "1px solid var(--color-border)",
           background: "var(--color-bg-1)",
         }}
       >
-        <div className="mx-auto grid max-w-4xl gap-6 sm:grid-cols-2">
+        <div className="mx-auto grid w-full max-w-4xl gap-6 sm:grid-cols-2">
           {features.map((feature) => (
             <div
               key={feature.title}

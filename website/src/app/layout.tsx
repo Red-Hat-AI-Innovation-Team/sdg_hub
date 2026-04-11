@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, DM_Sans, Fragment_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -28,6 +28,11 @@ export const metadata: Metadata = {
     "A modular Python framework for building synthetic data generation pipelines using composable blocks and flows.",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -38,7 +43,7 @@ export default function RootLayout({
       lang="en"
       className={`${fraunces.variable} ${dmSans.variable} ${fragmentMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full w-full overflow-x-hidden flex flex-col">{children}</body>
     </html>
   );
 }

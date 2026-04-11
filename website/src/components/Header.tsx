@@ -15,7 +15,7 @@ function LogoBlocks() {
 export function Header() {
   return (
     <header className="header-glass sticky top-0 z-50">
-      <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-6">
+      <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between px-4 sm:px-6">
         {/* Logo */}
         <Link
           href="/"

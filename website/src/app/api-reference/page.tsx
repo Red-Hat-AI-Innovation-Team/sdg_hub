@@ -120,11 +120,11 @@ export default function ApiReferencePage() {
   const sections = flattenClasses(data);
 
   return (
-    <div className="flex flex-1">
+    <>
       <ApiReferenceSidebar navigation={navigation} />
-      <main className="flex-1 lg:pl-[248px]">
+      <main className="min-w-0 flex-1 overflow-y-auto lg:pl-[248px]">
         <ApiReferenceContent sections={sections} />
       </main>
-    </div>
+    </>
   );
 }
