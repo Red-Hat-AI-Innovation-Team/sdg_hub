@@ -151,8 +151,8 @@ class LLMResponseExtractorBlock(BaseBlock):
         ValueError
             If none of the requested fields are found in the response
         """
-        extracted = {}
-        missing_fields = []
+        extracted: dict[str, Any] = {}
+        missing_fields: list[str] = []
 
         if self.extract_content:
             if "content" not in response:
@@ -187,7 +187,7 @@ class LLMResponseExtractorBlock(BaseBlock):
                 if response["tool_calls"] is None:
                     ## skip this field
                     logger.warning("Tool calls field is None, using empty list instead")
-                    extracted[self._tool_calls_field] = []  # type: ignore[assignment]
+                    extracted[self._tool_calls_field] = []
                 else:
                     extracted[self._tool_calls_field] = response["tool_calls"]
 

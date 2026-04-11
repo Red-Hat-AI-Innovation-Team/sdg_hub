@@ -8,11 +8,11 @@ and dual initialization modes.
 # Local
 # Import submodules to make them available for patching in tests
 from . import (
-    agent_config,  # noqa: F401
-    display,  # noqa: F401
-    execution,  # noqa: F401
-    model_config,  # noqa: F401
-    serialization,  # noqa: F401
+    agent_config,
+    display,
+    execution,
+    model_config,
+    serialization,
 )
 from .base import Flow
 from .metadata import FlowMetadata
@@ -24,4 +24,9 @@ __all__ = [
     "FlowMetadata",
     "FlowRegistry",
     "FlowValidator",
+    "agent_config",
+    "display",
+    "execution",
+    "model_config",
+    "serialization",
 ]
