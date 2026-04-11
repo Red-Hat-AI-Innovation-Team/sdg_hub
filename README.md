@@ -12,6 +12,7 @@
   <img src="https://img.shields.io/badge/python-3.10%2B-brightgreen?style=flat-square" alt="Python 3.10+">
   <a href="https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Red-Hat-AI-Innovation-Team/sdg_hub?style=flat-square" alt="License"></a>
   <a href="https://codecov.io/gh/Red-Hat-AI-Innovation-Team/sdg_hub"><img src="https://img.shields.io/codecov/c/github/Red-Hat-AI-Innovation-Team/sdg_hub?style=flat-square" alt="Coverage"></a>
+  <a href="https://deepwiki.com/Red-Hat-AI-Innovation-Team/sdg_hub"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 </p>
 
 ---
