@@ -413,6 +413,6 @@ Create modular flows with parameters for customization points. Use
 ## Next Steps
 
 - [Quick Start](quickstart.md) -- step-by-step tutorial
-- [Block System Overview](blocks/overview.md) -- learn about each block category
-- [Flow System Overview](flows/overview.md) -- YAML structure and flow configuration
+- [Block System Overview](blocks/index.md) -- learn about each block category
+- [Flow System Overview](flows/index.md) -- YAML structure and flow configuration
 - [Custom Blocks](blocks/custom-blocks.md) -- build your own processing blocks

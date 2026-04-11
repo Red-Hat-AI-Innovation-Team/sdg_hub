@@ -428,6 +428,6 @@ categories = BlockRegistry.categories()
 ## Next Steps
 
 - [Core Concepts](concepts.md) -- understand blocks, flows, and registries in depth
-- [Block System Overview](blocks/overview.md) -- learn about each block category
-- [Flow System Overview](flows/overview.md) -- YAML structure and flow configuration
+- [Block System Overview](blocks/index.md) -- learn about each block category
+- [Flow System Overview](flows/index.md) -- YAML structure and flow configuration
 - [Custom Blocks](blocks/custom-blocks.md) -- build your own processing blocks

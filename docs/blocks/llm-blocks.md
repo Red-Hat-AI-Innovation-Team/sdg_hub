@@ -448,7 +448,7 @@ result = extractor.generate(result)
 # result["llm_content"] contains the extracted answer text
 ```
 
-This same pipeline can be defined in YAML and executed as a flow. See the [Flow documentation](../flows/overview.md) for details.
+This same pipeline can be defined in YAML and executed as a flow. See the [Flow documentation](../flows/index.md) for details.
 
 ---
 

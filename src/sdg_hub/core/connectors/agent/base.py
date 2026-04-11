@@ -27,17 +27,20 @@ class BaseAgentConnector(BaseConnector):
     - build_request: Convert messages to framework-specific format
     - parse_response: Convert framework response to standard format
 
-    Example
-    -------
-    >>> class MyAgentConnector(BaseAgentConnector):
-    ...     def build_request(self, messages, session_id):
-    ...         return {"input": messages[-1]["content"], "session": session_id}
-    ...
-    ...     def parse_response(self, response):
-    ...         return {"output": response["result"]}
-    ...
-    >>> connector = MyAgentConnector(config=ConnectorConfig(url="http://api"))
-    >>> response = connector.send([{"role": "user", "content": "Hello"}], "session1")
+    Example:
+        ```python
+        class MyAgentConnector(BaseAgentConnector):
+            def build_request(self, messages, session_id):
+                return {"input": messages[-1]["content"], "session": session_id}
+
+            def parse_response(self, response):
+                return {"output": response["result"]}
+
+        connector = MyAgentConnector(config=ConnectorConfig(url="http://api"))
+        response = connector.send(
+            [{"role": "user", "content": "Hello"}], "session1"
+        )
+        ```
     """
 
     _http_client: Optional[HttpClient] = PrivateAttr(default=None)
