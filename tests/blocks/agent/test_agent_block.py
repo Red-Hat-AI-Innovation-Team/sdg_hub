@@ -457,6 +457,51 @@ class TestAgentBlockConnectorIntegration:
         assert connector1 is not connector2
         assert connector2.config.url == "http://newhost:8080"
 
+    def test_get_connector_rejects_unknown_connector_kwargs(self):
+        """Test that unknown connector_kwargs keys raise ConnectorError."""
+        block = AgentBlock(
+            block_name="test",
+            agent_framework="langflow",
+            agent_url="http://localhost:7860",
+            input_cols=["messages"],
+            output_cols=["response"],
+            connector_kwargs={"nonexistent_option": "value"},
+        )
+
+        with pytest.raises(ConnectorError, match="Unknown connector_kwargs"):
+            block._get_connector()
+
+    def test_get_connector_accepts_valid_connector_kwargs(self):
+        """Test that valid connector_kwargs are accepted without error."""
+        from pydantic import Field
+
+        from sdg_hub.core.connectors.agent.base import BaseAgentConnector
+        from sdg_hub.core.connectors.registry import ConnectorRegistry
+
+        class _TestConnector(BaseAgentConnector):
+            custom_option: str = Field(default="default")
+
+            def build_request(self, messages, session_id):
+                return {}
+
+            def parse_response(self, response):
+                return response
+
+        ConnectorRegistry._connectors["_test"] = _TestConnector
+        try:
+            block = AgentBlock(
+                block_name="test",
+                agent_framework="_test",
+                agent_url="http://localhost:9999",
+                input_cols=["messages"],
+                output_cols=["response"],
+                connector_kwargs={"custom_option": "my-value"},
+            )
+            connector = block._get_connector()
+            assert connector.custom_option == "my-value"
+        finally:
+            del ConnectorRegistry._connectors["_test"]
+
 
 class TestAgentBlockConnectorKwargs:
     """Test connector_kwargs passthrough on AgentBlock."""

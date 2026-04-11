@@ -164,6 +164,18 @@ class AgentBlock(BaseBlock):
                 timeout=self.timeout,
                 max_retries=self.max_retries,
             )
+            # Validate connector_kwargs keys before construction so that
+            # typos are surfaced immediately instead of being silently
+            # ignored by Pydantic.
+            if self.connector_kwargs:
+                valid_fields = connector_class.model_fields.keys()
+                unknown = set(self.connector_kwargs) - valid_fields
+                if unknown:
+                    raise ConnectorError(
+                        f"Unknown connector_kwargs for "
+                        f"'{self.agent_framework}': {unknown}. "
+                        f"Valid options: {sorted(valid_fields)}"
+                    )
             try:
                 self._connector = connector_class(
                     config=config, **self.connector_kwargs
