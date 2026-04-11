@@ -4,7 +4,7 @@ This package provides various block implementations for data generation, process
 """
 
 # Local
-from .agent import AgentBlock
+from .agent import AgentBlock, AgentResponseExtractorBlock
 from .base import BaseBlock
 from .filtering import ColumnValueFilterBlock
 from .llm import (
@@ -18,29 +18,36 @@ from .registry import BlockRegistry
 from .transform import (
     DuplicateColumnsBlock,
     IndexBasedMapperBlock,
+    JSONStructureBlock,
     MeltColumnsBlock,
     RenameColumnsBlock,
+    RowMultiplierBlock,
+    SamplerBlock,
     TextConcatBlock,
     UniformColumnValueSetter,
 )
 
 __all__ = [
     "AgentBlock",
+    "AgentResponseExtractorBlock",
     "BaseBlock",
     "BlockRegistry",
     "ColumnValueFilterBlock",
     "DuplicateColumnsBlock",
     "IndexBasedMapperBlock",
     "JSONParserBlock",
+    "JSONStructureBlock",
+    "LLMChatBlock",
+    "LLMResponseExtractorBlock",
+    "MCPAgentBlock",
     "MeltColumnsBlock",
     "PromptBuilderBlock",
     "RegexParserBlock",
     "RenameColumnsBlock",
+    "RowMultiplierBlock",
+    "SamplerBlock",
     "TagParserBlock",
     "TextConcatBlock",
     "TextParserBlock",
     "UniformColumnValueSetter",
-    "LLMChatBlock",
-    "LLMResponseExtractorBlock",
-    "MCPAgentBlock",
 ]

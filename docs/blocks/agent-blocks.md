@@ -17,7 +17,7 @@ Executes external agent frameworks (such as Langflow or LangGraph) on each row o
 | `agent_url` | `str` | required | API endpoint URL for the agent |
 | `agent_api_key` | `str` or `null` | `null` | API key for authentication |
 | `input_cols` | `dict[str, str]` or `list[str]` | required | Input column specification. Dict form: `{"messages": "column_name"}`. List form: first element is used as the messages column. |
-| `output_cols` | `list[str]` | `["agent_response"]` | Output column for storing raw agent responses |
+| `output_cols` | `list[str]` | `None` (inherited from BaseBlock) | Output column for storing raw agent responses. If not specified, `"agent_response"` is used as the fallback column name at runtime. |
 | `timeout` | `float` | `120.0` | Request timeout in seconds (must be > 0) |
 | `max_retries` | `int` | `3` | Maximum retry attempts (must be >= 0) |
 | `session_id_col` | `str` or `null` | `null` | Column containing session IDs. If not set, UUIDs are generated per row. |

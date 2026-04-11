@@ -177,6 +177,28 @@ blocks:
 
 The `model`, `api_key`, and `api_base` fields are set at runtime via `flow.set_model_config()` and are not included in the YAML.
 
+### Response Format
+
+The output column contains a `list[dict]` for each row. Each dict is a response
+message with at minimum a `content` key holding the assistant's text reply. When
+`n=1` (the default), the list has a single element. When `n > 1`, the list
+contains one dict per completion choice.
+
+```python
+# Single completion (n=1, the default):
+[{"content": "Machine learning is a subset of AI..."}]
+
+# Multiple completions (n=3):
+[
+    {"content": "Machine learning is..."},
+    {"content": "ML refers to..."},
+    {"content": "In computer science, machine learning..."},
+]
+```
+
+Use `LLMResponseExtractorBlock` after `LLMChatBlock` to extract the `content`
+(or other fields like `reasoning_content`, `tool_calls`) into flat columns.
+
 ---
 
 ## PromptBuilderBlock

@@ -9,6 +9,11 @@ YAML flows -- to build data-generation pipelines.
 DataFrame --> Block_1 --> Block_2 --> Block_3 --> DataFrame
 ```
 
+Blocks operate on `pandas.DataFrame` internally. The `Flow.generate()` method
+accepts both `pandas.DataFrame` and `datasets.Dataset` and handles conversion
+automatically. When using blocks directly outside a flow, always pass a
+`pandas.DataFrame`.
+
 ## Block Architecture
 
 Every block inherits from `BaseBlock`, which itself inherits from both Pydantic's
@@ -31,7 +36,7 @@ All blocks share these Pydantic fields defined on `BaseBlock`:
 | Field | Type | Description |
 |---|---|---|
 | `block_name` | `str` (required) | Unique identifier for this block instance. |
-| `block_type` | `Optional[str]` | Category hint (e.g. `"llm"`, `"transform"`). |
+| `block_type` | `Optional[str]` | Category hint (e.g. `"llm"`, `"transform"`). Note: this is different from the `block_type` key in flow YAML files, which specifies the class name for BlockRegistry lookup (e.g. `"LLMChatBlock"`). |
 | `input_cols` | `str`, `list[str]`, `dict[str, Any]`, or `None` | Columns the block reads from the input DataFrame. |
 | `output_cols` | `str`, `list[str]`, `dict[str, Any]`, or `None` | Columns the block writes to the output DataFrame. |
 
