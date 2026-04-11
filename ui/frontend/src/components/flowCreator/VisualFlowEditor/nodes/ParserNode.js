@@ -130,46 +130,46 @@ export const ParserNodeConfig = {
       return tags.filter(tag => tag !== null && tag !== undefined && tag !== '');
     };
     
+    // Determine block type: RegexParserBlock when using a regex pattern, TagParserBlock when using tags
+    const hasPattern = config.parsing_pattern?.trim();
+
     const blockConfig = {
-      block_type: 'TagParserBlock',
+      block_type: hasPattern ? 'RegexParserBlock' : 'TagParserBlock',
       block_config: {
         block_name: config.block_name,
         input_cols: config.input_cols,
-        output_cols: Array.isArray(config.output_cols) 
+        output_cols: Array.isArray(config.output_cols)
           ? (config.output_cols.length === 1 ? config.output_cols[0] : config.output_cols)
           : config.output_cols,
       },
     };
 
-    // Add tags if provided - keep empty strings as they mean "extract until end of text"
-    // But filter out null/undefined values
-    let startTags = cleanTagsKeepEmpty(config.start_tags);
-    let endTags = cleanTagsKeepEmpty(config.end_tags);
-    
-    // Pydantic requires start_tags and end_tags to have the same length
-    // If we have start_tags but fewer end_tags, pad with empty strings
-    if (startTags.length > 0 && endTags.length < startTags.length) {
-      while (endTags.length < startTags.length) {
-        endTags.push('');
-      }
-    }
-    // If we have end_tags but fewer start_tags, pad with empty strings
-    if (endTags.length > 0 && startTags.length < endTags.length) {
-      while (startTags.length < endTags.length) {
-        startTags.push('');
-      }
-    }
-    
-    if (startTags.length > 0) {
-      blockConfig.block_config.start_tags = startTags;
-    }
-    if (endTags.length > 0) {
-      blockConfig.block_config.end_tags = endTags;
-    }
-
-    // Add pattern if provided (overrides tags)
-    if (config.parsing_pattern?.trim()) {
+    if (hasPattern) {
       blockConfig.block_config.parsing_pattern = config.parsing_pattern;
+    } else {
+      // Add tags if provided - keep empty strings as they mean "extract until end of text"
+      // But filter out null/undefined values
+      let startTags = cleanTagsKeepEmpty(config.start_tags);
+      let endTags = cleanTagsKeepEmpty(config.end_tags);
+
+      // Pydantic requires start_tags and end_tags to have the same length
+      if (startTags.length > 0 && endTags.length < startTags.length) {
+        while (endTags.length < startTags.length) {
+          endTags.push('');
+        }
+      }
+      if (endTags.length > 0 && startTags.length < endTags.length) {
+        while (startTags.length < endTags.length) {
+          startTags.push('');
+        }
+      }
+
+      if (startTags.length > 0) {
+        blockConfig.block_config.start_tags = startTags;
+      }
+      if (endTags.length > 0) {
+        blockConfig.block_config.end_tags = endTags;
+      }
     }
 
     // Add optional fields

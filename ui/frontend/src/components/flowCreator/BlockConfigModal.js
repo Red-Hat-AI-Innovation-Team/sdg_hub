@@ -214,16 +214,14 @@ const BlockConfigModal = ({ block, isEdit, onSubmit, onClose, onTempFlowCreated,
             description: 'Parses LLM response'
           },
           {
-            block_type: 'TagParserBlock',
+            block_type: 'RegexParserBlock',
             block_config: {
               block_name: `parse_${baseName}`,
               input_cols: `${baseName}_parser_content`,
               output_cols: ['question', 'response'],
               parsing_pattern: '\\[(?:Question|QUESTION)\\]\\s*(.*?)\\s*\\[(?:Answer|ANSWER)\\]\\s*(.*?)\\s*(?=\\[(?:Question|QUESTION)\\]|$)',
-              start_tags: [],
-              end_tags: [],
             },
-            displayName: 'Tag Parser',
+            displayName: 'Regex Parser',
             description: 'Extracts questions and answers'
           }
         ];

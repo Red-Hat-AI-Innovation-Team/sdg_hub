@@ -427,7 +427,7 @@ const NodeSidebar = ({ onAddNode, onDragStart, onDragEnd, onLoadFlowTemplate, on
           const fourthBlock = blocks[i + 3];
           const fifthBlock = blocks[i + 4];
           
-          if (fourthBlock?.block_type === 'TagParserBlock' && 
+          if ((fourthBlock?.block_type === 'TagParserBlock' || fourthBlock?.block_type === 'RegexParserBlock') &&
               fifthBlock?.block_type === 'ColumnValueFilterBlock') {
             // This is an Eval node (any prompt+llm+extractor+parser+filter pattern)
             const nodeId = generateNodeId();
@@ -529,8 +529,8 @@ const NodeSidebar = ({ onAddNode, onDragStart, onDragEnd, onLoadFlowTemplate, on
         }
       }
 
-      // TagParserBlock -> Parser node
-      if (blockType === 'TagParserBlock') {
+      // TagParserBlock or RegexParserBlock -> Parser node
+      if (blockType === 'TagParserBlock' || blockType === 'RegexParserBlock') {
         visualNodes.push({
           id: generateNodeId(),
           type: NODE_TYPES.PARSER,

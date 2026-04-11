@@ -347,7 +347,7 @@ blocks:
 **Generate and Evaluate:**
 
 ```
-PromptBuilder → ChatCompletion → TextParser → Evaluator
+PromptBuilder → ChatCompletion → TagParser → Evaluator
 ```
 
 **Multi-Stage Generation:**

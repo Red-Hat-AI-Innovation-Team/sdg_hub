@@ -309,7 +309,7 @@ const groupRelatedBlocks = (blocks) => {
       const isEvalPattern = (
         nextBlocks[0]?.block_type === 'LLMChatBlock' &&
         nextBlocks[1]?.block_type === 'LLMResponseExtractorBlock' &&
-        nextBlocks[2]?.block_type === 'TagParserBlock' &&
+        (nextBlocks[2]?.block_type === 'TagParserBlock' || nextBlocks[2]?.block_type === 'RegexParserBlock') &&
         nextBlocks[3]?.block_type === 'ColumnValueFilterBlock'
       );
 
@@ -417,7 +417,7 @@ const blockGroupToNode = (group, index) => {
         expand_lists: extractorConfig.expand_lists,
       };
     }
-  } else if (blockType === 'TagParserBlock') {
+  } else if (blockType === 'TagParserBlock' || blockType === 'RegexParserBlock') {
     nodeType = NODE_TYPES.PARSER;
     config = {
       block_name: blockConfig.block_name,
