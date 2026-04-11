@@ -10,6 +10,7 @@ from .duplicate_columns import DuplicateColumnsBlock
 from .index_based_mapper import IndexBasedMapperBlock
 from .json_structure_block import JSONStructureBlock
 from .melt_columns import MeltColumnsBlock
+from .message_formatter import MessageFormatterBlock
 from .rename_columns import RenameColumnsBlock
 from .row_multiplier import RowMultiplierBlock
 from .sampler import SamplerBlock
@@ -21,6 +22,7 @@ __all__ = [
     "DuplicateColumnsBlock",
     "JSONStructureBlock",
     "MeltColumnsBlock",
+    "MessageFormatterBlock",
     "RowMultiplierBlock",
     "IndexBasedMapperBlock",
     "RenameColumnsBlock",
