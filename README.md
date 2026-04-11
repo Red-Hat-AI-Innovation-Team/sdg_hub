@@ -13,26 +13,26 @@
 
 A modular Python framework for building synthetic data generation pipelines using composable blocks and flows. Transform datasets through **building-block composition** - mix and match LLM-powered and traditional processing blocks to create sophisticated data generation workflows.
 
-**📖 Full documentation available at: [DeepWiki](https://deepwiki.com/Red-Hat-AI-Innovation-Team/sdg_hub)**
+Full documentation available in the [`docs/`](docs/) directory or at [DeepWiki](https://deepwiki.com/Red-Hat-AI-Innovation-Team/sdg_hub).
 
-## ✨ Key Features
+## Key Features
 
-**🔧 Modular Composability** - Mix and match blocks like Lego pieces. Build simple transformations or complex multi-stage pipelines with YAML-configured flows.
+**Modular Composability** - Mix and match blocks like Lego pieces. Build simple transformations or complex multi-stage pipelines with YAML-configured flows.
 
-**⚡ Async Performance** - High-throughput LLM processing with built-in error handling.
+**Async Performance** - High-throughput LLM processing with built-in error handling.
 
-**🛡️ Built-in Validation** - Pydantic-based type safety ensures your configurations and data are correct before execution.
+**Built-in Validation** - Pydantic-based type safety ensures your configurations and data are correct before execution.
 
-**🔍 Auto-Discovery** - Automatic block and flow registration. No manual imports or complex setup.
+**Auto-Discovery** - Automatic block and flow registration. No manual imports or complex setup.
 
-**📊 Rich Monitoring** - Detailed logging with progress bars and execution summaries.
+**Rich Monitoring** - Detailed logging with progress bars and execution summaries.
 
-**📋 Dataset Schema Discovery** - Instantly discover required data formats. Get empty datasets with correct schema for easy validation and data preparation.
+**Dataset Schema Discovery** - Instantly discover required data formats. Get empty DataFrames with correct schema for easy validation and data preparation.
 
-**🧩 Easily Extensible** - Create custom blocks with simple inheritance. Rich logging and monitoring built-in.
+**Easily Extensible** - Create custom blocks with simple inheritance. Rich logging and monitoring built-in.
 
 
-## 📦 Installation
+## Installation
 
 Recommended: Install uv  — see https://docs.astral.sh/uv/getting-started/installation/
 
@@ -56,7 +56,7 @@ uv pip install sdg-hub[vllm]
 uv pip install sdg-hub[examples]
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Core Concepts
 
@@ -115,33 +115,35 @@ flow.set_model_config(
 ```
 #### Discover dataset requirements and create your dataset
 ```python
-# First, discover what data the flow needs
-# Get an empty dataset with the exact schema needed
-schema_dataset = flow.get_dataset_schema()  # Get empty dataset with correct schema
-print(f"Required columns: {schema_dataset.column_names}")
-print(f"Schema: {schema_dataset.features}")
+import pandas as pd
 
-# Option 1: Add data directly to the schema dataset
-dataset = schema_dataset.add_item({
+# First, discover what data the flow needs
+# Get an empty DataFrame with the exact schema needed
+schema_df = flow.get_dataset_schema()
+print(f"Required columns: {list(schema_df.columns)}")
+
+# Option 1: Add data directly using pandas concat
+new_row = pd.DataFrame([{
     'document': 'Your document text here...',
     'document_outline': '1. Topic A; 2. Topic B; 3. Topic C',
     'domain': 'Computer Science',
     'icl_document': 'Example document for in-context learning...',
     'icl_query_1': 'Example question 1?',
     'icl_response_1': 'Example answer 1',
-    'icl_query_2': 'Example question 2?', 
+    'icl_query_2': 'Example question 2?',
     'icl_response_2': 'Example answer 2',
     'icl_query_3': 'Example question 3?',
     'icl_response_3': 'Example answer 3'
-})
+}])
+dataset = pd.concat([schema_df, new_row], ignore_index=True)
 
-# Option 2: Create your own dataset and validate the schema
-my_dataset = Dataset.from_dict(my_data_dict)
-if my_dataset.features == schema_dataset.features:
-    print("✅ Schema matches - ready to generate!")
+# Option 2: Validate your own dataset against the schema
+my_dataset = pd.DataFrame(my_data_dict)
+if set(my_dataset.columns) == set(schema_df.columns):
+    print("Schema matches - ready to generate!")
     dataset = my_dataset
 else:
-    print("❌ Schema mismatch - check your columns")
+    print("Schema mismatch - check your columns")
 
 # Option 3: Get raw requirements for detailed inspection
 requirements = flow.get_dataset_requirements()
@@ -169,14 +171,14 @@ relevancy_scores = result['relevancy_score']
 ```
 
 
-## 📄 License
+## License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to this project.
 
 ---
 
-Built with ❤️ by the Red Hat AI Innovation Team
+Built by the Red Hat AI Innovation Team
