@@ -642,8 +642,8 @@ class TestLLMResponseExtractorBlockIntegration:
             "Hello! How may I assist you today?",
         ]
 
-    def test_integration_preserve_lists_for_text_parser(self):
-        """Test preserving lists for downstream TextParserBlock processing."""
+    def test_integration_preserve_lists_for_parser(self):
+        """Test preserving lists for downstream parser block processing."""
         block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
@@ -669,4 +669,4 @@ class TestLLMResponseExtractorBlockIntegration:
         assert len(result) == 1
         assert isinstance(result["test_parser_content"][0], list)
         assert len(result["test_parser_content"][0]) == 3
-        # This format is suitable for TextParserBlock to process each item in the list
+        # This format is suitable for a parser block to process each item in the list

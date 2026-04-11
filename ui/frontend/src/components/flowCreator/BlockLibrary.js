@@ -132,15 +132,15 @@ const BlockLibrary = ({ onAddBlock }) => {
       }
     },
     { 
-      id: 'TextParserBlock', 
-      name: 'Text Parser', 
+      id: 'TagParserBlock', 
+      name: 'Tag Parser',
       category: 'Transform',
       description: 'Extract text with tags',
       icon: '✂️',
       defaultConfig: {
-        block_type: 'TextParserBlock',
+        block_type: 'TagParserBlock',
         block_config: {
-          block_name: 'text_parser',
+          block_name: 'tag_parser',
           input_cols: 'content',
           output_cols: 'extracted',
           start_tags: [''],

@@ -6,7 +6,7 @@
  * 
  * Node types (simplified):
  * - LLM: PromptBuilder + LLMChat + ResponseExtractor (combined)
- * - Parser: TextParserBlock (extract tagged sections)
+ * - Parser: TagParserBlock (extract tagged sections)
  * - Eval: LLM + Parser + Filter (combined)
  * - Transform: Data manipulation blocks
  */

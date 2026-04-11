@@ -12,7 +12,7 @@ This directory contains comprehensive examples demonstrating the **Structured Te
 ### 🔧 **Dynamic Flow Extension**
 - **Runtime flow modification**: Demonstrate extending flows without creating new files
 - **Stock ticker extraction**: Add financial ticker symbol extraction using existing blocks
-- **Composable architecture**: Shows how to combine PromptBuilderBlock, LLMChatBlock, and TextParserBlock
+- **Composable architecture**: Shows how to combine PromptBuilderBlock, LLMChatBlock, and TagParserBlock
 
 
 
@@ -96,7 +96,7 @@ The structured insights flow performs **4 key analyses** on any text:
 
 ### **Advanced Topics**
 - Dynamically extend existing flows at runtime without modifying core flow files
-- Combine existing blocks (PromptBuilderBlock, LLMChatBlock, TextParserBlock) for custom analysis
+- Combine existing blocks (PromptBuilderBlock, LLMChatBlock, TagParserBlock) for custom analysis
 - Add domain-specific processing like stock ticker extraction for financial news
 - Compare results between basic and enhanced flow configurations
 
@@ -117,7 +117,7 @@ The structured insights flow performs **4 key analyses** on any text:
 4. **Quality filters**: Add validation and quality checks to your pipeline
 
 ### **Creating Custom Processing Pipelines**
-1. **Use existing blocks**: Combine PromptBuilderBlock, LLMChatBlock, TextParserBlock
+1. **Use existing blocks**: Combine PromptBuilderBlock, LLMChatBlock, TagParserBlock
 2. **Design effective prompts**: Create clear, specific prompts for your analysis
 3. **Test iteratively**: Validate results and refine prompts for better accuracy
 4. **Chain processing**: Connect multiple analysis stages for complex workflows

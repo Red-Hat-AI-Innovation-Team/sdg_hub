@@ -9,11 +9,9 @@ or JSON extraction.
 from .json_parser_block import JSONParserBlock
 from .regex_parser_block import RegexParserBlock
 from .tag_parser_block import TagParserBlock
-from .text_parser_block import TextParserBlock
 
 __all__ = [
     "JSONParserBlock",
     "RegexParserBlock",
     "TagParserBlock",
-    "TextParserBlock",
 ]

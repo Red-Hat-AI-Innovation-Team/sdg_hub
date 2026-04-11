@@ -5,7 +5,7 @@
  * 
  * Based on actual flow.yaml patterns:
  * - LLM: PromptBuilder + LLMChat + LLMResponseExtractor (always together)
- * - Parser: TextParserBlock (extract tagged sections)
+ * - Parser: TagParserBlock (extract tagged sections)
  * - Eval: LLM + Parser + Filter (evaluation with pass/fail criteria)
  * - Transform: DuplicateColumns, RenameColumns, MeltColumns
  */

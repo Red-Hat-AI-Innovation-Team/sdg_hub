@@ -123,10 +123,6 @@ Parse JSON from text and expand fields into columns.
     output_cols: ["name", "score"]
 ```
 
-### TextParserBlock (DEPRECATED)
-
-Use `TagParserBlock` or `RegexParserBlock` instead.
-
 ---
 
 ## Transform Blocks

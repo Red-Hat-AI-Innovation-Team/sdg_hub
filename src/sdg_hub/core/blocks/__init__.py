@@ -14,7 +14,7 @@ from .llm import (
     PromptBuilderBlock,
 )
 from .mcp import MCPAgentBlock
-from .parsing import JSONParserBlock, RegexParserBlock, TagParserBlock, TextParserBlock
+from .parsing import JSONParserBlock, RegexParserBlock, TagParserBlock
 from .registry import BlockRegistry
 from .transform import (
     DuplicateColumnsBlock,
@@ -50,6 +50,5 @@ __all__ = [
     "SamplerBlock",
     "TagParserBlock",
     "TextConcatBlock",
-    "TextParserBlock",
     "UniformColumnValueSetter",
 ]

@@ -272,9 +272,9 @@ YES or NO
           extract_content: true,
         },
       },
-      // 4. Text Parser
+      // 4. Tag Parser
       {
-        block_type: 'TextParserBlock',
+        block_type: 'TagParserBlock',
         block_config: {
           block_name: `parse_${baseName}`,
           input_cols: `extract_${baseName}_content`,

@@ -74,8 +74,6 @@ Blocks are organized by category:
 
 Run `BlockRegistry.discover_blocks()` to see all registered blocks.
 
-**TextParserBlock is deprecated** -- use TagParserBlock or RegexParserBlock instead.
-
 ### Flow System (`src/sdg_hub/core/flow/`)
 
 Flows are YAML-defined pipelines that chain blocks. Key entry points: `Flow.from_yaml()`, `flow.generate()`, `flow.dry_run()`, `flow.set_model_config()`.

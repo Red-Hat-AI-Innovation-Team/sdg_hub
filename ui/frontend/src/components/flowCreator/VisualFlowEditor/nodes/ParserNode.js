@@ -131,7 +131,7 @@ export const ParserNodeConfig = {
     };
     
     const blockConfig = {
-      block_type: 'TextParserBlock',
+      block_type: 'TagParserBlock',
       block_config: {
         block_name: config.block_name,
         input_cols: config.input_cols,

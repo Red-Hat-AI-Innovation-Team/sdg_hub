@@ -37,7 +37,7 @@ The sidebar has two tabs:
 | Node Type | Purpose | Examples |
 |-----------|---------|----------|
 | **LLM** | Chat completion and prompt building | ChatCompletionBlock, PromptBuilderBlock |
-| **Parser** | Text parsing and extraction | TextParserBlock, JsonExtractorBlock |
+| **Parser** | Text parsing and extraction | TagParserBlock, RegexParserBlock, JSONParserBlock |
 | **Transform** | Data transformation | ColumnMapperBlock, FilterBlock |
 | **Eval** | Quality evaluation | FaithfulnessBlock, RelevancyBlock |
 
