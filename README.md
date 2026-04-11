@@ -119,6 +119,9 @@ flow.set_model_config(
     model="openai/gpt-4o",
     api_key="your-openai-key",
 )
+## NOTE: This requires a running Langflow agent endpoint.
+# See the MCP Distillation Training example for setup instructions:
+# examples/agentic/mcp_distillation_training/
 flow.set_agent_config(
     agent_framework="langflow",
     agent_url="http://localhost:7860/api/v1/run/default",

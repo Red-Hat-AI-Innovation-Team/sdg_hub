@@ -196,7 +196,7 @@ blocks:
 Use `dry_run()` to test with a small sample before running on a full dataset.
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 from datasets import Dataset
 
 flow = Flow.from_yaml("src/sdg_hub/flows/text_analysis/sentiment_classification/flow.yaml")
@@ -221,7 +221,7 @@ Check that your dataset meets the flow's requirements without running any
 blocks.
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 from datasets import Dataset
 
 flow = Flow.from_yaml("path/to/flow.yaml")
@@ -239,7 +239,7 @@ if errors:
 Get an empty DataFrame with the correct columns and types to use as a template.
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 
 flow = Flow.from_yaml("path/to/flow.yaml")
 schema = flow.get_dataset_schema()
@@ -255,7 +255,7 @@ Write pytest tests that mock the LLM client. Verify that non-LLM blocks
 ```python
 import pandas as pd
 import pytest
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 
 def test_flow_loads():
     flow = Flow.from_yaml("src/sdg_hub/flows/text_analysis/sentiment_classification/flow.yaml")
@@ -294,7 +294,7 @@ To discover flows outside the built-in directory, register additional search
 paths before calling `discover_flows()`.
 
 ```python
-from sdg_hub.core.flow.registry import FlowRegistry
+from sdg_hub import FlowRegistry
 
 # Register a custom directory
 FlowRegistry.register_search_path("/path/to/my/flows")
@@ -308,8 +308,8 @@ FlowRegistry.discover_flows()
 After discovery, look up your flow by id or name.
 
 ```python
-from sdg_hub.core.flow.base import Flow
-from sdg_hub.core.flow.registry import FlowRegistry
+from sdg_hub import Flow
+from sdg_hub import FlowRegistry
 
 FlowRegistry.discover_flows()
 

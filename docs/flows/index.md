@@ -17,8 +17,8 @@ checkpointing, and metrics collection automatically.
 ## Loading and Running a Flow
 
 ```python
-from sdg_hub.core.flow.base import Flow
-from sdg_hub.core.flow.registry import FlowRegistry
+from sdg_hub import Flow
+from sdg_hub import FlowRegistry
 from datasets import Dataset
 
 # Discover built-in flows and load one by name or id
@@ -82,7 +82,7 @@ Flows with LLM blocks require model configuration before `generate()`.
 | `flow.get_model_recommendations` | `get_model_recommendations() -> dict[str, Any]` | Return `{"default": ..., "compatible": [...], "experimental": [...]}`. |
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 
 flow = Flow.from_yaml("path/to/flow.yaml")
 
@@ -120,7 +120,7 @@ Flows with agent blocks (e.g., `AgentBlock`) require agent configuration before
 | `flow.reset_agent_config` | `reset_agent_config() -> None` | Clear the agent config flag. |
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 
 flow = Flow.from_yaml("path/to/agentic_flow.yaml")
 
@@ -170,7 +170,7 @@ use. You can also register custom search paths.
 | `FlowRegistry.register_search_path` | `register_search_path(path: str) -> None` | Add a directory to the list of paths scanned for flows. |
 
 ```python
-from sdg_hub.core.flow.registry import FlowRegistry
+from sdg_hub import FlowRegistry
 
 # Display all flows in a formatted table
 FlowRegistry.discover_flows()
@@ -204,7 +204,7 @@ left off.
 Source: `src/sdg_hub/core/flow/checkpointer.py`
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 
 flow = Flow.from_yaml("path/to/flow.yaml")
 flow.set_model_config(model="openai/gpt-oss-120b", api_key="key")
@@ -235,7 +235,7 @@ If `save_freq` is omitted, checkpoints are saved only at final completion.
 Test a flow on a small sample before committing to a full run.
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 
 flow = Flow.from_yaml("path/to/flow.yaml")
 flow.set_model_config(model="openai/gpt-oss-120b", api_key="key")
@@ -265,7 +265,7 @@ the full dataset size. A 20% buffer is included for API variability.
 Override block parameters at execution time without modifying the YAML.
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 
 flow = Flow.from_yaml("path/to/flow.yaml")
 flow.set_model_config(model="openai/gpt-oss-120b", api_key="key")
@@ -296,7 +296,7 @@ block's `generate()` call.
 Limit concurrent LLM requests to manage rate limits.
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 
 flow = Flow.from_yaml("path/to/flow.yaml")
 flow.set_model_config(model="openai/gpt-oss-120b", api_key="key")
@@ -314,7 +314,7 @@ uses unbounded concurrency (fastest, but may hit rate limits).
 Provide a `log_dir` to save execution logs and metrics to disk.
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 
 flow = Flow.from_yaml("path/to/flow.yaml")
 flow.set_model_config(model="openai/gpt-oss-120b", api_key="key")

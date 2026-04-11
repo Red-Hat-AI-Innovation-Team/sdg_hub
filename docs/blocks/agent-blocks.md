@@ -36,7 +36,7 @@ The messages column accepts three formats:
 ### Python Example
 
 ```python
-from sdg_hub.core.blocks.agent import AgentBlock
+from sdg_hub.core.blocks import AgentBlock
 import pandas as pd
 
 block = AgentBlock(
@@ -64,7 +64,7 @@ result = block(dataset)
 ### Python Example -- Async Mode
 
 ```python
-from sdg_hub.core.blocks.agent import AgentBlock
+from sdg_hub.core.blocks import AgentBlock
 import pandas as pd
 
 block = AgentBlock(
@@ -142,7 +142,7 @@ At least one of `extract_text`, `extract_session_id`, or `extract_tool_trace` mu
 ### Python Example
 
 ```python
-from sdg_hub.core.blocks.agent import AgentResponseExtractorBlock
+from sdg_hub.core.blocks import AgentResponseExtractorBlock
 import pandas as pd
 
 block = AgentResponseExtractorBlock(
@@ -239,7 +239,7 @@ Each output cell contains a dictionary with three keys:
 ### Python Example
 
 ```python
-from sdg_hub.core.blocks.mcp import MCPAgentBlock
+from sdg_hub.core.blocks import MCPAgentBlock
 import pandas as pd
 
 block = MCPAgentBlock(
@@ -271,7 +271,7 @@ print(trace["messages"][-1]["content"])  # Final assistant response
 ### Python Example -- Custom MCP Server with Authentication
 
 ```python
-from sdg_hub.core.blocks.mcp import MCPAgentBlock
+from sdg_hub.core.blocks import MCPAgentBlock
 import pandas as pd
 
 block = MCPAgentBlock(

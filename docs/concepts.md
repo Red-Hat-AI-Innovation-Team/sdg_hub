@@ -15,7 +15,7 @@ All blocks inherit from `BaseBlock` (defined in
 `sdg_hub.core.blocks.base`) and must implement one method:
 
 ```python
-from sdg_hub.core.blocks.base import BaseBlock
+from sdg_hub import BaseBlock
 import pandas as pd
 from typing import Any
 
@@ -143,7 +143,7 @@ Flows with LLM blocks require model configuration before execution.
 The `set_model_config` method auto-detects LLM blocks and applies settings:
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 
 flow = Flow.from_yaml("path/to/flow.yaml")
 
@@ -157,7 +157,7 @@ flow.set_model_config(
 Flows with agent blocks have a parallel method:
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 
 flow = Flow.from_yaml("path/to/flow.yaml")
 
@@ -197,7 +197,7 @@ registered search paths (the built-in `src/sdg_hub/flows/` directory is
 auto-registered).
 
 ```python
-from sdg_hub.core.flow.registry import FlowRegistry
+from sdg_hub import FlowRegistry
 
 # Display all flows in a Rich table
 FlowRegistry.discover_flows()
@@ -214,7 +214,7 @@ by_cat = FlowRegistry.get_flows_by_category()               # dict[str, list[dic
 Add custom search paths:
 
 ```python
-from sdg_hub.core.flow.registry import FlowRegistry
+from sdg_hub import FlowRegistry
 
 FlowRegistry.register_search_path("/path/to/my/flows")
 ```
@@ -225,7 +225,7 @@ Defined in `sdg_hub.core.blocks.registry`. Blocks register themselves
 using the `@BlockRegistry.register(...)` decorator.
 
 ```python
-from sdg_hub.core.blocks.registry import BlockRegistry
+from sdg_hub import BlockRegistry
 
 # Display all blocks in a Rich table
 BlockRegistry.discover_blocks()
@@ -243,7 +243,7 @@ Defined in `sdg_hub.core.connectors.registry`. Connectors register
 themselves with `@ConnectorRegistry.register("name")`.
 
 ```python
-from sdg_hub.core.connectors.registry import ConnectorRegistry
+from sdg_hub.core.connectors import ConnectorRegistry
 
 # List all registered connector names
 names = ConnectorRegistry.list_all()     # list[str]
@@ -333,7 +333,7 @@ ds = Dataset.from_dict({
 ### Validating a dataset against a flow
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 
 flow = Flow.from_yaml("path/to/flow.yaml")
 
@@ -352,7 +352,7 @@ small subset and catches configuration errors, missing columns, and API
 issues before you commit to processing the full dataset.
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 
 flow = Flow.from_yaml("path/to/flow.yaml")
 flow.set_model_config(model="openai/gpt-4o", api_key="your_key")
@@ -378,7 +378,7 @@ data through downstream blocks.
 Use `max_concurrency` to limit parallel API requests and avoid rate limiting:
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 
 flow = Flow.from_yaml("path/to/flow.yaml")
 flow.set_model_config(model="openai/gpt-4o", api_key="your_key")
@@ -394,7 +394,7 @@ rates and provider rate limits.
 Pass `log_dir` to `generate()` to write execution logs and metrics to files:
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 
 flow = Flow.from_yaml("path/to/flow.yaml")
 flow.set_model_config(model="openai/gpt-4o", api_key="your_key")

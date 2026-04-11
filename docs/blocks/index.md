@@ -180,8 +180,7 @@ block discovery and organization. All methods are `@classmethod`.
 Decorator to register a block class:
 
 ```python
-from sdg_hub.core.blocks.base import BaseBlock
-from sdg_hub.core.blocks.registry import BlockRegistry
+from sdg_hub import BaseBlock, BlockRegistry
 
 @BlockRegistry.register(
     block_name="MyBlock",

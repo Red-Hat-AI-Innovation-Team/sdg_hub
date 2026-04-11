@@ -19,8 +19,7 @@ from typing import Any
 import pandas as pd
 from pydantic import Field
 
-from sdg_hub.core.blocks.base import BaseBlock
-from sdg_hub.core.blocks.registry import BlockRegistry
+from sdg_hub import BaseBlock, BlockRegistry
 
 
 @BlockRegistry.register(
@@ -69,8 +68,7 @@ from typing import Any
 import pandas as pd
 from pydantic import Field
 
-from sdg_hub.core.blocks.base import BaseBlock
-from sdg_hub.core.blocks.registry import BlockRegistry
+from sdg_hub import BaseBlock, BlockRegistry
 
 
 @BlockRegistry.register(

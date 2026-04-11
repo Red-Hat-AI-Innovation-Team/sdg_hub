@@ -1,5 +1,8 @@
 # Quick Start
 
+By the end of this guide, you will have loaded a built-in flow, validated it
+with a dry run, and generated synthetic data.
+
 This guide walks through the standard SDG Hub workflow: discover a flow,
 inspect its requirements, configure a model, validate with a dry run, and
 generate synthetic data.
@@ -12,62 +15,44 @@ Install SDG Hub:
 uv pip install sdg-hub
 ```
 
-## Step 1: Discover Available Flows
+## Step 1: Discover and Load a Flow
 
-SDG Hub ships with built-in flows. Use `FlowRegistry` to browse them.
+SDG Hub ships with built-in flows. Use `FlowRegistry` to browse them, then
+load one by ID or name.
 
-### Print a formatted table
+> **Note:** `discover_flows()` must be called before any registry lookups.
+> It scans registered search paths and populates the registry.
 
 ```python
-from sdg_hub.core.flow.registry import FlowRegistry
+from sdg_hub import FlowRegistry, Flow
+from datasets import Dataset
 
+# Discover built-in flows (must be called before any registry lookups)
 FlowRegistry.discover_flows()
-```
 
-This prints a Rich table listing every registered flow with its ID, name,
-author, tags, and description.
-
-### List flows programmatically
-
-```python
-from sdg_hub.core.flow.registry import FlowRegistry
-
+# List flows programmatically
 flows = FlowRegistry.list_flows()
-# Returns: [{"id": "epic-jade-656", "name": "Extractive Summary ..."}, ...]
 for f in flows:
     print(f["id"], f["name"])
-```
 
-### Search by tag or author
-
-```python
-from sdg_hub.core.flow.registry import FlowRegistry
-
+# Search by tag or author
 qa_flows = FlowRegistry.search_flows(tag="question-generation")
-# Returns: [{"id": "...", "name": "..."}, ...]
-
 author_flows = FlowRegistry.search_flows(author="SDG Hub Contributors")
-```
 
-### Browse by category
-
-```python
-from sdg_hub.core.flow.registry import FlowRegistry
-
+# Browse by category
 categories = FlowRegistry.get_flows_by_category()
-# Returns: {"knowledge-tuning": [{"id": ..., "name": ...}], ...}
 for tag, flow_list in categories.items():
     print(f"{tag}: {len(flow_list)} flows")
 ```
 
 ## Step 2: Load a Flow
 
-Resolve a flow name or ID to a YAML path, then load it.
+Resolve a flow name or ID to a YAML path, then load it. This example uses
+the **Extractive Summary Knowledge Tuning** flow (`epic-jade-656`), which
+generates QA pairs from documents by first extracting key passages, then
+creating questions and answers grounded in those extracts.
 
 ```python
-from sdg_hub.core.flow.registry import FlowRegistry
-from sdg_hub.core.flow.base import Flow
-
 # get_flow_path returns Optional[str] (None if not found)
 flow_path = FlowRegistry.get_flow_path("epic-jade-656")
 
@@ -88,12 +73,6 @@ Before running anything, check what the flow needs.
 ### Default model and recommendations
 
 ```python
-from sdg_hub.core.flow.registry import FlowRegistry
-from sdg_hub.core.flow.base import Flow
-
-flow_path = FlowRegistry.get_flow_path_safe("epic-jade-656")
-flow = Flow.from_yaml(flow_path)
-
 default_model = flow.get_default_model()
 # Returns: Optional[str], e.g. "openai/gpt-oss-120b"
 
@@ -104,12 +83,6 @@ recommendations = flow.get_model_recommendations()
 ### Dataset schema and requirements
 
 ```python
-from sdg_hub.core.flow.registry import FlowRegistry
-from sdg_hub.core.flow.base import Flow
-
-flow_path = FlowRegistry.get_flow_path_safe("epic-jade-656")
-flow = Flow.from_yaml(flow_path)
-
 # Get an empty DataFrame with the correct columns
 schema_df = flow.get_dataset_schema()
 print(schema_df.columns.tolist())
@@ -125,12 +98,6 @@ if requirements:
 ### Check model configuration status
 
 ```python
-from sdg_hub.core.flow.registry import FlowRegistry
-from sdg_hub.core.flow.base import Flow
-
-flow_path = FlowRegistry.get_flow_path_safe("epic-jade-656")
-flow = Flow.from_yaml(flow_path)
-
 # True if the flow contains LLM blocks
 print(flow.is_model_config_required())
 
@@ -143,13 +110,18 @@ print(flow.is_model_config_set())
 Flows with LLM blocks require model configuration before execution. Calling
 `generate()` without it raises `FlowValidationError`.
 
+> **Tip:** LiteLLM auto-reads standard provider environment variables
+> (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.). If the appropriate env var
+> is already set, you can skip the `api_key` parameter:
+>
+> ```python
+> import os
+> # LiteLLM reads standard env vars automatically
+> # If OPENAI_API_KEY is set, no api_key needed:
+> flow.set_model_config(model="openai/gpt-4o")
+> ```
+
 ```python
-from sdg_hub.core.flow.registry import FlowRegistry
-from sdg_hub.core.flow.base import Flow
-
-flow_path = FlowRegistry.get_flow_path_safe("epic-jade-656")
-flow = Flow.from_yaml(flow_path)
-
 flow.set_model_config(
     model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
     api_base="http://localhost:8000/v1",
@@ -161,12 +133,6 @@ flow.set_model_config(
 can target specific blocks with the `blocks` parameter:
 
 ```python
-from sdg_hub.core.flow.registry import FlowRegistry
-from sdg_hub.core.flow.base import Flow
-
-flow_path = FlowRegistry.get_flow_path_safe("epic-jade-656")
-flow = Flow.from_yaml(flow_path)
-
 flow.set_model_config(
     model="openai/gpt-4o",
     api_key="your-openai-key",
@@ -180,19 +146,13 @@ Always validate your pipeline before processing the full dataset. `dry_run`
 executes the flow on a small subset and returns diagnostic results.
 
 ```python
-from sdg_hub.core.flow.registry import FlowRegistry
-from sdg_hub.core.flow.base import Flow
-from datasets import Dataset
-
-flow_path = FlowRegistry.get_flow_path_safe("epic-jade-656")
-flow = Flow.from_yaml(flow_path)
-
-flow.set_model_config(
-    model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
-    api_base="http://localhost:8000/v1",
-    api_key="your_key",
-)
-
+# Prepare the dataset.
+# This flow expects knowledge-tuning columns:
+#   document         -- the source document to generate QA from
+#   document_outline -- structural outline of the document
+#   domain           -- subject area (e.g. "Computer Science")
+#   icl_document     -- in-context learning example document
+#   icl_query_1..3   -- in-context learning example questions
 dataset = Dataset.from_dict({
     "document": ["Python is a high-level programming language..."],
     "document_outline": ["1. Introduction; 2. Features"],
@@ -236,29 +196,6 @@ the return dict.
 Once the dry run succeeds, run the full pipeline.
 
 ```python
-from sdg_hub.core.flow.registry import FlowRegistry
-from sdg_hub.core.flow.base import Flow
-from datasets import Dataset
-
-flow_path = FlowRegistry.get_flow_path_safe("epic-jade-656")
-flow = Flow.from_yaml(flow_path)
-
-flow.set_model_config(
-    model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
-    api_base="http://localhost:8000/v1",
-    api_key="your_key",
-)
-
-dataset = Dataset.from_dict({
-    "document": ["Python is a high-level programming language..."],
-    "document_outline": ["1. Introduction; 2. Features"],
-    "domain": ["Computer Science"],
-    "icl_document": ["Java is an object-oriented language..."],
-    "icl_query_1": ["What type of language is Java?"],
-    "icl_query_2": ["Where does Java run?"],
-    "icl_query_3": ["What are the benefits of Java?"],
-})
-
 result = flow.generate(dataset)
 print(f"Generated {len(result)} rows")
 print(result.column_names)
@@ -283,11 +220,6 @@ flow.generate(
 For large datasets, enable checkpointing to resume interrupted runs:
 
 ```python
-from sdg_hub.core.flow.base import Flow
-
-flow = Flow.from_yaml("path/to/flow.yaml")
-flow.set_model_config(model="openai/gpt-4o", api_key="your_key")
-
 result = flow.generate(
     dataset,
     checkpoint_dir="./checkpoints",
@@ -301,11 +233,6 @@ Override block configuration at execution time without modifying flow YAML
 files. Runtime parameters are organized by block name.
 
 ```python
-from sdg_hub.core.flow.base import Flow
-
-flow = Flow.from_yaml("path/to/flow.yaml")
-flow.set_model_config(model="openai/gpt-4o", api_key="your_key")
-
 result = flow.generate(
     dataset,
     runtime_params={
@@ -318,11 +245,6 @@ result = flow.generate(
 The same `runtime_params` argument works with `dry_run`:
 
 ```python
-from sdg_hub.core.flow.base import Flow
-
-flow = Flow.from_yaml("path/to/flow.yaml")
-flow.set_model_config(model="openai/gpt-4o", api_key="your_key")
-
 result = flow.dry_run(
     dataset,
     sample_size=2,
@@ -340,7 +262,7 @@ error classes live in `sdg_hub.core.utils.error_handling`.
 ### Common error pattern
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 from sdg_hub.core.utils.error_handling import (
     FlowValidationError,
     MissingColumnError,
@@ -391,7 +313,7 @@ All exceptions inherit from `SDGHubError`:
 Use `dry_run` to catch most errors before processing large datasets:
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 
 flow = Flow.from_yaml("path/to/flow.yaml")
 flow.set_model_config(model="openai/gpt-4o", api_key="your_key")
@@ -405,7 +327,7 @@ result = flow.dry_run(dataset, sample_size=2)
 In addition to flows, you can browse available blocks.
 
 ```python
-from sdg_hub.core.blocks.registry import BlockRegistry
+from sdg_hub import BlockRegistry
 
 # Print a Rich table of all blocks
 BlockRegistry.discover_blocks()

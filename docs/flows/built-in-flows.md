@@ -4,8 +4,8 @@ SDG Hub ships with built-in flows in `src/sdg_hub/flows/`. They are
 automatically discovered by `FlowRegistry` and can be loaded by id or name.
 
 ```python
-from sdg_hub.core.flow.base import Flow
-from sdg_hub.core.flow.registry import FlowRegistry
+from sdg_hub import Flow
+from sdg_hub import FlowRegistry
 
 FlowRegistry.discover_flows()
 flow_path = FlowRegistry.get_flow_path_safe("epic-jade-656")
@@ -86,8 +86,8 @@ summarization. Fastest of the four variants.
 
 ```python
 from datasets import Dataset
-from sdg_hub.core.flow.base import Flow
-from sdg_hub.core.flow.registry import FlowRegistry
+from sdg_hub import Flow
+from sdg_hub import FlowRegistry
 
 FlowRegistry.discover_flows()
 
@@ -135,8 +135,8 @@ Tags: `question-generation`, `knowledge-extraction`, `qa-pairs`,
 `multilingual`, `japanese`
 
 ```python
-from sdg_hub.core.flow.base import Flow
-from sdg_hub.core.flow.registry import FlowRegistry
+from sdg_hub import Flow
+from sdg_hub import FlowRegistry
 
 FlowRegistry.discover_flows()
 flow = Flow.from_yaml(
@@ -186,8 +186,8 @@ Tags: `text-analysis`, `summarization`, `nlp`, `structured-output`,
 
 ```python
 from datasets import Dataset
-from sdg_hub.core.flow.base import Flow
-from sdg_hub.core.flow.registry import FlowRegistry
+from sdg_hub import Flow
+from sdg_hub import FlowRegistry
 
 FlowRegistry.discover_flows()
 flow = Flow.from_yaml(
@@ -237,8 +237,8 @@ Tags: `red-team`, `adversarial`, `prompt-generation`, `safety-testing`,
 
 ```python
 from datasets import Dataset
-from sdg_hub.core.flow.base import Flow
-from sdg_hub.core.flow.registry import FlowRegistry
+from sdg_hub import Flow
+from sdg_hub import FlowRegistry
 
 FlowRegistry.discover_flows()
 flow = Flow.from_yaml(
@@ -280,8 +280,8 @@ Tags: `agentic`, `tool-use`, `data-generation`, `mcp`, `distillation`,
 
 ```python
 from datasets import Dataset
-from sdg_hub.core.flow.base import Flow
-from sdg_hub.core.flow.registry import FlowRegistry
+from sdg_hub import Flow
+from sdg_hub import FlowRegistry
 
 FlowRegistry.discover_flows()
 flow = Flow.from_yaml(
@@ -338,8 +338,8 @@ Tags: `rag-evaluation`, `qa-pairs`
 
 ```python
 from datasets import Dataset
-from sdg_hub.core.flow.base import Flow
-from sdg_hub.core.flow.registry import FlowRegistry
+from sdg_hub import Flow
+from sdg_hub import FlowRegistry
 
 FlowRegistry.discover_flows()
 flow = Flow.from_yaml(
@@ -379,8 +379,8 @@ Output columns: `task_fulfillment`, `grounding`, `tool_appropriateness`,
 Tags: `evaluation`, `mcp`, `benchmark`, `model-evaluation`, `llm-as-judge`
 
 ```python
-from sdg_hub.core.flow.base import Flow
-from sdg_hub.core.flow.registry import FlowRegistry
+from sdg_hub import Flow
+from sdg_hub import FlowRegistry
 
 FlowRegistry.discover_flows()
 flow = Flow.from_yaml(

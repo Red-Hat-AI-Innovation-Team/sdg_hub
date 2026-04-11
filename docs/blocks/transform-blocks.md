@@ -20,7 +20,7 @@ Concatenates values from multiple columns into a single output column using a co
 ### Python Example
 
 ```python
-from sdg_hub.core.blocks.transform import TextConcatBlock
+from sdg_hub.core.blocks import TextConcatBlock
 import pandas as pd
 
 block = TextConcatBlock(
@@ -71,7 +71,7 @@ Creates copies of existing columns with new names according to a mapping provide
 ### Python Example
 
 ```python
-from sdg_hub.core.blocks.transform import DuplicateColumnsBlock
+from sdg_hub.core.blocks import DuplicateColumnsBlock
 import pandas as pd
 
 block = DuplicateColumnsBlock(
@@ -117,7 +117,7 @@ Renames columns in a dataset according to a mapping provided through `input_cols
 ### Python Example
 
 ```python
-from sdg_hub.core.blocks.transform import RenameColumnsBlock
+from sdg_hub.core.blocks import RenameColumnsBlock
 import pandas as pd
 
 block = RenameColumnsBlock(
@@ -163,7 +163,7 @@ Transforms a wide-format dataset into long format by melting specified columns i
 ### Python Example
 
 ```python
-from sdg_hub.core.blocks.transform import MeltColumnsBlock
+from sdg_hub.core.blocks import MeltColumnsBlock
 import pandas as pd
 
 block = MeltColumnsBlock(
@@ -220,7 +220,7 @@ Duplicates each row in the dataset a configurable number of times. Primary use c
 ### Python Example
 
 ```python
-from sdg_hub.core.blocks.transform import RowMultiplierBlock
+from sdg_hub.core.blocks import RowMultiplierBlock
 import pandas as pd
 
 block = RowMultiplierBlock(
@@ -270,7 +270,7 @@ Maps values from source columns to output columns based on a choice column's val
 ### Python Example
 
 ```python
-from sdg_hub.core.blocks.transform import IndexBasedMapperBlock
+from sdg_hub.core.blocks import IndexBasedMapperBlock
 import pandas as pd
 
 block = IndexBasedMapperBlock(
@@ -333,7 +333,7 @@ When `input_cols` contains dictionaries, values are treated as weights for weigh
 ### Python Example
 
 ```python
-from sdg_hub.core.blocks.transform import SamplerBlock
+from sdg_hub.core.blocks import SamplerBlock
 import pandas as pd
 
 block = SamplerBlock(
@@ -388,7 +388,7 @@ Replaces all values in a column with a single summary statistic computed from th
 ### Python Example
 
 ```python
-from sdg_hub.core.blocks.transform import UniformColumnValueSetter
+from sdg_hub.core.blocks import UniformColumnValueSetter
 import pandas as pd
 
 block = UniformColumnValueSetter(
@@ -437,7 +437,7 @@ Combines multiple columns into a single column containing a structured JSON obje
 ### Python Example
 
 ```python
-from sdg_hub.core.blocks.transform import JSONStructureBlock
+from sdg_hub.core.blocks import JSONStructureBlock
 import pandas as pd
 
 block = JSONStructureBlock(

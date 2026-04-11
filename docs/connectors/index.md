@@ -132,8 +132,7 @@ All methods are `@classmethod`.
 Registers a connector class under the given name. The decorated class must inherit from `BaseConnector`.
 
 ```python
-from sdg_hub.core.connectors import ConnectorRegistry
-from sdg_hub.core.connectors.base import BaseConnector
+from sdg_hub.core.connectors import ConnectorRegistry, BaseConnector
 
 @ConnectorRegistry.register("my_connector")
 class MyConnector(BaseConnector):
@@ -492,7 +491,7 @@ Source: `src/sdg_hub/core/blocks/agent/agent_block.py`
 ### How AgentBlock Uses Connectors
 
 ```python
-from sdg_hub.core.blocks.agent.agent_block import AgentBlock
+from sdg_hub.core.blocks import AgentBlock
 
 block = AgentBlock(
     block_name="qa_agent",
@@ -592,7 +591,7 @@ def set_agent_config(
 ### Usage
 
 ```python
-from sdg_hub.core.flow.base import Flow
+from sdg_hub import Flow
 
 flow = Flow.from_yaml("path/to/flow.yaml")
 
@@ -733,9 +732,7 @@ To add a new agent framework connector:
 
 from typing import Any
 
-from sdg_hub.core.connectors.agent.base import BaseAgentConnector
-from sdg_hub.core.connectors.exceptions import ConnectorError
-from sdg_hub.core.connectors.registry import ConnectorRegistry
+from sdg_hub.core.connectors import BaseAgentConnector, ConnectorError, ConnectorRegistry
 
 
 @ConnectorRegistry.register("my_framework")
@@ -799,7 +796,7 @@ connector_class = ConnectorRegistry.get("my_framework")
 And usable in `AgentBlock`:
 
 ```python
-from sdg_hub.core.blocks.agent.agent_block import AgentBlock
+from sdg_hub.core.blocks import AgentBlock
 
 block = AgentBlock(
     block_name="my_agent",

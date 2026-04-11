@@ -36,7 +36,7 @@ When `filter_value` is a list, a row passes if **any** filter value matches the 
 ### Python Example -- Equality Filter
 
 ```python
-from sdg_hub.core.blocks.filtering import ColumnValueFilterBlock
+from sdg_hub.core.blocks import ColumnValueFilterBlock
 import pandas as pd
 
 block = ColumnValueFilterBlock(
@@ -59,7 +59,7 @@ print(result["status"].tolist())
 ### Python Example -- Numeric Comparison with Type Conversion
 
 ```python
-from sdg_hub.core.blocks.filtering import ColumnValueFilterBlock
+from sdg_hub.core.blocks import ColumnValueFilterBlock
 import pandas as pd
 
 block = ColumnValueFilterBlock(
@@ -83,7 +83,7 @@ print(result["text"].tolist())
 ### Python Example -- Contains
 
 ```python
-from sdg_hub.core.blocks.filtering import ColumnValueFilterBlock
+from sdg_hub.core.blocks import ColumnValueFilterBlock
 import pandas as pd
 
 block = ColumnValueFilterBlock(
@@ -109,7 +109,7 @@ print(len(result))
 ### Python Example -- Membership (in)
 
 ```python
-from sdg_hub.core.blocks.filtering import ColumnValueFilterBlock
+from sdg_hub.core.blocks import ColumnValueFilterBlock
 import pandas as pd
 
 block = ColumnValueFilterBlock(
