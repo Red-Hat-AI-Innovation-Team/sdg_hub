@@ -46,10 +46,6 @@ def load_flow_from_yaml(flow_cls: type["Flow"], yaml_path: str) -> "Flow":
     FileNotFoundError
         If the YAML file does not exist at the given path.
     """
-    # Import here to avoid circular imports
-    from .agent_config import detect_agent_blocks
-    from .model_config import detect_llm_blocks
-
     if yaml_path is None:
         raise FlowValidationError(
             "Flow path cannot be None. Please provide a valid YAML file path or check that the flow exists in the registry."
@@ -60,7 +56,33 @@ def load_flow_from_yaml(flow_cls: type["Flow"], yaml_path: str) -> "Flow":
 
     logger.info(f"Loading flow from: {yaml_path}")
 
-    # Load YAML file
+    flow_config = _parse_yaml_file(yaml_path)
+    metadata = _extract_metadata(flow_config, yaml_path)
+    blocks = _instantiate_blocks(flow_config, yaml_dir)
+
+    return _assemble_flow(flow_cls, blocks, metadata, flow_config, yaml_path)
+
+
+def _parse_yaml_file(yaml_path: str) -> dict[str, Any]:
+    """Parse and validate the YAML file, returning the flow config dict.
+
+    Parameters
+    ----------
+    yaml_path : str
+        Path to the YAML flow configuration file.
+
+    Returns
+    -------
+    dict[str, Any]
+        Parsed and structurally validated flow configuration.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the YAML file does not exist.
+    FlowValidationError
+        If the YAML is malformed or structurally invalid.
+    """
     try:
         with open(yaml_path, encoding="utf-8") as f:
             flow_config = yaml.safe_load(f)
@@ -84,19 +106,59 @@ def load_flow_from_yaml(flow_cls: type["Flow"], yaml_path: str) -> "Flow":
             "Invalid flow configuration:\n" + "\n".join(validation_errors)
         )
 
-    # Extract and validate metadata
+    return flow_config
+
+
+def _extract_metadata(flow_config: dict[str, Any], yaml_path: str) -> "FlowMetadata":
+    """Extract and validate metadata from the flow configuration.
+
+    Parameters
+    ----------
+    flow_config : dict[str, Any]
+        Parsed flow configuration.
+    yaml_path : str
+        Path to the YAML file (used as fallback name).
+
+    Returns
+    -------
+    FlowMetadata
+        Validated metadata instance.
+
+    Raises
+    ------
+    FlowValidationError
+        If the metadata configuration is invalid.
+    """
     metadata_dict = flow_config.get("metadata", {})
     if "name" not in metadata_dict:
         metadata_dict["name"] = Path(yaml_path).stem
 
-    # Note: Old format compatibility removed - only new RecommendedModels format supported
-
     try:
-        metadata = FlowMetadata(**metadata_dict)
+        return FlowMetadata(**metadata_dict)
     except Exception as exc:
         raise FlowValidationError(f"Invalid metadata configuration: {exc}") from exc
 
-    # Create blocks with validation
+
+def _instantiate_blocks(flow_config: dict[str, Any], yaml_dir: Path) -> list[BaseBlock]:
+    """Create block instances from the flow configuration.
+
+    Parameters
+    ----------
+    flow_config : dict[str, Any]
+        Parsed flow configuration.
+    yaml_dir : Path
+        Directory containing the flow YAML file.
+
+    Returns
+    -------
+    list[BaseBlock]
+        List of validated block instances.
+
+    Raises
+    ------
+    FlowValidationError
+        If any block fails to instantiate.
+    """
     blocks = []
     block_configs = flow_config.get("blocks", [])
 
@@ -109,7 +171,45 @@ def load_flow_from_yaml(flow_cls: type["Flow"], yaml_path: str) -> "Flow":
                 f"Failed to create block at index {i}: {exc}"
             ) from exc
 
-    # Create and validate the flow
+    return blocks
+
+
+def _assemble_flow(
+    flow_cls: type["Flow"],
+    blocks: list[BaseBlock],
+    metadata: "FlowMetadata",
+    flow_config: dict[str, Any],
+    yaml_path: str,
+) -> "Flow":
+    """Create the Flow instance and set configuration flags.
+
+    Parameters
+    ----------
+    flow_cls : type[Flow]
+        The Flow class to instantiate.
+    blocks : list[BaseBlock]
+        Validated block instances.
+    metadata : FlowMetadata
+        Validated metadata.
+    flow_config : dict[str, Any]
+        Original parsed flow configuration (used for id persistence).
+    yaml_path : str
+        Path to the YAML file (used for id persistence).
+
+    Returns
+    -------
+    Flow
+        Fully configured Flow instance.
+
+    Raises
+    ------
+    FlowValidationError
+        If flow validation fails.
+    """
+    # Import here to avoid circular imports
+    from .agent_config import detect_agent_blocks
+    from .model_config import detect_llm_blocks
+
     try:
         flow = flow_cls(blocks=blocks, metadata=metadata)
         # Persist generated id back to the YAML file (only on initial load)
