@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
 const phrases = [
-  "Generate training data from documents",
-  "Build QA pairs with LLM pipelines",
-  "Filter and validate synthetic datasets",
-  "Chain blocks into reproducible flows",
-  "Scale data generation with async execution",
+  "Distill tool-use trajectories from MCP servers",
+  "Generate QA pairs grounded in your documents",
+  "Evaluate agent responses with LLM judges",
+  "Build red-team datasets for safety testing",
+  "Chain blocks into reproducible YAML flows",
 ];
 
 export function TypewriterSubtitle() {
