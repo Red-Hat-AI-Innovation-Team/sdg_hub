@@ -49,7 +49,7 @@ export function highlightCode(code: string, lang: string): string {
   if (!supported.includes(lang) && lang !== "sh" && lang !== "shell") {
     // Return plain text for unsupported languages
     const escaped = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    return `<pre data-language="${lang}"><code>${escaped}</code></pre>`;
+    const safeLang = lang.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;"); return `<pre data-language="${safeLang}"><code>${escaped}</code></pre>`;
   }
 
   const html = shiki.codeToHtml(code, {
@@ -58,7 +58,7 @@ export function highlightCode(code: string, lang: string): string {
   });
 
   // Inject our data-language attribute into the <pre> tag
-  return html.replace("<pre", `<pre data-language="${lang}"`);
+  const safeLang = lang.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;"); return html.replace("<pre", `<pre data-language="${safeLang}"`);
 }
 
 /**
@@ -124,8 +124,8 @@ export const markdocConfig: Config = {
         const children = node.transformChildren(config);
         let href = (node.attributes.href as string) || "";
 
-        // Rewrite .md links to website paths
-        if (href.endsWith(".md")) {
+        // Rewrite relative .md links to website paths (skip absolute URLs)
+        if (href.endsWith(".md") && !href.startsWith("http")) {
           href = href
             .replace(/\.md$/, "")
             .replace(/\/index$/, "")
