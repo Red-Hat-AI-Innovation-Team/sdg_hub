@@ -14,7 +14,7 @@ const features = [
     title: "Composable Blocks",
     description:
       "Chain LLM, parsing, transform, filtering, and agent blocks in any order. Each block does one thing well.",
-    href: "/docs/concepts/blocks",
+    href: "/docs/blocks",
     glowColor: "rgba(232, 151, 93, 0.15)",
   },
   {
@@ -26,7 +26,7 @@ const features = [
     title: "YAML Flows",
     description:
       "Define multi-step pipelines in YAML. Portable, reproducible, and version-controlled by design.",
-    href: "/docs/concepts/flows",
+    href: "/docs/flows",
     glowColor: "rgba(128, 151, 196, 0.15)",
   },
   {
@@ -38,7 +38,7 @@ const features = [
     title: "Auto-Discovery",
     description:
       "BlockRegistry and FlowRegistry find and catalog all available components automatically. Zero boilerplate.",
-    href: "/docs/concepts/blocks",
+    href: "/docs/concepts",
     glowColor: "rgba(168, 139, 184, 0.15)",
   },
   {
@@ -50,7 +50,7 @@ const features = [
     title: "Async Performance",
     description:
       "100+ LLM providers through LiteLLM with async execution. Built for throughput from the ground up.",
-    href: "/docs",
+    href: "/docs/blocks/llm-blocks",
     glowColor: "rgba(125, 170, 140, 0.15)",
   },
 ];
