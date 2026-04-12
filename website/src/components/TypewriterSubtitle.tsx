@@ -15,7 +15,7 @@ export function TypewriterSubtitle() {
   const [charIndex, setCharIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [text, setText] = useState("");
-  const pauseTimer = useRef<ReturnType<typeof setTimeout>>();
+  const pauseTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const tick = useCallback(() => {
     const currentPhrase = phrases[phraseIndex];
