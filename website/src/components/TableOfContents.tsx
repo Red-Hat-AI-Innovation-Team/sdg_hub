@@ -39,7 +39,7 @@ export function TableOfContents({ headings }: { headings: Heading[] }) {
 
   return (
     <nav className="hidden xl:block">
-      <div className="sticky top-24">
+      <div className="sticky top-24 max-h-[calc(100vh-6rem)] overflow-y-auto">
         <p
           className="mb-3 text-[11px] tracking-wider text-text-3"
           style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}
