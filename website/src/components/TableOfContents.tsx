@@ -38,7 +38,7 @@ export function TableOfContents({ headings }: { headings: Heading[] }) {
   if (headings.length === 0) return null;
 
   return (
-    <nav className="hidden xl:block">
+    <nav className="hidden h-full xl:block">
       <div className="sticky top-24 max-h-[calc(100vh-6rem)] overflow-y-auto">
         <p
           className="mb-3 text-[11px] tracking-wider text-text-3"

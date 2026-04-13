@@ -12,7 +12,7 @@ export default function DocsLayout({
       <div className="flex flex-1">
         <Sidebar />
         {/* Main content area offset by sidebar width on large screens */}
-        <main className="min-w-0 flex-1 overflow-y-auto lg:pl-[248px]">{children}</main>
+        <main className="min-w-0 flex-1 lg:pl-[248px]">{children}</main>
       </div>
     </div>
   );
