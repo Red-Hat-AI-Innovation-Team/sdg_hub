@@ -10,6 +10,9 @@
     - All test values must be hardcoded (no randomness)
     - For floating-point comparisons use: abs(result - expected) < 1e-6
     - End with print("All tests passed!") and a call to test()
+    # NOTE: The following two constraints are specific to the Monty sandbox
+    # (pydantic-monty). Other interpreter backends may not have these
+    # restrictions. Update these if switching interpreter_framework.
     - Do NOT use tuple unpacking assignment (e.g., a, b = b, a). Use temp variables.
     - Do NOT use multiple assignment targets (e.g., i = j = 0). Assign separately.
 

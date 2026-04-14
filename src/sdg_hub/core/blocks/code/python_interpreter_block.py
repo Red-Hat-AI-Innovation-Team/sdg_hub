@@ -85,6 +85,9 @@ class PythonInterpreterBlock(BaseBlock):
     - error: str | None - Error message if execution failed
     - return_value: Any | None - Return value from execution
     - execution_time_ms: float | None - Execution time in milliseconds
+
+    Additionally, a flat boolean column ``{output_cols[0]}_success`` is created
+    for convenient downstream filtering (e.g., with ColumnValueFilterBlock).
     """
 
     interpreter_framework: str = Field(
@@ -219,6 +222,8 @@ class PythonInterpreterBlock(BaseBlock):
             results = asyncio.run(self._execute_all(codes, connector))
 
         df[output_col] = results
+        # Add a flat boolean column for easy filtering in downstream blocks
+        df[f"{output_col}_success"] = [r.get("success", False) for r in results]
 
         # Log summary
         success_count = sum(1 for r in results if r.get("success"))

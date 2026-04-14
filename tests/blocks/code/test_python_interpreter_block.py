@@ -57,8 +57,10 @@ class TestPythonInterpreterBlock:
 
         assert len(result) == 2
         assert "result" in result.columns
+        assert "result_success" in result.columns
         assert all(r["success"] for r in result["result"])
         assert all(r["output"] == "executed" for r in result["result"])
+        assert result["result_success"].all()
         assert mock_connector.aexecute_code.call_count == 2
 
     def test_generate_validates_code_column_exists(self):
@@ -95,6 +97,7 @@ class TestPythonInterpreterBlock:
             result = block.generate(df)
 
         assert result["result"].iloc[0]["success"] is False
+        assert not result["result_success"].iloc[0]
         assert "connector crash" in result["result"].iloc[0]["error"]
 
     def test_generate_handles_errors(self):
@@ -120,6 +123,7 @@ class TestPythonInterpreterBlock:
             result = block.generate(df)
 
         assert result["result"].iloc[0]["success"] is False
+        assert not result["result_success"].iloc[0]
         assert "ZeroDivisionError" in result["result"].iloc[0]["error"]
 
     def test_generate_skips_empty_code(self):
@@ -139,6 +143,7 @@ class TestPythonInterpreterBlock:
             result = block.generate(df)
 
         assert all(not r["success"] for r in result["result"])
+        assert not result["result_success"].any()
         mock_connector.aexecute_code.assert_not_called()
 
     def test_invalid_framework_raises_error(self):

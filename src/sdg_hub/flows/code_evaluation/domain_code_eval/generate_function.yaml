@@ -12,6 +12,9 @@
       round, isinstance, type, str, int, float, bool, list, dict, set, tuple)
     - Functions must be deterministic (no randomness)
     - Return only JSON-serializable types (int, float, str, list, dict, bool, None)
+    # NOTE: The following two constraints are specific to the Monty sandbox
+    # (pydantic-monty). Other interpreter backends may not have these
+    # restrictions. Update these if switching interpreter_framework.
     - Do NOT use tuple unpacking assignment (e.g., a, b = b, a). Use temp variables instead.
     - Do NOT use multiple assignment targets (e.g., i = j = 0). Assign separately.
 
