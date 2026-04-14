@@ -58,7 +58,44 @@ class TestPythonInterpreterBlock:
         assert len(result) == 2
         assert "result" in result.columns
         assert all(r["success"] for r in result["result"])
+        assert all(r["output"] == "executed" for r in result["result"])
         assert mock_connector.aexecute_code.call_count == 2
+
+    def test_generate_validates_code_column_exists(self):
+        """Test generate raises error when code column is missing."""
+        block = PythonInterpreterBlock(
+            block_name="test",
+            input_cols=["code"],
+            output_cols=["result"],
+        )
+
+        df = pd.DataFrame({"wrong_col": ["print('Hello')"]})
+
+        mock_connector = MagicMock()
+        with patch.object(block, "_get_connector", return_value=mock_connector):
+            with pytest.raises(ValueError, match="Code column 'code' not found"):
+                block.generate(df)
+
+    def test_generate_handles_connector_exception(self):
+        """Test generate captures connector-level exceptions per row."""
+        block = PythonInterpreterBlock(
+            block_name="test",
+            input_cols=["code"],
+            output_cols=["result"],
+        )
+
+        df = pd.DataFrame({"code": ["print('x')"]})
+
+        mock_connector = MagicMock()
+        mock_connector.aexecute_code = AsyncMock(
+            side_effect=RuntimeError("connector crash")
+        )
+
+        with patch.object(block, "_get_connector", return_value=mock_connector):
+            result = block.generate(df)
+
+        assert result["result"].iloc[0]["success"] is False
+        assert "connector crash" in result["result"].iloc[0]["error"]
 
     def test_generate_handles_errors(self):
         """Test generate handles execution errors."""

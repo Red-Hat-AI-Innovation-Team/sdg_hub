@@ -8,7 +8,6 @@ from pydantic import Field, PrivateAttr, field_validator
 from tqdm.asyncio import tqdm_asyncio
 import pandas as pd
 
-from ...connectors.base import ConnectorConfig
 from ...connectors.code_interpreter.base import (
     BaseCodeInterpreterConnector,
     CodeExecutionResult,
@@ -129,8 +128,7 @@ class PythonInterpreterBlock(BaseBlock):
 
         if self._connector is None or self._connector_config_key != config_key:
             connector_class = ConnectorRegistry.get(self.interpreter_framework)
-            config = ConnectorConfig(timeout=self.timeout)  # type: ignore[call-arg]
-            self._connector = connector_class(config=config)
+            self._connector = connector_class()
             self._connector_config_key = config_key
 
         return self._connector
@@ -152,13 +150,25 @@ class PythonInterpreterBlock(BaseBlock):
                     execution_time_ms=None,
                 ).model_dump()
 
-            if hasattr(connector, "aexecute_code"):
-                result = await connector.aexecute_code(code, timeout=self.timeout)
-            else:
-                result = await asyncio.to_thread(
-                    connector.execute_code, code, None, self.timeout
-                )
-            return result.model_dump()
+            try:
+                if hasattr(connector, "aexecute_code"):
+                    result = await connector.aexecute_code(code, timeout=self.timeout)
+                else:
+                    result = await asyncio.to_thread(
+                        connector.execute_code,
+                        code,
+                        inputs=None,
+                        timeout=self.timeout,
+                    )
+                return result.model_dump()
+            except Exception as e:
+                return CodeExecutionResult(
+                    success=False,
+                    output=None,
+                    error=f"Execution error: {e}",
+                    return_value=None,
+                    execution_time_ms=None,
+                ).model_dump()
 
     async def _execute_all(
         self,
@@ -182,21 +192,30 @@ class PythonInterpreterBlock(BaseBlock):
         code_col = cast(list[str], self.input_cols)[0]
         output_col = cast(list[str], self.output_cols)[0]
 
+        if code_col not in df.columns:
+            raise ValueError(
+                f"Code column '{code_col}' not found in DataFrame. "
+                f"Available columns: {list(df.columns)}"
+            )
+
         codes = df[code_col].tolist()
 
         try:
-            asyncio.get_running_loop()
-            # Already in async context - use thread executor
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop is not None:
+            # Already in async context — run in a dedicated thread
             import concurrent.futures
 
-            with concurrent.futures.ThreadPoolExecutor() as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(
                     asyncio.run,
                     self._execute_all(codes, connector),
                 )
                 results = future.result()
-        except RuntimeError:
-            # No event loop - create one
+        else:
             results = asyncio.run(self._execute_all(codes, connector))
 
         df[output_col] = results

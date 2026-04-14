@@ -75,7 +75,8 @@ class MontyConnector(BaseCodeInterpreterConnector):
     """
 
     config: ConnectorConfig = Field(
-        default_factory=lambda: ConnectorConfig()  # type: ignore[call-arg]
+        default_factory=lambda: ConnectorConfig(),  # type: ignore[call-arg]
+        description="Connector configuration",
     )
 
     def model_post_init(self, __context: Any) -> None:
@@ -104,15 +105,26 @@ class MontyConnector(BaseCodeInterpreterConnector):
         effective_timeout = timeout if timeout is not None else self.config.timeout
         return pydantic_monty.ResourceLimits(max_duration_secs=effective_timeout)
 
-    def _build_result(self, output: Any, start_time: float) -> CodeExecutionResult:
-        """Build success result with timing."""
+    def _build_result(
+        self, stdout: str, return_value: Any, start_time: float
+    ) -> CodeExecutionResult:
+        """Build success result with timing.
+
+        Parameters
+        ----------
+        stdout : str
+            Captured printed output from the code.
+        return_value : Any
+            The evaluated return value from the Monty runtime.
+        start_time : float
+            perf_counter timestamp from before execution.
+        """
         execution_time_ms = (time.perf_counter() - start_time) * 1000
-        output_str = str(output) if output is not None else ""
         return CodeExecutionResult(
             success=True,
-            output=output_str,
+            output=stdout if stdout else None,
             error=None,
-            return_value=output,
+            return_value=return_value,
             execution_time_ms=execution_time_ms,
         )
 
@@ -189,9 +201,9 @@ class MontyConnector(BaseCodeInterpreterConnector):
             run_kwargs["print_callback"] = lambda _file, content: captured.append(
                 content
             )
-            monty.run(**run_kwargs)
-            output_str = "".join(captured)
-            return self._build_result(output_str, start_time)
+            return_value = monty.run(**run_kwargs)
+            stdout = "".join(captured)
+            return self._build_result(stdout, return_value, start_time)
 
         except Exception as e:
             return self._build_error(e, start_time, log_warning=True)
@@ -228,9 +240,9 @@ class MontyConnector(BaseCodeInterpreterConnector):
             run_kwargs["print_callback"] = lambda _file, content: captured.append(
                 content
             )
-            await monty.run_async(**run_kwargs)
-            output_str = "".join(captured)
-            return self._build_result(output_str, start_time)
+            return_value = await monty.run_async(**run_kwargs)
+            stdout = "".join(captured)
+            return self._build_result(stdout, return_value, start_time)
 
         except Exception as e:
             return self._build_error(e, start_time, log_warning=True)
