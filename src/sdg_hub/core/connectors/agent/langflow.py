@@ -153,14 +153,14 @@ class LangflowConnector(BaseAgentConnector):
         Returns
         -------
         str or None
-            Extracted session ID, empty string if the field is explicitly
-            None, or None if the key is missing.
+            Extracted session ID, or None if the field is missing or
+            explicitly None.
         """
         if "session_id" not in response:
             return None
         if response["session_id"] is None:
-            logger.warning("Session ID field is None, using empty string instead")
-            return ""
+            logger.warning("Session ID field is None")
+            return None
         return response["session_id"]
 
     @classmethod

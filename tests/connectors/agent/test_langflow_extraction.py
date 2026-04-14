@@ -76,11 +76,11 @@ class TestLangflowExtractSessionId:
         response = make_langflow_response("text", session_id="abc-123")
         assert LangflowConnector.extract_session_id(response) == "abc-123"
 
-    def test_none_returns_empty_string(self, caplog):
+    def test_none_returns_none(self, caplog):
         response = {"session_id": None}
         result = LangflowConnector.extract_session_id(response)
-        assert result == ""
-        assert "Session ID field is None, using empty string instead" in caplog.text
+        assert result is None
+        assert "Session ID field is None" in caplog.text
 
     def test_missing_key_returns_none(self):
         assert LangflowConnector.extract_session_id({}) is None
