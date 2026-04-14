@@ -168,7 +168,7 @@ class AgentBlock(BaseBlock):
             # typos are surfaced immediately instead of being silently
             # ignored by Pydantic.
             if self.connector_kwargs:
-                valid_fields = connector_class.model_fields.keys()
+                valid_fields = connector_class.model_fields.keys() - {"config"}
                 unknown = set(self.connector_kwargs) - valid_fields
                 if unknown:
                     raise ConnectorError(
