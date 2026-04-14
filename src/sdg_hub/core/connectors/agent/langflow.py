@@ -129,14 +129,14 @@ class LangflowConnector(BaseAgentConnector):
         Returns
         -------
         str or None
-            Extracted text, or None if the field is missing or
-            explicitly None.
+            Extracted text, empty string if the field is explicitly None,
+            or None if the path does not exist.
         """
         try:
             text = response["outputs"][0]["outputs"][0]["results"]["message"]["text"]
             if text is None:
-                logger.warning("Text field is None")
-                return None
+                logger.warning("Text field is None, using empty string instead")
+                return ""
             return text
         except (KeyError, IndexError, TypeError):
             return None
@@ -153,14 +153,14 @@ class LangflowConnector(BaseAgentConnector):
         Returns
         -------
         str or None
-            Extracted session ID, or None if the field is missing or
-            explicitly None.
+            Extracted session ID, empty string if the field is explicitly
+            None, or None if the key is missing.
         """
         if "session_id" not in response:
             return None
         if response["session_id"] is None:
-            logger.warning("Session ID field is None")
-            return None
+            logger.warning("Session ID field is None, using empty string instead")
+            return ""
         return response["session_id"]
 
     @classmethod

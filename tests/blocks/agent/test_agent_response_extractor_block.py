@@ -551,13 +551,8 @@ class TestAgentResponseExtractorBlockErrorHandling:
         with pytest.raises(ValueError, match="No requested fields found in response"):
             block.generate(dataset)
 
-    def test_none_text_treated_as_missing(self, caplog):
-        """Test that None text content is treated as a missing field.
-
-        When AI message content is None (e.g. tool-only turns), extract_text
-        returns None so AgentResponseExtractorBlock correctly identifies it
-        as missing rather than silently propagating an empty string.
-        """
+    def test_none_text_handled_gracefully(self, caplog):
+        """Test handling when text field is None."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
             agent_framework="langflow",
@@ -571,23 +566,18 @@ class TestAgentResponseExtractorBlockErrorHandling:
         }
         dataset = pd.DataFrame({"agent_response": [response]})
 
-        with pytest.raises(ValueError, match="No requested fields found in response"):
-            block.generate(dataset)
+        result = block.generate(dataset)
 
-        assert "Text field is None" in caplog.text
+        assert len(result) == 1
+        assert result.iloc[0]["test_extractor_text"] == ""
+        assert "Text field is None, using empty string instead" in caplog.text
 
-    def test_none_session_id_treated_as_missing(self, caplog):
-        """Test that None session_id is treated as a missing field.
-
-        When session_id is explicitly None, extract_session_id returns
-        None so AgentResponseExtractorBlock correctly identifies it as
-        missing rather than silently propagating an empty string.
-        """
+    def test_none_session_id_handled_gracefully(self, caplog):
+        """Test handling when session_id field is None."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
             agent_framework="langflow",
             input_cols="agent_response",
-            extract_text=False,
             extract_session_id=True,
         )
 
@@ -597,10 +587,11 @@ class TestAgentResponseExtractorBlockErrorHandling:
         }
         dataset = pd.DataFrame({"agent_response": [response]})
 
-        with pytest.raises(ValueError, match="No requested fields found in response"):
-            block.generate(dataset)
+        result = block.generate(dataset)
 
-        assert "Session ID field is None" in caplog.text
+        assert len(result) == 1
+        assert result.iloc[0]["test_extractor_session_id"] == ""
+        assert "Session ID field is None, using empty string instead" in caplog.text
 
 
 class TestAgentResponseExtractorBlockIntegration:

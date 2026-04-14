@@ -1,0 +1,99 @@
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened, assigned]
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && (contains(github.event.comment.body, '@claude-code') || contains(github.event.comment.body, '@claude_code'))) ||
+      (github.event_name == 'pull_request_review_comment' && (contains(github.event.comment.body, '@claude-code') || contains(github.event.comment.body, '@claude_code'))) ||
+      (github.event_name == 'pull_request_review' && (contains(github.event.review.body, '@claude-code') || contains(github.event.review.body, '@claude_code'))) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude-code') || contains(github.event.issue.body, '@claude_code')))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Check actor has write access
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PERMISSION=$(gh api repos/${{ github.repository }}/collaborators/${{ github.actor }}/permission --jq '.permission')
+          if [ "$PERMISSION" != "admin" ] && [ "$PERMISSION" != "write" ] && [ "$PERMISSION" != "maintain" ]; then
+            echo "::error::Actor ${{ github.actor }} does not have write permission (has: $PERMISSION)"
+            exit 1
+          fi
+
+      - name: Acknowledge with eyes emoji
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" = "issue_comment" ]; then
+            gh api repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions -f content=eyes
+          elif [ "${{ github.event_name }}" = "pull_request_review_comment" ]; then
+            gh api repos/${{ github.repository }}/pulls/comments/${{ github.event.comment.id }}/reactions -f content=eyes
+          elif [ "${{ github.event_name }}" = "pull_request_review" ]; then
+            gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/reactions -f content=eyes
+          elif [ "${{ github.event_name }}" = "issues" ]; then
+            gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/reactions -f content=eyes
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Add fork remote for cross-repo PRs
+        if: github.event.issue.pull_request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER=${{ github.event.issue.number }}
+          FORK_REPO=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.head.repo.full_name')
+          if [ "$FORK_REPO" != "${{ github.repository }}" ]; then
+            git remote set-url --add origin "https://github.com/${FORK_REPO}.git"
+          fi
+
+      - name: Load shared skills
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          repository: Red-Hat-AI-Innovation-Team/claude-skills
+          path: .claude
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@1c8b699d43e9bfed42b48ef15da85d89bab70960 # v1
+        with:
+          use_vertex: true
+          trigger_phrase: "@claude-code"
+          claude_args: "--model claude-opus-4-6[1m] --effort max --dangerously-skip-permissions"
+          plugins: |
+            code-review@claude-plugins-official
+            commit-commands@claude-plugins-official
+            feature-dev@claude-plugins-official
+            huggingface-skills@claude-plugins-official
+            frontend-design@claude-plugins-official
+          plugin_marketplaces: |
+            https://github.com/anthropics/claude-plugins-official.git
+        env:
+          ANTHROPIC_VERTEX_PROJECT_ID: ${{ secrets.GCP_PROJECT }}
+          CLOUD_ML_REGION: ${{ secrets.GCP_REGION }}
+          CLAUDE_CODE_SUBAGENT_MODEL: "claude-opus-4-6[1m]"
+          CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: "1"
+          ANTHROPIC_DEFAULT_OPUS_MODEL: "claude-opus-4-6[1m]"
+          CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING: "1"
+          MAX_THINKING_TOKENS: "128000"
