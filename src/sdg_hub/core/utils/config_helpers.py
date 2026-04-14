@@ -8,6 +8,9 @@ summary.  This module extracts that loop so it only exists once.
 """
 
 # Standard
+from __future__ import annotations
+
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 # Local
@@ -19,6 +22,8 @@ if TYPE_CHECKING:
 logger = setup_logger(__name__)
 
 # Parameter names whose values must never appear in log output.
+# Intentionally the superset of what model_config and agent_config each
+# previously defined so that both code-paths share a single set.
 DEFAULT_SENSITIVE_PARAMS: frozenset[str] = frozenset(
     {"api_key", "agent_api_key", "token", "password", "secret"}
 )
@@ -27,7 +32,7 @@ DEFAULT_SENSITIVE_PARAMS: frozenset[str] = frozenset(
 def resolve_target_blocks(
     flow: "Flow",
     blocks: list[str] | None,
-    auto_detect_fn: Any,
+    auto_detect_fn: Callable[[Flow], list[str]],
     config_label: str,
 ) -> set[str]:
     """Validate explicit block names or auto-detect target blocks.
