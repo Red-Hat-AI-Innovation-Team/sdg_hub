@@ -487,11 +487,11 @@ class TestAgentBlockConnectorIntegration:
             def parse_response(self, response):
                 return response
 
-        ConnectorRegistry._connectors["_test"] = _TestConnector
+        ConnectorRegistry.register("_test_valid_kwargs")(_TestConnector)
         try:
             block = AgentBlock(
                 block_name="test",
-                agent_framework="_test",
+                agent_framework="_test_valid_kwargs",
                 agent_url="http://localhost:9999",
                 input_cols=["messages"],
                 output_cols=["response"],
@@ -500,7 +500,7 @@ class TestAgentBlockConnectorIntegration:
             connector = block._get_connector()
             assert connector.custom_option == "my-value"
         finally:
-            del ConnectorRegistry._connectors["_test"]
+            ConnectorRegistry._connectors.pop("_test_valid_kwargs", None)
 
 
 class TestAgentBlockConnectorKwargs:

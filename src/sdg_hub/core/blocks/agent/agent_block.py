@@ -169,7 +169,7 @@ class AgentBlock(BaseBlock):
             # ignored by Pydantic.
             if self.connector_kwargs:
                 valid_fields = connector_class.model_fields.keys() - {"config"}
-                unknown = set(self.connector_kwargs) - valid_fields
+                unknown = sorted(set(self.connector_kwargs) - valid_fields)
                 if unknown:
                     raise ConnectorError(
                         f"Unknown connector_kwargs for "
