@@ -46,6 +46,24 @@ pip install sdg-hub[examples]
 uv pip install sdg-hub[examples]
 ```
 
+### code
+
+Dependencies for code execution blocks (`PythonInterpreterBlock`) and the domain-code-eval flow. Required when using code interpreter connectors for sandboxed Python execution.
+
+Includes: pydantic-monty.
+
+**pip:**
+
+```bash
+pip install sdg-hub[code]
+```
+
+**uv:**
+
+```bash
+uv pip install sdg-hub[code]
+```
+
 ### integration
 
 Minimal dependencies for integration testing.

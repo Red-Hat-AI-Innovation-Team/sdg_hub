@@ -79,7 +79,7 @@ that execution.
 
 ## Block Categories
 
-SDG Hub ships with blocks organized into six categories. Each category has a
+SDG Hub ships with blocks organized into seven categories. Each category has a
 dedicated documentation page.
 
 | Category | Blocks | Doc Page |
@@ -90,6 +90,7 @@ dedicated documentation page.
 | **filtering** | `ColumnValueFilterBlock` | [Filtering Blocks](filtering-blocks.md) |
 | **agent** | `AgentBlock`, `AgentResponseExtractorBlock` | [Agent Blocks](agent-blocks.md) |
 | **mcp** | `MCPAgentBlock` | [Agent Blocks](agent-blocks.md) |
+| **code** | `PythonInterpreterBlock` | [Code Blocks](code-blocks.md) |
 
 `TextParserBlock` is deprecated -- use `TagParserBlock` or `RegexParserBlock`
 instead.
@@ -260,4 +261,5 @@ class BlockMetadata:
 - [Transform Blocks](transform-blocks.md) -- reshape and manipulate columns
 - [Filtering Blocks](filtering-blocks.md) -- filter rows by column values
 - [Agent Blocks](agent-blocks.md) -- integrate external agent frameworks
+- [Code Blocks](code-blocks.md) -- execute code in sandboxed interpreters
 - [Custom Blocks](custom-blocks.md) -- build your own blocks

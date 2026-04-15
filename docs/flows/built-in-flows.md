@@ -27,6 +27,7 @@ flow = Flow.from_yaml(flow_path)
 | text_analysis | Structured Text Insights Extraction | `green-clay-812` | openai/gpt-oss-120b | text |
 | red_team | Red Teaming Prompt Generation | `major-sage-742` | IlyaGusev/gemma-2-9b-it-abliterated | policy_concept, concept_definition |
 | agentic | MCP Server Distillation | `new-night-835` | openai/gpt-5.2 | tool_list, mcp_server_name, mcp_server_description |
+| code_evaluation | Domain Code Evaluation Benchmark Generator | `domain-code-eval` | gpt-5.1-codex-mini | domain, function_spec, difficulty, time_complexity |
 | evaluation | RAG Evaluation Dataset | `loud-dawn-245` | openai/gpt-oss-120b | document, document_outline |
 | evaluation | Agent Tool-Use Evaluation | `eager-path-837` | openai/gpt-4o | question, expert_answer_truncated, expert_trace_formatted, model_answer, model_trace_formatted |
 
@@ -316,6 +317,122 @@ seed = Dataset.from_dict({
 
 result = flow.generate(seed, max_concurrency=10)
 ```
+
+---
+
+## Code Evaluation Flows
+
+### Domain Code Evaluation Benchmark Generator (domain-code-eval)
+
+Location: `src/sdg_hub/flows/code_evaluation/domain_code_eval/`
+
+Generates execution-verified coding benchmarks for custom domains. Inspired by
+[AutoCodeBench](https://arxiv.org/abs/2503.08013) (Tencent, 2025) and
+[CRUXEval](https://arxiv.org/abs/2401.03065) (Meta, 2024), this flow generates
+domain-specific Python functions, verifies them via sandboxed execution, and
+reverse-generates problem descriptions. The output is a ready-to-use evaluation
+benchmark where every solution and test suite is execution-verified.
+
+!!! note "Optional dependency"
+    This flow uses `PythonInterpreterBlock`, which requires the `code` optional
+    dependency group: `uv pip install sdg-hub[code]` or `pip install sdg-hub[code]`
+
+Default model: `gpt-5.1-codex-mini`
+
+Compatible models: `openai/gpt-5.1-codex-mini`,
+`meta-llama/Llama-3.3-70B-Instruct`, `Qwen/Qwen2.5-Coder-32B-Instruct`
+
+Required columns: `domain`, `function_spec`, `difficulty`, `time_complexity`
+
+Output columns: `function_code`, `test_code`, `input_generator`,
+`problem_description`, `execution_result`, `execution_result_success`
+
+Tags: `code-evaluation`, `benchmark-generation`, `code-verification`,
+`domain-specific`, `synthetic-data`
+
+#### 4-Phase Pipeline
+
+```
+Phase 1: Generate Function
+  PromptBuilderBlock → LLMChatBlock → LLMResponseExtractorBlock → TagParserBlock
+  Input: domain, function_spec, difficulty, time_complexity
+  Output: function_code
+
+Phase 2: Generate Test Suite
+  PromptBuilderBlock → LLMChatBlock → LLMResponseExtractorBlock → TagParserBlock × 2
+  Input: function_code, domain
+  Output: test_code, input_generator
+
+Phase 3: Verify via Execution
+  TextConcatBlock → PythonInterpreterBlock → ColumnValueFilterBlock
+  Input: function_code + test_code → executable_code
+  Output: execution_result (rows where execution failed are filtered out)
+
+Phase 4: Reverse Problem Generation
+  PromptBuilderBlock → LLMChatBlock → LLMResponseExtractorBlock → TagParserBlock
+  Input: function_code, test_code, domain, time_complexity
+  Output: problem_description
+```
+
+**Phase 1** generates a domain-specific Python function based on the spec and
+constraints. The prompt enforces sandbox-safe code: no imports, no I/O, no
+randomness, JSON-serializable return values.
+
+**Phase 2** generates a test suite (`test()` function with assertions) and an
+input generator (`generate_input(n)` function) for the generated function.
+
+**Phase 3** combines the function and tests into a single executable script,
+runs it in the Monty sandbox, and filters out rows where execution failed.
+This ensures every benchmark entry in the output is verified.
+
+**Phase 4** reverse-generates a problem description from the verified function
+and tests, producing a natural-language problem statement that does not reveal
+the implementation.
+
+#### Usage Example
+
+```python
+from datasets import Dataset
+from sdg_hub import Flow
+from sdg_hub import FlowRegistry
+
+FlowRegistry.discover_flows()
+flow = Flow.from_yaml(
+    FlowRegistry.get_flow_path_safe("domain-code-eval")
+)
+
+flow.set_model_config(
+    model="openai/gpt-5.1-codex-mini",
+    api_key="your-key",
+)
+
+dataset = Dataset.from_dict({
+    "domain": ["financial calculations"],
+    "function_spec": ["Calculate compound interest given principal, rate, and time"],
+    "difficulty": ["intermediate"],
+    "time_complexity": ["O(1)"],
+})
+
+result = flow.generate(dataset, max_concurrency=5)
+# result contains only rows where execution verification passed
+```
+
+#### Input Column Requirements
+
+| Column | Description | Example |
+|--------|-------------|---------|
+| `domain` | Problem domain | `"financial calculations"` |
+| `function_spec` | What the function should do | `"Calculate compound interest"` |
+| `difficulty` | Difficulty level | `"beginner"`, `"intermediate"`, `"advanced"` |
+| `time_complexity` | Expected time complexity | `"O(1)"`, `"O(n)"`, `"O(n log n)"` |
+
+#### Example Notebooks
+
+Two example notebooks are available under `examples/code_interpreter/`:
+
+- `domain_code_eval.ipynb` -- end-to-end benchmark generation
+- `model_evaluation.ipynb` -- LeetCode-style model evaluation with timing
+  verification
 
 ---
 

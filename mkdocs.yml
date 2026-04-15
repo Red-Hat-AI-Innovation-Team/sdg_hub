@@ -61,6 +61,7 @@ plugins:
           - blocks/transform-blocks.md
           - blocks/filtering-blocks.md
           - blocks/agent-blocks.md
+          - blocks/code-blocks.md
           - blocks/custom-blocks.md
         Flows:
           - flows/index.md
@@ -104,6 +105,7 @@ nav:
     - Transform Blocks: blocks/transform-blocks.md
     - Filtering Blocks: blocks/filtering-blocks.md
     - Agent Blocks: blocks/agent-blocks.md
+    - Code Blocks: blocks/code-blocks.md
     - Custom Blocks: blocks/custom-blocks.md
   - Flows:
     - Overview: flows/index.md

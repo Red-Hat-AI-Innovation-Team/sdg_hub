@@ -1,22 +1,27 @@
 # Connector System
 
-The connector system provides a pluggable interface for communicating with external agent frameworks. Connectors handle request formatting, HTTP transport, response parsing, and error handling for each supported framework.
+The connector system provides a pluggable interface for communicating with external services. There are two connector families:
 
-Connectors are used by `AgentBlock` and `AgentResponseExtractorBlock` to integrate agent frameworks (Langflow, LangGraph, etc.) into data generation pipelines.
+- **Agent connectors** handle request formatting, HTTP transport, response parsing, and error handling for agent frameworks (Langflow, LangGraph, etc.). Used by `AgentBlock` and `AgentResponseExtractorBlock`.
+- **Code interpreter connectors** execute Python code in sandboxed environments and return structured results. Used by `PythonInterpreterBlock`.
 
 ## Architecture Overview
 
-The connector system has four layers:
+The connector system branches into two families under `BaseConnector`:
 
 ```
-ConnectorRegistry          # Discovery and lookup by name
+ConnectorRegistry                    # Discovery and lookup by name
     |
-BaseConnector              # Abstract base with execute() / aexecute()
+BaseConnector                        # Abstract base with execute() / aexecute()
     |
-BaseAgentConnector         # Agent-specific: build_request(), parse_response(), send()
+    +-- BaseAgentConnector           # Agent-specific: build_request(), parse_response(), send()
+    |       |
+    |       +-- LangflowConnector    # Framework-specific implementation
+    |       +-- LangGraphConnector
     |
-LangflowConnector          # Framework-specific implementation
-LangGraphConnector
+    +-- BaseCodeInterpreterConnector # Code execution: execute_code() / aexecute_code()
+            |
+            +-- MontyConnector       # Rust-based sandbox (pydantic-monty)
 ```
 
 All classes are importable from the top-level connectors package:
@@ -32,6 +37,13 @@ from sdg_hub.core.connectors import (
     HttpClient,
     ConnectorError,
     ConnectorHTTPError,
+)
+
+# Code interpreter connectors (requires the [code] extra)
+from sdg_hub.core.connectors.code_interpreter import (
+    BaseCodeInterpreterConnector,
+    CodeExecutionResult,
+    MontyConnector,
 )
 ```
 
@@ -805,5 +817,256 @@ block = AgentBlock(
     agent_api_key="your-api-key",
     input_cols={"messages": "question"},
     output_cols=["response"],
+)
+```
+
+---
+
+## Code Interpreter Connectors
+
+Code interpreter connectors execute Python code in sandboxed environments and return structured `CodeExecutionResult` objects. They are used by `PythonInterpreterBlock` to validate synthetic code datasets.
+
+!!! note "Optional dependency"
+    Code interpreter connectors require the `code` optional dependency group. Install with:
+    `uv pip install sdg-hub[code]` or `pip install sdg-hub[code]`
+
+Source: `src/sdg_hub/core/connectors/code_interpreter/`
+
+### CodeExecutionResult
+
+`CodeExecutionResult` is a Pydantic `BaseModel` that standardizes execution output across all code interpreter backends. It is defined in `src/sdg_hub/core/connectors/code_interpreter/base.py`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | `bool` | Whether the code executed successfully without errors |
+| `output` | `Optional[str]` | Captured stdout/stderr output |
+| `error` | `Optional[str]` | Error message if execution failed |
+| `return_value` | `Any` | Return value from execution |
+| `execution_time_ms` | `Optional[float]` | Execution time in milliseconds |
+
+```python
+from sdg_hub.core.connectors.code_interpreter import CodeExecutionResult
+
+result = CodeExecutionResult(
+    success=True,
+    output="Hello, world!\n",
+    error=None,
+    return_value=42,
+    execution_time_ms=1.23,
+)
+```
+
+### BaseCodeInterpreterConnector
+
+`BaseCodeInterpreterConnector` extends `BaseConnector` with a code execution interface. It is defined in `src/sdg_hub/core/connectors/code_interpreter/base.py`.
+
+#### Abstract Methods
+
+Subclasses must implement:
+
+```python
+@abstractmethod
+def execute_code(
+    self,
+    code: str,
+    inputs: Optional[dict[str, Any]] = None,
+    timeout: Optional[float] = None,
+) -> CodeExecutionResult:
+    """Execute code and return structured result.
+
+    Parameters
+    ----------
+    code : str
+        The Python code to execute.
+    inputs : dict, optional
+        Input variables to make available to the code.
+    timeout : float, optional
+        Maximum execution time in seconds.
+
+    Returns
+    -------
+    CodeExecutionResult
+        Structured result with success status, output, and errors.
+    """
+```
+
+#### Concrete Methods
+
+```python
+async def aexecute_code(
+    self,
+    code: str,
+    inputs: Optional[dict[str, Any]] = None,
+    timeout: Optional[float] = None,
+) -> CodeExecutionResult:
+    """Execute code asynchronously.
+
+    Default implementation wraps execute_code() via asyncio.to_thread().
+    Subclasses should override for native async support.
+    """
+```
+
+The `execute()` and `aexecute()` methods from `BaseConnector` are implemented to delegate to `execute_code()` / `aexecute_code()`, accepting a dict with a `code` key and optional `inputs` and `timeout` keys.
+
+---
+
+### MontyConnector
+
+Registered name: `"monty"`
+
+Source: `src/sdg_hub/core/connectors/code_interpreter/monty.py`
+
+Connector for [Monty](https://github.com/pydantic/monty), a secure Python interpreter from the Pydantic team, implemented in Rust. Provides sandboxed execution with configurable resource limits.
+
+#### Security Model
+
+Monty enforces strict isolation by default:
+
+| Resource | Access |
+|----------|--------|
+| Filesystem | Blocked (no file I/O) |
+| Network | Blocked (no network access) |
+| Environment variables | Blocked |
+| Standard library | Limited subset (`sys`, `typing`, `asyncio`, `json`) |
+| Third-party libraries | Not available |
+| External functions | None registered (pure computation only) |
+
+#### How It Works
+
+MontyConnector captures stdout separately from return values using Monty's `print_callback` parameter. This means `print()` output goes to `result.output`, while the final expression value goes to `result.return_value`.
+
+Resource limits (execution timeout) are configured via `pydantic_monty.ResourceLimits`. The timeout cascades: `PythonInterpreterBlock.timeout` > `ConnectorConfig.timeout` > default (120s).
+
+#### Configuration Example
+
+```python
+from sdg_hub.core.connectors.code_interpreter import MontyConnector
+from sdg_hub.core.connectors import ConnectorConfig
+
+connector = MontyConnector(config=ConnectorConfig())
+
+# Simple execution
+result = connector.execute_code("x = 1 + 1\nprint(x)")
+print(result.success)  # True
+print(result.output)   # "2\n"
+
+# With input variables
+result = connector.execute_code(
+    "result = x + y\nprint(result)",
+    inputs={"x": 10, "y": 20},
+)
+print(result.output)  # "30\n"
+
+# Async execution (native, not thread-wrapped)
+import asyncio
+
+async def main():
+    result = await connector.aexecute_code("print('async!')")
+    print(result.output)  # "async!\n"
+
+asyncio.run(main())
+```
+
+#### YAML Usage (via PythonInterpreterBlock)
+
+MontyConnector is used indirectly through `PythonInterpreterBlock`:
+
+```yaml
+- block_type: PythonInterpreterBlock
+  block_config:
+    block_name: validate_code
+    interpreter_framework: monty
+    input_cols:
+      - generated_code
+    output_cols:
+      - execution_result
+    timeout: 10.0
+```
+
+---
+
+### Creating Custom Code Interpreter Connectors
+
+To add a new code interpreter backend:
+
+1. Create a new file in `src/sdg_hub/core/connectors/code_interpreter/`.
+2. Inherit from `BaseCodeInterpreterConnector`.
+3. Implement `execute_code()`.
+4. Optionally override `aexecute_code()` for native async support.
+5. Register with `@ConnectorRegistry.register("name")`.
+
+#### Complete Example
+
+```python
+# src/sdg_hub/core/connectors/code_interpreter/my_interpreter.py
+
+import time
+from typing import Any, Optional
+
+from sdg_hub.core.connectors.code_interpreter import (
+    BaseCodeInterpreterConnector,
+    CodeExecutionResult,
+)
+from sdg_hub.core.connectors import ConnectorConfig, ConnectorRegistry
+
+from pydantic import Field
+
+
+@ConnectorRegistry.register("my_interpreter")
+class MyInterpreterConnector(BaseCodeInterpreterConnector):
+    """Connector for a custom Python interpreter."""
+
+    config: ConnectorConfig = Field(
+        default_factory=lambda: ConnectorConfig(),
+        description="Connector configuration",
+    )
+
+    def execute_code(
+        self,
+        code: str,
+        inputs: Optional[dict[str, Any]] = None,
+        timeout: Optional[float] = None,
+    ) -> CodeExecutionResult:
+        """Execute code in the custom interpreter."""
+        start = time.perf_counter()
+        try:
+            # Your execution logic here
+            exec_globals = dict(inputs) if inputs else {}
+            exec(code, exec_globals)
+            elapsed = (time.perf_counter() - start) * 1000
+            return CodeExecutionResult(
+                success=True,
+                output=None,
+                error=None,
+                return_value=None,
+                execution_time_ms=elapsed,
+            )
+        except Exception as e:
+            elapsed = (time.perf_counter() - start) * 1000
+            return CodeExecutionResult(
+                success=False,
+                output=None,
+                error=str(e),
+                return_value=None,
+                execution_time_ms=elapsed,
+            )
+```
+
+After creating the file, add the import to `src/sdg_hub/core/connectors/code_interpreter/__init__.py`:
+
+```python
+from .my_interpreter import MyInterpreterConnector
+```
+
+The connector is then usable in `PythonInterpreterBlock`:
+
+```python
+from sdg_hub.core.blocks import PythonInterpreterBlock
+
+block = PythonInterpreterBlock(
+    block_name="validate_code",
+    interpreter_framework="my_interpreter",
+    input_cols=["code"],
+    output_cols=["result"],
 )
 ```
