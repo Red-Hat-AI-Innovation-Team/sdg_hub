@@ -4,12 +4,12 @@
 # Standard
 from pathlib import Path
 
-# First Party
-from sdg_hub import Flow, FlowRegistry, FlowValidator
-
 # Third Party
 import pytest
 import yaml
+
+# First Party
+from sdg_hub import Flow, FlowRegistry, FlowValidator
 
 
 def _find_repo_root() -> Path:
