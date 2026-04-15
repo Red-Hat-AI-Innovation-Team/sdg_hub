@@ -53,6 +53,7 @@ Hooks run automatically on commit:
 - **uv-lock**: Keeps `uv.lock` in sync with `pyproject.toml`
 - **ruff**: Linter with auto-fix
 - **ruff-format**: Code formatter
+- **mypy**: Type checker (runs `mypy src/sdg_hub`)
 - **conventional-pre-commit**: Enforces [Conventional Commits](https://www.conventionalcommits.org/)
 
 Commit prefixes: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`

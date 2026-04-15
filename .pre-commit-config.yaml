@@ -16,6 +16,15 @@ repos:
       # Run the formatter
       - id: ruff-format
 
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run mypy src/sdg_hub --show-error-codes
+        language: system
+        types: [python]
+        pass_filenames: false
+
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v3.6.0
     hooks:
