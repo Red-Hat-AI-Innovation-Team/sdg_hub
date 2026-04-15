@@ -8,6 +8,7 @@ from pydantic import Field, PrivateAttr, field_validator
 from tqdm.asyncio import tqdm_asyncio
 import pandas as pd
 
+from ...connectors.base import ConnectorConfig
 from ...connectors.code_interpreter.base import (
     BaseCodeInterpreterConnector,
     CodeExecutionResult,
@@ -131,9 +132,14 @@ class PythonInterpreterBlock(BaseBlock):
 
         if self._connector is None or self._connector_config_key != config_key:
             connector_class = ConnectorRegistry.get(self.interpreter_framework)
-            self._connector = connector_class()
+            self._connector = cast(
+                BaseCodeInterpreterConnector,
+                connector_class(
+                    config=ConnectorConfig()  # type: ignore[call-arg]
+                ),
+            )
             self._connector_config_key = config_key
-
+        assert self._connector is not None
         return self._connector
 
     async def _execute_one(
