@@ -54,6 +54,20 @@ class FlowValidator:
             metadata_errors = self._validate_metadata_config(flow_config["metadata"])
             errors.extend(metadata_errors)
 
+            # Validate output_columns against block outputs if declared
+            metadata = flow_config["metadata"]
+            if isinstance(metadata, dict) and "output_columns" in metadata:
+                output_cols = metadata["output_columns"]
+                if isinstance(output_cols, list) and all(
+                    isinstance(c, str) for c in output_cols
+                ):
+                    oc_errors = self._validate_output_columns_against_blocks(
+                        output_cols,
+                        flow_config.get("blocks", []),
+                        metadata=metadata,
+                    )
+                    errors.extend(oc_errors)
+
         # Validate parameters if present
         if "parameters" in flow_config:
             param_errors = self._validate_parameters_config(flow_config["parameters"])
@@ -142,6 +156,14 @@ class FlowValidator:
                 errors.append("Metadata 'tags' must be a list")
             elif not all(isinstance(tag, str) for tag in tags):
                 errors.append("All metadata 'tags' must be strings")
+
+        if "output_columns" in metadata:
+            output_cols = metadata["output_columns"]
+            if output_cols is not None:
+                if not isinstance(output_cols, list):
+                    errors.append("Metadata 'output_columns' must be a list")
+                elif not all(isinstance(col, str) for col in output_cols):
+                    errors.append("All metadata 'output_columns' must be strings")
 
         return errors
 
@@ -238,10 +260,85 @@ class FlowValidator:
 
     def _extract_column_names(self, output_cols: Any) -> list[str]:
         """Extract column names from output specification."""
+        if isinstance(output_cols, str):
+            return [output_cols]
         if isinstance(output_cols, list):
             return output_cols
-        elif isinstance(output_cols, dict):
+        if isinstance(output_cols, dict):
             return list(output_cols.keys())
+        return []
+
+    def _validate_output_columns_against_blocks(
+        self,
+        output_columns: list[str],
+        block_configs: list[dict[str, Any]],
+        metadata: dict[str, Any] | None = None,
+    ) -> list[str]:
+        """Validate output_columns against block configs from raw YAML.
+
+        Traces column availability through the block chain to verify that all
+        declared output_columns are producible. Seeds the available column set
+        from dataset_requirements to avoid false positives on input columns
+        that pass through untouched.
+
+        Parameters
+        ----------
+        output_columns : list[str]
+            Declared output columns from metadata.
+        block_configs : list[dict[str, Any]]
+            Raw block configurations from YAML.
+        metadata : dict[str, Any] | None
+            Full metadata dict, used to read dataset_requirements.
+
+        Returns
+        -------
+        list[str]
+            Validation error messages.
+        """
+        if not output_columns:
+            return []
+
+        # Seed with known input columns from dataset_requirements so that
+        # passthrough columns are not flagged as missing.
+        available_columns: set[str] = set()
+        if metadata:
+            dataset_req = metadata.get("dataset_requirements", {})
+            if isinstance(dataset_req, dict):
+                for key in ("required_columns", "optional_columns"):
+                    cols = dataset_req.get(key, [])
+                    if isinstance(cols, list):
+                        available_columns.update(c for c in cols if isinstance(c, str))
+
+        for block_config in block_configs:
+            if not isinstance(block_config, dict):
+                continue
+
+            block_type = block_config.get("block_type", "")
+            config = block_config.get("block_config", {})
+            if not isinstance(config, dict):
+                continue
+
+            output_cols = config.get("output_cols")
+
+            if block_type == "RenameColumnsBlock":
+                input_cols = config.get("input_cols")
+                if isinstance(input_cols, dict):
+                    for old_name, new_name in input_cols.items():
+                        available_columns.discard(old_name)
+                        if isinstance(new_name, str):
+                            available_columns.add(new_name)
+            else:
+                if output_cols:
+                    available_columns.update(self._extract_column_names(output_cols))
+
+        missing = [col for col in output_columns if col not in available_columns]
+        if missing:
+            return [
+                f"Declared output_columns {missing} cannot be traced to any "
+                f"block output or dataset requirement. "
+                f"Available columns: {sorted(available_columns)}"
+            ]
+
         return []
 
     def validate_block_chain(self, blocks: list[Any]) -> list[str]:

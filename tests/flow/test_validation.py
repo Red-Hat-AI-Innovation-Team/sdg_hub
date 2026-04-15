@@ -346,3 +346,244 @@ class TestFlowValidator:
         assert "name" in error_text
         assert "description" in error_text
         assert "block_type" in error_text
+
+
+class TestOutputColumnsValidation:
+    """Test static output_columns validation against block outputs."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.validator = FlowValidator()
+
+    def _make_flow_config(self, blocks, output_columns=None, metadata_extra=None):
+        """Build a minimal flow config dict for testing."""
+        metadata = {"name": "Test Flow"}
+        if output_columns is not None:
+            metadata["output_columns"] = output_columns
+        if metadata_extra:
+            metadata.update(metadata_extra)
+        return {"metadata": metadata, "blocks": blocks}
+
+    def test_valid_output_columns(self):
+        """Test that valid output_columns pass validation."""
+        config = self._make_flow_config(
+            output_columns=["question", "response"],
+            blocks=[
+                {
+                    "block_type": "LLMChatBlock",
+                    "block_config": {
+                        "block_name": "gen_question",
+                        "input_cols": "text",
+                        "output_cols": "question",
+                    },
+                },
+                {
+                    "block_type": "LLMChatBlock",
+                    "block_config": {
+                        "block_name": "gen_answer",
+                        "input_cols": "question",
+                        "output_cols": "response",
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert errors == []
+
+    def test_invalid_output_columns(self):
+        """Test that unreachable output_columns are caught."""
+        config = self._make_flow_config(
+            output_columns=["question", "nonexistent_column"],
+            blocks=[
+                {
+                    "block_type": "LLMChatBlock",
+                    "block_config": {
+                        "block_name": "gen_question",
+                        "input_cols": "text",
+                        "output_cols": "question",
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert any("nonexistent_column" in e for e in errors)
+
+    def test_output_columns_with_rename_block(self):
+        """Test that renames are tracked when validating output_columns."""
+        config = self._make_flow_config(
+            output_columns=["raw_document", "summary"],
+            blocks=[
+                {
+                    "block_type": "LLMChatBlock",
+                    "block_config": {
+                        "block_name": "gen_summary",
+                        "input_cols": "text",
+                        "output_cols": "summary",
+                    },
+                },
+                {
+                    "block_type": "RenameColumnsBlock",
+                    "block_config": {
+                        "block_name": "rename_doc",
+                        "input_cols": {"document": "raw_document"},
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert errors == []
+
+    def test_output_columns_referencing_renamed_away_column(self):
+        """Test that columns renamed away are caught in output_columns."""
+        config = self._make_flow_config(
+            output_columns=["summary", "document"],
+            blocks=[
+                {
+                    "block_type": "LLMChatBlock",
+                    "block_config": {
+                        "block_name": "gen_summary",
+                        "input_cols": "text",
+                        "output_cols": "summary",
+                    },
+                },
+                {
+                    "block_type": "RenameColumnsBlock",
+                    "block_config": {
+                        "block_name": "rename_summary",
+                        "input_cols": {"summary": "document"},
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert any("summary" in e for e in errors)
+
+    def test_no_output_columns_skips_validation(self):
+        """Test that flows without output_columns skip validation."""
+        config = self._make_flow_config(
+            blocks=[
+                {
+                    "block_type": "LLMChatBlock",
+                    "block_config": {
+                        "block_name": "test_block",
+                        "input_cols": "input",
+                        "output_cols": "output",
+                    },
+                }
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert errors == []
+
+    def test_output_columns_with_list_output_cols(self):
+        """Test validation with blocks that have list output_cols."""
+        config = self._make_flow_config(
+            output_columns=["col_a", "col_b"],
+            blocks=[
+                {
+                    "block_type": "SomeBlock",
+                    "block_config": {
+                        "block_name": "multi_output",
+                        "input_cols": ["text"],
+                        "output_cols": ["col_a", "col_b"],
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert errors == []
+
+    def test_passthrough_columns_from_dataset_requirements(self):
+        """Test that required input columns are not flagged as missing."""
+        config = self._make_flow_config(
+            output_columns=["text", "question"],
+            metadata_extra={
+                "dataset_requirements": {
+                    "required_columns": ["text"],
+                },
+            },
+            blocks=[
+                {
+                    "block_type": "LLMChatBlock",
+                    "block_config": {
+                        "block_name": "gen_question",
+                        "input_cols": "text",
+                        "output_cols": "question",
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert errors == []
+
+    def test_passthrough_without_dataset_requirements_fails(self):
+        """Test that passthrough columns without dataset_requirements are flagged."""
+        config = self._make_flow_config(
+            output_columns=["text", "question"],
+            blocks=[
+                {
+                    "block_type": "LLMChatBlock",
+                    "block_config": {
+                        "block_name": "gen_question",
+                        "input_cols": "text",
+                        "output_cols": "question",
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert any("text" in e for e in errors)
+
+    def test_output_columns_invalid_type(self):
+        """Test that non-list output_columns are caught."""
+        config = self._make_flow_config(
+            output_columns="not_a_list",
+            blocks=[
+                {
+                    "block_type": "LLMChatBlock",
+                    "block_config": {
+                        "block_name": "test_block",
+                        "input_cols": "input",
+                        "output_cols": "output",
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert any("'output_columns' must be a list" in e for e in errors)
+
+    def test_output_columns_non_string_items(self):
+        """Test that non-string items in output_columns are caught."""
+        config = self._make_flow_config(
+            output_columns=["valid", 123],
+            blocks=[
+                {
+                    "block_type": "LLMChatBlock",
+                    "block_config": {
+                        "block_name": "test_block",
+                        "input_cols": "input",
+                        "output_cols": "output",
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert any("'output_columns' must be strings" in e for e in errors)
+
+    def test_empty_output_columns_skips_block_validation(self):
+        """Test that empty output_columns list skips block validation."""
+        config = self._make_flow_config(
+            output_columns=[],
+            blocks=[
+                {
+                    "block_type": "LLMChatBlock",
+                    "block_config": {
+                        "block_name": "test_block",
+                        "input_cols": "input",
+                        "output_cols": "output",
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert errors == []
