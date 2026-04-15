@@ -42,6 +42,8 @@ class SamplerBlock(BaseBlock):
         Number of values to sample from each list.
     random_seed : int, optional
         Random seed for reproducibility.
+    return_scalar : bool
+        When num_samples=1, return scalar value instead of single-element list.
     """
 
     block_type: str = "transform"
@@ -51,6 +53,10 @@ class SamplerBlock(BaseBlock):
     )
     random_seed: Optional[int] = Field(
         default=None, description="Random seed for reproducibility"
+    )
+    return_scalar: bool = Field(
+        default=False,
+        description="When num_samples=1, return scalar value instead of single-element list",
     )
 
     @field_validator("input_cols", mode="after")
@@ -160,5 +166,9 @@ class SamplerBlock(BaseBlock):
         result[output_col] = result[input_col].apply(
             lambda x: self._sample_values(x, rng)
         )
+
+        # Unwrap scalar values when return_scalar=True and num_samples=1
+        if self.return_scalar and self.num_samples == 1:
+            result[output_col] = result[output_col].apply(lambda x: x[0] if x else None)
 
         return result

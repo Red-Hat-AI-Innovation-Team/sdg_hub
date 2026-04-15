@@ -23,6 +23,9 @@ from ..registry import BlockRegistry
 litellm.drop_params = True
 logger = setup_logger(__name__)
 
+# Default API base URL for local vLLM / OpenAI-compatible model servers.
+DEFAULT_API_BASE = "http://localhost:8000/v1"
+
 
 @BlockRegistry.register(
     "LLMChatBlock",
@@ -91,7 +94,7 @@ class LLMChatBlock(BaseBlock):
     ...     input_cols="messages",
     ...     output_cols="response",
     ...     model="hosted_vllm/meta-llama/Llama-2-7b-chat-hf",
-    ...     api_base="http://localhost:8000/v1",
+    ...     api_base=DEFAULT_API_BASE,
     ...     temperature=0.7,
     ...     response_format={"type": "json_object"}
     ... )

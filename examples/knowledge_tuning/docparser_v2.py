@@ -20,21 +20,17 @@ See README.md for detailed configuration options and examples.
 from pathlib import Path
 import json
 import time
-from typing import Dict, Optional
+from typing import Optional
 import yaml
 
 # Third Party
-from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
-from docling.datamodel.base_models import InputFormat
-from docling.datamodel.pipeline_options import (
+from docling.datamodel.accelerator_options import (
     AcceleratorDevice,
     AcceleratorOptions,
-    PdfPipelineOptions,
 )
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
-from docling.models.ocr_mac_model import OcrMacOptions
-from docling.models.tesseract_ocr_cli_model import TesseractCliOcrOptions
-from docling.models.tesseract_ocr_model import TesseractOcrOptions
 from logger_config import setup_logger
 import click
 

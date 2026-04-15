@@ -1,0 +1,80 @@
+- role: user
+  content: |
+    You are connected to an MCP server called **{{mcp_server_name}}**.
+
+    {{mcp_server_description}}
+
+    Your task is to **systematically explore** this server by calling its tools and observing the results. You must build a thorough understanding of the server that will later be used to generate realistic training questions.
+
+    ## Available Tools
+    {{tool_list}}
+
+    ## Exploration Instructions
+
+    Follow these steps methodically:
+
+    ### Step 1: Start with overview tools
+    Call any tools that provide summaries or dashboards (tools with no required parameters, or overview/status tools). This gives you a quick picture of the data landscape.
+
+    ### Step 2: Explore each tool cluster
+    For each group of related tools:
+    - Call the primary tool with a simple, representative input
+    - Note the structure and content of the response
+    - Try a second call with different parameters (filters, sorting, date ranges) to understand the tool's flexibility
+    - Pay attention to IDs, names, and other identifiers returned — you'll need these for tools that require specific IDs as input
+
+    ### Step 3: Test tool chaining
+    Use outputs from one tool as inputs to another:
+    - Search/browse → details/analysis (use IDs from search results)
+    - Analysis → action tools (use findings to inform decisions)
+    - Note which tools naturally feed into which other tools
+
+    ### Step 4: Probe edge cases
+    - Try at least 2-3 queries that might return empty results or errors
+    - Test boundary values (very large ranges, missing optional params)
+    - Note any validation errors or constraints you discover
+
+    ## Required Output
+
+    After completing your exploration, produce a structured summary in the following format:
+
+    <server_understanding>
+      <data_entities>
+        List the concrete data entities you discovered. Include:
+        - Entity types and approximate counts
+        - Sample IDs and names for each entity type
+        - Key attributes and value ranges
+        - Category hierarchies or taxonomies if they exist
+      </data_entities>
+
+      <tool_relationships>
+        Map how tools connect to each other:
+        - Which tool outputs feed into which tool inputs (specify the field names)
+        - Required call sequences for common tasks
+        - Tools that must be called before others (dependencies)
+      </tool_relationships>
+
+      <ambiguity_clusters>
+        Identify groups of tools with overlapping functionality:
+        - Which tools could be confused with each other
+        - The key differentiator for when to use each one
+        - Common mistakes in tool selection
+      </ambiguity_clusters>
+
+      <edge_cases>
+        Document any surprising behavior:
+        - Error responses and their triggers
+        - Empty result conditions
+        - Parameter constraints or validation rules
+        - Default values and their effects
+      </edge_cases>
+
+      <usage_patterns>
+        Describe 5-8 realistic multi-step workflows that a user might need:
+        - Each workflow should require 2-4 tool calls
+        - Include the specific tool sequence and what data flows between them
+        - Vary complexity from simple (2 tools) to complex (4+ tools)
+      </usage_patterns>
+    </server_understanding>
+
+    Begin your exploration now. Call tools, observe results, and build your understanding before producing the final summary.

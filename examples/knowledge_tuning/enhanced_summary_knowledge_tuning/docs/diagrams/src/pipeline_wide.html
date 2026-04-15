@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #FFFFFF;
+    color: #1a1a1a;
+    padding: 36px 36px 40px;
+    width: 1200px;
+  }
+
+  .row-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+    text-transform: uppercase; color: #999; margin-bottom: 8px;
+  }
+
+  .card {
+    border: 1px solid #E5E3DC;
+    border-radius: 10px;
+    padding: 14px 16px;
+    background: #fff;
+  }
+  .card-header {
+    font-size: 13px; font-weight: 600; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .card-body { font-size: 12.5px; line-height: 1.65; color: #444; }
+
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  .quote-line {
+    border-left: 2px solid #7F77DD;
+    padding: 1px 0 1px 9px;
+    margin: 3px 0;
+    font-size: 12px; color: #555;
+  }
+  .fact-line {
+    border-left: 2px solid #1D9E75;
+    padding: 1px 0 1px 9px;
+    margin: 2px 0;
+    font-size: 12px; color: #555;
+  }
+
+  .annot-row { display: flex; align-items: baseline; gap: 6px; margin: 3px 0; font-size: 11.5px; line-height: 1.5; }
+  .annot-label {
+    flex-shrink: 0; font-weight: 600; font-size: 10.5px; color: #534AB7;
+    text-transform: uppercase; letter-spacing: 0.03em; min-width: 72px;
+  }
+  .annot-val { color: #555; }
+
+  .qa-q { font-weight: 500; font-size: 12px; color: #333; margin-bottom: 2px; }
+  .qa-a { font-size: 12px; color: #555; line-height: 1.6; }
+
+  .verdict {
+    display: inline-block; font-size: 10.5px; font-weight: 600;
+    padding: 2px 8px; border-radius: 5px; letter-spacing: 0.02em;
+  }
+  .verdict.pass { background: #EAF3DE; color: #27500A; }
+  .verdict.fail { background: #FCEBEB; color: #791F1F; }
+  .verdict-row { display: flex; align-items: flex-start; gap: 7px; margin: 5px 0; }
+  .verdict-text { font-size: 12px; color: #555; line-height: 1.5; }
+
+  .connector-center {
+    display: flex; justify-content: center; padding: 4px 0;
+  }
+
+  .aug-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 0.7fr;
+    gap: 12px;
+    align-items: start;
+  }
+
+  .fan-label {
+    font-size: 10.5px; color: #999; text-align: center;
+    letter-spacing: 0.02em; padding: 2px 0;
+  }
+
+  .stage-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.03em;
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+  .stage-pill .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 50%;
+    font-size: 11px;
+  }
+</style>
+</head>
+<body>
+
+<!-- STAGE 1: Source Document -->
+<div class="stage-pill" style="color: #5F5E5A;"><span class="num" style="background:#F1EFE8;color:#444441;">1</span> Source</div>
+<div class="card" style="border-color: #D3D1C7; margin-bottom: 4px;">
+  <div class="card-header"><span class="dot" style="background:#888780;"></span> Input document</div>
+  <div class="card-body">
+    Coffee consumption worldwide has doubled in the past decade. Studies show moderate intake (3–4 cups daily) reduces the risk of type 2 diabetes by 25%. However, excessive consumption can cause anxiety and sleep disruption. Health organizations recommend limiting intake to 400 mg of caffeine per day.
+  </div>
+</div>
+
+<!-- Fan-out connector -->
+<div class="connector-center">
+  <svg width="900" height="30" viewBox="0 0 900 30">
+    <line x1="450" y1="0" x2="450" y2="10" stroke="#BFBDB5" stroke-width="1.2"/>
+    <line x1="150" y1="10" x2="750" y2="10" stroke="#BFBDB5" stroke-width="1.2"/>
+    <line x1="150" y1="10" x2="150" y2="30" stroke="#BFBDB5" stroke-width="1.2"/>
+    <line x1="450" y1="10" x2="450" y2="30" stroke="#BFBDB5" stroke-width="1.2"/>
+    <line x1="750" y1="10" x2="750" y2="30" stroke="#BFBDB5" stroke-width="1.2"/>
+    <polygon points="147,30 153,30 150,36" fill="#BFBDB5"/>
+    <polygon points="447,30 453,30 450,36" fill="#BFBDB5"/>
+    <polygon points="747,30 753,30 750,36" fill="#BFBDB5"/>
+  </svg>
+</div>
+
+<!-- STAGE 2: Augmentations -->
+<div class="stage-pill" style="color: #534AB7;"><span class="num" style="background:#EEEDFE;color:#3C3489;">2</span> Augment</div>
+<div class="aug-grid" style="margin-bottom: 4px;">
+
+  <div class="card" style="border-color: #CECBF6;">
+    <div class="card-header"><span class="dot" style="background:#7F77DD;"></span> Extractive summary</div>
+    <div class="card-body">
+      <div class="quote-line" style="margin-bottom: 6px;">"Moderate intake (3–4 cups) reduces diabetes risk by 25%. Excessive consumption causes anxiety and sleep disruption."</div>
+      <div class="annot-row"><span class="annot-label">Context</span> <span class="annot-val">Core benefit vs. counterweight.</span></div>
+      <div class="annot-row"><span class="annot-label">Relevance</span> <span class="annot-val">Very high — anchors the guideline.</span></div>
+      <div class="annot-row"><span class="annot-label">Relationship</span> <span class="annot-val">Motivates the 400 mg limit.</span></div>
+      <div style="font-size: 10.5px; color: #999; margin-top: 6px; border-top: 1px solid #eee; padding-top: 4px;">Every passage annotated this way.</div>
+    </div>
+  </div>
+
+  <div class="card" style="border-color: #CECBF6;">
+    <div class="card-header"><span class="dot" style="background:#7F77DD;"></span> Detailed summary</div>
+    <div class="card-body">
+      Examines coffee's health profile in three moves: rising consumption, mixed outcomes (lower diabetes risk vs. anxiety/sleep issues), and a resolving guideline of 400 mg/day. Core principle: dose-dependent risk.
+    </div>
+  </div>
+
+  <div class="card" style="border-color: #CECBF6;">
+    <div class="card-header"><span class="dot" style="background:#7F77DD;"></span> Atomic key facts</div>
+    <div class="card-body">
+      <div class="fact-line">Consumption doubled in the past decade.</div>
+      <div class="fact-line">3–4 cups/day reduces diabetes risk by 25%.</div>
+      <div class="fact-line">Excess causes anxiety, disrupts sleep.</div>
+      <div class="fact-line">Recommended limit: 400 mg caffeine/day.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Fan-in connector -->
+<div class="connector-center">
+  <svg width="900" height="30" viewBox="0 0 900 30">
+    <line x1="150" y1="0" x2="150" y2="14" stroke="#BFBDB5" stroke-width="1.2"/>
+    <line x1="450" y1="0" x2="450" y2="14" stroke="#BFBDB5" stroke-width="1.2"/>
+    <line x1="750" y1="0" x2="750" y2="14" stroke="#BFBDB5" stroke-width="1.2"/>
+    <line x1="150" y1="14" x2="750" y2="14" stroke="#BFBDB5" stroke-width="1.2"/>
+    <line x1="450" y1="14" x2="450" y2="30" stroke="#BFBDB5" stroke-width="1.2"/>
+    <polygon points="447,30 453,30 450,36" fill="#BFBDB5"/>
+  </svg>
+</div>
+
+<!-- STAGES 3-5: Bottom row -->
+<div class="stage-pill" style="color: #993C1D;"><span class="num" style="background:#FAECE7;color:#712B13;">3</span> Generate &nbsp;<span style="color:#ccc;">→</span>&nbsp; <span class="num" style="background:#FAECE7;color:#712B13;">4</span> Filter &nbsp;<span style="color:#ccc;">→</span>&nbsp; <span class="num" style="background:#EAF3DE;color:#27500A;">5</span> <span style="color:#3B6D11;">Output</span></div>
+
+<div class="bottom-grid">
+
+  <div class="card" style="border-color: #F5C4B3;">
+    <div class="card-header"><span class="dot" style="background:#D85A30;"></span> Q&A generation</div>
+    <div class="card-body">
+      <div class="qa-q">Q: Why set a specific caffeine limit rather than advising "moderate" intake?</div>
+      <div class="qa-a">A: Coffee has dose-dependent effects — beneficial at 3–4 cups but harmful beyond. 400 mg/day captures the crossover between benefit and harm.</div>
+    </div>
+  </div>
+
+  <div class="card" style="border-color: #F5C4B3;">
+    <div class="card-header"><span class="dot" style="background:#D85A30;"></span> Faithfulness filter</div>
+    <div class="card-body">
+      <div class="verdict-row">
+        <span class="verdict pass">PASS</span>
+        <span class="verdict-text">"400 mg/day", "25% diabetes risk", "anxiety" — all supported by source.</span>
+      </div>
+      <div class="verdict-row">
+        <span class="verdict fail">FAIL</span>
+        <span class="verdict-text">"Coffee prevents heart disease" — not in source. Discarded.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="border-color: #C0DD97;">
+    <div class="card-header"><span class="dot" style="background:#639922;"></span> Training data</div>
+    <div class="card-body">
+      Faithful pairs from all paths are mixed into the final set. Different views ensure variety in the training signal.
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

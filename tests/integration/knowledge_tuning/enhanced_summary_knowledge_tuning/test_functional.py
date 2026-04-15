@@ -82,9 +82,9 @@ def test_notebook_execution_and_output_validity(
         script_content = f.read()
 
     for flow_name in expected_flows:
-        assert (
-            flow_name in script_content
-        ), f"Expected flow not found in notebook: {flow_name}"
+        assert flow_name in script_content, (
+            f"Expected flow not found in notebook: {flow_name}"
+        )
 
     print(f"✓ Validated all {len(expected_flows)} required flows are present")
 
@@ -117,9 +117,9 @@ def test_notebook_execution_and_output_validity(
         # Verify file can be loaded as a dataset
         dataset = pd.read_json(str(output_file), lines=True)
         assert len(dataset) > 0, f"Dataset is empty: {output_file}"
-        assert (
-            len(dataset.columns.tolist()) > 0
-        ), f"Dataset has no columns: {output_file}"
+        assert len(dataset.columns.tolist()) > 0, (
+            f"Dataset has no columns: {output_file}"
+        )
 
         # Calculate statistics
         summary_type = output_file.parent.name

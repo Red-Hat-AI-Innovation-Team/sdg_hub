@@ -1,0 +1,38 @@
+# SDG Hub
+
+> A modular Python framework for building synthetic data generation pipelines using composable blocks and flows.
+
+## Getting Started
+
+- [Installation](https://red-hat-ai-innovation-team.github.io/sdg_hub/installation/index.md)
+- [Quick Start](https://red-hat-ai-innovation-team.github.io/sdg_hub/quickstart/index.md)
+- [Core Concepts](https://red-hat-ai-innovation-team.github.io/sdg_hub/concepts/index.md)
+
+## Blocks
+
+- [Overview](https://red-hat-ai-innovation-team.github.io/sdg_hub/blocks/index.md)
+- [LLM Blocks](https://red-hat-ai-innovation-team.github.io/sdg_hub/blocks/llm-blocks/index.md)
+- [Parsing Blocks](https://red-hat-ai-innovation-team.github.io/sdg_hub/blocks/parsing-blocks/index.md)
+- [Transform Blocks](https://red-hat-ai-innovation-team.github.io/sdg_hub/blocks/transform-blocks/index.md)
+- [Filtering Blocks](https://red-hat-ai-innovation-team.github.io/sdg_hub/blocks/filtering-blocks/index.md)
+- [Agent Blocks](https://red-hat-ai-innovation-team.github.io/sdg_hub/blocks/agent-blocks/index.md)
+- [Custom Blocks](https://red-hat-ai-innovation-team.github.io/sdg_hub/blocks/custom-blocks/index.md)
+
+## Flows
+
+- [Overview](https://red-hat-ai-innovation-team.github.io/sdg_hub/flows/index.md)
+- [YAML Reference](https://red-hat-ai-innovation-team.github.io/sdg_hub/flows/yaml-reference/index.md)
+- [Built-in Flows](https://red-hat-ai-innovation-team.github.io/sdg_hub/flows/built-in-flows/index.md)
+- [Custom Flows](https://red-hat-ai-innovation-team.github.io/sdg_hub/flows/custom-flows/index.md)
+
+## Connectors
+
+- [Overview](https://red-hat-ai-innovation-team.github.io/sdg_hub/connectors/index.md)
+
+## API Reference
+
+- [Overview](https://red-hat-ai-innovation-team.github.io/sdg_hub/reference/index.md)
+- [Blocks](https://red-hat-ai-innovation-team.github.io/sdg_hub/reference/blocks/index.md)
+- [Flow](https://red-hat-ai-innovation-team.github.io/sdg_hub/reference/flow/index.md)
+- [Connectors](https://red-hat-ai-innovation-team.github.io/sdg_hub/reference/connectors/index.md)
+

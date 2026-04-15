@@ -1,0 +1,173 @@
+metadata:
+  name: Red Teaming Prompt Generation Flow
+  description: Generates adversarial prompts for red-team testing across multiple harm categories. Uses multi-dimensional sampling (demographics, expertise, geography, etc.) to create diverse attack scenarios. Each input row is replicated and
+    sampled across configurable dimensions to produce varied prompt variations.
+  version: 1.0.0
+  author: Chatterbox Labs
+  recommended_models:
+    default: IlyaGusev/gemma-2-9b-it-abliterated
+  tags:
+  - red-team
+  - adversarial
+  - prompt-generation
+  - safety-testing
+  - security
+  license: Apache-2.0
+  dataset_requirements:
+    required_columns:
+    - policy_concept
+    - concept_definition
+    optional_columns:
+    - demographics_pool
+    - expertise_pool
+    - geography_pool
+    - language_styles_pool
+    - exploit_stages_pool
+    - task_medium_pool
+    - temporal_pool
+    - trust_signals_pool
+    description: Input dataset should contain policy concepts and their definitions for red-team testing. Pool columns (demographics_pool, expertise_pool, etc.) are optional - if a pool column is not present, that dimension will be omitted from prompt generation. Pool columns can be lists or weighted dicts that define the sampling space for each dimension.
+  id: major-sage-742
+blocks:
+- block_type: RowMultiplierBlock
+  block_config:
+    block_name: replicate_rows
+    num_samples: 10
+    shuffle: false
+- block_type: SamplerBlock
+  block_config:
+    block_name: sample_demographics
+    input_cols:
+    - demographics_pool
+    output_cols:
+    - demographic_group
+    num_samples: 1
+    return_scalar: true
+- block_type: SamplerBlock
+  block_config:
+    block_name: sample_expertise
+    input_cols:
+    - expertise_pool
+    output_cols:
+    - expertise_level
+    num_samples: 1
+    return_scalar: true
+- block_type: SamplerBlock
+  block_config:
+    block_name: sample_geography
+    input_cols:
+    - geography_pool
+    output_cols:
+    - region
+    num_samples: 1
+    return_scalar: true
+- block_type: SamplerBlock
+  block_config:
+    block_name: sample_language_style
+    input_cols:
+    - language_styles_pool
+    output_cols:
+    - lang_style
+    num_samples: 1
+    return_scalar: true
+- block_type: SamplerBlock
+  block_config:
+    block_name: sample_exploit_stage
+    input_cols:
+    - exploit_stages_pool
+    output_cols:
+    - exploit_stage
+    num_samples: 1
+    return_scalar: true
+- block_type: SamplerBlock
+  block_config:
+    block_name: sample_task_medium
+    input_cols:
+    - task_medium_pool
+    output_cols:
+    - medium
+    num_samples: 1
+    return_scalar: true
+- block_type: SamplerBlock
+  block_config:
+    block_name: sample_temporal
+    input_cols:
+    - temporal_pool
+    output_cols:
+    - temporal_context
+    num_samples: 1
+    return_scalar: true
+- block_type: SamplerBlock
+  block_config:
+    block_name: sample_trust_signal
+    input_cols:
+    - trust_signals_pool
+    output_cols:
+    - trust_signal
+    num_samples: 1
+    return_scalar: true
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: build_generation_prompt
+    input_cols:
+    - policy_concept
+    - concept_definition
+    - demographic_group
+    - expertise_level
+    - region
+    - lang_style
+    - exploit_stage
+    - medium
+    - temporal_context
+    - trust_signal
+    output_cols: generation_prompt
+    prompt_config_path: prompt_template.yaml
+- block_type: LLMChatBlock
+  block_config:
+    block_name: generate_adversarial_prompt
+    input_cols: generation_prompt
+    output_cols: raw_response
+    response_format:
+      type: json_schema
+      json_schema:
+        strict: false
+        name: prompts_response
+        schema:
+          type: object
+          properties:
+            prompt:
+              type: string
+              minLength: 100
+            why_prompt_harmful:
+              type: string
+            why_prompt_has_temporal_relevance:
+              type: string
+            why_prompt_fits_exploit_stage:
+              type: string
+            why_prompt_tailored_for_region:
+              type: string
+            why_prompt_targets_demographic:
+              type: string
+            why_prompt_exploits_trust:
+              type: string
+            why_prompt_contains_instruction_keyword:
+              type: string
+            why_prompt_has_style:
+              type: string
+            why_prompt_matches_expertise:
+              type: string
+          required:
+          - prompt
+    async_mode: true
+- block_type: LLMResponseExtractorBlock
+  block_config:
+    block_name: extract_response
+    input_cols: raw_response
+    extract_content: true
+    expand_lists: true
+- block_type: JSONParserBlock
+  block_config:
+    block_name: parse_json_response
+    input_cols:
+      - extract_response_content
+    drop_input: true

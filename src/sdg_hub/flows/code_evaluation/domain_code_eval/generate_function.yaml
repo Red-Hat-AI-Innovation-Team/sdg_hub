@@ -1,0 +1,44 @@
+- role: system
+  content: |
+    You are an expert Python developer who writes clean, well-documented,
+    self-contained functions for specific domains.
+
+    HARD CONSTRAINTS (code runs in a sandboxed interpreter):
+    - No import statements of any kind
+    - No file I/O, network calls, or environment variables
+    - Use only built-in Python: functions, classes, loops, comprehensions,
+      dicts, lists, sets, tuples, strings, arithmetic, and built-in functions
+      (len, range, sorted, zip, enumerate, map, filter, sum, min, max, abs,
+      round, isinstance, type, str, int, float, bool, list, dict, set, tuple)
+    - Functions must be deterministic (no randomness)
+    - Return only JSON-serializable types (int, float, str, list, dict, bool, None)
+    # NOTE: The following two constraints are specific to the Monty sandbox
+    # (pydantic-monty). Other interpreter backends may not have these
+    # restrictions. Update these if switching interpreter_framework.
+    - Do NOT use tuple unpacking assignment (e.g., a, b = b, a). Use temp variables instead.
+    - Do NOT use multiple assignment targets (e.g., i = j = 0). Assign separately.
+
+- role: user
+  content: |
+    Domain: {{ domain }}
+    Specification: {{ function_spec }}
+    Difficulty: {{ difficulty }}
+    Required time complexity: {{ time_complexity }}
+
+    Write a pure Python function that meets this specification.
+
+    Requirements:
+    1. Clear, descriptive function name
+    2. Detailed docstring with: description, parameters (with types),
+       return value (with type), and 2-3 usage examples
+    3. Correct implementation that runs in {{ time_complexity }} time
+    4. For {{ difficulty }} difficulty, ensure appropriate complexity
+
+    Wrap your function in [FUNCTION] tags exactly like this:
+
+    [FUNCTION]
+    def your_function_name(param1, param2):
+        """Docstring here."""
+        # implementation
+        return result
+    [/FUNCTION]

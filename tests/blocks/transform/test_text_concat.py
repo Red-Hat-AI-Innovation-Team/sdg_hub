@@ -2,9 +2,10 @@
 
 # Third Party
 # First Party
-from sdg_hub.core.blocks.transform import TextConcatBlock
 import pandas as pd
 import pytest
+
+from sdg_hub.core.blocks.transform import TextConcatBlock
 
 
 @pytest.fixture

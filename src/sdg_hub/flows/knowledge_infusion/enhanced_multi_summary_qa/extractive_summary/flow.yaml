@@ -31,7 +31,7 @@ metadata:
     description: 'Input dataset should contain documents with text content and domain classification. Each document should be substantial enough for meaningful question generation (minimum 100 words recommended). The flow generates three types
       of summaries: detailed (n=20), extractive (n=10), and key facts (n=50), each producing corresponding QA pairs designed to help LLMs internalize document knowledge for knowledge tuning.'
   output_columns:
-  - summary
+  - document
   - question
   - response
   - raw_document
@@ -188,7 +188,7 @@ blocks:
     input_cols: extract_eval_faithful_content
     output_cols: 
     - faithfulness_explanation
-    - faithfulness_judgement
+    - faithfulness_judgment
     start_tags:
     - '[Start of Explanation]'
     - '[Start of Answer]'
@@ -199,6 +199,6 @@ blocks:
   block_config:
     block_name: eval_faithful_filter
     input_cols:
-      - faithfulness_judgement
+      - faithfulness_judgment
     filter_value: 'YES'
     operation: eq

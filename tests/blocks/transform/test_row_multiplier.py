@@ -6,10 +6,11 @@ including row duplication, shuffling, and edge case handling.
 
 # Third Party
 # First Party
-from sdg_hub.core.blocks.transform import RowMultiplierBlock
-from sdg_hub.core.utils.error_handling import EmptyDatasetError
 import pandas as pd
 import pytest
+
+from sdg_hub.core.blocks.transform import RowMultiplierBlock
+from sdg_hub.core.utils.error_handling import EmptyDatasetError
 
 
 def test_basic_multiplication():

@@ -1,13 +1,13 @@
 # Standard
 import os
 
-# First Party
-from sdg_hub.core.blocks.llm import PromptBuilderBlock
-from sdg_hub.core.blocks.llm.prompt_builder_block import ChatMessage
-
 # Third Party
 import pandas as pd
 import pytest
+
+# First Party
+from sdg_hub.core.blocks.llm import PromptBuilderBlock
+from sdg_hub.core.blocks.llm.prompt_builder_block import ChatMessage
 
 # Get the absolute paths to test config files
 TEST_CONFIG_WITH_SYSTEM = os.path.join(
@@ -391,8 +391,8 @@ class TestPromptBuilderBlock:
         dataset = pd.DataFrame([{"text": "valid content"}])
 
         # Mock a template that will fail to render
-        block.prompt_renderer.message_templates[0].content_template.render = (
-            lambda x: ""
+        block.prompt_renderer.message_templates[0].content_template.render = lambda x: (
+            ""
         )  # Empty render
 
         result = block.generate(dataset)

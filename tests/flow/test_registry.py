@@ -5,12 +5,12 @@
 from pathlib import Path
 import tempfile
 
+# Third Party
+import yaml
+
 # First Party
 # Local
 from sdg_hub import FlowRegistry
-
-# Third Party
-import yaml
 
 
 class TestFlowRegistry:

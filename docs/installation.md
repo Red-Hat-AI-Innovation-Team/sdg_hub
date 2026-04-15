@@ -1,121 +1,167 @@
 # Installation
 
-SDG Hub requires Python 3.9+ and can be installed via pip or from source for development.
+SDG Hub requires **Python 3.10+** and can be installed from PyPI or from source for development.
 
-## 📦 Production Installation
+## Basic Installation
 
-### Basic Installation
+**pip:**
 
 ```bash
 pip install sdg-hub
 ```
 
-### With UV (Recommended)
+**uv (recommended):**
 
 ```bash
-# Install SDG Hub
 uv pip install sdg-hub
+```
 
-# Or create a new project with SDG Hub
+Or add it to an existing uv project:
+
+```bash
 uv init my-sdg-project
 cd my-sdg-project
 uv add sdg-hub
 ```
 
-## 🔧 Optional Dependencies
+## Optional Dependencies
 
-SDG Hub supports optional feature sets that can be installed as needed:
+SDG Hub defines several optional dependency groups for different use cases. Install them by appending the group name in brackets.
 
-### vLLM Support
-For high-performance local LLM inference:
+### examples
+
+Heavy dependencies for running example notebooks (document parsing, knowledge mixing, embeddings). Not required for core functionality.
+
+Includes: tabulate, transformers, langchain-text-splitters, docling, scikit-learn, polars, matplotlib, spacy, nltk, sentence-transformers, instructor, fastapi, ipykernel.
+
+**pip:**
 
 ```bash
-# With pip
-pip install sdg-hub[vllm]
-
-# With uv
-uv pip install sdg-hub[vllm]
+pip install sdg-hub[examples]
 ```
 
-### Examples Dependencies
-For running example notebooks and workflows:
+**uv:**
 
 ```bash
-# With pip
-pip install sdg-hub[examples]
-
-# With uv  
 uv pip install sdg-hub[examples]
 ```
 
-### All Optional Dependencies
-To install everything at once:
+### integration
+
+Minimal dependencies for integration testing.
+
+Includes: nest-asyncio.
+
+**pip:**
 
 ```bash
-# With pip
-pip install sdg-hub[vllm,examples]
-
-# With uv
-uv pip install sdg-hub[vllm,examples]
+pip install sdg-hub[integration]
 ```
 
-## 🛠️ Development Installation
-
-For contributing to SDG Hub or customizing the framework:
-
-### Clone and Install
+**uv:**
 
 ```bash
-# Clone the repository
+uv pip install sdg-hub[integration]
+```
+
+### docs
+
+Dependencies for building the documentation site.
+
+Includes: mkdocs-material, mkdocstrings, griffe-pydantic, mkdocs-llmstxt.
+
+**pip:**
+
+```bash
+pip install sdg-hub[docs]
+```
+
+**uv:**
+
+```bash
+uv pip install sdg-hub[docs]
+```
+
+### dev
+
+Development and testing tools. See [Development Setup](#development-setup) below.
+
+## Development Setup
+
+To contribute to SDG Hub or run tests locally:
+
+### 1. Clone and install
+
+```bash
 git clone https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
 cd sdg_hub
 
-# Install in development mode with all dependencies
+# Install with development dependencies
 uv pip install .[dev]
 
-# Alternative: use uv sync for lock file management
+# Alternative: use uv sync with the lock file
 uv sync --extra dev
 ```
 
-### Development Dependencies
+### 2. Install pre-commit hooks
 
-The `[dev]` extra includes:
-- Testing frameworks (pytest, tox)
-- Linting tools (pylint, ruff, mypy)
-- Documentation tools
-- Pre-commit hooks
-
-### Verify Installation
+This step is required. The hooks enforce formatting, linting, and conventional commit messages on every commit.
 
 ```bash
-# Run tests to verify everything works
-uv run pytest tests/
-
-# Check code quality
-make verify
-
-# Run a quick lint check
-tox -e fastlint
+uv run pre-commit install
+uv run pre-commit install --hook-type commit-msg
 ```
 
-## 🔍 Verification
+The pre-commit configuration runs:
 
-After installation, verify SDG Hub is working correctly:
+- **uv-lock** -- keeps `uv.lock` in sync with `pyproject.toml`
+- **ruff** -- linter with auto-fix
+- **ruff-format** -- code formatter
+- **conventional-pre-commit** -- enforces [Conventional Commits](https://www.conventionalcommits.org/) message format (prefixes: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`)
+
+### 3. Run tests
+
+```bash
+# Unit tests (excludes slow and integration tests)
+uv run pytest tests/blocks tests/connectors tests/flow tests/utils -m "not (examples or slow)"
+
+# With coverage
+uv run pytest --cov=sdg_hub --cov-report=term tests/blocks tests/connectors tests/flow tests/utils
+```
+
+### 4. Lint and format
+
+```bash
+# Lint with auto-fix
+uv run ruff check --fix src/ tests/
+
+# Format
+uv run ruff format src/ tests/
+
+# Type checking
+uv run mypy src/
+```
+
+### Dev extra contents
+
+The `dev` group includes: coverage, mypy, nbconvert, pre-commit, pytest, pytest-asyncio, pytest-cov, pytest-env, pytest-html, ruff.
+
+## Verify Installation
+
+After installing, confirm everything works:
 
 ```python
-# Test basic imports
-from sdg_hub.core.flow import FlowRegistry
-from sdg_hub.core.blocks import BlockRegistry
+from sdg_hub import FlowRegistry, BlockRegistry
 
 # Discover available components
 FlowRegistry.discover_flows()
 BlockRegistry.discover_blocks()
 
-print("✅ SDG Hub installed successfully!")
+# Check counts
 print(f"Available flows: {len(FlowRegistry.list_flows())}")
 print(f"Available blocks: {len(BlockRegistry.list_blocks())}")
 ```
 
-## 🚀 Next Steps
+## Next Steps
 
-Now that SDG Hub is installed, check out the [Quick Start Guide](quick-start.md) to build your first synthetic data pipeline!
+Once installed, head to the [Quick Start](quickstart.md) guide to build your first synthetic data pipeline.

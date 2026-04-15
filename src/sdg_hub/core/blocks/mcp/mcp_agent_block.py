@@ -2,7 +2,7 @@
 """MCP Agent Block for LLM agents with remote MCP tools."""
 
 # Standard
-from typing import Any, Optional
+from typing import Any, Optional, cast
 import asyncio
 import json
 
@@ -188,7 +188,7 @@ class MCPAgentBlock(BaseBlock):
             If required configuration is missing.
         """
         # input_cols is guaranteed to be list[str] by validator
-        input_col = self.input_cols[0]  # type: ignore[index]
+        input_col = cast(list[str], self.input_cols)[0]
         queries = samples[input_col].tolist()
 
         logger.info(
@@ -238,7 +238,7 @@ class MCPAgentBlock(BaseBlock):
 
         result = samples.copy()
         # output_cols is guaranteed to be list[str] by validator
-        output_col = self.output_cols[0]  # type: ignore[index]
+        output_col = cast(list[str], self.output_cols)[0]
         result[output_col] = responses
         return result
 

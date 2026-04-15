@@ -6,10 +6,11 @@ including column melting, value mapping, and edge case handling.
 
 # Third Party
 # First Party
-from sdg_hub.core.blocks.transform import MeltColumnsBlock
-from sdg_hub.core.utils.error_handling import MissingColumnError
 import pandas as pd
 import pytest
+
+from sdg_hub.core.blocks.transform import MeltColumnsBlock
+from sdg_hub.core.utils.error_handling import MissingColumnError
 
 
 def test_flatten_columns_basic():

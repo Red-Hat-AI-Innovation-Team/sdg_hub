@@ -9,11 +9,11 @@ absolute paths, relative paths, single directory searches, and multiple director
 import os
 import tempfile
 
-# First Party
-from sdg_hub.core.utils.path_resolution import resolve_path
-
 # Third Party
 import pytest
+
+# First Party
+from sdg_hub.core.utils.path_resolution import resolve_path
 
 
 class TestPathResolution:

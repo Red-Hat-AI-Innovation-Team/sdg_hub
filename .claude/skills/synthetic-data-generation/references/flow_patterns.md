@@ -1,12 +1,13 @@
 # Common Flow Patterns
 
-## Pattern 1: LLM Chain (Prompt → Generate → Parse)
+Reusable composition patterns for building flows. Each pattern includes the YAML and a test script.
 
-Most common pattern for LLM-based generation.
+## Pattern 1: LLM Chain (Prompt -> Generate -> Parse)
+
+The most common pattern. Build a prompt, call an LLM, parse the response.
 
 ```yaml
 blocks:
-  # Step 1: Build prompt from template
   - block_type: "PromptBuilderBlock"
     block_config:
       block_name: "build_prompt"
@@ -14,7 +15,6 @@ blocks:
       output_cols: "messages"
       prompt_config_path: "prompt.yaml"
 
-  # Step 2: Call LLM
   - block_type: "LLMChatBlock"
     block_config:
       block_name: "generate"
@@ -23,279 +23,244 @@ blocks:
       temperature: 0.7
       async_mode: true
 
-  # Step 3: Parse response
-  - block_type: "TextParserBlock"
+  - block_type: "TagParserBlock"
     block_config:
       block_name: "parse"
       input_cols: "raw_response"
-      output_cols: ["field1", "field2"]
-      pattern: "Field1:\\s*(.+?)\\s*Field2:\\s*(.+)"
-```
-
-**Test each step:**
-
-```python
-# play.py - Test chain step by step
-from sdg_hub import Flow
-import pandas as pd
-
-flow = Flow.from_yaml("flow.yaml")
-flow.set_model_config(model="openai/gpt-4", api_key="...")
-
-df = pd.DataFrame({"document": ["Test document"]})
-
-# Test with 1 sample
-result = flow.generate(df)
-print(result.columns)
-print(result[["document", "field1", "field2"]])
+      output_cols: ["question", "answer"]
+      start_tags: ["<question>", "<answer>"]
+      end_tags: ["</question>", "</answer>"]
 ```
 
 ---
 
 ## Pattern 2: Quality Filtering
 
-Generate → Evaluate → Filter low quality.
+Generate -> Evaluate -> Filter low quality.
 
 ```yaml
 blocks:
-  # Generate
+  # Generate content
   - block_type: "LLMChatBlock"
     block_config:
       block_name: "generate"
-      input_cols: "prompt"
+      input_cols: "messages"
       output_cols: "response"
 
   # Build evaluation prompt
   - block_type: "PromptBuilderBlock"
     block_config:
-      block_name: "build_eval_prompt"
+      block_name: "build_eval"
       input_cols: ["response"]
-      output_cols: "eval_prompt"
+      output_cols: "eval_messages"
       prompt_config_path: "eval_prompt.yaml"
 
-  # Evaluate quality
+  # Score quality (use temperature=0 for deterministic evaluation)
   - block_type: "LLMChatBlock"
     block_config:
       block_name: "evaluate"
-      input_cols: "eval_prompt"
+      input_cols: "eval_messages"
       output_cols: "eval_response"
-      temperature: 0.0   # Deterministic for evaluation
+      temperature: 0.0
 
   # Parse score
-  - block_type: "TextParserBlock"
+  - block_type: "RegexParserBlock"
     block_config:
       block_name: "parse_score"
       input_cols: "eval_response"
       output_cols: "score"
       pattern: "Score:\\s*(\\d+)"
 
-  # Filter low quality
+  # Keep only high quality (4-5)
   - block_type: "ColumnValueFilterBlock"
     block_config:
-      block_name: "filter_low_quality"
+      block_name: "filter"
       input_cols: "score"
-      filter_value: [4, 5]         # Keep only scores 4-5
+      filter_value: [4, 5]
       operation: "in"
       convert_dtype: "int"
-```
-
-**Evaluation prompt template:**
-
-```yaml
-# eval_prompt.yaml
-system: |
-  You evaluate response quality on a scale of 1-5.
-
-user: |
-  Response: {response}
-
-  Rate the quality (1=poor, 5=excellent).
-  Output: Score: <number>
 ```
 
 ---
 
 ## Pattern 3: Parallel Paths with Melt
 
-Process same input multiple ways, then combine.
+Process the same input multiple ways, then combine into rows.
 
 ```yaml
 blocks:
-  # Duplicate source for parallel processing
+  # Keep original for reference
   - block_type: "DuplicateColumnsBlock"
     block_config:
-      block_name: "duplicate"
+      block_name: "dup"
       input_cols: "document"
       output_cols: "base_document"
 
   # Path A: Detailed summary
   - block_type: "PromptBuilderBlock"
     block_config:
-      block_name: "build_detailed_prompt"
+      block_name: "prompt_detailed"
       input_cols:
         document: base_document
-      output_cols: "detailed_prompt"
-      prompt_config_path: "detailed_summary.yaml"
+      output_cols: "detailed_msgs"
+      prompt_config_path: "detailed.yaml"
 
   - block_type: "LLMChatBlock"
     block_config:
-      block_name: "generate_detailed"
-      input_cols: "detailed_prompt"
+      block_name: "gen_detailed"
+      input_cols: "detailed_msgs"
       output_cols: "detailed_summary"
 
   # Path B: Brief summary
   - block_type: "PromptBuilderBlock"
     block_config:
-      block_name: "build_brief_prompt"
+      block_name: "prompt_brief"
       input_cols:
         document: base_document
-      output_cols: "brief_prompt"
-      prompt_config_path: "brief_summary.yaml"
+      output_cols: "brief_msgs"
+      prompt_config_path: "brief.yaml"
 
   - block_type: "LLMChatBlock"
     block_config:
-      block_name: "generate_brief"
-      input_cols: "brief_prompt"
+      block_name: "gen_brief"
+      input_cols: "brief_msgs"
       output_cols: "brief_summary"
 
-  # Combine: Melt both summaries into rows
+  # Combine: each doc becomes 2 rows
   - block_type: "MeltColumnsBlock"
     block_config:
-      block_name: "melt_summaries"
-      input_cols:
-        - "detailed_summary"
-        - "brief_summary"
+      block_name: "melt"
+      input_cols: ["detailed_summary", "brief_summary"]
       output_cols: "summary"
-      id_vars:
-        - "base_document"
-```
-
-**Result:** Each document becomes 2 rows (one per summary type).
-
----
-
-## Pattern 4: Column Renaming Pipeline
-
-Rename columns for clean output.
-
-```yaml
-blocks:
-  # ... processing blocks ...
-
-  # Final rename for output
-  - block_type: "RenameColumnsBlock"
-    block_config:
-      block_name: "rename_output"
-      input_cols:
-        question: generated_question
-        answer: generated_answer
-        context: source_document
+      id_vars: ["base_document"]
 ```
 
 ---
 
-## Pattern 5: Multi-Step Extraction
+## Pattern 4: Multi-Step Extraction
 
-Extract structured data in multiple passes.
+Extract structured data in multiple LLM passes, where later passes use earlier results.
 
 ```yaml
 blocks:
-  # First pass: Extract entities
+  # Pass 1: Extract entities
   - block_type: "PromptBuilderBlock"
     block_config:
-      block_name: "build_entity_prompt"
+      block_name: "entity_prompt"
       input_cols: ["text"]
-      output_cols: "entity_prompt"
+      output_cols: "entity_msgs"
       prompt_config_path: "extract_entities.yaml"
 
   - block_type: "LLMChatBlock"
     block_config:
       block_name: "extract_entities"
-      input_cols: "entity_prompt"
+      input_cols: "entity_msgs"
       output_cols: "entities_raw"
 
-  - block_type: "LLMParserBlock"
+  - block_type: "JSONParserBlock"
     block_config:
       block_name: "parse_entities"
       input_cols: "entities_raw"
-      field_prefix: "entity_"
-      extract_content: true
+      output_cols: ["entity_names", "entity_types"]
 
-  # Second pass: Extract relationships using entities
+  # Pass 2: Extract relationships using entities from pass 1
   - block_type: "PromptBuilderBlock"
     block_config:
-      block_name: "build_relation_prompt"
-      input_cols: ["text", "entity_names"]   # Use extracted entities
-      output_cols: "relation_prompt"
+      block_name: "relation_prompt"
+      input_cols: ["text", "entity_names"]
+      output_cols: "relation_msgs"
       prompt_config_path: "extract_relations.yaml"
 
   - block_type: "LLMChatBlock"
     block_config:
       block_name: "extract_relations"
-      input_cols: "relation_prompt"
+      input_cols: "relation_msgs"
       output_cols: "relations_raw"
 ```
 
 ---
 
-## Pattern 6: Conditional Processing
+## Pattern 5: Agent Integration
 
-Use filtering to create conditional branches.
+Use an external agent framework as a pipeline step.
 
 ```yaml
 blocks:
-  # Classify first
-  - block_type: "LLMChatBlock"
+  # Prepare input for agent
+  - block_type: "PromptBuilderBlock"
     block_config:
-      block_name: "classify"
-      input_cols: "classify_prompt"
-      output_cols: "category"
+      block_name: "build_query"
+      input_cols: ["topic"]
+      output_cols: "question"
+      prompt_config_path: "query_template.yaml"
 
-  # Filter for specific category
-  - block_type: "ColumnValueFilterBlock"
+  # Call agent framework
+  - block_type: "AgentBlock"
     block_config:
-      block_name: "filter_category_a"
-      input_cols: "category"
-      filter_value: ["category_a"]
-      operation: "eq"
+      block_name: "agent_call"
+      input_cols: ["question"]
+      output_cols: ["agent_response"]
+      # agent_framework, agent_url set via flow.set_agent_config()
+      extract_response: true
 
-  # Process only category_a items
-  - block_type: "LLMChatBlock"
+  # Extract structured data from agent response
+  - block_type: "AgentResponseExtractorBlock"
     block_config:
-      block_name: "process_category_a"
-      input_cols: "process_prompt"
-      output_cols: "result"
+      block_name: "extract"
+      input_cols: "agent_response"
+      output_cols: ["text_content", "tool_trace"]
+      extract_tool_trace: true
 ```
-
-**Note:** This filters out other categories. For true branching, use separate flows or Python logic.
 
 ---
 
-## Testing Patterns
+## Pattern 6: MCP Tool-Use Distillation
+
+Generate training data from MCP tool interactions.
+
+```yaml
+blocks:
+  # Build task prompts
+  - block_type: "PromptBuilderBlock"
+    block_config:
+      block_name: "build_task"
+      input_cols: ["task_description"]
+      output_cols: "messages"
+      prompt_config_path: "task_prompt.yaml"
+
+  # LLM explores MCP tools in agentic loop
+  - block_type: "MCPAgentBlock"
+    block_config:
+      block_name: "mcp_explore"
+      input_cols: "messages"
+      output_cols: "agent_trace"
+      mcp_server_url: "http://localhost:3000/mcp"
+      max_iterations: 10
+```
+
+---
+
+## Testing Any Pattern
 
 ```python
-# play.py - Test any pattern
-import pandas as pd
+# play.py
 from sdg_hub import Flow
+import pandas as pd
 
 flow = Flow.from_yaml("flow.yaml")
-flow.set_model_config(model="openai/gpt-4", api_key="...")
+flow.set_model_config(model="openai/gpt-4o-mini", api_key="sk-...")
 
-# Small test data
-df = pd.DataFrame({
-    "document": ["Test document 1", "Test document 2"]
-})
+df = pd.DataFrame({"document": ["Test document"]})
 
-# Always dry run first
+# Dry run -- check block-by-block execution
 dry = flow.dry_run(df, sample_size=2)
 print(f"Success: {dry['execution_successful']}")
-
 for b in dry['blocks_executed']:
-    print(f"  {b['block_name']}: {b['input_rows']} -> {b['output_rows']} rows")
+    print(f"  {b['block_name']}: {b['input_rows']} -> {b['output_rows']} rows, {b['execution_time_seconds']:.2f}s")
 
 # Full run if successful
 if dry['execution_successful']:
     result = flow.generate(df)
-    print("\nOutput columns:", list(result.columns))
+    print("Output columns:", list(result.columns))
     print(result.head())
 ```

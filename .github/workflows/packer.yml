@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: "Harden Runner"
-        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
         with:
           egress-policy: audit
 
@@ -29,14 +29,14 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37
         with:
           role-to-assume: arn:aws:iam::851725220677:role/github-actions-packer-role
           aws-region: us-east-2
           role-session-name: github-actions-packer  # For tracking in CloudTrail
 
       - name: Setup Packer
-        uses: hashicorp/setup-packer@1aa358be5cf73883762b302a3a03abd66e75b232
+        uses: hashicorp/setup-packer@c3d53c525d422944e50ee27b840746d6522b08de
 
       - name: Build and create AMI
         run: |
