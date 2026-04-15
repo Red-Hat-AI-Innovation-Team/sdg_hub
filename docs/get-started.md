@@ -5,105 +5,75 @@ description: Start generating synthetic data in under 2 minutes with Claude Code
 
 # Get Started
 
-Generate synthetic data in minutes using Claude Code and sdg_hub. This guide walks you through a two-command setup that installs everything you need and launches an interactive AI-assisted data generation session.
+Three commands. That's all it takes to go from zero to generating synthetic data.
 
 ## Prerequisites
 
-Before you begin, make sure you have:
+- [Python 3.10+](https://www.python.org/downloads/)
+- [Claude Code](https://claude.ai/code) (`npm install -g @anthropic-ai/claude-code`)
+- An LLM API key (OpenAI, Anthropic, or [any LiteLLM-supported provider](https://docs.litellm.ai/docs/providers))
 
-- **Python 3.10+** installed ([python.org](https://www.python.org/downloads/))
-- **An LLM API key** from any supported provider (OpenAI, Anthropic, Google, Azure, Together, Groq, or a local model via vLLM/Ollama)
-- **Claude Code** installed ([claude.ai/code](https://claude.ai/code)):
+## Step 1: Set your API key
 
-```bash
-npm install -g @anthropic-ai/claude-code
-```
-
-## Step 1: Bootstrap your environment
-
-Run this single command to install sdg_hub, download the Claude Code skill, and set up your workspace:
+Export the key for the LLM provider you want to use:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Red-Hat-AI-Innovation-Team/sdg_hub/main/scripts/bootstrap.sh \
-  | claude --dangerously-skip-permissions
+export OPENAI_API_KEY="sk-..."
 ```
 
-This command:
+<details>
+<summary>Using a different provider?</summary>
 
-1. Checks that Python 3.10+ is available
-2. Installs `sdg-hub` via `uv` (or `pip` as fallback)
-3. Downloads the synthetic data generation skill for Claude Code
-4. Creates a workspace with a `data/` directory for your input files
-5. Verifies the installation
+```bash
+# Anthropic
+export ANTHROPIC_API_KEY="sk-ant-..."
 
-## Step 2: Start generating data
+# Together AI
+export TOGETHER_API_KEY="..."
 
-Place your input documents in the `data/` directory, then launch Claude:
+# Groq
+export GROQ_API_KEY="..."
+
+# Local model (vLLM / Ollama) -- no key needed
+```
+
+</details>
+
+## Step 2: Bootstrap your workspace
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Red-Hat-AI-Innovation-Team/sdg_hub/main/scripts/bootstrap.sh | bash
+```
+
+This installs `sdg-hub`, downloads the Claude Code skill, and creates a `data/` directory for your input files.
+
+## Step 3: Generate data
 
 ```bash
 claude
 ```
 
-Describe what you need in plain language. Claude will select the right pipeline, configure it, validate your data, and run generation:
+Then tell Claude what you need:
 
-```
+```text
 > Generate question-answer pairs from the documents in ./data/
 ```
 
-```
-> Create a red-team evaluation dataset for my chatbot
-```
+Claude will pick the right pipeline, configure it, validate your data, run a dry-run, and produce results -- all from that single prompt. Drop your source files (CSV, JSON, TXT, PDF) into `data/` beforehand and you're set.
 
-```
-> Build a RAG evaluation dataset using my knowledge base
-```
+## Example prompts to try
 
-```
-> Extract structured insights from the text files in ./data/
-```
+| What you type | What happens |
+|---------------|-------------|
+| *"Generate QA pairs from the documents in ./data/"* | Runs a knowledge-infusion pipeline on your documents |
+| *"Create a red-team evaluation dataset for my chatbot"* | Generates adversarial prompts across harm categories |
+| *"Build a RAG evaluation dataset using my knowledge base"* | Produces question-context-answer triples for RAG eval |
+| *"Extract structured insights from my text corpus"* | Pulls summaries, keywords, entities, and sentiment |
 
-## What happens next
+## Want more control?
 
-When you describe your data generation task, Claude will:
-
-1. **Scan your workspace** for input data files (CSV, JSON, Parquet, TXT, PDF)
-2. **Recommend a pipeline** from 13+ pre-built flows or help you create a custom one
-3. **Configure the LLM** by checking your environment for API keys or asking which provider to use
-4. **Validate your data** against the pipeline's requirements
-5. **Run a dry run** with a small sample to verify everything works
-6. **Generate your dataset** with checkpointing for large runs
-7. **Save the results** in your preferred format (Parquet, CSV, JSONL)
-
-## Available pipelines
-
-sdg_hub includes pre-built flows for common data generation tasks:
-
-| Category | Pipelines |
-|----------|-----------|
-| **Knowledge Infusion** | QA pair generation from documents (English, Spanish, Japanese) with multiple summarization strategies |
-| **Text Analysis** | Structured insights extraction (summaries, keywords, entities, sentiment) |
-| **Red Teaming** | Adversarial prompt generation across harm categories |
-| **Evaluation** | RAG evaluation datasets, agent tool-use benchmarks |
-| **Agentic** | MCP server distillation for tool-use training data |
-
-## Supported LLM providers
-
-sdg_hub uses LiteLLM and supports 100+ model providers out of the box. Set your API key as an environment variable and it will be detected automatically:
-
-```bash
-# Use any of these (or many more)
-export OPENAI_API_KEY="sk-..."
-export ANTHROPIC_API_KEY="sk-ant-..."
-export TOGETHER_API_KEY="..."
-export GROQ_API_KEY="..."
-```
-
-Local models via vLLM or Ollama are also supported. See the [installation guide](/docs/installation) for details.
-
-## Manual setup
-
-If you prefer to set things up manually without Claude Code, follow these guides:
+If you prefer to write Python directly or author custom YAML pipelines, skip Claude Code and head to:
 
 - [Installation](/docs/installation) -- Install sdg_hub and optional dependencies
-- [Quick Start](/docs/quickstart) -- Step-by-step tutorial using the Python API
-- [Core Concepts](/docs/concepts) -- Understanding blocks, flows, and registries
+- [Quick Start](/docs/quickstart) -- Hands-on tutorial using the Python API
+- [Core Concepts](/docs/concepts) -- Blocks, flows, and registries explained
