@@ -225,6 +225,10 @@ class FlowMetadata(BaseModel):
         License identifier.
     dataset_requirements : Optional[DatasetRequirements]
         Requirements for input datasets.
+    output_columns : Optional[list[str]]
+        Columns to keep in the final output. When set, intermediate columns are
+        dropped both during and after execution. Original input columns are always
+        preserved. Must be non-empty if specified; omit to keep all columns.
     """
 
     name: str = Field(..., min_length=1, description="Human-readable name")
@@ -247,6 +251,10 @@ class FlowMetadata(BaseModel):
     license: str = Field(default="Apache-2.0", description="License identifier")
     dataset_requirements: Optional[DatasetRequirements] = Field(
         default=None, description="Requirements for input datasets"
+    )
+    output_columns: Optional[list[str]] = Field(
+        default=None,
+        description="Columns to keep in the final output. Original input columns are always preserved.",
     )
 
     @field_validator("id")
@@ -279,6 +287,22 @@ class FlowMetadata(BaseModel):
     def validate_tags(cls, v: list[str]) -> list[str]:
         """Validate and clean tags."""
         return [tag.strip().lower() for tag in v if tag.strip()]
+
+    @field_validator("output_columns")
+    @classmethod
+    def validate_output_columns(cls, v: Optional[list[str]]) -> Optional[list[str]]:
+        """Validate and clean output columns."""
+        if v is None:
+            return v
+        cleaned = [col.strip() for col in v if isinstance(col, str) and col.strip()]
+        if not cleaned:
+            raise ValueError(
+                "output_columns must not be empty when specified. "
+                "Remove the field entirely to keep all columns."
+            )
+        if len(cleaned) != len(set(cleaned)):
+            raise ValueError("output_columns contains duplicate column names")
+        return cleaned
 
     @field_validator("recommended_models")
     @classmethod

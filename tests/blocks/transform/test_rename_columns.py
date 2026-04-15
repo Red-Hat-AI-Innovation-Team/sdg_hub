@@ -2,9 +2,10 @@
 
 # Third Party
 # First Party
-from sdg_hub.core.blocks.transform.rename_columns import RenameColumnsBlock
 import pandas as pd
 import pytest
+
+from sdg_hub.core.blocks.transform.rename_columns import RenameColumnsBlock
 
 
 def test_rename_columns_basic():

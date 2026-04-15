@@ -3,9 +3,10 @@
 
 # Third Party
 # First Party
-from sdg_hub.core.blocks.parsing import JSONParserBlock
 import pandas as pd
 import pytest
+
+from sdg_hub.core.blocks.parsing import JSONParserBlock
 
 
 def test_basic_json_parsing():

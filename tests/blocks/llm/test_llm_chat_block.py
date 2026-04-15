@@ -4,13 +4,13 @@
 # Standard
 from unittest.mock import MagicMock, patch
 
-# First Party
-from sdg_hub.core.blocks.llm import LLMChatBlock
-from sdg_hub.core.utils.error_handling import BlockValidationError
-
 # Third Party
 import pandas as pd
 import pytest
+
+# First Party
+from sdg_hub.core.blocks.llm import LLMChatBlock
+from sdg_hub.core.utils.error_handling import BlockValidationError
 
 
 class MockMessage:

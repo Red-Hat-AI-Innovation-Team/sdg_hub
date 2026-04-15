@@ -31,7 +31,7 @@ metadata:
   output_columns:
   - question
   - response
-  - raw_document
+  - document
   - faithfulness_explanation
   - faithfulness_judgment
   id: stellar-peak-605

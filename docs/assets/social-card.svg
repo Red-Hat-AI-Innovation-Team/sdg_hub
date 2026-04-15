@@ -1,0 +1,9 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#0f0f12"/>
+  <line x1="400" y1="240" x2="800" y2="240" stroke="#505058" stroke-width="4" stroke-linecap="round" stroke-dasharray="8 6"/>
+  <rect x="432" y="200" width="80" height="80" rx="12" fill="#e8975d"/>
+  <rect x="560" y="200" width="80" height="80" rx="12" fill="#7daa8c"/>
+  <rect x="688" y="200" width="80" height="80" rx="12" fill="#8097c4"/>
+  <text x="600" y="360" text-anchor="middle" fill="#ffffff" font-family="system-ui, -apple-system, sans-serif" font-size="56" font-weight="700" letter-spacing="-1">sdg hub</text>
+  <text x="600" y="410" text-anchor="middle" fill="#808088" font-family="system-ui, -apple-system, sans-serif" font-size="22">Composable blocks and flows for synthetic data generation</text>
+</svg>

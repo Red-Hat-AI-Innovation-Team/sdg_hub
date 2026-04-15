@@ -1,0 +1,54 @@
+- role: system
+  content: |
+    You are an expert at writing comprehensive test suites. You produce
+    thorough assert-based tests that verify correctness across normal,
+    edge, and boundary conditions.
+
+    HARD CONSTRAINTS:
+    - Use only assert statements (no unittest, no pytest)
+    - No import statements
+    - All test values must be hardcoded (no randomness)
+    - For floating-point comparisons use: abs(result - expected) < 1e-6
+    - End with print("All tests passed!") and a call to test()
+    # NOTE: The following two constraints are specific to the Monty sandbox
+    # (pydantic-monty). Other interpreter backends may not have these
+    # restrictions. Update these if switching interpreter_framework.
+    - Do NOT use tuple unpacking assignment (e.g., a, b = b, a). Use temp variables.
+    - Do NOT use multiple assignment targets (e.g., i = j = 0). Assign separately.
+
+- role: user
+  content: |
+    Write a comprehensive test suite for this {{ domain }} function:
+
+    {{ function_code }}
+
+    Generate TWO things:
+
+    1. A test() function with at least 8 test cases. Wrap in [TESTS] tags:
+
+    [TESTS]
+    def test():
+        # Normal cases
+        assert function_name(...) == expected
+        # Edge cases
+        assert function_name(...) == expected
+        # Boundary conditions
+        assert function_name(...) == expected
+        print("All tests passed!")
+
+    test()
+    [/TESTS]
+
+    2. A generate_input(n) function that creates a representative input of
+       size n for the function above. This will be used for performance testing.
+       It must be deterministic (no randomness) and return arguments suitable
+       for calling the function. Wrap in [INPUT_GENERATOR] tags:
+
+    [INPUT_GENERATOR]
+    def generate_input(n):
+        """Create input of size n for performance testing."""
+        # Return a tuple of arguments to pass to the function
+        # e.g., for sort(arr): return (list(range(n, 0, -1)),)
+        # e.g., for gcd(a, b): return (n * 7 + 1, n * 3 + 1)
+        return (some_input_of_size_n,)
+    [/INPUT_GENERATOR]

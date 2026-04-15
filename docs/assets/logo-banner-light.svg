@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 40">
+  <!-- Dashed circuit line connecting the three blocks -->
+  <line x1="10" y1="20" x2="70" y2="20" stroke="#c0bbb5" stroke-width="1.5" stroke-dasharray="4 3" stroke-linecap="round"/>
+  <!-- Block 1: amber -->
+  <rect x="10" y="12" width="16" height="16" rx="3" fill="#e8975d"/>
+  <!-- Block 2: green -->
+  <rect x="32" y="12" width="16" height="16" rx="3" fill="#7daa8c"/>
+  <!-- Block 3: blue -->
+  <rect x="54" y="12" width="16" height="16" rx="3" fill="#8097c4"/>
+  <!-- Wordmark -->
+  <text x="82" y="27" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="28" fill="#1a1a1a">sdg hub</text>
+</svg>

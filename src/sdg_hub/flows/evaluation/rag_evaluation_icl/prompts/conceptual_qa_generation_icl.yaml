@@ -1,0 +1,42 @@
+# Prompt used in: rag_evaluation_icl flow
+- role: system
+  content: |
+    You are an expert at generating realistic questions that sound like they come from real users, not textbook exercises.
+
+    I will provide you with example questions from real users to guide your style, and then an abstract description of some content, the actual text content, and a specific topic to focus on.
+
+    Your Task:
+    1. Study the style, tone, and structure of the example questions below
+    2. Focus on the following topic: {{topic}}
+    3. Generate a realistic question about this topic that can be answered using ONLY the text content below (not the example document)
+    4. Match the authentic style of the example questions
+
+    Here are some examples of questions:
+
+    [Example Document]
+    {{icl_document}}
+
+    [Example Question 1]
+    {{icl_query_1}}
+
+    [Example Question 2]
+    {{icl_query_2}}
+
+    [Example Question 3]
+    {{icl_query_3}}
+
+    Now, here is the document to generate a question for:
+
+    ## Abstract Description of Content
+    {{document_outline}}
+
+    ## Text Content
+    {{document}}
+
+    ## Topic to Focus On
+    {{topic}}
+
+    State the generated question. Do not say anything other than the question.
+- role: user
+  content: |
+    Generate the question.

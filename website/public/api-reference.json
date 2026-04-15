@@ -1,0 +1,4620 @@
+{
+  "blocks": {
+    "base": [
+      {
+        "name": "BaseBlock",
+        "module": "sdg_hub.core.blocks.base",
+        "import_path": "from sdg_hub.core.blocks import BaseBlock",
+        "docstring": "Base class for all blocks, with standardized patterns and full Pydantic compatibility.\n\nThis class defines a unified, configurable base for building composable data processing blocks\nthat operate over pandas DataFrames. It supports field-based initialization, validation,\nand rich logging for inputs and outputs.\n\nAttributes\n----------\nblock_name : str\n    Unique identifier for this block instance.\ninput_cols : Union[List[str], Dict[str, Any]]\n    Input columns from the DataFrame (string, list of strings, or mapping).\noutput_cols : Union[List[str], Dict[str, Any]]\n    Output columns to write to the DataFrame (string, list of strings, or mapping).",
+        "bases": [
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "Union[str, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Block type (e.g., 'llm', 'transform', 'parser', 'filtering')"
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          }
+        ],
+        "methods": [
+          {
+            "name": "from_config",
+            "signature": "(cls, config: dict[str, typing.Any]) -> 'BaseBlock'",
+            "docstring": "Instantiate block from serialized config.\n\nParameters\n----------\nconfig : Dict[str, Any]\n\nReturns\n-------\nBaseBlock",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "config",
+                "type": "dict[str, typing.Any]"
+              }
+            ],
+            "return_type": "BaseBlock"
+          },
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Subclass method to implement data generation logic.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input DataFrame to process.\n\nReturns\n-------\npd.DataFrame\n    Transformed DataFrame with new columns or values.",
+            "abstract": true,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "get_config",
+            "signature": "(self) -> dict[str, typing.Any]",
+            "docstring": "Return only constructor arguments for serialization.\n\nReturns\n-------\nDict[str, Any]",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "dict[str, typing.Any]"
+          },
+          {
+            "name": "get_info",
+            "signature": "(self) -> dict[str, typing.Any]",
+            "docstring": "Return a high-level summary of block metadata and config.\n\nReturns\n-------\nDict[str, Any]",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "dict[str, typing.Any]"
+          },
+          {
+            "name": "normalize_input_cols",
+            "signature": "(cls, v: str | list[str] | dict[str, typing.Any] | None) -> list[str] | dict[str, typing.Any]",
+            "docstring": "",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v",
+                "type": "str | list[str] | dict[str, typing.Any] | None"
+              }
+            ],
+            "return_type": "list[str] | dict[str, typing.Any]"
+          },
+          {
+            "name": "normalize_output_cols",
+            "signature": "(cls, v: str | list[str] | dict[str, typing.Any] | None) -> list[str] | dict[str, typing.Any]",
+            "docstring": "",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v",
+                "type": "str | list[str] | dict[str, typing.Any] | None"
+              }
+            ],
+            "return_type": "list[str] | dict[str, typing.Any]"
+          }
+        ]
+      }
+    ],
+    "registry": [
+      {
+        "name": "BlockRegistry",
+        "module": "sdg_hub.core.blocks.registry",
+        "import_path": "from sdg_hub.core.blocks import BlockRegistry",
+        "docstring": "Registry for block classes with metadata and enhanced error handling.",
+        "bases": [],
+        "fields": [],
+        "methods": [
+          {
+            "name": "categories",
+            "signature": "(cls) -> list[str]",
+            "docstring": "Get all available categories.\n\nReturns\n-------\nList[str]\n    Sorted list of categories.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "list[str]"
+          },
+          {
+            "name": "discover_blocks",
+            "signature": "(cls) -> None",
+            "docstring": "Print a Rich-formatted table of all available blocks.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": ""
+          },
+          {
+            "name": "list_blocks",
+            "signature": "(cls, category: Optional[str] = None, *, grouped: bool = False, include_deprecated: bool = True) -> list[str] | dict[str, list[str]]",
+            "docstring": "List registered blocks, optionally filtered by category.\n\nArgs:\n    category: If provided, return only blocks in this category.\n    grouped: If True (and category is None), return a dict\n            mapping categories to lists of blocks.\n    include_deprecated: If True, return deprecated blocks.\n\nReturns\n-------\nList[str] | Dict[str, List[str]]\n    If grouped is False, returns a list of block names.\n    If grouped is True, returns a dict mapping categories to lists of block names.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "category",
+                "type": "Union[str, NoneType]",
+                "default": null
+              },
+              {
+                "name": "grouped",
+                "type": "bool",
+                "default": false
+              },
+              {
+                "name": "include_deprecated",
+                "type": "bool",
+                "default": true
+              }
+            ],
+            "return_type": "list[str] | dict[str, list[str]]"
+          },
+          {
+            "name": "register",
+            "signature": "(cls, block_name: str, category: str, description: str = '', deprecated: bool = False, replacement: Optional[str] = None)",
+            "docstring": "Register a block class with metadata.\n\nParameters\n----------\nblock_name : str\n    Name under which to register the block.\ncategory : str\n    Category for organization.\ndescription : str, optional\n    Human-readable description of the block.\ndeprecated : bool, optional\n    Whether this block is deprecated.\nreplacement : str, optional\n    Suggested replacement if deprecated.\n\nReturns\n-------\ncallable\n    Decorator function.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "block_name",
+                "type": "str"
+              },
+              {
+                "name": "category",
+                "type": "str"
+              },
+              {
+                "name": "description",
+                "type": "str",
+                "default": ""
+              },
+              {
+                "name": "deprecated",
+                "type": "bool",
+                "default": false
+              },
+              {
+                "name": "replacement",
+                "type": "Union[str, NoneType]",
+                "default": null
+              }
+            ],
+            "return_type": ""
+          }
+        ]
+      },
+      {
+        "name": "BlockMetadata",
+        "module": "sdg_hub.core.blocks.registry",
+        "import_path": "from sdg_hub.core.blocks.registry import BlockMetadata",
+        "docstring": "Metadata for registered blocks.\n\nParameters\n----------\nname : str\n    The registered name of the block.\nblock_class : Type\n    The actual block class.\ncategory : str\n    Category for organization (e.g., 'llm', 'utility', 'filtering').\ndescription : str, optional\n    Human-readable description of what the block does.\ndeprecated : bool, optional\n    Whether this block is deprecated.\nreplacement : str, optional\n    Suggested replacement if deprecated.",
+        "bases": [],
+        "fields": [
+          {
+            "name": "name",
+            "type": "str",
+            "required": true,
+            "description": "",
+            "default": null
+          },
+          {
+            "name": "block_class",
+            "type": "type",
+            "required": true,
+            "description": "",
+            "default": null
+          },
+          {
+            "name": "category",
+            "type": "str",
+            "required": true,
+            "description": "",
+            "default": null
+          },
+          {
+            "name": "description",
+            "type": "str",
+            "required": false,
+            "description": "",
+            "default": ""
+          },
+          {
+            "name": "deprecated",
+            "type": "bool",
+            "required": false,
+            "description": "",
+            "default": false
+          },
+          {
+            "name": "replacement",
+            "type": "Union[str, NoneType]",
+            "required": false,
+            "description": "",
+            "default": null
+          }
+        ],
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, name: str, block_class: type, category: str, description: str = '', deprecated: bool = False, replacement: Optional[str] = None) -> None",
+            "docstring": "Initialize self.  See help(type(self)) for accurate signature.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "name",
+                "type": "str"
+              },
+              {
+                "name": "block_class",
+                "type": "type"
+              },
+              {
+                "name": "category",
+                "type": "str"
+              },
+              {
+                "name": "description",
+                "type": "str",
+                "default": ""
+              },
+              {
+                "name": "deprecated",
+                "type": "bool",
+                "default": false
+              },
+              {
+                "name": "replacement",
+                "type": "Union[str, NoneType]",
+                "default": null
+              }
+            ],
+            "return_type": ""
+          }
+        ],
+        "decorator": {
+          "decorator": "dataclass",
+          "args": [],
+          "kwargs": {}
+        }
+      }
+    ],
+    "llm": [
+      {
+        "name": "LLMChatBlock",
+        "module": "sdg_hub.core.blocks.llm.llm_chat_block",
+        "import_path": "from sdg_hub.core.blocks import LLMChatBlock",
+        "docstring": "Base class for all blocks, with standardized patterns and full Pydantic compatibility.\n\nThis class defines a unified, configurable base for building composable data processing blocks\nthat operate over pandas DataFrames. It supports field-based initialization, validation,\nand rich logging for inputs and outputs.\n\nAttributes\n----------\nblock_name : str\n    Unique identifier for this block instance.\ninput_cols : Union[List[str], Dict[str, Any]]\n    Input columns from the DataFrame (string, list of strings, or mapping).\noutput_cols : Union[List[str], Dict[str, Any]]\n    Output columns to write to the DataFrame (string, list of strings, or mapping).",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "llm",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          },
+          {
+            "name": "model",
+            "type": "Union[str, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Model identifier in LiteLLM format",
+            "exclude": true
+          },
+          {
+            "name": "api_key",
+            "type": "Union[pydantic.types.SecretStr, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "API key for the provider",
+            "exclude": true
+          },
+          {
+            "name": "api_base",
+            "type": "Union[str, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Base URL for the API",
+            "exclude": true
+          },
+          {
+            "name": "async_mode",
+            "type": "bool",
+            "required": false,
+            "default": false,
+            "description": "Whether to use async processing",
+            "exclude": true
+          },
+          {
+            "name": "timeout",
+            "type": "float",
+            "required": false,
+            "default": 120.0,
+            "description": "Request timeout in seconds",
+            "exclude": true
+          },
+          {
+            "name": "num_retries",
+            "type": "int",
+            "required": false,
+            "default": 6,
+            "description": "Number of retry attempts (uses LiteLLM's built-in retry mechanism)",
+            "exclude": true
+          },
+          {
+            "name": "drop_params",
+            "type": "bool",
+            "required": false,
+            "default": true,
+            "description": "Whether to drop unsupported parameters to prevent API errors"
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Generate responses from the LLM.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input dataset containing the messages column.\n**kwargs : Any\n    Runtime parameters that override initialization defaults.\n    Supports all LiteLLM completion parameters.\n\nReturns\n-------\npd.DataFrame\n    Dataset with responses added to the output column.\n\nRaises\n------\nBlockValidationError\n    If model is not configured before calling generate().",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self, _LLMChatBlock__context) -> None",
+            "docstring": "Initialize after Pydantic validation.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "_LLMChatBlock__context"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_single_input_col",
+            "signature": "(cls, v)",
+            "docstring": "Ensure exactly one input column.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_single_output_col",
+            "signature": "(cls, v)",
+            "docstring": "Ensure exactly one output column.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "LLMChatBlock",
+            "llm",
+            "Unified LLM chat block supporting 100+ providers via LiteLLM"
+          ],
+          "kwargs": {}
+        }
+      },
+      {
+        "name": "PromptBuilderBlock",
+        "module": "sdg_hub.core.blocks.llm.prompt_builder_block",
+        "import_path": "from sdg_hub.core.blocks import PromptBuilderBlock",
+        "docstring": "Base class for all blocks, with standardized patterns and full Pydantic compatibility.\n\nThis class defines a unified, configurable base for building composable data processing blocks\nthat operate over pandas DataFrames. It supports field-based initialization, validation,\nand rich logging for inputs and outputs.\n\nAttributes\n----------\nblock_name : str\n    Unique identifier for this block instance.\ninput_cols : Union[List[str], Dict[str, Any]]\n    Input columns from the DataFrame (string, list of strings, or mapping).\noutput_cols : Union[List[str], Dict[str, Any]]\n    Output columns to write to the DataFrame (string, list of strings, or mapping).",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "llm_util",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          },
+          {
+            "name": "prompt_config_path",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Path to YAML file containing the Jinja template configuration"
+          },
+          {
+            "name": "format_as_messages",
+            "type": "bool",
+            "required": false,
+            "default": true,
+            "description": "Whether to format output as chat messages"
+          },
+          {
+            "name": "prompt_template_config",
+            "type": "Union[sdg_hub.core.blocks.llm.prompt_builder_block.PromptTemplateConfig, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Loaded prompt template configuration",
+            "exclude": true
+          },
+          {
+            "name": "prompt_renderer",
+            "type": "Union[sdg_hub.core.blocks.llm.prompt_builder_block.PromptRenderer, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Prompt renderer instance",
+            "exclude": true
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **_kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Generate formatted output for all samples.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input dataset containing samples to be formatted.\n**kwargs : Dict[str, Any]\n    Additional keyword arguments (unused in this block).\n\nReturns\n-------\npd.DataFrame\n    Dataset with the formatted output added to the specified column.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "_kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self, _PromptBuilderBlock__context: Any) -> None",
+            "docstring": "Initialize the block after Pydantic validation.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "_PromptBuilderBlock__context",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_single_output_col",
+            "signature": "(cls, v)",
+            "docstring": "Validate that exactly one output column is specified.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "PromptBuilderBlock",
+            "llm",
+            "Formats prompts into structured chat messages or plain text using Jinja templates"
+          ],
+          "kwargs": {}
+        }
+      },
+      {
+        "name": "ChatMessage",
+        "module": "sdg_hub.core.blocks.llm.prompt_builder_block",
+        "import_path": "from sdg_hub.core.blocks.llm.prompt_builder_block import ChatMessage",
+        "docstring": "Pydantic model for chat messages with proper validation.",
+        "bases": [
+          "BaseModel"
+        ],
+        "fields": [
+          {
+            "name": "role",
+            "type": "Literal[system, user, assistant, tool]",
+            "required": true,
+            "default": null,
+            "description": ""
+          },
+          {
+            "name": "content",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": ""
+          }
+        ],
+        "methods": [
+          {
+            "name": "validate_content_not_empty",
+            "signature": "(cls, v: str) -> str",
+            "docstring": "Ensure content is not empty or just whitespace.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v",
+                "type": "str"
+              }
+            ],
+            "return_type": "str"
+          }
+        ]
+      },
+      {
+        "name": "MessageTemplate",
+        "module": "sdg_hub.core.blocks.llm.prompt_builder_block",
+        "import_path": "from sdg_hub.core.blocks.llm.prompt_builder_block import MessageTemplate",
+        "docstring": "Template for a chat message with Jinja2 template and original source.",
+        "bases": [
+          "BaseModel"
+        ],
+        "fields": [
+          {
+            "name": "role",
+            "type": "Literal[system, user, assistant, tool]",
+            "required": true,
+            "default": null,
+            "description": ""
+          },
+          {
+            "name": "content_template",
+            "type": "jinja2.environment.Template",
+            "required": true,
+            "default": null,
+            "description": ""
+          },
+          {
+            "name": "original_source",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": ""
+          }
+        ],
+        "methods": []
+      },
+      {
+        "name": "PromptTemplateConfig",
+        "module": "sdg_hub.core.blocks.llm.prompt_builder_block",
+        "import_path": "from sdg_hub.core.blocks.llm.prompt_builder_block import PromptTemplateConfig",
+        "docstring": "Self-contained class for loading and validating YAML prompt configurations.",
+        "bases": [],
+        "fields": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, config_path: str)",
+            "docstring": "Initialize with path to YAML config file.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "config_path",
+                "type": "str"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "get_message_templates",
+            "signature": "(self) -> list[sdg_hub.core.blocks.llm.prompt_builder_block.MessageTemplate]",
+            "docstring": "Return the compiled message templates.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "list[sdg_hub.core.blocks.llm.prompt_builder_block.MessageTemplate]"
+          }
+        ]
+      },
+      {
+        "name": "PromptRenderer",
+        "module": "sdg_hub.core.blocks.llm.prompt_builder_block",
+        "import_path": "from sdg_hub.core.blocks.llm.prompt_builder_block import PromptRenderer",
+        "docstring": "Handles rendering of message templates with variable substitution.",
+        "bases": [],
+        "fields": [],
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, message_templates: list[sdg_hub.core.blocks.llm.prompt_builder_block.MessageTemplate])",
+            "docstring": "Initialize with a list of message templates.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "message_templates",
+                "type": "list[sdg_hub.core.blocks.llm.prompt_builder_block.MessageTemplate]"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "get_required_variables",
+            "signature": "(self) -> set",
+            "docstring": "Extract all required variables from message templates.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "set"
+          },
+          {
+            "name": "render_messages",
+            "signature": "(self, template_vars: dict[str, typing.Any]) -> list[sdg_hub.core.blocks.llm.prompt_builder_block.ChatMessage]",
+            "docstring": "Render all message templates with the given variables.\n\nParameters\n----------\ntemplate_vars : Dict[str, Any]\n    Variables to substitute in templates.\n\nReturns\n-------\nList[ChatMessage]\n    List of rendered and validated chat messages.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "template_vars",
+                "type": "dict[str, typing.Any]"
+              }
+            ],
+            "return_type": "list[sdg_hub.core.blocks.llm.prompt_builder_block.ChatMessage]"
+          },
+          {
+            "name": "resolve_template_vars",
+            "signature": "(self, sample: dict[str, typing.Any], input_cols) -> dict[str, typing.Any]",
+            "docstring": "Resolve template variables from dataset columns based on input_cols.\n\nParameters\n----------\nsample : Dict[str, Any]\n    Input sample from dataset.\ninput_cols : Union[str, List[str], Dict[str, str]]\n    Input column specification - now maps dataset columns to template variables.\n\nReturns\n-------\nDict[str, Any]\n    Template variables mapped from dataset columns.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "sample",
+                "type": "dict[str, typing.Any]"
+              },
+              {
+                "name": "input_cols"
+              }
+            ],
+            "return_type": "dict[str, typing.Any]"
+          }
+        ]
+      },
+      {
+        "name": "LLMResponseExtractorBlock",
+        "module": "sdg_hub.core.blocks.llm.llm_response_extractor_block",
+        "import_path": "from sdg_hub.core.blocks import LLMResponseExtractorBlock",
+        "docstring": "Base class for all blocks, with standardized patterns and full Pydantic compatibility.\n\nThis class defines a unified, configurable base for building composable data processing blocks\nthat operate over pandas DataFrames. It supports field-based initialization, validation,\nand rich logging for inputs and outputs.\n\nAttributes\n----------\nblock_name : str\n    Unique identifier for this block instance.\ninput_cols : Union[List[str], Dict[str, Any]]\n    Input columns from the DataFrame (string, list of strings, or mapping).\noutput_cols : Union[List[str], Dict[str, Any]]\n    Output columns to write to the DataFrame (string, list of strings, or mapping).",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "llm_util",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          },
+          {
+            "name": "extract_content",
+            "type": "bool",
+            "required": false,
+            "default": true,
+            "description": "Whether to extract 'content' field from responses."
+          },
+          {
+            "name": "extract_reasoning_content",
+            "type": "bool",
+            "required": false,
+            "default": false,
+            "description": "Whether to extract 'reasoning_content' field from responses."
+          },
+          {
+            "name": "extract_tool_calls",
+            "type": "bool",
+            "required": false,
+            "default": false,
+            "description": "Whether to extract 'tool_calls' field from responses."
+          },
+          {
+            "name": "expand_lists",
+            "type": "bool",
+            "required": false,
+            "default": true,
+            "description": "Whether to expand list inputs into individual rows (True) or preserve lists (False)."
+          },
+          {
+            "name": "field_prefix",
+            "type": "str",
+            "required": false,
+            "default": "",
+            "description": "Prefix to add to output field names (e.g., 'llm_' results in 'llm_content', 'llm_reasoning_content')."
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Subclass method to implement data generation logic.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input DataFrame to process.\n\nReturns\n-------\npd.DataFrame\n    Transformed DataFrame with new columns or values.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self: 'BaseModel', context: 'Any', /) -> 'None'",
+            "docstring": "This function is meant to behave like a BaseModel method to initialise private attributes.\n\nIt takes context as an argument since that's what pydantic-core passes when calling it.\n\nArgs:\n    self: The BaseModel instance.\n    context: The context.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "context",
+                "type": "Any"
+              }
+            ],
+            "return_type": "None"
+          },
+          {
+            "name": "validate_extraction_configuration",
+            "signature": "(self)",
+            "docstring": "Validate that at least one extraction field is enabled and pre-compute field names.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": ""
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "LLMResponseExtractorBlock",
+            "llm",
+            "Extracts specified fields from LLM response objects"
+          ],
+          "kwargs": {}
+        }
+      }
+    ],
+    "parsing": [
+      {
+        "name": "JSONParserBlock",
+        "module": "sdg_hub.core.blocks.parsing.json_parser_block",
+        "import_path": "from sdg_hub.core.blocks import JSONParserBlock",
+        "docstring": "Block for parsing JSON from text and expanding fields into columns.\n\nThis block takes a column containing JSON strings (or text with embedded JSON),\nparses the JSON, and expands the fields into separate columns. Useful for\nprocessing LLM responses that return JSON-formatted data.\n\nAttributes\n----------\nblock_name : str\n    Name of the block.\ninput_cols : List[str]\n    Single input column containing JSON text to parse.\noutput_cols : List[str]\n    Optional list of specific fields to extract. If empty, all JSON fields\n    are extracted as columns.\nfield_prefix : str\n    Optional prefix to add to extracted column names.\nfix_trailing_commas : bool\n    Whether to fix trailing commas in JSON (common LLM output issue).\nextract_embedded : bool\n    Whether to extract JSON embedded in surrounding text.\ndrop_input : bool\n    Whether to drop the input column after extraction.",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "parsing",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          },
+          {
+            "name": "field_prefix",
+            "type": "str",
+            "required": false,
+            "default": "",
+            "description": "Optional prefix to add to extracted column names"
+          },
+          {
+            "name": "fix_trailing_commas",
+            "type": "bool",
+            "required": false,
+            "default": true,
+            "description": "Whether to fix trailing commas in JSON (common LLM output issue)"
+          },
+          {
+            "name": "extract_embedded",
+            "type": "bool",
+            "required": false,
+            "default": true,
+            "description": "Whether to extract JSON embedded in surrounding text"
+          },
+          {
+            "name": "drop_input",
+            "type": "bool",
+            "required": false,
+            "default": false,
+            "description": "Whether to drop the input column after extraction"
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Generate a dataset with JSON fields expanded into columns.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input dataset to process.\n\nReturns\n-------\npd.DataFrame\n    Dataset with JSON fields expanded into separate columns.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "validate_input_cols",
+            "signature": "(cls, v: list[str]) -> list[str]",
+            "docstring": "Validate that exactly one input column is specified.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v",
+                "type": "list[str]"
+              }
+            ],
+            "return_type": "list[str]"
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "JSONParserBlock",
+            "parsing",
+            "Parses JSON from text and expands fields into separate columns"
+          ],
+          "kwargs": {}
+        }
+      },
+      {
+        "name": "RegexParserBlock",
+        "module": "sdg_hub.core.blocks.parsing.regex_parser_block",
+        "import_path": "from sdg_hub.core.blocks import RegexParserBlock",
+        "docstring": "Block for parsing text content using regex patterns.",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "parser",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          },
+          {
+            "name": "parsing_pattern",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Regex pattern with capture groups"
+          },
+          {
+            "name": "parser_cleanup_tags",
+            "type": "Union[list[str], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Tags to remove from extracted content"
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Subclass method to implement data generation logic.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input DataFrame to process.\n\nReturns\n-------\npd.DataFrame\n    Transformed DataFrame with new columns or values.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self: 'BaseModel', context: 'Any', /) -> 'None'",
+            "docstring": "This function is meant to behave like a BaseModel method to initialise private attributes.\n\nIt takes context as an argument since that's what pydantic-core passes when calling it.\n\nArgs:\n    self: The BaseModel instance.\n    context: The context.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "context",
+                "type": "Any"
+              }
+            ],
+            "return_type": "None"
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "RegexParserBlock",
+            "parsing",
+            "Parses text content using regex patterns"
+          ],
+          "kwargs": {}
+        }
+      },
+      {
+        "name": "TagParserBlock",
+        "module": "sdg_hub.core.blocks.parsing.tag_parser_block",
+        "import_path": "from sdg_hub.core.blocks import TagParserBlock",
+        "docstring": "Block for parsing text content using start/end tags.",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "parser",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          },
+          {
+            "name": "start_tags",
+            "type": "list[str]",
+            "required": true,
+            "default": null,
+            "description": "Start tags for extraction"
+          },
+          {
+            "name": "end_tags",
+            "type": "list[str]",
+            "required": true,
+            "default": null,
+            "description": "End tags for extraction"
+          },
+          {
+            "name": "parser_cleanup_tags",
+            "type": "Union[list[str], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Tags to remove from extracted content"
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Subclass method to implement data generation logic.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input DataFrame to process.\n\nReturns\n-------\npd.DataFrame\n    Transformed DataFrame with new columns or values.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self: 'BaseModel', context: 'Any', /) -> 'None'",
+            "docstring": "This function is meant to behave like a BaseModel method to initialise private attributes.\n\nIt takes context as an argument since that's what pydantic-core passes when calling it.\n\nArgs:\n    self: The BaseModel instance.\n    context: The context.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "context",
+                "type": "Any"
+              }
+            ],
+            "return_type": "None"
+          },
+          {
+            "name": "normalize_tags",
+            "signature": "(cls, v)",
+            "docstring": "",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_tags",
+            "signature": "(self)",
+            "docstring": "",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": ""
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "TagParserBlock",
+            "parsing",
+            "Parses text content using start/end tags"
+          ],
+          "kwargs": {}
+        }
+      },
+      {
+        "name": "TextParserBlock",
+        "module": "sdg_hub.core.blocks.parsing.text_parser_block",
+        "import_path": "from sdg_hub.core.blocks import TextParserBlock",
+        "docstring": "Deprecated. Use TagParserBlock or RegexParserBlock instead.",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "parser",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          },
+          {
+            "name": "start_tags",
+            "type": "list[str]",
+            "required": false,
+            "default": [],
+            "description": ""
+          },
+          {
+            "name": "end_tags",
+            "type": "list[str]",
+            "required": false,
+            "default": [],
+            "description": ""
+          },
+          {
+            "name": "parsing_pattern",
+            "type": "Union[str, NoneType]",
+            "required": false,
+            "default": null,
+            "description": ""
+          },
+          {
+            "name": "parser_cleanup_tags",
+            "type": "Union[list[str], NoneType]",
+            "required": false,
+            "default": null,
+            "description": ""
+          }
+        ],
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, **kwargs)",
+            "docstring": "Create a new model by parsing and validating input data from keyword arguments.\n\nRaises [`ValidationError`][pydantic_core.ValidationError] if the input data cannot be\nvalidated to form a valid model.\n\n`self` is explicitly positional-only to allow `self` as a field name.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "kwargs"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Subclass method to implement data generation logic.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input DataFrame to process.\n\nReturns\n-------\npd.DataFrame\n    Transformed DataFrame with new columns or values.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self: 'BaseModel', context: 'Any', /) -> 'None'",
+            "docstring": "This function is meant to behave like a BaseModel method to initialise private attributes.\n\nIt takes context as an argument since that's what pydantic-core passes when calling it.\n\nArgs:\n    self: The BaseModel instance.\n    context: The context.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "context",
+                "type": "Any"
+              }
+            ],
+            "return_type": "None"
+          },
+          {
+            "name": "normalize_tags",
+            "signature": "(cls, v)",
+            "docstring": "",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_config",
+            "signature": "(self)",
+            "docstring": "",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": ""
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "TextParserBlock",
+            "parsing",
+            "DEPRECATED: Use TagParserBlock or RegexParserBlock"
+          ],
+          "kwargs": {}
+        }
+      }
+    ],
+    "transform": [
+      {
+        "name": "DuplicateColumnsBlock",
+        "module": "sdg_hub.core.blocks.transform.duplicate_columns",
+        "import_path": "from sdg_hub.core.blocks import DuplicateColumnsBlock",
+        "docstring": "Base class for all blocks, with standardized patterns and full Pydantic compatibility.\n\nThis class defines a unified, configurable base for building composable data processing blocks\nthat operate over pandas DataFrames. It supports field-based initialization, validation,\nand rich logging for inputs and outputs.\n\nAttributes\n----------\nblock_name : str\n    Unique identifier for this block instance.\ninput_cols : Union[List[str], Dict[str, Any]]\n    Input columns from the DataFrame (string, list of strings, or mapping).\noutput_cols : Union[List[str], Dict[str, Any]]\n    Output columns to write to the DataFrame (string, list of strings, or mapping).",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "transform",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Generate a dataset with duplicated columns.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input dataset to duplicate columns from.\n\nReturns\n-------\npd.DataFrame\n    Dataset with additional duplicated columns.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self, _DuplicateColumnsBlock__context: Any) -> None",
+            "docstring": "Initialize derived attributes after Pydantic validation.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "_DuplicateColumnsBlock__context",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_input_cols",
+            "signature": "(cls, v)",
+            "docstring": "Validate that input_cols is a non-empty dict.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "DuplicateColumnsBlock",
+            "transform",
+            "Duplicates existing columns with new names according to a mapping specification"
+          ],
+          "kwargs": {}
+        }
+      },
+      {
+        "name": "IndexBasedMapperBlock",
+        "module": "sdg_hub.core.blocks.transform.index_based_mapper",
+        "import_path": "from sdg_hub.core.blocks import IndexBasedMapperBlock",
+        "docstring": "Base class for all blocks, with standardized patterns and full Pydantic compatibility.\n\nThis class defines a unified, configurable base for building composable data processing blocks\nthat operate over pandas DataFrames. It supports field-based initialization, validation,\nand rich logging for inputs and outputs.\n\nAttributes\n----------\nblock_name : str\n    Unique identifier for this block instance.\ninput_cols : Union[List[str], Dict[str, Any]]\n    Input columns from the DataFrame (string, list of strings, or mapping).\noutput_cols : Union[List[str], Dict[str, Any]]\n    Output columns to write to the DataFrame (string, list of strings, or mapping).",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "transform",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          },
+          {
+            "name": "choice_map",
+            "type": "dict[str, str]",
+            "required": true,
+            "default": null,
+            "description": "Dictionary mapping choice values to column names"
+          },
+          {
+            "name": "choice_cols",
+            "type": "list[str]",
+            "required": true,
+            "default": null,
+            "description": "List of column names containing choice values"
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs) -> pandas.core.frame.DataFrame",
+            "docstring": "Generate a new dataset with selected values.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input dataset to process.\n\nReturns\n-------\npd.DataFrame\n    Dataset with selected values stored in output column.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self, _IndexBasedMapperBlock__context: Any) -> None",
+            "docstring": "Initialize derived attributes after Pydantic validation.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "_IndexBasedMapperBlock__context",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_choice_cols_not_empty",
+            "signature": "(cls, v)",
+            "docstring": "Validate that choice_cols is not empty.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_choice_map",
+            "signature": "(cls, v)",
+            "docstring": "Validate that choice_map is not empty.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_input_output_consistency",
+            "signature": "(self)",
+            "docstring": "Validate that choice_cols and output_cols have same length and consistency.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": ""
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "IndexBasedMapperBlock",
+            "transform",
+            "Maps values from source columns to output columns based on choice columns using shared mapping"
+          ],
+          "kwargs": {}
+        }
+      },
+      {
+        "name": "JSONStructureBlock",
+        "module": "sdg_hub.core.blocks.transform.json_structure_block",
+        "import_path": "from sdg_hub.core.blocks import JSONStructureBlock",
+        "docstring": "Base class for all blocks, with standardized patterns and full Pydantic compatibility.\n\nThis class defines a unified, configurable base for building composable data processing blocks\nthat operate over pandas DataFrames. It supports field-based initialization, validation,\nand rich logging for inputs and outputs.\n\nAttributes\n----------\nblock_name : str\n    Unique identifier for this block instance.\ninput_cols : Union[List[str], Dict[str, Any]]\n    Input columns from the DataFrame (string, list of strings, or mapping).\noutput_cols : Union[List[str], Dict[str, Any]]\n    Output columns to write to the DataFrame (string, list of strings, or mapping).",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "transform",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          },
+          {
+            "name": "ensure_json_serializable",
+            "type": "bool",
+            "required": false,
+            "default": true,
+            "description": "Whether to ensure all values are JSON serializable"
+          },
+          {
+            "name": "pretty_print",
+            "type": "bool",
+            "required": false,
+            "default": false,
+            "description": "Whether to format JSON with indentation"
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Generate a dataset with JSON structured output.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input dataset to process.\n\nReturns\n-------\npd.DataFrame\n    Dataset with JSON structured output in the specified column.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "validate_output_cols",
+            "signature": "(cls, v)",
+            "docstring": "Validate that exactly one output column is specified.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "JSONStructureBlock",
+            "transform",
+            "Combines multiple columns into a single column containing a structured JSON object"
+          ],
+          "kwargs": {}
+        }
+      },
+      {
+        "name": "MeltColumnsBlock",
+        "module": "sdg_hub.core.blocks.transform.melt_columns",
+        "import_path": "from sdg_hub.core.blocks import MeltColumnsBlock",
+        "docstring": "Base class for all blocks, with standardized patterns and full Pydantic compatibility.\n\nThis class defines a unified, configurable base for building composable data processing blocks\nthat operate over pandas DataFrames. It supports field-based initialization, validation,\nand rich logging for inputs and outputs.\n\nAttributes\n----------\nblock_name : str\n    Unique identifier for this block instance.\ninput_cols : Union[List[str], Dict[str, Any]]\n    Input columns from the DataFrame (string, list of strings, or mapping).\noutput_cols : Union[List[str], Dict[str, Any]]\n    Output columns to write to the DataFrame (string, list of strings, or mapping).",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "transform",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Generate a flattened dataset in long format.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input dataset to flatten.\n\nReturns\n-------\npd.DataFrame\n    Flattened dataset in long format with new variable and value columns.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self, _MeltColumnsBlock__context: Any) -> None",
+            "docstring": "Initialize derived attributes after Pydantic validation.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "_MeltColumnsBlock__context",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_input_cols",
+            "signature": "(cls, v)",
+            "docstring": "Validate that input_cols is not empty.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_output_cols",
+            "signature": "(cls, v)",
+            "docstring": "Validate that exactly two output columns are specified.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "MeltColumnsBlock",
+            "transform",
+            "Transforms wide dataset format into long format by melting columns into rows"
+          ],
+          "kwargs": {}
+        }
+      },
+      {
+        "name": "RenameColumnsBlock",
+        "module": "sdg_hub.core.blocks.transform.rename_columns",
+        "import_path": "from sdg_hub.core.blocks import RenameColumnsBlock",
+        "docstring": "Base class for all blocks, with standardized patterns and full Pydantic compatibility.\n\nThis class defines a unified, configurable base for building composable data processing blocks\nthat operate over pandas DataFrames. It supports field-based initialization, validation,\nand rich logging for inputs and outputs.\n\nAttributes\n----------\nblock_name : str\n    Unique identifier for this block instance.\ninput_cols : Union[List[str], Dict[str, Any]]\n    Input columns from the DataFrame (string, list of strings, or mapping).\noutput_cols : Union[List[str], Dict[str, Any]]\n    Output columns to write to the DataFrame (string, list of strings, or mapping).",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "transform",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Generate a dataset with renamed columns.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input dataset to rename columns in.\n\nReturns\n-------\npd.DataFrame\n    Dataset with renamed columns.\n\nRaises\n------\nValueError\n    If attempting to rename to a column name that already exists,\n    or if the original column names don't exist in the dataset.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self, _RenameColumnsBlock__context: Any) -> None",
+            "docstring": "Initialize derived attributes after Pydantic validation.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "_RenameColumnsBlock__context",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_input_cols",
+            "signature": "(cls, v)",
+            "docstring": "Validate that input_cols is a non-empty dict.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "RenameColumnsBlock",
+            "transform",
+            "Renames columns in a dataset according to a mapping specification"
+          ],
+          "kwargs": {}
+        }
+      },
+      {
+        "name": "RowMultiplierBlock",
+        "module": "sdg_hub.core.blocks.transform.row_multiplier",
+        "import_path": "from sdg_hub.core.blocks import RowMultiplierBlock",
+        "docstring": "Block for duplicating dataset rows.\n\nThis block duplicates each row in the dataset a configurable number of times.\nPrimary use case: expanding configuration/seed data before LLM processing.\n\nAttributes\n----------\nblock_name : str\n    Name of the block.\nnum_samples : int\n    Number of times to duplicate each row (must be >= 1).\nshuffle : bool\n    Whether to shuffle output rows after duplication.\nrandom_seed : Optional[int]\n    Seed for reproducible shuffling.",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "transform",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          },
+          {
+            "name": "num_samples",
+            "type": "int",
+            "required": true,
+            "default": null,
+            "description": "Number of times to duplicate each row"
+          },
+          {
+            "name": "shuffle",
+            "type": "bool",
+            "required": false,
+            "default": false,
+            "description": "Shuffle output rows after duplication"
+          },
+          {
+            "name": "random_seed",
+            "type": "Union[int, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Seed for reproducible shuffling"
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Generate a dataset with duplicated rows.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input dataset to duplicate.\n\nReturns\n-------\npd.DataFrame\n    Dataset with each row duplicated num_samples times.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "RowMultiplierBlock",
+            "transform",
+            "Duplicates each row in the dataset a configurable number of times"
+          ],
+          "kwargs": {}
+        }
+      },
+      {
+        "name": "SamplerBlock",
+        "module": "sdg_hub.core.blocks.transform.sampler",
+        "import_path": "from sdg_hub.core.blocks import SamplerBlock",
+        "docstring": "Block for randomly sampling values from list columns.\n\nThis block samples a specified number of values from each row's list/set\nand outputs the sampled values to a new column.\n\nAttributes\n----------\nblock_name : str\n    Name of the block.\ninput_cols : list[str]\n    Single input column containing lists/sets to sample from.\noutput_cols : list[str]\n    Single output column for sampled values.\nnum_samples : int\n    Number of values to sample from each list.\nrandom_seed : int, optional\n    Random seed for reproducibility.\nreturn_scalar : bool\n    When num_samples=1, return scalar value instead of single-element list.",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "transform",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          },
+          {
+            "name": "num_samples",
+            "type": "int",
+            "required": false,
+            "default": 5,
+            "description": "Number of values to randomly sample from each list"
+          },
+          {
+            "name": "random_seed",
+            "type": "Union[int, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Random seed for reproducibility"
+          },
+          {
+            "name": "return_scalar",
+            "type": "bool",
+            "required": false,
+            "default": false,
+            "description": "When num_samples=1, return scalar value instead of single-element list"
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Generate a dataset with sampled values.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input dataset to process.\n\nReturns\n-------\npd.DataFrame\n    Dataset with sampled values in output column.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "validate_input_cols",
+            "signature": "(cls, v: list[str]) -> list[str]",
+            "docstring": "Validate that exactly one input column is specified.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v",
+                "type": "list[str]"
+              }
+            ],
+            "return_type": "list[str]"
+          },
+          {
+            "name": "validate_num_samples",
+            "signature": "(cls, v: int) -> int",
+            "docstring": "Validate that num_samples is at least 1.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v",
+                "type": "int"
+              }
+            ],
+            "return_type": "int"
+          },
+          {
+            "name": "validate_output_cols",
+            "signature": "(cls, v: list[str]) -> list[str]",
+            "docstring": "Validate that exactly one output column is specified.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v",
+                "type": "list[str]"
+              }
+            ],
+            "return_type": "list[str]"
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "SamplerBlock",
+            "transform",
+            "Randomly samples n values from a list column and outputs to a new column"
+          ],
+          "kwargs": {}
+        }
+      },
+      {
+        "name": "TextConcatBlock",
+        "module": "sdg_hub.core.blocks.transform.text_concat",
+        "import_path": "from sdg_hub.core.blocks import TextConcatBlock",
+        "docstring": "Base class for all blocks, with standardized patterns and full Pydantic compatibility.\n\nThis class defines a unified, configurable base for building composable data processing blocks\nthat operate over pandas DataFrames. It supports field-based initialization, validation,\nand rich logging for inputs and outputs.\n\nAttributes\n----------\nblock_name : str\n    Unique identifier for this block instance.\ninput_cols : Union[List[str], Dict[str, Any]]\n    Input columns from the DataFrame (string, list of strings, or mapping).\noutput_cols : Union[List[str], Dict[str, Any]]\n    Output columns to write to the DataFrame (string, list of strings, or mapping).",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "transform",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          },
+          {
+            "name": "separator",
+            "type": "str",
+            "required": false,
+            "default": "\n\n",
+            "description": "Separator to use between combined values"
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Generate a dataset with combined columns.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input dataset to process.\n\nReturns\n-------\npd.DataFrame\n    Dataset with combined values stored in output column.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "validate_input_cols",
+            "signature": "(cls, v)",
+            "docstring": "Validate that input_cols is a non-empty list.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_output_cols",
+            "signature": "(cls, v)",
+            "docstring": "Validate that exactly one output column is specified.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "TextConcatBlock",
+            "transform",
+            "Combines multiple columns into a single column using a specified separator"
+          ],
+          "kwargs": {}
+        }
+      },
+      {
+        "name": "UniformColumnValueSetter",
+        "module": "sdg_hub.core.blocks.transform.uniform_col_val_setter",
+        "import_path": "from sdg_hub.core.blocks import UniformColumnValueSetter",
+        "docstring": "Base class for all blocks, with standardized patterns and full Pydantic compatibility.\n\nThis class defines a unified, configurable base for building composable data processing blocks\nthat operate over pandas DataFrames. It supports field-based initialization, validation,\nand rich logging for inputs and outputs.\n\nAttributes\n----------\nblock_name : str\n    Unique identifier for this block instance.\ninput_cols : Union[List[str], Dict[str, Any]]\n    Input columns from the DataFrame (string, list of strings, or mapping).\noutput_cols : Union[List[str], Dict[str, Any]]\n    Output columns to write to the DataFrame (string, list of strings, or mapping).",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "transform",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          },
+          {
+            "name": "reduction_strategy",
+            "type": "Literal[mode, min, max, mean, median]",
+            "required": false,
+            "default": "mode",
+            "description": ""
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Subclass method to implement data generation logic.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input DataFrame to process.\n\nReturns\n-------\npd.DataFrame\n    Transformed DataFrame with new columns or values.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self, _UniformColumnValueSetter__context: Any) -> None",
+            "docstring": "Override this method to perform additional initialization after `__init__` and `model_construct`.\nThis is useful if you want to do some validation that requires the entire model to be initialized.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "_UniformColumnValueSetter__context",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_input_cols_single",
+            "signature": "(cls, v)",
+            "docstring": "",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "UniformColumnValueSetter",
+            "transform",
+            "Replaces all values in a column with a single summary statistic (e.g., mode, mean, median)"
+          ],
+          "kwargs": {}
+        }
+      }
+    ],
+    "filtering": [
+      {
+        "name": "ColumnValueFilterBlock",
+        "module": "sdg_hub.core.blocks.filtering.column_value_filter",
+        "import_path": "from sdg_hub.core.blocks import ColumnValueFilterBlock",
+        "docstring": "Base class for all blocks, with standardized patterns and full Pydantic compatibility.\n\nThis class defines a unified, configurable base for building composable data processing blocks\nthat operate over pandas DataFrames. It supports field-based initialization, validation,\nand rich logging for inputs and outputs.\n\nAttributes\n----------\nblock_name : str\n    Unique identifier for this block instance.\ninput_cols : Union[List[str], Dict[str, Any]]\n    Input columns from the DataFrame (string, list of strings, or mapping).\noutput_cols : Union[List[str], Dict[str, Any]]\n    Output columns to write to the DataFrame (string, list of strings, or mapping).",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "filtering",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          },
+          {
+            "name": "filter_value",
+            "type": "Union[typing.Any, list[typing.Any]]",
+            "required": true,
+            "default": null,
+            "description": "The value(s) to filter by"
+          },
+          {
+            "name": "operation",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "String name of binary operator for comparison (e.g., 'eq', 'contains')"
+          },
+          {
+            "name": "convert_dtype",
+            "type": "Union[str, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "String name of type to convert filter column to ('float' or 'int')"
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **_kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Generate filtered dataset based on specified conditions.\n\nParameters\n----------\nsamples : pd.DataFrame\n    The input dataset to filter.\n\nReturns\n-------\npd.DataFrame\n    The filtered dataset.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "_kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self, _ColumnValueFilterBlock__context: Any) -> None",
+            "docstring": "Initialize derived attributes after Pydantic validation.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "_ColumnValueFilterBlock__context",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_convert_dtype",
+            "signature": "(cls, v)",
+            "docstring": "Validate that convert_dtype is a supported type string.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_input_cols_not_empty",
+            "signature": "(cls, v)",
+            "docstring": "Validate that we have at least one input column.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_operation",
+            "signature": "(cls, v)",
+            "docstring": "Validate that operation is a supported operation string.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "ColumnValueFilterBlock",
+            "filtering",
+            "Filters datasets based on column values using various comparison operations"
+          ],
+          "kwargs": {}
+        }
+      }
+    ],
+    "agent": [
+      {
+        "name": "AgentBlock",
+        "module": "sdg_hub.core.blocks.agent.agent_block",
+        "import_path": "from sdg_hub.core.blocks import AgentBlock",
+        "docstring": "Block for executing external agent frameworks on DataFrame rows.\n\nThis block integrates with various agent frameworks through the connector\nsystem. Each row in the DataFrame is processed by sending messages to the\nagent and storing the response.\n\nThe block supports both sync and async execution modes for optimal\nperformance with large datasets.\n\nParameters\n----------\nagent_framework : str\n    Name of the connector to use (e.g., 'langflow').\nagent_url : str\n    API endpoint URL for the agent.\nagent_api_key : str, optional\n    API key for authentication.\ntimeout : float\n    Request timeout in seconds. Default 120.0.\nmax_retries : int\n    Maximum retry attempts. Default 3.\nsession_id_col : str, optional\n    Column containing session IDs. If not provided, generates UUIDs.\nasync_mode : bool\n    Whether to use async execution. Default False.\nmax_concurrency : int\n    Maximum concurrent requests in async mode. Default 10.\n\nExample YAML Configuration\n--------------------------\n```yaml\n- block_type: AgentBlock\n  block_config:\n    block_name: my_agent\n    agent_framework: langflow\n    agent_url: http://localhost:7860/api/v1/run/my-flow\n    agent_api_key: ${LANGFLOW_API_KEY}\n    input_cols:\n      messages: messages_col\n    output_cols:\n      - agent_response\n```\n\nExample\n-------\n>>> block = AgentBlock(\n...     block_name=\"qa_agent\",\n...     agent_framework=\"langflow\",\n...     agent_url=\"http://localhost:7860/api/v1/run/qa-flow\",\n...     input_cols={\"messages\": \"question\"},\n...     output_cols=[\"response\"],\n... )\n>>> result_df = block(df)",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "agent",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          },
+          {
+            "name": "agent_framework",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Connector name (e.g., 'langflow')"
+          },
+          {
+            "name": "agent_url",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Agent API endpoint URL"
+          },
+          {
+            "name": "agent_api_key",
+            "type": "Union[str, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "API key for authentication"
+          },
+          {
+            "name": "timeout",
+            "type": "float",
+            "required": false,
+            "default": 120.0,
+            "description": "Request timeout in seconds"
+          },
+          {
+            "name": "max_retries",
+            "type": "int",
+            "required": false,
+            "default": 3,
+            "description": "Maximum retry attempts"
+          },
+          {
+            "name": "session_id_col",
+            "type": "Union[str, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Column containing session IDs"
+          },
+          {
+            "name": "async_mode",
+            "type": "bool",
+            "required": false,
+            "default": false,
+            "description": "Use async execution for better throughput"
+          },
+          {
+            "name": "max_concurrency",
+            "type": "int",
+            "required": false,
+            "default": 10,
+            "description": "Maximum concurrent requests in async mode"
+          },
+          {
+            "name": "connector_kwargs",
+            "type": "dict[str, typing.Any]",
+            "required": false,
+            "default": {},
+            "description": "Extra keyword arguments passed to the connector constructor. Use for framework-specific settings like assistant_id for LangGraph."
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Process DataFrame rows through the agent.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input DataFrame with messages column.\n**kwargs : Any\n    Runtime overrides.\n\nReturns\n-------\npd.DataFrame\n    DataFrame with agent responses added.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self: 'BaseModel', context: 'Any', /) -> 'None'",
+            "docstring": "This function is meant to behave like a BaseModel method to initialise private attributes.\n\nIt takes context as an argument since that's what pydantic-core passes when calling it.\n\nArgs:\n    self: The BaseModel instance.\n    context: The context.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "context",
+                "type": "Any"
+              }
+            ],
+            "return_type": "None"
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "AgentBlock"
+          ],
+          "kwargs": {
+            "category": "agent",
+            "description": "Execute agent frameworks (Langflow, etc.) on DataFrame rows"
+          }
+        }
+      },
+      {
+        "name": "AgentResponseExtractorBlock",
+        "module": "sdg_hub.core.blocks.agent.agent_response_extractor_block",
+        "import_path": "from sdg_hub.core.blocks import AgentResponseExtractorBlock",
+        "docstring": "Block for extracting fields from agent framework response objects.\n\nThis block extracts text content from agent framework responses.\nIt expects exactly one input column containing response objects (dict or list of dicts).\n\nAttributes\n----------\nblock_name : str\n    Unique identifier for this block instance.\nagent_framework : str\n    Agent framework whose response format to parse (e.g., 'langflow').\ninput_cols : Union[str, List[str], Dict[str, Any], None]\n    Input column name(s) containing agent response objects. Must specify exactly one column.\noutput_cols : Union[str, List[str], Dict[str, Any], None]\n    Output column name(s) for extracted fields.\nextract_text : bool\n    Whether to extract text content from responses.\nextract_session_id : bool\n    Whether to extract session_id from responses.\nexpand_lists : bool\n    Whether to expand list inputs into individual rows (True) or preserve lists (False).\n    Default is True for backward compatibility.\nfield_prefix : str\n    Prefix to add to output field names. Default is empty string (uses block_name).\n    Example: 'agent_' results in 'agent_text', 'agent_session_id'.\n\nExample\n-------\n>>> block = AgentResponseExtractorBlock(\n...     block_name=\"langflow_extractor\",\n...     agent_framework=\"langflow\",\n...     input_cols=\"agent_response\",\n...     extract_text=True,\n... )\n>>> result = block.generate(dataset)",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "agent_util",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          },
+          {
+            "name": "agent_framework",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Agent framework whose response format to parse (e.g., 'langflow')"
+          },
+          {
+            "name": "extract_text",
+            "type": "bool",
+            "required": false,
+            "default": true,
+            "description": "Whether to extract text content from responses."
+          },
+          {
+            "name": "extract_session_id",
+            "type": "bool",
+            "required": false,
+            "default": false,
+            "description": "Whether to extract session_id from responses."
+          },
+          {
+            "name": "extract_tool_trace",
+            "type": "bool",
+            "required": false,
+            "default": false,
+            "description": "Whether to extract the full tool call trace from agent responses. For Langflow, this extracts the content_blocks 'Agent Steps' array containing structured tool_use entries (name, tool_input, output) and text entries (input/output messages)."
+          },
+          {
+            "name": "expand_lists",
+            "type": "bool",
+            "required": false,
+            "default": true,
+            "description": "Whether to expand list inputs into individual rows (True) or preserve lists (False)."
+          },
+          {
+            "name": "field_prefix",
+            "type": "str",
+            "required": false,
+            "default": "",
+            "description": "Prefix to add to output field names (e.g., 'agent_' results in 'agent_text')."
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Subclass method to implement data generation logic.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input DataFrame to process.\n\nReturns\n-------\npd.DataFrame\n    Transformed DataFrame with new columns or values.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self: 'BaseModel', context: 'Any', /) -> 'None'",
+            "docstring": "This function is meant to behave like a BaseModel method to initialise private attributes.\n\nIt takes context as an argument since that's what pydantic-core passes when calling it.\n\nArgs:\n    self: The BaseModel instance.\n    context: The context.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "context",
+                "type": "Any"
+              }
+            ],
+            "return_type": "None"
+          },
+          {
+            "name": "validate_extraction_configuration",
+            "signature": "(self)",
+            "docstring": "Validate that at least one extraction field is enabled and pre-compute field names.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": ""
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "AgentResponseExtractorBlock",
+            "agent",
+            "Extracts text content from agent framework responses"
+          ],
+          "kwargs": {}
+        }
+      }
+    ],
+    "mcp": [
+      {
+        "name": "MCPAgentBlock",
+        "module": "sdg_hub.core.blocks.mcp.mcp_agent_block",
+        "import_path": "from sdg_hub.core.blocks import MCPAgentBlock",
+        "docstring": "LLM agent block that connects to remote MCP servers for tool use.\n\nThis block runs an agentic loop where an LLM can call tools provided\nby a remote MCP server to answer queries. It connects via streamable HTTP\nto the MCP server, fetches available tools, and iteratively calls the LLM\nuntil a final response is generated.\n\nThe output is a dictionary containing the full agent trace with all messages,\ntool calls, and tool results - preserving the complete conversation history\nfor downstream processing or analysis.\n\nParameters\n----------\nblock_name : str\n    Name of the block.\nmcp_server_url : str\n    URL of the remote MCP server (e.g., \"https://mcp.example.com/mcp\").\nmcp_headers : Optional[dict[str, str]], optional\n    HTTP headers for MCP server authentication.\nmodel : str\n    Model identifier in LiteLLM format (e.g., \"openai/gpt-4o\").\napi_key : Optional[SecretStr], optional\n    API key for the LLM provider. Falls back to environment variables.\napi_base : Optional[str], optional\n    Base URL for the LLM API.\nmax_iterations : int, optional\n    Maximum number of agentic loop iterations, by default 10.\nsystem_prompt : Optional[str], optional\n    System prompt to prepend to conversations.\ninput_cols : Union[str, List[str]]\n    Input column(s) containing queries to process.\noutput_cols : Union[str, List[str]]\n    Output column(s) for agent trace dictionaries.\n\nOutput Format\n-------------\nEach output cell contains a dictionary with:\n- messages: list[dict] - Full conversation history including user, assistant,\n  and tool messages with all tool calls and results preserved\n- iterations: int - Number of agentic loop iterations completed\n- max_iterations_reached: bool - Whether the loop hit the iteration limit\n\nExamples\n--------\n>>> block = MCPAgentBlock(\n...     block_name=\"research_agent\",\n...     mcp_server_url=\"https://mcp.deepwiki.com/mcp\",\n...     model=\"openai/gpt-4o\",\n...     input_cols=[\"question\"],\n...     output_cols=[\"agent_trace\"],\n... )\n>>> result = block(dataset)\n>>> # Access the full trace\n>>> trace = result[\"agent_trace\"].iloc[0]\n>>> print(trace[\"messages\"])  # Full conversation history\n>>> print(trace[\"iterations\"])  # Number of iterations",
+        "bases": [
+          "BaseBlock",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "block_name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Unique identifier for this block instance"
+          },
+          {
+            "name": "block_type",
+            "type": "str",
+            "required": false,
+            "default": "mcp",
+            "description": ""
+          },
+          {
+            "name": "input_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Input columns: str, list, or dict"
+          },
+          {
+            "name": "output_cols",
+            "type": "Union[str, list[str], dict[str, typing.Any], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Output columns: str, list, or dict"
+          },
+          {
+            "name": "mcp_server_url",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "URL of the remote MCP server"
+          },
+          {
+            "name": "mcp_headers",
+            "type": "Union[dict[str, str], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "HTTP headers for MCP server authentication",
+            "exclude": true
+          },
+          {
+            "name": "model",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Model identifier in LiteLLM format"
+          },
+          {
+            "name": "api_key",
+            "type": "Union[pydantic.types.SecretStr, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "API key for the LLM provider",
+            "exclude": true
+          },
+          {
+            "name": "api_base",
+            "type": "Union[str, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Base URL for the LLM API",
+            "exclude": true
+          },
+          {
+            "name": "max_iterations",
+            "type": "int",
+            "required": false,
+            "default": 10,
+            "description": "Maximum number of agentic loop iterations"
+          },
+          {
+            "name": "system_prompt",
+            "type": "Union[str, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "System prompt to prepend to conversations"
+          }
+        ],
+        "methods": [
+          {
+            "name": "generate",
+            "signature": "(self, samples: pandas.core.frame.DataFrame, **kwargs: Any) -> pandas.core.frame.DataFrame",
+            "docstring": "Generate responses using LLM with MCP tools.\n\nParameters\n----------\nsamples : pd.DataFrame\n    Input dataset containing the query column.\n**kwargs : Any\n    Runtime parameters that override initialization defaults.\n\nReturns\n-------\npd.DataFrame\n    Dataset with agent trace dictionaries added to the output column.\n    Each trace contains 'messages' (full conversation), 'iterations',\n    and 'max_iterations_reached'.\n\nRaises\n------\nBlockValidationError\n    If required configuration is missing.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "samples",
+                "type": "pandas.core.frame.DataFrame"
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self, _MCPAgentBlock__context) -> None",
+            "docstring": "Initialize after Pydantic validation.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "_MCPAgentBlock__context"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_max_iterations",
+            "signature": "(cls, v)",
+            "docstring": "Ensure max_iterations is positive.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_single_input_col",
+            "signature": "(cls, v)",
+            "docstring": "Ensure exactly one input column.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_single_output_col",
+            "signature": "(cls, v)",
+            "docstring": "Ensure exactly one output column.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v"
+              }
+            ],
+            "return_type": ""
+          }
+        ],
+        "decorator": {
+          "decorator": "BlockRegistry.register",
+          "args": [
+            "MCPAgentBlock",
+            "mcp",
+            "LLM agent with remote MCP tools in an agentic loop"
+          ],
+          "kwargs": {}
+        }
+      }
+    ]
+  },
+  "flow": {
+    "base": [
+      {
+        "name": "Flow",
+        "module": "sdg_hub.core.flow.base",
+        "import_path": "from sdg_hub import Flow",
+        "docstring": "Pydantic-based flow for chaining data generation blocks.\n\nA Flow represents a complete data generation pipeline with proper validation,\nmetadata tracking, and execution capabilities. All configuration is validated\nusing Pydantic models for type safety and better error messages.\n\nAttributes\n----------\nblocks : List[BaseBlock]\n    Ordered list of blocks to execute in the flow.\nmetadata : FlowMetadata\n    Flow metadata including name, version, author, etc.",
+        "bases": [
+          "BaseModel"
+        ],
+        "fields": [
+          {
+            "name": "blocks",
+            "type": "list[sdg_hub.core.blocks.base.BaseBlock]",
+            "required": false,
+            "default": [],
+            "description": "Ordered list of blocks to execute in the flow"
+          },
+          {
+            "name": "metadata",
+            "type": "sdg_hub.core.flow.metadata.FlowMetadata",
+            "required": true,
+            "default": null,
+            "description": "Flow metadata including name, version, author, etc."
+          }
+        ],
+        "methods": [
+          {
+            "name": "add_block",
+            "signature": "(self, block: sdg_hub.core.blocks.base.BaseBlock) -> 'Flow'",
+            "docstring": "Add a block to the flow, returning a new Flow instance.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "block",
+                "type": "sdg_hub.core.blocks.base.BaseBlock"
+              }
+            ],
+            "return_type": "Flow"
+          },
+          {
+            "name": "dry_run",
+            "signature": "(self, dataset: Union[pandas.core.frame.DataFrame, datasets.arrow_dataset.Dataset], sample_size: int = 2, runtime_params: Optional[dict[str, dict[str, Any]]] = None, max_concurrency: Optional[int] = None, enable_time_estimation: bool = False) -> dict[str, typing.Any]",
+            "docstring": "Perform a dry run of the flow with a subset of data.\n\nSee execution.run_dry_run for full parameter documentation.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "dataset",
+                "type": "Union[pandas.core.frame.DataFrame, datasets.arrow_dataset.Dataset]"
+              },
+              {
+                "name": "sample_size",
+                "type": "int",
+                "default": 2
+              },
+              {
+                "name": "runtime_params",
+                "type": "Union[dict[str, dict[str, typing.Any]], NoneType]",
+                "default": null
+              },
+              {
+                "name": "max_concurrency",
+                "type": "Union[int, NoneType]",
+                "default": null
+              },
+              {
+                "name": "enable_time_estimation",
+                "type": "bool",
+                "default": false
+              }
+            ],
+            "return_type": "dict[str, typing.Any]"
+          },
+          {
+            "name": "from_yaml",
+            "signature": "(cls, yaml_path: str) -> 'Flow'",
+            "docstring": "Load flow from YAML configuration file.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "yaml_path",
+                "type": "str"
+              }
+            ],
+            "return_type": "Flow"
+          },
+          {
+            "name": "generate",
+            "signature": "(self, dataset: Union[pandas.core.frame.DataFrame, datasets.arrow_dataset.Dataset], runtime_params: Optional[dict[str, dict[str, Any]]] = None, checkpoint_dir: Optional[str] = None, save_freq: Optional[int] = None, log_dir: Optional[str] = None, max_concurrency: Optional[int] = None) -> Union[pandas.core.frame.DataFrame, datasets.arrow_dataset.Dataset]",
+            "docstring": "Execute the flow blocks in sequence to generate data.\n\nFor flows with LLM blocks, set_model_config() must be called first.\n\nSee execution.execute_flow for full parameter documentation.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "dataset",
+                "type": "Union[pandas.core.frame.DataFrame, datasets.arrow_dataset.Dataset]"
+              },
+              {
+                "name": "runtime_params",
+                "type": "Union[dict[str, dict[str, typing.Any]], NoneType]",
+                "default": null
+              },
+              {
+                "name": "checkpoint_dir",
+                "type": "Union[str, NoneType]",
+                "default": null
+              },
+              {
+                "name": "save_freq",
+                "type": "Union[int, NoneType]",
+                "default": null
+              },
+              {
+                "name": "log_dir",
+                "type": "Union[str, NoneType]",
+                "default": null
+              },
+              {
+                "name": "max_concurrency",
+                "type": "Union[int, NoneType]",
+                "default": null
+              }
+            ],
+            "return_type": "Union[pandas.core.frame.DataFrame, datasets.arrow_dataset.Dataset]"
+          },
+          {
+            "name": "get_dataset_requirements",
+            "signature": "(self) -> Optional[sdg_hub.core.flow.metadata.DatasetRequirements]",
+            "docstring": "Get the dataset requirements for this flow, or None if not defined.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "Union[sdg_hub.core.flow.metadata.DatasetRequirements, NoneType]"
+          },
+          {
+            "name": "get_dataset_schema",
+            "signature": "(self) -> pandas.core.frame.DataFrame",
+            "docstring": "Get an empty DataFrame with the correct schema for this flow.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "pandas.core.frame.DataFrame"
+          },
+          {
+            "name": "get_default_model",
+            "signature": "(self) -> Optional[str]",
+            "docstring": "Get the default recommended model for this flow, or None if unspecified.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "Union[str, NoneType]"
+          },
+          {
+            "name": "get_info",
+            "signature": "(self) -> dict[str, typing.Any]",
+            "docstring": "Get information about the flow.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "dict[str, typing.Any]"
+          },
+          {
+            "name": "get_model_recommendations",
+            "signature": "(self) -> dict[str, typing.Any]",
+            "docstring": "Get model recommendations dict with 'default', 'compatible', 'experimental' keys.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "dict[str, typing.Any]"
+          },
+          {
+            "name": "is_agent_config_required",
+            "signature": "(self) -> bool",
+            "docstring": "Check if agent configuration is required (True if flow has agent blocks).",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "bool"
+          },
+          {
+            "name": "is_agent_config_set",
+            "signature": "(self) -> bool",
+            "docstring": "Check if agent configuration has been set or is not required.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "bool"
+          },
+          {
+            "name": "is_model_config_required",
+            "signature": "(self) -> bool",
+            "docstring": "Check if model configuration is required (True if flow has LLM blocks).",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "bool"
+          },
+          {
+            "name": "is_model_config_set",
+            "signature": "(self) -> bool",
+            "docstring": "Check if model configuration has been set or is not required.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "bool"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self: 'BaseModel', context: 'Any', /) -> 'None'",
+            "docstring": "This function is meant to behave like a BaseModel method to initialise private attributes.\n\nIt takes context as an argument since that's what pydantic-core passes when calling it.\n\nArgs:\n    self: The BaseModel instance.\n    context: The context.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "context",
+                "type": "Any"
+              }
+            ],
+            "return_type": "None"
+          },
+          {
+            "name": "print_info",
+            "signature": "(self) -> None",
+            "docstring": "Print an interactive summary of the Flow in the console using rich.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": ""
+          },
+          {
+            "name": "reset_agent_config",
+            "signature": "(self) -> None",
+            "docstring": "Reset agent configuration flag (useful for testing or reconfiguration).\n\nAfter calling this, set_agent_config() must be called again before generate().",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": ""
+          },
+          {
+            "name": "reset_model_config",
+            "signature": "(self) -> None",
+            "docstring": "Reset model configuration flag (useful for testing or reconfiguration).\n\nAfter calling this, set_model_config() must be called again before generate().",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": ""
+          },
+          {
+            "name": "set_agent_config",
+            "signature": "(self, agent_framework: Optional[str] = None, agent_url: Optional[str] = None, agent_api_key: Optional[str] = None, blocks: Optional[list[str]] = None, **kwargs: Any) -> None",
+            "docstring": "Configure agent settings for agent blocks in this flow (in-place).\n\nAuto-detects agent blocks and applies configuration. See agent_config.set_agent_config\nfor full parameter documentation.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "agent_framework",
+                "type": "Union[str, NoneType]",
+                "default": null
+              },
+              {
+                "name": "agent_url",
+                "type": "Union[str, NoneType]",
+                "default": null
+              },
+              {
+                "name": "agent_api_key",
+                "type": "Union[str, NoneType]",
+                "default": null
+              },
+              {
+                "name": "blocks",
+                "type": "Union[list[str], NoneType]",
+                "default": null
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "set_model_config",
+            "signature": "(self, model: Optional[str] = None, api_base: Optional[str] = None, api_key: Optional[str] = None, blocks: Optional[list[str]] = None, **kwargs: Any) -> None",
+            "docstring": "Configure model settings for LLM blocks in this flow (in-place).\n\nAuto-detects LLM blocks and applies configuration. See model_config.set_model_config\nfor full parameter documentation.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "model",
+                "type": "Union[str, NoneType]",
+                "default": null
+              },
+              {
+                "name": "api_base",
+                "type": "Union[str, NoneType]",
+                "default": null
+              },
+              {
+                "name": "api_key",
+                "type": "Union[str, NoneType]",
+                "default": null
+              },
+              {
+                "name": "blocks",
+                "type": "Union[list[str], NoneType]",
+                "default": null
+              },
+              {
+                "name": "kwargs",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "to_yaml",
+            "signature": "(self, output_path: str) -> None",
+            "docstring": "Save flow configuration to YAML file.\n\nNote: This creates a basic YAML structure. For exact reproduction\nof original YAML, save the original file separately.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "output_path",
+                "type": "str"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "validate_block_names_unique",
+            "signature": "(self) -> 'Flow'",
+            "docstring": "Ensure all block names are unique within the flow.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "Flow"
+          },
+          {
+            "name": "validate_blocks",
+            "signature": "(cls, v: list[sdg_hub.core.blocks.base.BaseBlock]) -> list[sdg_hub.core.blocks.base.BaseBlock]",
+            "docstring": "Validate that all blocks are BaseBlock instances.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v",
+                "type": "list[sdg_hub.core.blocks.base.BaseBlock]"
+              }
+            ],
+            "return_type": "list[sdg_hub.core.blocks.base.BaseBlock]"
+          },
+          {
+            "name": "validate_dataset",
+            "signature": "(self, dataset: Union[pandas.core.frame.DataFrame, datasets.arrow_dataset.Dataset]) -> list[str]",
+            "docstring": "Validate dataset against flow requirements. Returns list of error messages.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "dataset",
+                "type": "Union[pandas.core.frame.DataFrame, datasets.arrow_dataset.Dataset]"
+              }
+            ],
+            "return_type": "list[str]"
+          }
+        ]
+      }
+    ],
+    "registry": [
+      {
+        "name": "FlowRegistry",
+        "module": "sdg_hub.core.flow.registry",
+        "import_path": "from sdg_hub import FlowRegistry",
+        "docstring": "Registry for managing contributed flows.",
+        "bases": [],
+        "fields": [],
+        "methods": [
+          {
+            "name": "discover_flows",
+            "signature": "(cls) -> None",
+            "docstring": "Discover and display all flows in a formatted table.\n\nThis is the main public API for flow discovery. It finds all flows\nin registered search paths and displays them in a beautiful Rich table.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": ""
+          },
+          {
+            "name": "get_flow_metadata",
+            "signature": "(cls, flow_name: str) -> Optional[sdg_hub.core.flow.metadata.FlowMetadata]",
+            "docstring": "Get metadata for a registered flow.\n\nParameters\n----------\nflow_name : str\n    Name of the flow.\n\nReturns\n-------\nOptional[FlowMetadata]\n    Flow metadata, or None if not found.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "flow_name",
+                "type": "str"
+              }
+            ],
+            "return_type": "Union[sdg_hub.core.flow.metadata.FlowMetadata, NoneType]"
+          },
+          {
+            "name": "get_flow_path",
+            "signature": "(cls, flow_name_or_id: str) -> Optional[str]",
+            "docstring": "Get the path to a registered flow.\n\nFor backward compatibility, this function accepts either a flow id or flow_name.\nFlow ID is preferred and should be used in new code.\n\nParameters\n----------\nflow_name_or_id : str\n    Either the flow id or flow_name to find.\n\nReturns\n-------\nOptional[str]\n    Path to the flow file, or None if not found.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "flow_name_or_id",
+                "type": "str"
+              }
+            ],
+            "return_type": "Union[str, NoneType]"
+          },
+          {
+            "name": "get_flow_path_safe",
+            "signature": "(cls, flow_name_or_id: str) -> str",
+            "docstring": "Get the path to a registered flow with better error handling.\n\nFor backward compatibility, this function accepts either a flow id or flow_name.\nFlow ID is preferred and should be used in new code.\n\nParameters\n----------\nflow_name_or_id : str\n    Either the flow id or flow_name to find.\n\nReturns\n-------\nstr\n    Path to the flow file.\n\nRaises\n------\nValueError\n    If the flow is not found, with helpful suggestions.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "flow_name_or_id",
+                "type": "str"
+              }
+            ],
+            "return_type": "str"
+          },
+          {
+            "name": "get_flows_by_category",
+            "signature": "(cls) -> Dict[str, List[Dict[str, str]]]",
+            "docstring": "Get flows organized by their primary tag.\n\nReturns\n-------\nDict[str, List[Dict[str, str]]]\n    Dictionary mapping tags to flow information. Each flow is represented by:\n    - id: Flow ID\n    - name: Flow name",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "dict[str, list[dict[str, str]]]"
+          },
+          {
+            "name": "list_flows",
+            "signature": "(cls) -> List[Dict[str, str]]",
+            "docstring": "List all registered flows with their IDs.\n\nReturns\n-------\nList[Dict[str, str]]\n    List of dictionaries containing flow IDs and names.\n    Each dictionary has 'id' and 'name' keys.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "list[dict[str, str]]"
+          },
+          {
+            "name": "register_search_path",
+            "signature": "(cls, path: str) -> None",
+            "docstring": "Add a directory to search for flows.\n\nParameters\n----------\npath : str\n    Path to directory containing flow YAML files.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "path",
+                "type": "str"
+              }
+            ],
+            "return_type": ""
+          },
+          {
+            "name": "search_flows",
+            "signature": "(cls, tag: Optional[str] = None, author: Optional[str] = None) -> List[Dict[str, str]]",
+            "docstring": "Search flows by criteria.\n\nParameters\n----------\ntag : Optional[str]\n    Tag to filter by.\nauthor : Optional[str]\n    Author to filter by.\n\nReturns\n-------\nList[Dict[str, str]]\n    List of matching flows. Each dictionary contains:\n    - id: Flow ID\n    - name: Flow name",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "tag",
+                "type": "Union[str, NoneType]",
+                "default": null
+              },
+              {
+                "name": "author",
+                "type": "Union[str, NoneType]",
+                "default": null
+              }
+            ],
+            "return_type": "list[dict[str, str]]"
+          }
+        ]
+      },
+      {
+        "name": "FlowRegistryEntry",
+        "module": "sdg_hub.core.flow.registry",
+        "import_path": "from sdg_hub.core.flow.registry import FlowRegistryEntry",
+        "docstring": "Entry in the flow registry.\n\nParameters\n----------\npath : str\n    Path to the flow YAML file.\nmetadata : FlowMetadata\n    Flow metadata extracted from the file.",
+        "bases": [],
+        "fields": [
+          {
+            "name": "path",
+            "type": "str",
+            "required": true,
+            "description": "",
+            "default": null
+          },
+          {
+            "name": "metadata",
+            "type": "sdg_hub.core.flow.metadata.FlowMetadata",
+            "required": true,
+            "description": "",
+            "default": null
+          }
+        ],
+        "methods": [
+          {
+            "name": "__init__",
+            "signature": "(self, path: str, metadata: sdg_hub.core.flow.metadata.FlowMetadata) -> None",
+            "docstring": "Initialize self.  See help(type(self)) for accurate signature.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "path",
+                "type": "str"
+              },
+              {
+                "name": "metadata",
+                "type": "sdg_hub.core.flow.metadata.FlowMetadata"
+              }
+            ],
+            "return_type": ""
+          }
+        ],
+        "decorator": {
+          "decorator": "dataclass",
+          "args": [],
+          "kwargs": {}
+        }
+      }
+    ],
+    "metadata": [
+      {
+        "name": "FlowMetadata",
+        "module": "sdg_hub.core.flow.metadata",
+        "import_path": "from sdg_hub import FlowMetadata",
+        "docstring": "Metadata for flow configuration and open source contributions.\n\nAttributes\n----------\nid : str\n    Unique identifier for the flow.\nname : str\n    Human-readable name of the flow.\ndescription : str\n    Detailed description of what the flow does.\nversion : str\n    Semantic version (e.g., \"1.0.0\").\nauthor : str\n    Author or contributor name.\nrecommended_models : Optional[RecommendedModels]\n    Simplified recommended models structure with default, compatible, and experimental lists.\ntags : List[str]\n    Tags for categorization and search.\nlicense : str\n    License identifier.\ndataset_requirements : Optional[DatasetRequirements]\n    Requirements for input datasets.\noutput_columns : Optional[list[str]]\n    Columns to keep in the final output. When set, intermediate columns are\n    dropped both during and after execution. Original input columns are always\n    preserved. Must be non-empty if specified; omit to keep all columns.",
+        "bases": [
+          "BaseModel"
+        ],
+        "fields": [
+          {
+            "name": "name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Human-readable name"
+          },
+          {
+            "name": "id",
+            "type": "str",
+            "required": false,
+            "default": "",
+            "description": "Unique identifier for the flow, generated from name"
+          },
+          {
+            "name": "description",
+            "type": "str",
+            "required": false,
+            "default": "",
+            "description": "Detailed description"
+          },
+          {
+            "name": "version",
+            "type": "str",
+            "required": false,
+            "default": "1.0.0",
+            "description": "Semantic version"
+          },
+          {
+            "name": "author",
+            "type": "str",
+            "required": false,
+            "default": "",
+            "description": "Author or contributor name"
+          },
+          {
+            "name": "recommended_models",
+            "type": "Union[sdg_hub.core.flow.metadata.RecommendedModels, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Simplified recommended models structure"
+          },
+          {
+            "name": "tags",
+            "type": "list[str]",
+            "required": false,
+            "default": [],
+            "description": "Tags for categorization and search"
+          },
+          {
+            "name": "license",
+            "type": "str",
+            "required": false,
+            "default": "Apache-2.0",
+            "description": "License identifier"
+          },
+          {
+            "name": "dataset_requirements",
+            "type": "Union[sdg_hub.core.flow.metadata.DatasetRequirements, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Requirements for input datasets"
+          },
+          {
+            "name": "output_columns",
+            "type": "Union[list[str], NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Columns to keep in the final output. Original input columns are always preserved."
+          }
+        ],
+        "methods": [
+          {
+            "name": "ensure_id",
+            "signature": "(self) -> 'FlowMetadata'",
+            "docstring": "Ensure id is set.\n\nNote: YAML persistence is handled by Flow.from_yaml() and FlowRegistry\nto maintain proper separation of concerns.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "FlowMetadata"
+          },
+          {
+            "name": "get_best_model",
+            "signature": "(self, available_models: Optional[list[str]] = None) -> Optional[str]",
+            "docstring": "Get the best recommended model based on availability.\n\nParameters\n----------\navailable_models : Optional[List[str]]\n    List of available model names. If None, returns default model.\n\nReturns\n-------\nOptional[str]\n    Best model name or None if no models available.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "available_models",
+                "type": "Union[list[str], NoneType]",
+                "default": null
+              }
+            ],
+            "return_type": "Union[str, NoneType]"
+          },
+          {
+            "name": "validate_id",
+            "signature": "(cls, v: str) -> str",
+            "docstring": "Validate flow id.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v",
+                "type": "str"
+              }
+            ],
+            "return_type": "str"
+          },
+          {
+            "name": "validate_output_columns",
+            "signature": "(cls, v: Optional[list[str]]) -> Optional[list[str]]",
+            "docstring": "Validate and clean output columns.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v",
+                "type": "Union[list[str], NoneType]"
+              }
+            ],
+            "return_type": "Union[list[str], NoneType]"
+          },
+          {
+            "name": "validate_recommended_models",
+            "signature": "(cls, v: Optional[sdg_hub.core.flow.metadata.RecommendedModels]) -> Optional[sdg_hub.core.flow.metadata.RecommendedModels]",
+            "docstring": "Validate recommended models structure.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v",
+                "type": "Union[sdg_hub.core.flow.metadata.RecommendedModels, NoneType]"
+              }
+            ],
+            "return_type": "Union[sdg_hub.core.flow.metadata.RecommendedModels, NoneType]"
+          },
+          {
+            "name": "validate_tags",
+            "signature": "(cls, v: list[str]) -> list[str]",
+            "docstring": "Validate and clean tags.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v",
+                "type": "list[str]"
+              }
+            ],
+            "return_type": "list[str]"
+          }
+        ]
+      },
+      {
+        "name": "RecommendedModels",
+        "module": "sdg_hub.core.flow.metadata",
+        "import_path": "from sdg_hub.core.flow.metadata import RecommendedModels",
+        "docstring": "Simplified recommended models structure.\n\nAttributes\n----------\ndefault : str\n    The default model to use\ncompatible : List[str]\n    List of compatible models\nexperimental : List[str]\n    List of experimental models",
+        "bases": [
+          "BaseModel"
+        ],
+        "fields": [
+          {
+            "name": "default",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Default model to use"
+          },
+          {
+            "name": "compatible",
+            "type": "list[str]",
+            "required": false,
+            "default": [],
+            "description": "Compatible models"
+          },
+          {
+            "name": "experimental",
+            "type": "list[str]",
+            "required": false,
+            "default": [],
+            "description": "Experimental models"
+          }
+        ],
+        "methods": [
+          {
+            "name": "get_all_models",
+            "signature": "(self) -> list[str]",
+            "docstring": "Get all models (default + compatible + experimental).",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "list[str]"
+          },
+          {
+            "name": "get_best_model",
+            "signature": "(self, available_models: Optional[list[str]] = None) -> Optional[str]",
+            "docstring": "Get the best model based on availability.\n\nParameters\n----------\navailable_models : Optional[List[str]]\n    List of available model names. If None, returns default.\n\nReturns\n-------\nOptional[str]\n    Best model name or None if no models available.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "available_models",
+                "type": "Union[list[str], NoneType]",
+                "default": null
+              }
+            ],
+            "return_type": "Union[str, NoneType]"
+          },
+          {
+            "name": "validate_default",
+            "signature": "(cls, v: str) -> str",
+            "docstring": "Validate default model name is not empty.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v",
+                "type": "str"
+              }
+            ],
+            "return_type": "str"
+          },
+          {
+            "name": "validate_model_lists",
+            "signature": "(cls, v: list[str]) -> list[str]",
+            "docstring": "Validate model lists contain non-empty names.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v",
+                "type": "list[str]"
+              }
+            ],
+            "return_type": "list[str]"
+          }
+        ]
+      },
+      {
+        "name": "DatasetRequirements",
+        "module": "sdg_hub.core.flow.metadata",
+        "import_path": "from sdg_hub.core.flow.metadata import DatasetRequirements",
+        "docstring": "Dataset requirements for flow execution.\n\nAttributes\n----------\nrequired_columns : List[str]\n    Column names that must be present in the input dataset.\noptional_columns : List[str]\n    Column names that are optional but can enhance flow performance.\nmin_samples : int\n    Minimum number of samples required in the dataset.\nmax_samples : Optional[int]\n    Maximum number of samples to process (for resource management).\ncolumn_types : Dict[str, str]\n    Expected types for specific columns.\ndescription : str\n    Human-readable description of dataset requirements.",
+        "bases": [
+          "BaseModel"
+        ],
+        "fields": [
+          {
+            "name": "required_columns",
+            "type": "list[str]",
+            "required": false,
+            "default": [],
+            "description": "Column names that must be present"
+          },
+          {
+            "name": "optional_columns",
+            "type": "list[str]",
+            "required": false,
+            "default": [],
+            "description": "Optional columns that can enhance performance"
+          },
+          {
+            "name": "min_samples",
+            "type": "int",
+            "required": false,
+            "default": 1,
+            "description": "Minimum number of samples required"
+          },
+          {
+            "name": "max_samples",
+            "type": "Union[int, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Maximum number of samples to process"
+          },
+          {
+            "name": "column_types",
+            "type": "dict[str, str]",
+            "required": false,
+            "default": {},
+            "description": "Expected types for specific columns"
+          },
+          {
+            "name": "description",
+            "type": "str",
+            "required": false,
+            "default": "",
+            "description": "Human-readable description"
+          }
+        ],
+        "methods": [
+          {
+            "name": "validate_column_names",
+            "signature": "(cls, v: list[str]) -> list[str]",
+            "docstring": "Validate column names are not empty.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v",
+                "type": "list[str]"
+              }
+            ],
+            "return_type": "list[str]"
+          },
+          {
+            "name": "validate_dataset",
+            "signature": "(self, dataset_columns: list[str], dataset_size: int) -> list[str]",
+            "docstring": "Validate a dataset against these requirements.\n\nParameters\n----------\ndataset_columns : List[str]\n    Column names in the dataset.\ndataset_size : int\n    Number of samples in the dataset.\n\nReturns\n-------\nList[str]\n    List of validation error messages. Empty if valid.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "dataset_columns",
+                "type": "list[str]"
+              },
+              {
+                "name": "dataset_size",
+                "type": "int"
+              }
+            ],
+            "return_type": "list[str]"
+          },
+          {
+            "name": "validate_sample_limits",
+            "signature": "(self) -> 'DatasetRequirements'",
+            "docstring": "Validate sample limits are consistent.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "DatasetRequirements"
+          }
+        ]
+      },
+      {
+        "name": "ModelOption",
+        "module": "sdg_hub.core.flow.metadata",
+        "import_path": "from sdg_hub.core.flow.metadata import ModelOption",
+        "docstring": "Represents a model option with compatibility level.\n\nAttributes\n----------\nname : str\n    Model identifier (e.g., \"gpt-4\", \"claude-3-sonnet\")\ncompatibility : ModelCompatibility\n    Compatibility level with the flow",
+        "bases": [
+          "BaseModel"
+        ],
+        "fields": [
+          {
+            "name": "name",
+            "type": "str",
+            "required": true,
+            "default": null,
+            "description": "Model identifier"
+          },
+          {
+            "name": "compatibility",
+            "type": "sdg_hub.core.flow.metadata.ModelCompatibility",
+            "required": false,
+            "default": "compatible",
+            "description": "Compatibility level with the flow"
+          }
+        ],
+        "methods": [
+          {
+            "name": "validate_name",
+            "signature": "(cls, v: str) -> str",
+            "docstring": "Validate model name is not empty.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "v",
+                "type": "str"
+              }
+            ],
+            "return_type": "str"
+          }
+        ]
+      },
+      {
+        "name": "ModelCompatibility",
+        "module": "sdg_hub.core.flow.metadata",
+        "import_path": "from sdg_hub.core.flow.metadata import ModelCompatibility",
+        "docstring": "Model compatibility levels.",
+        "bases": [
+          "Enum"
+        ],
+        "fields": [],
+        "methods": []
+      }
+    ]
+  },
+  "connectors": {
+    "base": [
+      {
+        "name": "BaseConnector",
+        "module": "sdg_hub.core.connectors.base",
+        "import_path": "from sdg_hub.core.connectors.base import BaseConnector",
+        "docstring": "Abstract base class for all connectors.\n\nConnectors handle communication with external services.\n\nAttributes\n----------\nconfig : ConnectorConfig\n    Configuration for the connector.\n\nExample\n-------\n>>> class MyConnector(BaseConnector):\n...     def execute(self, request: dict) -> dict:\n...         return {\"result\": request.get(\"input\")}\n...\n>>> connector = MyConnector(config=ConnectorConfig(url=\"http://example.com\"))\n>>> result = connector.execute({\"input\": \"test\"})",
+        "bases": [
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "config",
+            "type": "sdg_hub.core.connectors.base.ConnectorConfig",
+            "required": true,
+            "default": null,
+            "description": "Connector configuration"
+          }
+        ],
+        "methods": [
+          {
+            "name": "aexecute",
+            "signature": "(self, request: Any) -> Any",
+            "docstring": "Execute an asynchronous request.\n\nDefault implementation wraps sync execute in a thread.\nSubclasses should override for true async support.\n\nParameters\n----------\nrequest : Any\n    The request to execute.\n\nReturns\n-------\nAny\n    The response from the external service.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "request",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "typing.Any"
+          },
+          {
+            "name": "execute",
+            "signature": "(self, request: Any) -> Any",
+            "docstring": "Execute a synchronous request.\n\nParameters\n----------\nrequest : Any\n    The request to execute (format depends on connector type).\n\nReturns\n-------\nAny\n    The response from the external service.",
+            "abstract": true,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "request",
+                "type": "typing.Any"
+              }
+            ],
+            "return_type": "typing.Any"
+          }
+        ]
+      },
+      {
+        "name": "ConnectorConfig",
+        "module": "sdg_hub.core.connectors.base",
+        "import_path": "from sdg_hub.core.connectors.base import ConnectorConfig",
+        "docstring": "Base configuration for all connectors.\n\nAttributes\n----------\nurl : str, optional\n    The base URL for the external service.\napi_key : str, optional\n    API key for authentication.\ntimeout : float\n    Request timeout in seconds. Default is 120.0.\nmax_retries : int\n    Maximum number of retry attempts. Default is 3.",
+        "bases": [
+          "BaseModel"
+        ],
+        "fields": [
+          {
+            "name": "url",
+            "type": "Union[str, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "Base URL for the service"
+          },
+          {
+            "name": "api_key",
+            "type": "Union[str, NoneType]",
+            "required": false,
+            "default": null,
+            "description": "API key for authentication"
+          },
+          {
+            "name": "timeout",
+            "type": "float",
+            "required": false,
+            "default": 120.0,
+            "description": "Request timeout in seconds"
+          },
+          {
+            "name": "max_retries",
+            "type": "int",
+            "required": false,
+            "default": 3,
+            "description": "Maximum retry attempts"
+          }
+        ],
+        "methods": []
+      }
+    ],
+    "registry": [
+      {
+        "name": "ConnectorRegistry",
+        "module": "sdg_hub.core.connectors.registry",
+        "import_path": "from sdg_hub.core.connectors.registry import ConnectorRegistry",
+        "docstring": "Global registry for connector classes.\n\nSimple registry for registering and retrieving connectors by name.\n\nExample\n-------\n>>> @ConnectorRegistry.register(\"my_connector\")\n... class MyConnector(BaseConnector):\n...     pass\n...\n>>> connector_class = ConnectorRegistry.get(\"my_connector\")",
+        "bases": [],
+        "fields": [],
+        "methods": [
+          {
+            "name": "clear",
+            "signature": "(cls) -> None",
+            "docstring": "Clear all registered connectors. Primarily for testing.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": ""
+          },
+          {
+            "name": "get",
+            "signature": "(cls, name: str) -> type",
+            "docstring": "Get a connector class by name.\n\nParameters\n----------\nname : str\n    Name of the connector to retrieve.\n\nReturns\n-------\ntype\n    The connector class.\n\nRaises\n------\nConnectorError\n    If the connector is not found.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "name",
+                "type": "str"
+              }
+            ],
+            "return_type": "type"
+          },
+          {
+            "name": "list_all",
+            "signature": "(cls) -> list[str]",
+            "docstring": "Get all registered connector names.\n\nReturns\n-------\nlist[str]\n    Sorted list of all connector names.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [],
+            "return_type": "list[str]"
+          },
+          {
+            "name": "register",
+            "signature": "(cls, name: str)",
+            "docstring": "Register a connector class.\n\nParameters\n----------\nname : str\n    Name under which to register the connector.\n\nReturns\n-------\ncallable\n    Decorator function that registers the class.\n\nExample\n-------\n>>> @ConnectorRegistry.register(\"langflow\")\n... class LangflowConnector(BaseAgentConnector):\n...     pass",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "name",
+                "type": "str"
+              }
+            ],
+            "return_type": ""
+          }
+        ]
+      }
+    ],
+    "agent": [
+      {
+        "name": "BaseAgentConnector",
+        "module": "sdg_hub.core.connectors.agent.base",
+        "import_path": "from sdg_hub.core.connectors.agent.base import BaseAgentConnector",
+        "docstring": "Base class for agent framework connectors.\n\nThis class provides a common interface for communicating with\nagent frameworks (Langflow, LangGraph, etc.). It uses an async-first\npattern where the core logic is implemented once in async, and sync\nis derived automatically.\n\nSubclasses must implement:\n- build_request: Convert messages to framework-specific format\n- parse_response: Convert framework response to standard format\n\nExample:\n    ```python\n    class MyAgentConnector(BaseAgentConnector):\n        def build_request(self, messages, session_id):\n            return {\"input\": messages[-1][\"content\"], \"session\": session_id}\n\n        def parse_response(self, response):\n            return {\"output\": response[\"result\"]}\n\n    connector = MyAgentConnector(config=ConnectorConfig(url=\"http://api\"))\n    response = connector.send(\n        [{\"role\": \"user\", \"content\": \"Hello\"}], \"session1\"\n    )\n    ```",
+        "bases": [
+          "BaseConnector",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "config",
+            "type": "sdg_hub.core.connectors.base.ConnectorConfig",
+            "required": true,
+            "default": null,
+            "description": "Connector configuration"
+          }
+        ],
+        "methods": [
+          {
+            "name": "asend",
+            "signature": "(self, messages: list[dict[str, typing.Any]], session_id: str) -> dict[str, typing.Any]",
+            "docstring": "Async send - convenience wrapper.\n\nParameters\n----------\nmessages : list[dict]\n    Messages to send.\nsession_id : str\n    Session identifier.\n\nReturns\n-------\ndict\n    Response from the agent.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "messages",
+                "type": "list[dict[str, typing.Any]]"
+              },
+              {
+                "name": "session_id",
+                "type": "str"
+              }
+            ],
+            "return_type": "dict[str, typing.Any]"
+          },
+          {
+            "name": "build_request",
+            "signature": "(self, messages: list[dict[str, typing.Any]], session_id: str) -> dict[str, typing.Any]",
+            "docstring": "Build framework-specific request payload.\n\nParameters\n----------\nmessages : list[dict]\n    List of messages in standard format:\n    [{\"role\": \"user\", \"content\": \"Hello\"}, ...]\nsession_id : str\n    Session identifier for conversation tracking.\n\nReturns\n-------\ndict\n    Framework-specific request payload.",
+            "abstract": true,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "messages",
+                "type": "list[dict[str, typing.Any]]"
+              },
+              {
+                "name": "session_id",
+                "type": "str"
+              }
+            ],
+            "return_type": "dict[str, typing.Any]"
+          },
+          {
+            "name": "execute",
+            "signature": "(self, request: dict[str, typing.Any]) -> dict[str, typing.Any]",
+            "docstring": "Execute a request (BaseConnector interface).\n\nParameters\n----------\nrequest : dict\n    Request containing 'messages' and 'session_id' keys.\n\nReturns\n-------\ndict\n    Response from the agent.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "request",
+                "type": "dict[str, typing.Any]"
+              }
+            ],
+            "return_type": "dict[str, typing.Any]"
+          },
+          {
+            "name": "extract_session_id",
+            "signature": "(cls, response: dict[str, typing.Any]) -> str | None",
+            "docstring": "Extract session ID from a framework response.\n\nParameters\n----------\nresponse : dict\n    Raw response from the agent framework.\n\nReturns\n-------\nstr or None\n    Extracted session ID, or None if not found.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "response",
+                "type": "dict[str, typing.Any]"
+              }
+            ],
+            "return_type": "str | None"
+          },
+          {
+            "name": "extract_text",
+            "signature": "(cls, response: dict[str, typing.Any]) -> str | None",
+            "docstring": "Extract text content from a framework response.\n\nParameters\n----------\nresponse : dict\n    Raw response from the agent framework.\n\nReturns\n-------\nstr or None\n    Extracted text, or None if not found.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "response",
+                "type": "dict[str, typing.Any]"
+              }
+            ],
+            "return_type": "str | None"
+          },
+          {
+            "name": "extract_tool_trace",
+            "signature": "(cls, response: dict[str, typing.Any]) -> list[dict[str, typing.Any]] | None",
+            "docstring": "Extract tool call trace from a framework response.\n\nParameters\n----------\nresponse : dict\n    Raw response from the agent framework.\n\nReturns\n-------\nlist[dict] or None\n    List of tool call step dicts, or None if not found.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "response",
+                "type": "dict[str, typing.Any]"
+              }
+            ],
+            "return_type": "list[dict[str, typing.Any]] | None"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self: 'BaseModel', context: 'Any', /) -> 'None'",
+            "docstring": "This function is meant to behave like a BaseModel method to initialise private attributes.\n\nIt takes context as an argument since that's what pydantic-core passes when calling it.\n\nArgs:\n    self: The BaseModel instance.\n    context: The context.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "context",
+                "type": "Any"
+              }
+            ],
+            "return_type": "None"
+          },
+          {
+            "name": "parse_response",
+            "signature": "(self, response: dict[str, typing.Any]) -> dict[str, typing.Any]",
+            "docstring": "Parse and validate framework response.\n\nParameters\n----------\nresponse : dict\n    Raw response from the framework.\n\nReturns\n-------\ndict\n    Validated response dict.\n\nRaises\n------\nConnectorError\n    If the response is invalid or cannot be parsed.",
+            "abstract": true,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "response",
+                "type": "dict[str, typing.Any]"
+              }
+            ],
+            "return_type": "dict[str, typing.Any]"
+          },
+          {
+            "name": "send",
+            "signature": "(self, messages: list[dict[str, typing.Any]], session_id: str, async_mode: bool = False)",
+            "docstring": "Send messages to the agent.\n\nParameters\n----------\nmessages : list[dict]\n    Messages to send, in format:\n    [{\"role\": \"user\", \"content\": \"Hello\"}, ...]\nsession_id : str\n    Session identifier for conversation tracking.\nasync_mode : bool, optional\n    If True, returns a coroutine. If False (default), runs synchronously.\n\nReturns\n-------\ndict or Coroutine[dict]\n    Response dict, or coroutine if async_mode=True.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "messages",
+                "type": "list[dict[str, typing.Any]]"
+              },
+              {
+                "name": "session_id",
+                "type": "str"
+              },
+              {
+                "name": "async_mode",
+                "type": "bool",
+                "default": false
+              }
+            ],
+            "return_type": ""
+          }
+        ]
+      },
+      {
+        "name": "LangflowConnector",
+        "module": "sdg_hub.core.connectors.agent.langflow",
+        "import_path": "from sdg_hub.core.connectors.agent.langflow import LangflowConnector",
+        "docstring": "Connector for Langflow agent framework.\n\nLangflow is a visual framework for building LLM-powered applications.\nThis connector handles the specific request/response format used by\nLangflow's API.\n\nLangflow expects:\n- Single string input (not message array)\n- Session ID for conversation tracking\n- Returns structured response with outputs\n\nExample\n-------\n>>> from sdg_hub.core.connectors import ConnectorConfig, LangflowConnector\n>>>\n>>> config = ConnectorConfig(\n...     url=\"http://localhost:7860/api/v1/run/my-flow\",\n...     api_key=\"your-api-key\",\n... )\n>>> connector = LangflowConnector(config=config)\n>>> response = connector.send(\n...     messages=[{\"role\": \"user\", \"content\": \"Hello!\"}],\n...     session_id=\"session-123\",\n... )",
+        "bases": [
+          "BaseAgentConnector",
+          "BaseConnector",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "config",
+            "type": "sdg_hub.core.connectors.base.ConnectorConfig",
+            "required": true,
+            "default": null,
+            "description": "Connector configuration"
+          }
+        ],
+        "methods": [
+          {
+            "name": "build_request",
+            "signature": "(self, messages: list[dict[str, typing.Any]], session_id: str) -> dict[str, typing.Any]",
+            "docstring": "Build Langflow-specific request payload.\n\nLangflow expects a single string input, not a message array.\nWe extract the last user message content.\n\nParameters\n----------\nmessages : list[dict]\n    Messages in standard format.\nsession_id : str\n    Session identifier.\n\nReturns\n-------\ndict\n    Langflow API request payload.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "messages",
+                "type": "list[dict[str, typing.Any]]"
+              },
+              {
+                "name": "session_id",
+                "type": "str"
+              }
+            ],
+            "return_type": "dict[str, typing.Any]"
+          },
+          {
+            "name": "extract_session_id",
+            "signature": "(cls, response: dict[str, typing.Any]) -> str | None",
+            "docstring": "Extract session ID from a Langflow response.\n\nParameters\n----------\nresponse : dict\n    Raw Langflow API response.\n\nReturns\n-------\nstr or None\n    Extracted session ID, empty string if the field is explicitly\n    None, or None if the key is missing.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "response",
+                "type": "dict[str, typing.Any]"
+              }
+            ],
+            "return_type": "str | None"
+          },
+          {
+            "name": "extract_text",
+            "signature": "(cls, response: dict[str, typing.Any]) -> str | None",
+            "docstring": "Extract text content from a Langflow response.\n\nNavigates ``outputs[0].outputs[0].results.message.text``.\n\nParameters\n----------\nresponse : dict\n    Raw Langflow API response.\n\nReturns\n-------\nstr or None\n    Extracted text, empty string if the field is explicitly None,\n    or None if the path does not exist.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "response",
+                "type": "dict[str, typing.Any]"
+              }
+            ],
+            "return_type": "str | None"
+          },
+          {
+            "name": "extract_tool_trace",
+            "signature": "(cls, response: dict[str, typing.Any]) -> list[dict[str, typing.Any]] | None",
+            "docstring": "Extract tool call trace from Langflow content_blocks.\n\nLangflow agent responses include an 'Agent Steps' content block\nwith structured entries for each step: user input (text), tool\ncalls (tool_use with name, tool_input, output), and final output\n(text).\n\nParameters\n----------\nresponse : dict\n    Raw Langflow API response.\n\nReturns\n-------\nlist[dict] or None\n    List of step dicts from content_blocks, or None if not found.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "response",
+                "type": "dict[str, typing.Any]"
+              }
+            ],
+            "return_type": "list[dict[str, typing.Any]] | None"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self: 'BaseModel', context: 'Any', /) -> 'None'",
+            "docstring": "This function is meant to behave like a BaseModel method to initialise private attributes.\n\nIt takes context as an argument since that's what pydantic-core passes when calling it.\n\nArgs:\n    self: The BaseModel instance.\n    context: The context.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "context",
+                "type": "Any"
+              }
+            ],
+            "return_type": "None"
+          },
+          {
+            "name": "parse_response",
+            "signature": "(self, response: dict[str, typing.Any]) -> dict[str, typing.Any]",
+            "docstring": "Parse Langflow response.\n\nParameters\n----------\nresponse : dict\n    Raw response from Langflow API.\n\nReturns\n-------\ndict\n    Validated response dict.\n\nRaises\n------\nConnectorError\n    If response is not a valid dict.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "response",
+                "type": "dict[str, typing.Any]"
+              }
+            ],
+            "return_type": "dict[str, typing.Any]"
+          }
+        ],
+        "decorator": {
+          "decorator": "ConnectorRegistry.register",
+          "args": [
+            "langflow"
+          ],
+          "kwargs": {}
+        }
+      },
+      {
+        "name": "LangGraphConnector",
+        "module": "sdg_hub.core.connectors.agent.langgraph",
+        "import_path": "from sdg_hub.core.connectors.agent.langgraph import LangGraphConnector",
+        "docstring": "Connector for LangGraph agent framework.\n\nLangGraph is a framework for building stateful, multi-actor applications\nwith LLMs. This connector communicates with any HTTP endpoint that\nimplements the LangGraph Platform API (thread and run management).\nCommon deployment options include ``langgraph dev`` for local\ndevelopment, the LangGraph Platform for managed hosting, or\nself-hosted setups behind FastAPI / Docker on any cloud provider.\n\nThe connector uses thread-based runs:\n\n1. Creates a thread via ``POST {base_url}/threads``\n2. Runs the agent via ``POST {base_url}/threads/{thread_id}/runs/wait``\n\nEach call creates a new LangGraph thread. The ``session_id`` is\nstored as thread metadata for traceability but does not cause\nthread reuse -- each request starts a fresh conversation.\n\nParameters\n----------\nassistant_id : str\n    The assistant ID or graph name to run. Defaults to ``\"agent\"``,\n    which is the standard default for LangGraph deployments.\n\nExample\n-------\n>>> from sdg_hub.core.connectors import ConnectorConfig, LangGraphConnector\n>>>\n>>> config = ConnectorConfig(\n...     url=\"http://localhost:2024\",\n...     api_key=\"your-api-key\",\n... )\n>>> connector = LangGraphConnector(config=config)\n>>> response = connector.send(\n...     messages=[{\"role\": \"user\", \"content\": \"Hello!\"}],\n...     session_id=\"session-123\",\n... )",
+        "bases": [
+          "BaseAgentConnector",
+          "BaseConnector",
+          "BaseModel",
+          "ABC"
+        ],
+        "fields": [
+          {
+            "name": "config",
+            "type": "sdg_hub.core.connectors.base.ConnectorConfig",
+            "required": true,
+            "default": null,
+            "description": "Connector configuration"
+          },
+          {
+            "name": "assistant_id",
+            "type": "str",
+            "required": false,
+            "default": "agent",
+            "description": "The assistant ID or graph name to run."
+          },
+          {
+            "name": "run_config",
+            "type": "dict[str, typing.Any]",
+            "required": false,
+            "default": {},
+            "description": "Optional configuration dict passed in the run payload. Merged as the 'config' key in the LangGraph /runs/wait request. Use this to pass runtime parameters to the graph via 'configurable', e.g. ``{'configurable': {'model': 'gpt-4o'}}``."
+          }
+        ],
+        "methods": [
+          {
+            "name": "build_request",
+            "signature": "(self, messages: list[dict[str, typing.Any]], session_id: str) -> dict[str, typing.Any]",
+            "docstring": "Build LangGraph run request payload.\n\nFormats messages into the LangGraph input structure with the\nconfigured ``assistant_id``.\n\nParameters\n----------\nmessages : list[dict]\n    Messages in standard format.\nsession_id : str\n    Session identifier. Not used in the run payload; included\n    for interface compatibility with ``BaseAgentConnector``.\n\nReturns\n-------\ndict\n    LangGraph ``/runs/wait`` request payload.\n\nRaises\n------\nConnectorError\n    If messages list is empty.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "messages",
+                "type": "list[dict[str, typing.Any]]"
+              },
+              {
+                "name": "session_id",
+                "type": "str"
+              }
+            ],
+            "return_type": "dict[str, typing.Any]"
+          },
+          {
+            "name": "extract_session_id",
+            "signature": "(cls, response: dict[str, typing.Any]) -> str | None",
+            "docstring": "Extract session ID from a LangGraph response.\n\nLangGraph uses thread-based state; there is no top-level\n``session_id`` in the run response.\n\nParameters\n----------\nresponse : dict\n    LangGraph final graph state.\n\nReturns\n-------\nNone\n    Always returns None for LangGraph.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "response",
+                "type": "dict[str, typing.Any]"
+              }
+            ],
+            "return_type": "str | None"
+          },
+          {
+            "name": "extract_text",
+            "signature": "(cls, response: dict[str, typing.Any]) -> str | None",
+            "docstring": "Extract text from the last AI message in LangGraph state.\n\nParameters\n----------\nresponse : dict\n    LangGraph final graph state.\n\nReturns\n-------\nstr or None\n    Content of the last AI message, or None if not found.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "response",
+                "type": "dict[str, typing.Any]"
+              }
+            ],
+            "return_type": "str | None"
+          },
+          {
+            "name": "extract_tool_trace",
+            "signature": "(cls, response: dict[str, typing.Any]) -> list[dict[str, typing.Any]] | None",
+            "docstring": "Extract tool call trace from LangGraph messages.\n\nCollects AI messages with ``tool_calls`` and tool response\nmessages into a structured trace.\n\nParameters\n----------\nresponse : dict\n    LangGraph final graph state.\n\nReturns\n-------\nlist[dict] or None\n    List of tool-related message dicts, or None if none found.",
+            "abstract": false,
+            "classmethod": true,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "response",
+                "type": "dict[str, typing.Any]"
+              }
+            ],
+            "return_type": "list[dict[str, typing.Any]] | None"
+          },
+          {
+            "name": "model_post_init",
+            "signature": "(self: 'BaseModel', context: 'Any', /) -> 'None'",
+            "docstring": "This function is meant to behave like a BaseModel method to initialise private attributes.\n\nIt takes context as an argument since that's what pydantic-core passes when calling it.\n\nArgs:\n    self: The BaseModel instance.\n    context: The context.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "context",
+                "type": "Any"
+              }
+            ],
+            "return_type": "None"
+          },
+          {
+            "name": "parse_response",
+            "signature": "(self, response: dict[str, typing.Any]) -> dict[str, typing.Any]",
+            "docstring": "Parse LangGraph response.\n\nLangGraph returns the final graph state as a dict. For chat agents\nthis typically contains a ``messages`` list with the full\nconversation history.\n\nParameters\n----------\nresponse : dict\n    Raw response from LangGraph API (final graph state).\n\nReturns\n-------\ndict\n    Validated response dict.\n\nRaises\n------\nConnectorError\n    If response is not a valid dict.",
+            "abstract": false,
+            "classmethod": false,
+            "staticmethod": false,
+            "parameters": [
+              {
+                "name": "response",
+                "type": "dict[str, typing.Any]"
+              }
+            ],
+            "return_type": "dict[str, typing.Any]"
+          }
+        ],
+        "decorator": {
+          "decorator": "ConnectorRegistry.register",
+          "args": [
+            "langgraph"
+          ],
+          "kwargs": {}
+        }
+      }
+    ]
+  }
+}

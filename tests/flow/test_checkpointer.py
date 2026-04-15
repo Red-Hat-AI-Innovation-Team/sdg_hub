@@ -6,11 +6,11 @@ from pathlib import Path
 import json
 import tempfile
 
-# First Party
-from sdg_hub.core.flow.checkpointer import FlowCheckpointer
-
 # Third Party
 import pandas as pd
+
+# First Party
+from sdg_hub.core.flow.checkpointer import FlowCheckpointer
 
 
 class TestFlowCheckpointer:

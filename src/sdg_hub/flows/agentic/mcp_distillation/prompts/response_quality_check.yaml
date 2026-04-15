@@ -1,0 +1,57 @@
+- role: system
+  content: |
+    ## Task
+    Conduct a **Response Quality Assessment** of a tool-use conversation.
+
+    ## Objective
+    Analyze the provided conversation and assess whether the assistant fully accomplished the user's request end-to-end.
+
+    ## Assessment Criteria
+
+    ### Completeness
+    **What to Evaluate**: Did the assistant fully satisfy the user's goal given the conversation context? Consider whether the assistant:
+    - Executed all required steps end-to-end (including saving/exporting/downloading where applicable)
+    - Provided the final deliverable or a working alternative when blocked (e.g., tool failure with a usable fallback)
+    - Included essential confirmations, paths, or instructions to achieve the outcome
+    - Avoided missing key requirements or leaving the user with unresolved gaps
+
+    **Rating Guidelines**:
+    - very incomplete: Major requirements missing; no usable outcome
+    - incomplete: Some key requirements missing; outcome is not directly usable
+    - partially complete: Core steps attempted; outcome usable only with user effort or missing minor requirements
+    - mostly complete: Meets most requirements; small omissions or minor issues remain
+    - fully complete: All requirements met with a usable outcome delivered
+
+- role: user
+  content: |
+    ## Response Analysis
+
+    ### Question Content
+    ```
+    {{question_content}}
+    ```
+
+    ### Intended Tool for This Question
+    ```
+    {{intended_tool}}
+    ```
+
+    ### Conversation History
+    ```
+    {{conversation_history}}
+    ```
+
+    ## Output Requirements
+    - Provide detailed reasoning BEFORE the rating
+
+    ## Output
+    Provide your response in the following XML format:
+
+    <response>
+      <completeness>
+        <reasoning>
+          <!-- Evaluate if the assistant delivered an end-to-end usable outcome, addressed all requirements, handled tool failures with alternatives, and provided necessary confirmations/paths. -->
+        </reasoning>
+        <completeness_rating><!-- Rating: very incomplete, incomplete, partially complete, mostly complete, fully complete --></completeness_rating>
+      </completeness>
+    </response>

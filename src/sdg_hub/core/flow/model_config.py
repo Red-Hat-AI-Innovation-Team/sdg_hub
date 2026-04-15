@@ -8,12 +8,16 @@ from typing import TYPE_CHECKING, Any, Optional
 from pydantic import SecretStr
 
 # Local
+from ..utils.config_helpers import apply_config_to_blocks, resolve_target_blocks
 from ..utils.logger_config import setup_logger
 
 if TYPE_CHECKING:
     from .base import Flow
 
 logger = setup_logger(__name__)
+
+# Default API base URL for local vLLM / OpenAI-compatible model servers.
+DEFAULT_API_BASE = "http://localhost:8101/v1"
 
 
 def detect_llm_blocks(flow: "Flow") -> list[str]:
@@ -168,7 +172,7 @@ def set_model_config(
     model : Optional[str]
         Model name to configure (e.g., "hosted_vllm/openai/gpt-oss-120b").
     api_base : Optional[str]
-        API base URL to configure (e.g., "http://localhost:8101/v1").
+        API base URL to configure (e.g., DEFAULT_API_BASE).
     api_key : Optional[str]
         API key to configure.
     blocks : Optional[list[str]]
@@ -180,9 +184,10 @@ def set_model_config(
     --------
     >>> # Recommended workflow: discover -> initialize -> set_model_config -> generate
     >>> flow = Flow.from_yaml("path/to/flow.yaml")  # Initialize flow
+    >>> from sdg_hub.core.flow.model_config import DEFAULT_API_BASE
     >>> flow.set_model_config(  # Configure model settings
     ...     model="hosted_vllm/openai/gpt-oss-120b",
-    ...     api_base="http://localhost:8101/v1",
+    ...     api_base=DEFAULT_API_BASE,
     ...     api_key="your_key",
     ...     temperature=0.7,
     ...     max_tokens=2048
@@ -192,7 +197,7 @@ def set_model_config(
     >>> # Configure only specific blocks
     >>> flow.set_model_config(
     ...     model="hosted_vllm/openai/gpt-oss-120b",
-    ...     api_base="http://localhost:8101/v1",
+    ...     api_base=DEFAULT_API_BASE,
     ...     blocks=["gen_detailed_summary", "knowledge_generation"]
     ... )
 
@@ -222,89 +227,15 @@ def set_model_config(
             "(model, api_base, api_key, or **kwargs)"
         )
 
-    # Determine target blocks
-    if blocks is not None:
-        # Validate that specified blocks exist in the flow
-        existing_block_names = {block.block_name for block in flow.blocks}
-        invalid_blocks = set(blocks) - existing_block_names
-        if invalid_blocks:
-            raise ValueError(
-                f"Specified blocks not found in flow: {sorted(invalid_blocks)}. "
-                f"Available blocks: {sorted(existing_block_names)}"
-            )
-        target_block_names = set(blocks)
-        logger.info(
-            f"Targeting specific blocks for configuration: {sorted(target_block_names)}"
-        )
-    else:
-        # Auto-detect LLM blocks
-        target_block_names = set(detect_llm_blocks(flow))
-        logger.info(
-            f"Auto-detected {len(target_block_names)} LLM blocks for configuration: {sorted(target_block_names)}"
-        )
+    # Resolve which blocks to target
+    target_block_names = resolve_target_blocks(
+        flow, blocks, detect_llm_blocks, config_label="LLM"
+    )
 
-    # Sensitive parameter names that should not be logged
-    sensitive_params = {"api_key", "token", "password", "secret"}
-
-    # Apply configuration to target blocks
-    modified_count = 0
-    for block in flow.blocks:
-        if block.block_name in target_block_names:
-            block_modified = False
-            for param_name, param_value in config_params.items():
-                if hasattr(block, param_name):
-                    setattr(block, param_name, param_value)
-                    block_modified = True
-                    # Don't log sensitive values
-                    if param_name in sensitive_params:
-                        logger.debug(
-                            f"Block '{block.block_name}': {param_name} set (redacted)"
-                        )
-                    else:
-                        logger.debug(
-                            f"Block '{block.block_name}': {param_name} "
-                            f"set to '{param_value}'"
-                        )
-                # check if allow extra
-                elif block.model_config.get("extra") == "allow":
-                    setattr(block, param_name, param_value)
-                    block_modified = True
-                    if param_name in sensitive_params:
-                        logger.debug(
-                            f"Block '{block.block_name}': {param_name} set (redacted)"
-                        )
-                    else:
-                        logger.debug(
-                            f"Block '{block.block_name}': {param_name} "
-                            f"set to '{param_value}'"
-                        )
-                else:
-                    logger.warning(
-                        f"Block '{block.block_name}' ({block.__class__.__name__}) "
-                        f"does not have attribute '{param_name}' - skipping"
-                    )
-
-            if block_modified:
-                modified_count += 1
+    # Apply configuration and mark the flow if any blocks were modified
+    modified_count = apply_config_to_blocks(
+        flow, config_params, target_block_names, config_label="LLM"
+    )
 
     if modified_count > 0:
-        # Enhanced logging showing what was configured
-        # Apply same redaction rules as per-block logging
-        param_summary = []
-        for param_name, param_value in config_params.items():
-            if param_name in sensitive_params:
-                param_summary.append(f"{param_name}: (redacted)")
-            else:
-                param_summary.append(f"{param_name}: '{param_value}'")
-
-        logger.info(
-            f"Successfully configured {modified_count} LLM blocks with: {', '.join(param_summary)}"
-        )
-        logger.info(f"Configured blocks: {sorted(target_block_names)}")
-
-        # Mark that model configuration has been set
         flow._model_config_set = True
-    else:
-        logger.warning(
-            "No blocks were modified - check block names or LLM block detection"
-        )

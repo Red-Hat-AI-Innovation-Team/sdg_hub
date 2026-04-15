@@ -1,68 +1,56 @@
 # Flow YAML Schema
 
-Complete reference for flow.yaml structure.
+Complete reference for `flow.yaml` structure.
 
 ## Top-Level Structure
 
 ```yaml
 metadata:      # Flow metadata (name required)
-  ...
-
 parameters:    # Optional runtime parameters
-  ...
-
-blocks:        # List of blocks to execute (required)
-  - ...
+blocks:        # List of blocks to execute (required, non-empty)
 ```
 
-## Metadata Section
+## Metadata
 
 ```yaml
 metadata:
-  # === Required ===
+  # Required
   name: "Human Readable Flow Name"
 
-  # === Recommended ===
-  version: "1.0.0"                    # Semantic versioning
+  # Recommended
+  version: "1.0.0"
   author: "Your Name"
   description: "What this flow does"
 
-  # === Optional (auto-generated if not provided) ===
-  id: "lowercase-kebab-case-id"       # Auto-generated from name
+  # Auto-generated if omitted
+  id: "lowercase-kebab-id"
 
-  # === Model Recommendations ===
+  # Model recommendations
   recommended_models:
-    default: "openai/gpt-4"           # Primary model
-    compatible:                        # Alternatives
+    default: "openai/gpt-4"
+    compatible:
       - "meta-llama/Llama-3.3-70B-Instruct"
-      - "anthropic/claude-3-opus"
-    experimental:                      # Untested
+    experimental:
       - "mistral/mistral-large"
 
-  # === Dataset Requirements ===
+  # Dataset requirements
   dataset_requirements:
-    required_columns:                  # Must be present
-      - "text"
-      - "domain"
-    optional_columns:                  # Nice to have
-      - "metadata"
-    min_samples: 1                     # Minimum rows
-    max_samples: 10000                 # Maximum rows
-    column_types:                      # Expected types
-      text: "string"
-      domain: "string"
-    description: "Input dataset description"
+    required_columns: ["document"]
+    optional_columns: ["domain"]
+    min_samples: 1
+    max_samples: 10000
+    column_types:
+      document: "string"
+    description: "Documents to process"
 
-  # === Categorization ===
-  tags:
-    - "qa-generation"
-    - "summarization"
+  # Categorization
+  tags: ["qa-generation", "knowledge-infusion"]
   license: "Apache-2.0"
 ```
 
-## Parameters Section (Optional)
+## Parameters (Optional)
 
-Define runtime-configurable parameters:
+Define runtime-configurable values:
 
 ```yaml
 parameters:
@@ -70,61 +58,39 @@ parameters:
     type: "float"
     default: 0.7
     description: "LLM temperature"
-
   max_tokens:
     type: "integer"
     default: 1024
     description: "Max tokens per response"
-
-  model_name:
-    type: "string"
-    default: "gpt-4"
-    description: "Model to use"
 ```
 
-Use in blocks: `${parameter_name}` (parameter substitution).
-
-## Blocks Section
+## Blocks
 
 ```yaml
 blocks:
-  - block_type: "RegisteredBlockName"   # From BlockRegistry
+  - block_type: "RegisteredBlockName"
     block_config:
-      block_name: "unique_id"           # Required, unique within flow
-      input_cols: ...                   # Input column spec
-      output_cols: ...                  # Output column spec
+      block_name: "unique_id"        # Required, unique within flow
+      input_cols: ...                 # Input column spec
+      output_cols: ...               # Output column spec
       # ... block-specific params
+    runtime_overrides: ["temperature", "max_tokens"]  # Optional
 ```
 
-### Column Specifications
-
-#### Input Columns
+### Column Specification Formats
 
 ```yaml
-# String (single column)
+# Single column (string)
 input_cols: "text"
+output_cols: "summary"
 
-# List (multiple columns)
+# Multiple columns (list)
+input_cols: ["text", "context"]
+output_cols: ["question", "answer"]
+
+# Column mapping (dict) -- rename on input
 input_cols:
-  - "text"
-  - "context"
-
-# Dict (rename on input)
-input_cols:
-  document: base_document    # Use base_document as "document"
-  query: user_question       # Use user_question as "query"
-```
-
-#### Output Columns
-
-```yaml
-# String (single column)
-output_cols: "response"
-
-# List (multiple columns)
-output_cols:
-  - "question"
-  - "answer"
+  document: base_document      # Use base_document as "document"
 ```
 
 ## Complete Example
@@ -134,57 +100,45 @@ metadata:
   name: "Document QA Generation"
   version: "1.0.0"
   author: "SDG Hub Contributors"
-  description: "Generate question-answer pairs from documents"
-
+  description: "Generate QA pairs from documents"
   recommended_models:
     default: "openai/gpt-4"
-    compatible:
-      - "meta-llama/Llama-3.3-70B-Instruct"
-
+    compatible: ["meta-llama/Llama-3.3-70B-Instruct"]
   dataset_requirements:
-    required_columns:
-      - "document"
-    optional_columns:
-      - "domain"
-    min_samples: 1
-    description: "Documents to generate QA from"
-
-  tags:
-    - "qa-generation"
-    - "document-processing"
+    required_columns: ["document"]
+    optional_columns: ["domain"]
+  tags: ["qa-generation"]
 
 blocks:
   - block_type: "PromptBuilderBlock"
     block_config:
-      block_name: "build_qa_prompt"
+      block_name: "build_prompt"
       input_cols: ["document"]
-      output_cols: "qa_prompt"
-      prompt_config_path: "qa_prompt.yaml"
+      output_cols: "messages"
+      prompt_config_path: "prompts/qa.yaml"
 
   - block_type: "LLMChatBlock"
     block_config:
-      block_name: "generate_qa"
-      input_cols: "qa_prompt"
-      output_cols: "qa_response"
+      block_name: "generate"
+      input_cols: "messages"
+      output_cols: "raw_response"
       temperature: 0.7
       max_tokens: 512
       async_mode: true
 
-  - block_type: "TextParserBlock"
+  - block_type: "TagParserBlock"
     block_config:
-      block_name: "parse_qa"
-      input_cols: "qa_response"
-      output_cols:
-        - "question"
-        - "response"
-      pattern: "Question:\\s*(.+?)\\s*Answer:\\s*(.+)"
-      flags: "DOTALL"
+      block_name: "parse"
+      input_cols: "raw_response"
+      output_cols: ["question", "response"]
+      start_tags: ["<question>", "<answer>"]
+      end_tags: ["</question>", "</answer>"]
 
   - block_type: "ColumnValueFilterBlock"
     block_config:
       block_name: "filter_empty"
       input_cols: "question"
-      filter_value: ["", null]
+      filter_value: ""
       operation: "ne"
 ```
 
@@ -192,17 +146,30 @@ blocks:
 
 The flow validator checks:
 
-1. **Required structure:**
-   - `blocks` list must exist and be non-empty
-   - Each block must have `block_type` and `block_config`
-   - Each `block_config` must have `block_name`
+1. `blocks` must exist and be a non-empty list
+2. Each block must have `block_type` and `block_config` (both dicts)
+3. Each `block_config` must have a `block_name`
+4. Block names must be unique within the flow
+5. `metadata.name` is required if metadata is present
+6. `metadata.id` must be lowercase alphanumeric + hyphens
+7. `prompt_config_path` files must exist relative to the flow.yaml directory
 
-2. **Uniqueness:**
-   - Block names must be unique within the flow
+## Prompt Template Files
 
-3. **Metadata:**
-   - `name` is required
-   - `id` must be lowercase if provided
+Referenced by `PromptBuilderBlock` via `prompt_config_path` (relative to flow.yaml).
 
-4. **References:**
-   - `prompt_config_path` files must exist (relative to flow.yaml)
+```yaml
+# prompts/qa.yaml
+- role: system
+  content: |
+    You generate question-answer pairs.
+
+- role: user
+  content: |
+    Document: {document}
+
+    Generate a question and answer.
+    Use <question>...</question> and <answer>...</answer> tags.
+```
+
+Template variables (`{document}`) are filled from `input_cols`.

@@ -1,709 +1,481 @@
 # LLM Blocks
 
-LLM (Large Language Model) blocks provide AI-powered text generation capabilities. These blocks integrate with 100+ language model providers through LiteLLM, offering unified interfaces for chat, prompt building, and text parsing operations.
+LLM blocks handle language model interaction through LiteLLM, supporting 100+ providers including OpenAI, Anthropic, Google, and local models such as vLLM and Ollama. This page covers three blocks: `LLMChatBlock` for chat completions, `PromptBuilderBlock` for Jinja2 template rendering into structured messages, and `LLMResponseExtractorBlock` for extracting fields from LLM response objects.
 
-## 🧠 Available LLM Blocks
+All blocks operate on pandas DataFrames. The model is set at runtime via `flow.set_model_config()` or directly in the constructor.
 
-### LLMChatBlock
-The core block for direct language model interaction, supporting chat completions across all major providers.
+---
 
-### PromptBuilderBlock  
-Constructs structured prompts from templates and data, with support for complex formatting and validation.
+## LLMChatBlock
 
-### TextParserBlock
-Extracts structured data from LLM responses using patterns, schemas, or parsing rules.
+Unified LLM chat block supporting all providers via LiteLLM. Sends messages to a language model and returns raw response objects. Accepts any LiteLLM completion parameter (temperature, max_tokens, top_p, etc.) as extra keyword arguments.
 
-### JSONParserBlock
-Parses JSON objects from model responses and expands fields into separate columns, including JSON embedded in surrounding text.
+### Configuration
 
-## 🚀 LLMChatBlock
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `block_name` | `str` | required | Unique identifier for this block instance |
+| `input_cols` | `str \| list[str]` | required | Single input column containing the messages list |
+| `output_cols` | `str \| list[str]` | required | Single output column for the response |
+| `model` | `Optional[str]` | `None` | Model identifier in LiteLLM format (e.g. `"openai/gpt-4"`, `"anthropic/claude-3-sonnet-20240229"`) |
+| `api_key` | `Optional[SecretStr]` | `None` | API key for the provider. Falls back to environment variables. Automatically redacted in logs. |
+| `api_base` | `Optional[str]` | `None` | Base URL for the API. Required for local models. |
+| `async_mode` | `bool` | `False` | Whether to use async processing |
+| `timeout` | `float` | `120.0` | Request timeout in seconds |
+| `num_retries` | `int` | `6` | Number of retry attempts using LiteLLM built-in retry |
+| `drop_params` | `bool` | `True` | Whether to drop unsupported parameters to prevent API errors |
+| `**kwargs` | `Any` | -- | Any LiteLLM completion parameter (temperature, max_tokens, top_p, response_format, seed, n, etc.) |
 
-The unified chat block that replaces provider-specific implementations with a single, powerful interface.
+The `model`, `api_key`, `api_base`, `async_mode`, `timeout`, and `num_retries` fields are excluded from YAML serialization. They are set at runtime through `flow.set_model_config()` or the constructor.
 
-### Supported Providers
-
-**Cloud Providers:**
-- **OpenAI** - GPT-3.5, GPT-4, GPT-4o
-- **Anthropic** - Claude 3 Haiku, Sonnet, Opus
-- **Google** - Gemini Pro, Gemini Ultra, PaLM
-- **Azure OpenAI** - All OpenAI models via Azure
-
-**Local/Self-Hosted:**
-- **vLLM** - High-performance local inference
-- **Ollama** - Local model serving
-- **HuggingFace** - Transformers integration
-- **LM Studio** - Local GUI-based serving
-
-### Basic Usage
-
-```python
-from sdg_hub.core.blocks import LLMChatBlock
-from datasets import Dataset
-
-# Configure for OpenAI
-chat_block = LLMChatBlock(
-    block_name="question_answerer",
-    input_cols=["messages"],
-    output_cols=["response"],
-    model="openai/gpt-4o",
-    api_key="your-openai-key",
-    temperature=0.7,
-    max_tokens=150
-)
-
-# Create dataset with messages
-dataset = Dataset.from_dict({
-    "messages": [
-        [{"role": "user", "content": "What is machine learning?"}],
-        [{"role": "user", "content": "Explain neural networks"}]
-    ]
-})
-
-# Generate responses
-result = chat_block.generate(dataset)
-print(result["response"])  # Generated answers
-```
-
-### Provider-Specific Examples
-
-#### Local vLLM Server
-```python
-chat_block = LLMChatBlock(
-    block_name="local_llama",
-    model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct", 
-    api_base="http://localhost:8000/v1",
-    api_key="your_key",
-    input_cols=["messages"],
-    output_cols=["response"]
-)
-```
-
-#### Anthropic Claude
-```python
-chat_block = LLMChatBlock(
-    block_name="claude_chat",
-    model="anthropic/claude-3-sonnet-20240229",
-    api_key="your-anthropic-key",
-    input_cols=["messages"], 
-    output_cols=["response"],
-    max_tokens=1000
-)
-```
-
-#### Google Gemini
-```python
-chat_block = LLMChatBlock(
-    block_name="gemini_chat",
-    model="google/gemini-pro",
-    api_key="your-google-key",
-    input_cols=["messages"],
-    output_cols=["response"]
-)
-```
-
-### Advanced Configuration
-
-#### Multiple Completions
-```python
-# Generate 3 alternative responses per input
-chat_block = LLMChatBlock(
-    block_name="multi_response",
-    model="openai/gpt-4o",
-    n=3,  # Generate 3 completions
-    input_cols=["messages"],
-    output_cols=["responses"]  # Will contain list of 3 responses
-)
-```
-
-#### Structured Output (JSON Mode)
-```python
-chat_block = LLMChatBlock(
-    block_name="structured_chat",
-    model="openai/gpt-4o",
-    response_format={"type": "json_object"},
-    input_cols=["messages"],
-    output_cols=["json_response"]
-)
-
-# Ensure your prompt requests JSON format
-dataset = Dataset.from_dict({
-    "messages": [
-        [{"role": "user", "content": "Return a JSON object with 'topic' and 'summary' fields about machine learning"}]
-    ]
-})
-```
-
-#### Async Processing & Concurrency Control
-```python
-chat_block = LLMChatBlock(
-    block_name="async_chat",
-    model="openai/gpt-4o",
-    async_mode=True,  # Enable async processing
-    input_cols=["messages"],
-    output_cols=["response"]
-)
-
-# Automatically handles concurrent API calls for better throughput
-result = chat_block.generate(large_dataset)
-```
-
-**Flow-Level Concurrency Control:**
-
-When using LLM blocks within flows, you can control concurrency to prevent overwhelming API servers or hitting rate limits:
-
-```python
-from sdg_hub import Flow
-
-# Load a flow with LLM blocks
-flow = Flow.from_yaml("path/to/your/flow.yaml")
-flow.set_model_config(model="openai/gpt-4o", api_key="your-key")
-
-# Control concurrency for each LLM block in the flow
-result = flow.generate(
-    dataset, 
-    max_concurrency=5  # Max 5 concurrent requests at any time
-)
-```
-
-**Benefits of Concurrency Control:**
-- **Rate Limit Management** - Prevent API throttling by limiting concurrent requests
-- **Resource Control** - Manage memory and network usage for large datasets  
-- **Provider-Friendly** - Respect API provider recommendations for concurrent requests
-- **Automatic Scaling** - No concurrency limit = maximum parallelism for fastest processing
-
-**How It Works:**
-
-The unified async system automatically detects whether you're processing single or multiple messages and applies concurrency control appropriately:
-
-```python
-# Single message - processed immediately
-single_message = [{"role": "user", "content": "Hello"}]
-
-# Multiple messages - concurrency controlled via semaphore
-batch_messages = [
-    [{"role": "user", "content": "Question 1"}],
-    [{"role": "user", "content": "Question 2"}],
-    [{"role": "user", "content": "Question 3"}],
-    # ... up to thousands of messages
-]
-
-# Both cases use the same unified API under the hood
-# Concurrency is managed transparently
-```
-
-**Performance Guidelines:**
-- **Small datasets (<100 samples)**: No concurrency limit needed
-- **Medium datasets (100-1000 samples)**: `max_concurrency=10-20`
-- **Large datasets (1000+ samples)**: `max_concurrency=5-10` (respect API limits)
-- **Production workloads**: Start conservative and tune based on error rates
+Exactly one input column and one output column are required. The input column must contain lists of message dicts in OpenAI chat format. The output column receives lists of response message dicts.
 
 ### Message Format
 
-LLMChatBlock expects messages in OpenAI chat format:
+LLMChatBlock expects messages in OpenAI chat completion format. Each message is a dict with `role` and `content` keys:
 
 ```python
-# Single conversation
 messages = [
     {"role": "system", "content": "You are a helpful assistant."},
     {"role": "user", "content": "What is Python?"},
-    {"role": "assistant", "content": "Python is a programming language."},
-    {"role": "user", "content": "What are its benefits?"}
 ]
-
-# Dataset with multiple conversations
-dataset = Dataset.from_dict({
-    "messages": [
-        [{"role": "user", "content": "Question 1"}],
-        [{"role": "user", "content": "Question 2"}],
-        [
-            {"role": "system", "content": "You are an expert."},
-            {"role": "user", "content": "Complex question with context"}
-        ]
-    ]
-})
 ```
 
-## 🏗️ PromptBuilderBlock
+Each row in the input column must be a non-empty list of such dicts. The block validates this format before calling the model.
 
-Constructs prompts from templates and data with validation and formatting support. Uses Jinja2 templating to dynamically render messages from dataset columns into structured chat format or plain text.
+### Python Example
 
-### Basic Template Usage
+```python
+from sdg_hub.core.blocks import LLMChatBlock
+import pandas as pd
 
-Create a YAML configuration file defining your prompt template:
+block = LLMChatBlock(
+    block_name="qa_generator",
+    input_cols="messages",
+    output_cols="response",
+    model="openai/gpt-4o",
+    api_key="sk-...",
+    temperature=0.7,
+    max_tokens=1000,
+)
+
+dataset = pd.DataFrame({
+    "messages": [
+        [{"role": "user", "content": "What is machine learning?"}],
+        [{"role": "user", "content": "Explain neural networks."}],
+    ]
+})
+
+result = block.generate(dataset)
+# result["response"] contains lists of response message dicts
+```
+
+### Provider Examples
+
+**OpenAI:**
+
+```python
+from sdg_hub.core.blocks import LLMChatBlock
+
+block = LLMChatBlock(
+    block_name="openai_chat",
+    input_cols="messages",
+    output_cols="response",
+    model="openai/gpt-4o",
+    api_key="sk-...",
+    temperature=0.7,
+    max_tokens=1000,
+)
+```
+
+**Local vLLM server:**
+
+```python
+from sdg_hub.core.blocks import LLMChatBlock
+
+block = LLMChatBlock(
+    block_name="local_llama",
+    input_cols="messages",
+    output_cols="response",
+    model="hosted_vllm/meta-llama/Llama-3.3-70B-Instruct",
+    api_base="http://localhost:8000/v1",
+    api_key="token-abc123",
+    temperature=0.7,
+)
+```
+
+**Anthropic Claude (via LiteLLM):**
+
+```python
+from sdg_hub.core.blocks import LLMChatBlock
+
+block = LLMChatBlock(
+    block_name="claude_chat",
+    input_cols="messages",
+    output_cols="response",
+    model="anthropic/claude-3-sonnet-20240229",
+    api_key="sk-ant-...",
+    max_tokens=1000,
+)
+```
+
+### Async Mode and Concurrency
+
+Set `async_mode=True` to process all rows concurrently. When running inside a flow, pass `max_concurrency` to `flow.generate()` to limit concurrent requests:
+
+```python
+from sdg_hub.core.blocks import LLMChatBlock
+
+block = LLMChatBlock(
+    block_name="async_chat",
+    input_cols="messages",
+    output_cols="response",
+    model="openai/gpt-4o",
+    async_mode=True,
+)
+
+# Standalone usage runs all requests concurrently
+result = block.generate(dataset)
+
+# Within a flow, control concurrency via flow.generate()
+from sdg_hub import Flow
+
+flow = Flow.from_yaml("my_flow.yaml")
+flow.set_model_config(model="openai/gpt-4o", api_key="sk-...")
+result = flow.generate(dataset, max_concurrency=10)
+```
+
+When `n > 1` is set (multiple completions per request), the effective concurrency is automatically adjusted by dividing `max_concurrency` by `n`.
+
+### Structured Output (JSON Mode)
+
+```python
+from sdg_hub.core.blocks import LLMChatBlock
+
+block = LLMChatBlock(
+    block_name="json_chat",
+    input_cols="messages",
+    output_cols="response",
+    model="openai/gpt-4o",
+    response_format={"type": "json_object"},
+)
+```
+
+### YAML Example
 
 ```yaml
-# qa_prompt.yaml
+blocks:
+  - block_type: "LLMChatBlock"
+    block_config:
+      block_name: "qa_generator"
+      input_cols: "messages"
+      output_cols: "response"
+      temperature: 0.7
+      max_tokens: 1000
+      drop_params: true
+```
+
+The `model`, `api_key`, and `api_base` fields are set at runtime via `flow.set_model_config()` and are not included in the YAML.
+
+### Response Format
+
+The output column contains a `list[dict]` for each row. Each dict is a response
+message with at minimum a `content` key holding the assistant's text reply. When
+`n=1` (the default), the list has a single element. When `n > 1`, the list
+contains one dict per completion choice.
+
+```python
+# Single completion (n=1, the default):
+[{"content": "Machine learning is a subset of AI..."}]
+
+# Multiple completions (n=3):
+[
+    {"content": "Machine learning is..."},
+    {"content": "ML refers to..."},
+    {"content": "In computer science, machine learning..."},
+]
+```
+
+Use `LLMResponseExtractorBlock` after `LLMChatBlock` to extract the `content`
+(or other fields like `reasoning_content`, `tool_calls`) into flat columns.
+
+---
+
+## PromptBuilderBlock
+
+Formats prompts into structured chat messages or plain text using Jinja2 templates. Takes input from dataset columns, applies templates from a YAML config file, and outputs either a list of message dicts or a concatenated string.
+
+### Configuration
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `block_name` | `str` | required | Unique identifier for this block instance |
+| `input_cols` | `str \| list[str] \| dict[str, str]` | required | Input columns. Use a dict to map dataset column names to template variable names. |
+| `output_cols` | `str` | required | Single output column name for formatted content |
+| `prompt_config_path` | `str` | required | Path to YAML file containing the Jinja2 template configuration |
+| `format_as_messages` | `bool` | `True` | If True, output is a list of dicts with `role` and `content` keys. If False, output is a concatenated string with role prefixes. |
+
+The YAML template file must be a list of message objects. Each message requires `role` (`system`, `user`, `assistant`, or `tool`) and `content` fields. At least one message must have `role: user`, and the final message must also have `role: user`.
+
+Template variables use Jinja2 `{{ variable }}` syntax. Variables are resolved from dataset columns based on `input_cols`.
+
+### Python Example
+
+Template file (`qa_prompt.yaml`):
+
+```yaml
 - role: system
-  content: "You are an expert {{domain}} assistant with deep knowledge in the field."
+  content: "You are an expert {{ domain }} assistant."
 
 - role: user
   content: |
-    Please answer the following question based on the context provided.
+    Context: {{ context }}
+    Question: {{ question }}
 
-    Context: {{context}}
-    Question: {{question}}
-
-    Provide a clear and accurate answer.
+    Provide a clear answer.
 ```
 
-Use the template with PromptBuilderBlock:
+Block usage:
 
 ```python
 from sdg_hub.core.blocks import PromptBuilderBlock
 import pandas as pd
 
-# Create the prompt builder block
-prompt_builder = PromptBuilderBlock(
+builder = PromptBuilderBlock(
     block_name="qa_prompter",
     input_cols=["domain", "context", "question"],
     output_cols="messages",
     prompt_config_path="qa_prompt.yaml",
-    format_as_messages=True  # Output as chat messages (default)
+    format_as_messages=True,
 )
 
-# Create dataset with your data
-dataset = pd.DataFrame([
-    {
-        "domain": "physics",
-        "context": "Newton's laws describe the relationship between forces and motion.",
-        "question": "What is Newton's first law?"
-    },
-    {
-        "domain": "biology",
-        "context": "DNA contains the genetic instructions for living organisms.",
-        "question": "What is the role of DNA?"
-    }
-])
+dataset = pd.DataFrame([{
+    "domain": "physics",
+    "context": "Newton's laws describe motion.",
+    "question": "What is Newton's first law?",
+}])
 
-# Generate formatted prompts
-result = prompt_builder.generate(dataset)
-
-# Result contains messages in OpenAI chat format
-print(result["messages"][0])
+result = builder.generate(dataset)
+# result["messages"][0] is a list of dicts:
 # [
-#   {"role": "system", "content": "You are an expert physics assistant..."},
-#   {"role": "user", "content": "Please answer the following question..."}
+#   {"role": "system", "content": "You are an expert physics assistant."},
+#   {"role": "user", "content": "Context: Newton's laws...\nQuestion: What is..."}
 # ]
 ```
 
-### Column Mapping with Dictionary
+### Column Mapping with Dict
 
-Map dataset column names to different template variable names:
+When dataset column names differ from template variable names, use a dict for `input_cols`:
 
 ```python
-# When dataset columns don't match template variable names
-prompt_builder = PromptBuilderBlock(
+from sdg_hub.core.blocks import PromptBuilderBlock
+
+builder = PromptBuilderBlock(
     block_name="mapped_prompter",
     input_cols={
-        "article_text": "context",      # Maps article_text column to {{context}}
-        "user_query": "question",        # Maps user_query column to {{question}}
-        "subject": "domain"              # Maps subject column to {{domain}}
+        "article_text": "context",   # dataset column -> template variable
+        "user_query": "question",
+        "subject": "domain",
     },
     output_cols="messages",
-    prompt_config_path="qa_prompt.yaml"
+    prompt_config_path="qa_prompt.yaml",
 )
-
-dataset = pd.DataFrame([{
-    "article_text": "Einstein's theory of relativity...",
-    "user_query": "What is time dilation?",
-    "subject": "physics"
-}])
-
-result = prompt_builder.generate(dataset)
 ```
 
-### Plain Text Format
+### Plain Text Output
 
-Generate formatted text instead of structured messages:
+Set `format_as_messages=False` to get concatenated text with role prefixes instead of structured message lists:
 
 ```python
-# evaluation_prompt.yaml
-# - role: system
-#   content: "You are an evaluator assessing response quality."
-# - role: user
-#   content: |
-#     Document: {{document}}
-#     Response: {{response}}
-#
-#     Is the response faithful to the document? Answer YES or NO.
+from sdg_hub.core.blocks import PromptBuilderBlock
 
-prompt_builder = PromptBuilderBlock(
-    block_name="eval_prompter",
+builder = PromptBuilderBlock(
+    block_name="text_prompter",
     input_cols=["document", "response"],
     output_cols="formatted_prompt",
-    prompt_config_path="evaluation_prompt.yaml",
-    format_as_messages=False  # Output as plain text
+    prompt_config_path="eval_prompt.yaml",
+    format_as_messages=False,
 )
 
-dataset = pd.DataFrame([{
-    "document": "The capital of France is Paris.",
-    "response": "Paris is the capital of France."
-}])
-
-result = prompt_builder.generate(dataset)
-
-print(result["formatted_prompt"][0])
-# system: You are an evaluator assessing response quality.
-#
-# user: Document: The capital of France is Paris.
-# Response: Paris is the capital of France.
-#
-# Is the response faithful to the document? Answer YES or NO.
+# Output is a string like:
+# "system: You are an evaluator.\n\nuser: Document: ...\nResponse: ..."
 ```
 
-### Practical Example: Question Generation Pipeline
+### YAML Example
 
-Complete example showing PromptBuilderBlock with LLMChatBlock:
+```yaml
+blocks:
+  - block_type: "PromptBuilderBlock"
+    block_config:
+      block_name: "qa_prompter"
+      input_cols:
+        - "domain"
+        - "context"
+        - "question"
+      output_cols: "messages"
+      prompt_config_path: "prompts/qa_prompt.yaml"
+      format_as_messages: true
+```
+
+---
+
+## LLMResponseExtractorBlock
+
+Extracts specified fields from LLM response objects (dicts or lists of dicts). Use this block after LLMChatBlock to pull out `content`, `reasoning_content`, or `tool_calls` from the raw response into separate columns.
+
+### Configuration
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `block_name` | `str` | required | Unique identifier for this block instance |
+| `input_cols` | `str \| list[str]` | required | Single input column containing response objects (dict or list of dicts) |
+| `extract_content` | `bool` | `True` | Whether to extract the `content` field from responses |
+| `extract_reasoning_content` | `bool` | `False` | Whether to extract the `reasoning_content` field from responses |
+| `extract_tool_calls` | `bool` | `False` | Whether to extract the `tool_calls` field from responses |
+| `expand_lists` | `bool` | `True` | Whether to expand list inputs into individual rows (True) or preserve lists (False) |
+| `field_prefix` | `str` | `""` | Prefix for output field names. If empty, defaults to `"{block_name}_"`. Example: `"llm_"` produces columns `llm_content`, `llm_reasoning_content`. |
+
+At least one of `extract_content`, `extract_reasoning_content`, or `extract_tool_calls` must be enabled.
+
+The `output_cols` field is computed automatically from the extraction settings and prefix. You do not set it manually.
+
+### Python Example
 
 ```python
-from sdg_hub.core.blocks import PromptBuilderBlock, LLMChatBlock
+from sdg_hub.core.blocks import LLMChatBlock, LLMResponseExtractorBlock
 import pandas as pd
 
-# Step 1: Create template for question generation
-# question_gen_prompt.yaml:
-# - role: system
-#   content: "You are a question generation assistant."
-# - role: user
-#   content: |
-#     Generate 3 questions based on this text:
-#     {{text}}
-#
-#     Format: Return questions separated by newlines.
+# After running LLMChatBlock, extract content from responses
+extractor = LLMResponseExtractorBlock(
+    block_name="extract_content",
+    input_cols="response",
+    extract_content=True,
+    extract_reasoning_content=False,
+    extract_tool_calls=False,
+    field_prefix="llm_",
+)
 
-# Step 2: Configure prompt builder
+# Assuming 'result' has a "response" column from LLMChatBlock
+extracted = extractor.generate(result)
+# extracted["llm_content"] contains the text content from each response
+```
+
+### Extracting Multiple Fields
+
+```python
+from sdg_hub.core.blocks import LLMResponseExtractorBlock
+
+extractor = LLMResponseExtractorBlock(
+    block_name="full_extract",
+    input_cols="response",
+    extract_content=True,
+    extract_reasoning_content=True,
+    extract_tool_calls=True,
+    field_prefix="llm_",
+)
+
+# Produces columns: llm_content, llm_reasoning_content, llm_tool_calls
+```
+
+### Handling Multiple Completions
+
+When `LLMChatBlock` is configured with `n > 1`, the response column contains a list of response dicts. `expand_lists=True` (default) creates a separate row for each completion. Set `expand_lists=False` to keep lists as column values.
+
+```python
+from sdg_hub.core.blocks import LLMResponseExtractorBlock
+
+# Expand each completion into its own row
+extractor = LLMResponseExtractorBlock(
+    block_name="expand_responses",
+    input_cols="response",
+    extract_content=True,
+    expand_lists=True,
+    field_prefix="gen_",
+)
+
+# Or preserve list structure
+extractor_flat = LLMResponseExtractorBlock(
+    block_name="keep_lists",
+    input_cols="response",
+    extract_content=True,
+    expand_lists=False,
+    field_prefix="gen_",
+)
+```
+
+### YAML Example
+
+```yaml
+blocks:
+  - block_type: "LLMResponseExtractorBlock"
+    block_config:
+      block_name: "extract_content"
+      input_cols: "response"
+      extract_content: true
+      extract_reasoning_content: false
+      extract_tool_calls: false
+      expand_lists: true
+      field_prefix: "llm_"
+```
+
+---
+
+## Common Pipeline Pattern
+
+A typical LLM pipeline chains these three blocks: build prompts, call the model, and extract the text content.
+
+```python
+from sdg_hub.core.blocks import (
+    LLMChatBlock,
+    LLMResponseExtractorBlock,
+    PromptBuilderBlock,
+)
+import pandas as pd
+
+# Step 1: Build messages from dataset columns using a template
 prompt_builder = PromptBuilderBlock(
-    block_name="question_prompter",
-    input_cols="text",
+    block_name="build_prompt",
+    input_cols=["context", "question"],
     output_cols="messages",
-    prompt_config_path="question_gen_prompt.yaml"
+    prompt_config_path="prompts/qa.yaml",
 )
 
-# Step 3: Configure LLM chat block
-chat_block = LLMChatBlock(
-    block_name="question_generator",
-    model="openai/gpt-4o",
-    api_key="your-api-key",
+# Step 2: Send messages to the LLM
+chat = LLMChatBlock(
+    block_name="call_llm",
     input_cols="messages",
-    output_cols="llm_response",
-    temperature=0.7
+    output_cols="response",
+    model="openai/gpt-4o",
+    api_key="sk-...",
+    temperature=0.7,
 )
 
-# Step 4: Process dataset
+# Step 3: Extract the text content from the response
+extractor = LLMResponseExtractorBlock(
+    block_name="extract",
+    input_cols="response",
+    extract_content=True,
+    field_prefix="llm_",
+)
+
+# Run the pipeline
 dataset = pd.DataFrame([{
-    "text": "Machine learning is a subset of AI that enables systems to learn from data."
+    "context": "Python is a programming language.",
+    "question": "What is Python used for?",
 }])
 
-# Execute pipeline
 result = prompt_builder.generate(dataset)
-result = chat_block.generate(result)
-
-print(result["llm_response"][0])
-# Generated questions based on the text
+result = chat.generate(result)
+result = extractor.generate(result)
+# result["llm_content"] contains the extracted answer text
 ```
 
-### Configuration Reference
+This same pipeline can be defined in YAML and executed as a flow. See the [Flow documentation](../flows/index.md) for details.
 
-**Required Parameters:**
-- `block_name` - Unique identifier for the block
-- `input_cols` - Column specification (str, list, or dict for mapping)
-- `output_cols` - Single output column name (must be exactly one)
-- `prompt_config_path` - Path to YAML template file
+---
 
-**Optional Parameters:**
-- `format_as_messages` - Output format (default: `True`)
-  - `True`: List of dicts with 'role' and 'content' keys
-  - `False`: Concatenated string with role prefixes
+## Next Steps
 
-**Template Requirements:**
-- Must be a YAML list of message objects
-- Each message requires 'role' and 'content' fields
-- Valid roles: 'system', 'user', 'assistant', 'tool'
-- Must contain at least one 'user' message
-- Final message must have role='user' for chat completion
-- Content supports Jinja2 templating syntax
-
-**Template Variable Resolution:**
-- Variables in `{{...}}` are replaced with dataset column values
-- Use `input_cols` dict to map column names to template variables
-- Missing variables are logged as warnings
-
-## 🔍 TextParserBlock
-
-Extracts structured data from LLM responses using tag-based parsing or custom regex patterns. Essential for parsing LLM outputs into structured fields.
-
-### Basic Tag-Based Parsing
-
-Extract content between start and end tags:
-
-```python
-from sdg_hub.core.blocks import TextParserBlock
-from datasets import Dataset
-
-# Single field extraction
-parser = TextParserBlock(
-    block_name="extract_answer",
-    input_cols=["llm_response"],
-    output_cols=["answer"],
-    start_tags=["<answer>"],
-    end_tags=["</answer>"]
-)
-
-dataset = Dataset.from_dict({
-    "llm_response": [
-        "Question analysis: ...\n<answer>Machine learning is a subset of AI.</answer>",
-        "Let me think...\n<answer>Neural networks process data in layers.</answer>"
-    ]
-})
-
-result = parser.generate(dataset)
-print(result["answer"])
-# ['Machine learning is a subset of AI.', 'Neural networks process data in layers.']
-```
-
-### Multiple Field Extraction
-
-Extract multiple structured fields from a single response:
-
-```python
-# Extract multiple fields with tag pairs
-parser = TextParserBlock(
-    block_name="extract_qa",
-    input_cols=["llm_response"],
-    output_cols=["question", "answer", "confidence"],
-    start_tags=["<question>", "<answer>", "<confidence>"],
-    end_tags=["</question>", "</answer>", "</confidence>"]
-)
-
-dataset = Dataset.from_dict({
-    "llm_response": [
-        """
-        <question>What is Python?</question>
-        <answer>Python is a high-level programming language.</answer>
-        <confidence>0.95</confidence>
-        """
-    ]
-})
-
-result = parser.generate(dataset)
-print(result["question"])     # ['What is Python?']
-print(result["answer"])       # ['Python is a high-level programming language.']
-print(result["confidence"])   # ['0.95']
-```
-
-### Custom Regex Parsing
-
-Use regex patterns for flexible extraction:
-
-```python
-# Extract using regex pattern
-parser = TextParserBlock(
-    block_name="regex_parser",
-    input_cols=["llm_response"],
-    output_cols=["answer"],
-    parsing_pattern=r"Answer:\s*(.+?)(?:\n|$)"
-)
-
-dataset = Dataset.from_dict({
-    "llm_response": [
-        "Question: What is AI?\nAnswer: Artificial Intelligence is...\n",
-        "Let me answer:\nAnswer: Machine learning enables..."
-    ]
-})
-
-result = parser.generate(dataset)
-print(result["answer"])
-# ['Artificial Intelligence is...', 'Machine learning enables...']
-```
-
-### Tag Cleanup
-
-Remove unwanted tags from extracted content:
-
-```python
-# Clean up markdown and code tags
-parser = TextParserBlock(
-    block_name="clean_parser",
-    input_cols=["llm_response"],
-    output_cols=["clean_answer"],
-    start_tags=["<answer>"],
-    end_tags=["</answer>"],
-    parser_cleanup_tags=["```", "###", "**"]
-)
-
-dataset = Dataset.from_dict({
-    "llm_response": [
-        "<answer>Here's the code: ```python\nprint('hello')```</answer>",
-        "<answer>**Important**: This is the ### answer</answer>"
-    ]
-})
-
-result = parser.generate(dataset)
-print(result["clean_answer"])
-# ['Here\'s the code: python\nprint(\'hello\')', 'Important: This is the  answer']
-```
-
-### Handling Multiple Matches
-
-Extract all occurrences of a pattern:
-
-```python
-parser = TextParserBlock(
-    block_name="multi_extract",
-    input_cols=["llm_response"],
-    output_cols=["keywords"],
-    start_tags=["[KEY]"],
-    end_tags=["[/KEY]"]
-)
-
-dataset = Dataset.from_dict({
-    "llm_response": [
-        "Important terms: [KEY]machine learning[/KEY], [KEY]neural networks[/KEY], [KEY]deep learning[/KEY]"
-    ]
-})
-
-result = parser.generate(dataset)
-print(result["keywords"])
-# [['machine learning', 'neural networks', 'deep learning']]
-```
-
-### Practical Example: Evaluation Response Parsing
-
-Common pattern for parsing LLM evaluation responses:
-
-```python
-# Parse structured evaluation output
-evaluation_parser = TextParserBlock(
-    block_name="parse_evaluation",
-    input_cols=["evaluation_response"],
-    output_cols=["explanation", "judgment"],
-    start_tags=["[Start of Explanation]", "[Start of Answer]"],
-    end_tags=["[End of Explanation]", "[End of Answer]"],
-    parser_cleanup_tags=["```", "###"]
-)
-
-dataset = Dataset.from_dict({
-    "evaluation_response": [
-        """
-        [Start of Explanation]
-        The response accurately reflects the information in the document.
-        No hallucinations or contradictions were found.
-        [End of Explanation]
-
-        [Start of Answer]
-        YES
-        [End of Answer]
-        """
-    ]
-})
-
-result = evaluation_parser.generate(dataset)
-print(result["explanation"])  # ['The response accurately reflects...']
-print(result["judgment"])     # ['YES']
-```
-
-### Integration with LLMChatBlock
-
-TextParserBlock is commonly used after LLMChatBlock to structure responses:
-
-```python
-from sdg_hub.core.blocks import LLMChatBlock, LLMResponseExtractorBlock, TextParserBlock
-
-# Step 1: Generate LLM response
-chat_block = LLMChatBlock(
-    block_name="evaluator",
-    model="openai/gpt-4o",
-    input_cols=["messages"],
-    output_cols=["eval_response"]
-)
-
-# Step 2: Extract content from response object
-# Use field_prefix="" to get cleaner column names
-llm_parser = LLMResponseExtractorBlock(
-    block_name="extract_eval",
-    input_cols=["eval_response"],
-    extract_content=True,
-    field_prefix="eval_"  # Results in "eval_content" instead of "extract_content"
-)
-
-# Step 3: Parse structured fields from text
-text_parser = TextParserBlock(
-    block_name="parse_fields",
-    input_cols=["eval_content"], 
-    output_cols=["score", "reasoning"],
-    start_tags=["[SCORE]", "[REASONING]"],
-    end_tags=["[/SCORE]", "[/REASONING]"]
-)
-
-# Execute in sequence (or use a Flow)
-dataset = Dataset.from_dict({
-    "messages": [[{"role": "user", "content": "Evaluate this text..."}]]
-})
-
-result = chat_block.generate(dataset)
-result = llm_parser.generate(result)
-result = text_parser.generate(result)
-
-print(result["score"])      # Extracted score
-print(result["reasoning"])  # Extracted reasoning
-```
-
-### Configuration Reference
-
-**Required Parameters:**
-- `block_name` - Unique identifier for the block
-- `input_cols` - Single column containing text to parse
-- `output_cols` - List of field names for extracted content
-
-**Parsing Methods (choose one):**
-- **Tag-based**: `start_tags` + `end_tags` (must have same length as `output_cols`)
-- **Regex**: `parsing_pattern` (single regex with capture groups)
-
-**Optional Parameters:**
-- `parser_cleanup_tags` - List of tags to remove from extracted text
-- `expand_lists` - Whether to expand list inputs into rows (default: `True`)
-
-**Tag Parsing Rules:**
-- Number of tag pairs must match number of output columns
-- Each tag pair extracts all matches for that field
-- Tags can be any string (XML-style, markdown-style, custom)
-- Missing tags result in empty lists for that field
-
-## 🧩 JSONParserBlock
-
-JSONParserBlock is useful when your model returns JSON output and you want each JSON field as a dataset column.
-
-### Basic Usage
-
-```python
-from sdg_hub.core.blocks import JSONParserBlock
-from datasets import Dataset
-
-parser = JSONParserBlock(
-    block_name="parse_json_response",
-    input_cols=["response_text"],
-    output_cols=["prompt", "why_prompt_harmful"],  # Optional: select fields
-    drop_input=True
-)
-
-dataset = Dataset.from_dict({
-    "response_text": [
-        '{"prompt":"Example adversarial prompt","why_prompt_harmful":"Contains policy bypass intent"}'
-    ]
-})
-
-result = parser.generate(dataset)
-print(result["prompt"][0])
-```
-
-### JSONParserBlock Notes
-
-- `extract_embedded=True` (default) extracts JSON even when surrounded by extra text
-- `fix_trailing_commas=True` (default) repairs common LLM formatting issues
-- `field_prefix` lets you namespace parsed fields (for example, `parsed_`)
-- `drop_input=True` removes the raw JSON source column after parsing
-
-## 🚀 Next Steps
-
-- **[Transform Blocks](transform-blocks.md)** - Data manipulation and reshaping
-- **[Filtering Blocks](filtering-blocks.md)** - Quality control and validation
-- **[Flow Integration](../flows/overview.md)** - Combine LLM blocks into complete pipelines
+- [Parsing Blocks](parsing-blocks.md) -- extract structured data from LLM text output
+- [Transform Blocks](transform-blocks.md) -- data manipulation and column operations
+- [Filtering Blocks](filtering-blocks.md) -- quality control and row filtering

@@ -1,6 +1,17 @@
 # Block Reference
 
-Available blocks and their configurations.
+All available blocks organized by category. Use `BlockRegistry.discover_blocks()` to verify the latest list.
+
+## Table of Contents
+
+- [LLM Blocks](#llm-blocks) -- LLMChatBlock, PromptBuilderBlock, LLMResponseExtractorBlock
+- [Parsing Blocks](#parsing-blocks) -- TagParserBlock, RegexParserBlock, JSONParserBlock
+- [Transform Blocks](#transform-blocks) -- TextConcatBlock, RenameColumnsBlock, DuplicateColumnsBlock, MeltColumnsBlock, JSONStructureBlock, RowMultiplierBlock, SamplerBlock, IndexBasedMapperBlock, UniformColumnValueSetter
+- [Filtering Blocks](#filtering-blocks) -- ColumnValueFilterBlock
+- [Agent Blocks](#agent-blocks) -- AgentBlock, AgentResponseExtractorBlock
+- [MCP Blocks](#mcp-blocks) -- MCPAgentBlock
+
+---
 
 ## LLM Blocks
 
@@ -12,90 +23,117 @@ Call LLM APIs (100+ providers via LiteLLM).
 - block_type: "LLMChatBlock"
   block_config:
     block_name: "generate"
-    input_cols: "messages"           # Column with chat messages
-    output_cols: "response"          # Output column name
-
-    # Generation params
+    input_cols: "messages"
+    output_cols: "response"
     temperature: 0.7
     max_tokens: 1024
     top_p: 1.0
-    n: 1
-
-    # Operational params (can be set here or via set_model_config at runtime)
-    # model: "openai/gpt-4"
-    # api_key: "..."
-    # api_base: "http://localhost:8000/v1"
     async_mode: true
+    # model/api_key set via flow.set_model_config() or directly:
+    # model: "openai/gpt-4o-mini"
+    # api_key: "sk-..."
 ```
 
 **Input format:** Column must contain list of message dicts:
 ```python
-[
-    {"role": "system", "content": "You are helpful."},
-    {"role": "user", "content": "Hello"}
-]
+[{"role": "system", "content": "..."}, {"role": "user", "content": "..."}]
 ```
 
 ### PromptBuilderBlock
 
-Build chat messages from templates.
+Build chat messages from Jinja templates. Supports both structured (YAML) and plain text templates.
 
 ```yaml
 - block_type: "PromptBuilderBlock"
   block_config:
     block_name: "build_prompt"
-    input_cols: ["document", "query"]  # Variables for template
-    output_cols: "messages"            # Output: list of messages
-    prompt_config_path: "prompt.yaml"  # Relative to flow.yaml
+    input_cols: ["document", "query"]
+    output_cols: "messages"
+    prompt_config_path: "prompts/template.yaml"  # Relative to flow.yaml
 ```
 
-**Prompt template format:**
+**Prompt template format (YAML):**
 ```yaml
-# prompt.yaml
-system: |
-  You are a helpful assistant.
+# prompts/template.yaml
+- role: system
+  content: |
+    You are a helpful assistant.
 
-user: |
-  Document: {document}
-  Query: {query}
-  Please answer the query based on the document.
+- role: user
+  content: |
+    Document: {document}
+    Query: {query}
 ```
 
-### LLMParserBlock
+### LLMResponseExtractorBlock
 
-Parse LLM responses (extract JSON, fields).
+Extract fields from LLM response objects (tool calls, content, metadata).
 
 ```yaml
-- block_type: "LLMParserBlock"
+- block_type: "LLMResponseExtractorBlock"
   block_config:
-    block_name: "parse_response"
+    block_name: "extract"
     input_cols: "raw_response"
-    output_cols: "parsed"
-    extract_content: true          # Extract from message structure
-    field_prefix: "result_"        # Prefix for extracted fields
+    output_cols: "content"
+    extract_content: true
+    field_prefix: "result_"
 ```
 
-### TextParserBlock
+---
 
-Parse text with regex patterns.
+## Parsing Blocks
+
+### TagParserBlock
+
+Parse text using start/end tag pairs. Preferred for structured LLM outputs.
 
 ```yaml
-- block_type: "TextParserBlock"
+- block_type: "TagParserBlock"
   block_config:
-    block_name: "parse_qa"
+    block_name: "parse_tags"
     input_cols: "response"
-    output_cols:
-      - "question"
-      - "answer"
-    pattern: "Question:\\s*(.+?)\\s*Answer:\\s*(.+)"
-    flags: "DOTALL"              # DOTALL, IGNORECASE, MULTILINE
+    output_cols: ["question", "answer"]
+    start_tags: ["<question>", "<answer>"]
+    end_tags: ["</question>", "</answer>"]
 ```
+
+### RegexParserBlock
+
+Parse text using regex patterns with capture groups.
+
+```yaml
+- block_type: "RegexParserBlock"
+  block_config:
+    block_name: "parse_regex"
+    input_cols: "response"
+    output_cols: ["question", "answer"]
+    pattern: "Question:\\s*(.+?)\\s*Answer:\\s*(.+)"
+    flags: "DOTALL"    # DOTALL, IGNORECASE, MULTILINE
+```
+
+### JSONParserBlock
+
+Parse JSON from text and expand fields into columns.
+
+```yaml
+- block_type: "JSONParserBlock"
+  block_config:
+    block_name: "parse_json"
+    input_cols: "response"
+    output_cols: ["name", "score"]
+```
+
+### TextParserBlock (DEPRECATED)
+
+Use `TagParserBlock` or `RegexParserBlock` instead.
+
+---
 
 ## Transform Blocks
 
 ### TextConcatBlock
 
-Concatenate multiple columns.
+Concatenate multiple columns into one.
 
 ```yaml
 - block_type: "TextConcatBlock"
@@ -108,7 +146,7 @@ Concatenate multiple columns.
 
 ### RenameColumnsBlock
 
-Rename columns.
+Rename columns in-place.
 
 ```yaml
 - block_type: "RenameColumnsBlock"
@@ -117,53 +155,38 @@ Rename columns.
     input_cols:
       question: generated_question
       response: generated_answer
-    # No output_cols needed
 ```
 
 ### DuplicateColumnsBlock
 
-Copy columns.
+Copy columns with new names.
 
 ```yaml
 - block_type: "DuplicateColumnsBlock"
   block_config:
-    block_name: "duplicate"
+    block_name: "dup"
     input_cols: "document"
     output_cols: "base_document"
 ```
 
 ### MeltColumnsBlock
 
-Reshape wide to long format.
+Reshape wide format to long format (one row per value).
 
 ```yaml
 - block_type: "MeltColumnsBlock"
   block_config:
     block_name: "melt"
-    input_cols:
-      - "summary_a"
-      - "summary_b"
-      - "summary_c"
-    output_cols: "summary"         # New column for values
-    id_vars:                       # Columns to keep
-      - "document"
-      - "domain"
+    input_cols: ["summary_a", "summary_b"]
+    output_cols: "summary"
+    id_vars: ["document", "domain"]
 ```
 
-Before:
-| document | summary_a | summary_b |
-|----------|-----------|-----------|
-| doc1     | sum_a1    | sum_b1    |
-
-After:
-| document | summary |
-|----------|---------|
-| doc1     | sum_a1  |
-| doc1     | sum_b1  |
+Before: `| doc | sum_a | sum_b |` -> After: `| doc | summary |` (2 rows per doc)
 
 ### JSONStructureBlock
 
-Build JSON structures from columns.
+Build JSON objects from column values.
 
 ```yaml
 - block_type: "JSONStructureBlock"
@@ -176,26 +199,40 @@ Build JSON structures from columns.
       a: "{answer}"
 ```
 
-### UniformColValSetterBlock
+### RowMultiplierBlock
 
-Set column to constant value.
+Duplicate each row N times.
 
 ```yaml
-- block_type: "UniformColValSetterBlock"
+- block_type: "RowMultiplierBlock"
   block_config:
-    block_name: "set_source"
-    output_cols: "source"
-    value: "generated"
+    block_name: "multiply"
+    input_cols: "document"
+    output_cols: "document"
+    n: 3
+```
+
+### SamplerBlock
+
+Randomly sample N values from a list column.
+
+```yaml
+- block_type: "SamplerBlock"
+  block_config:
+    block_name: "sample"
+    input_cols: "items"
+    output_cols: "sampled_items"
+    n: 5
 ```
 
 ### IndexBasedMapperBlock
 
-Map values by index.
+Map values using a lookup dictionary.
 
 ```yaml
 - block_type: "IndexBasedMapperBlock"
   block_config:
-    block_name: "map_labels"
+    block_name: "map"
     input_cols: "label_idx"
     output_cols: "label"
     mapping:
@@ -203,6 +240,20 @@ Map values by index.
       1: "neutral"
       2: "positive"
 ```
+
+### UniformColumnValueSetter
+
+Set all values in a column to a single value or summary statistic (mode, mean, median).
+
+```yaml
+- block_type: "UniformColumnValueSetter"
+  block_config:
+    block_name: "set_source"
+    output_cols: "source"
+    value: "generated"
+```
+
+---
 
 ## Filtering Blocks
 
@@ -215,63 +266,94 @@ Filter rows by column values.
   block_config:
     block_name: "filter"
     input_cols: "score"
-    filter_value: [3, 4, 5]        # Values to keep
-    operation: "in"                # eq, ne, lt, gt, le, ge, in, contains
-    convert_dtype: "int"           # Optional: float, int, str
+    filter_value: [4, 5]
+    operation: "in"
+    convert_dtype: "int"
 ```
 
-**Operations:**
-- `eq`: equals
-- `ne`: not equals
-- `lt`, `le`: less than, less or equal
-- `gt`, `ge`: greater than, greater or equal
-- `in`: value in list
-- `contains`: list contains value
+**Operations:** `eq`, `ne`, `lt`, `le`, `gt`, `ge`, `in`, `contains`
 
-## Evaluation Blocks
+---
 
-### FaithfulnessEvalBlock
+## Agent Blocks
 
-Evaluate response faithfulness to source.
+### AgentBlock
+
+Execute external agent frameworks (Langflow, LangGraph) on each row.
 
 ```yaml
-- block_type: "FaithfulnessEvalBlock"
+- block_type: "AgentBlock"
   block_config:
-    block_name: "eval_faithfulness"
-    input_cols:
-      - "response"
-      - "source"
-    output_cols: "faithfulness_score"
+    block_name: "agent"
+    input_cols: ["question"]
+    output_cols: ["agent_response"]
+    agent_framework: "langflow"      # or "langgraph"
+    agent_url: "http://localhost:7860/api/v1/run/my-flow"
+    agent_api_key: "your-key"
+    extract_response: true
 ```
 
-### RelevancyEvalBlock
+Agent config can also be set at runtime via `flow.set_agent_config()`.
 
-Evaluate response relevancy to query.
+**Supported connectors:**
+- `langflow` -- Langflow visual LLM app builder
+- `langgraph` -- LangGraph stateful multi-actor agents (supports `assistant_id` and `run_config`)
+
+### AgentResponseExtractorBlock
+
+Extract structured data from agent responses.
 
 ```yaml
-- block_type: "RelevancyEvalBlock"
+- block_type: "AgentResponseExtractorBlock"
   block_config:
-    block_name: "eval_relevancy"
-    input_cols:
-      - "query"
-      - "response"
-    output_cols: "relevancy_score"
+    block_name: "extract_agent"
+    input_cols: "agent_response"
+    output_cols: ["text", "tool_trace"]
+    extract_tool_trace: true
+    field_prefix: "agent_"
 ```
 
-## Discovering Blocks
+---
+
+## MCP Blocks
+
+### MCPAgentBlock
+
+LLM agent with remote MCP tools in an agentic loop. The LLM calls tools from the MCP server iteratively, producing complete conversation traces including all tool calls and results.
+
+```yaml
+- block_type: "MCPAgentBlock"
+  block_config:
+    block_name: "mcp_agent"
+    input_cols: "messages"
+    output_cols: "agent_trace"
+    mcp_server_url: "http://localhost:3000/mcp"
+    max_iterations: 10
+```
+
+Output includes the full agent trace: messages, tool calls, and tool results -- useful for generating tool-use training data.
+
+---
+
+## Discovering Blocks at Runtime
 
 ```python
-# play.py - List available blocks
 from sdg_hub.core.blocks import BlockRegistry
 
-# All blocks
+# Rich table of all blocks
 BlockRegistry.discover_blocks()
 
-# By category
-print(BlockRegistry.list_blocks(category="transform"))
-print(BlockRegistry.list_blocks(category="llm"))
-print(BlockRegistry.list_blocks(category="filtering"))
+# List by category
+BlockRegistry.list_blocks(category="llm")
+BlockRegistry.list_blocks(category="transform")
+BlockRegistry.list_blocks(category="parsing")
+BlockRegistry.list_blocks(category="filtering")
+BlockRegistry.list_blocks(category="agent")
+BlockRegistry.list_blocks(category="mcp")
 
-# Grouped
-print(BlockRegistry.list_blocks(grouped=True))
+# All categories
+BlockRegistry.categories()
+
+# Grouped view
+BlockRegistry.list_blocks(grouped=True)
 ```

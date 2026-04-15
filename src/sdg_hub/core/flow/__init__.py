@@ -6,12 +6,23 @@ and dual initialization modes.
 """
 
 # Local
-# Import submodules to make them available for patching in tests
+# Import submodules to make them available for patching in tests.
+# Using redundant-alias idiom (import X as X) to signal intentional re-export to ruff
+# without promoting these internal modules to public API via __all__.
 from . import (
-    display,  # noqa: F401
-    execution,  # noqa: F401
-    model_config,  # noqa: F401
-    serialization,  # noqa: F401
+    agent_config as agent_config,
+)
+from . import (
+    display as display,
+)
+from . import (
+    execution as execution,
+)
+from . import (
+    model_config as model_config,
+)
+from . import (
+    serialization as serialization,
 )
 from .base import Flow
 from .metadata import FlowMetadata

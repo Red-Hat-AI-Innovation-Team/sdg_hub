@@ -3,9 +3,10 @@
 
 from typing import Any, Optional
 import asyncio
+import json
 import uuid
 
-from pydantic import Field, PrivateAttr
+from pydantic import Field, PrivateAttr, ValidationError
 from tqdm import tqdm
 import pandas as pd
 
@@ -18,6 +19,9 @@ from ..base import BaseBlock
 from ..registry import BlockRegistry
 
 logger = setup_logger(__name__)
+
+# Default Langflow agent endpoint URL for local development.
+DEFAULT_AGENT_URL = "http://localhost:7860/api/v1/run/my-flow"
 
 
 @BlockRegistry.register(
@@ -61,7 +65,7 @@ class AgentBlock(BaseBlock):
       block_config:
         block_name: my_agent
         agent_framework: langflow
-        agent_url: http://localhost:7860/api/v1/run/my-flow
+        agent_url: http://localhost:7860/api/v1/run/my-flow  # see DEFAULT_AGENT_URL
         agent_api_key: ${LANGFLOW_API_KEY}
         input_cols:
           messages: messages_col
@@ -74,12 +78,14 @@ class AgentBlock(BaseBlock):
     >>> block = AgentBlock(
     ...     block_name="qa_agent",
     ...     agent_framework="langflow",
-    ...     agent_url="http://localhost:7860/api/v1/run/qa-flow",
+    ...     agent_url=DEFAULT_AGENT_URL,
     ...     input_cols={"messages": "question"},
     ...     output_cols=["response"],
     ... )
     >>> result_df = block(df)
     """
+
+    block_type: str = "agent"
 
     # Required configuration
     agent_framework: str = Field(
@@ -119,6 +125,13 @@ class AgentBlock(BaseBlock):
         description="Maximum concurrent requests in async mode",
         gt=0,
     )
+    connector_kwargs: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Extra keyword arguments passed to the connector constructor. "
+            "Use for framework-specific settings like assistant_id for LangGraph."
+        ),
+    )
 
     # Private attributes
     _connector: Optional[BaseAgentConnector] = PrivateAttr(default=None)
@@ -141,6 +154,7 @@ class AgentBlock(BaseBlock):
             self.agent_api_key,
             self.timeout,
             self.max_retries,
+            json.dumps(self.connector_kwargs, sort_keys=True, default=str),
         )
         if self._connector is None or self._connector_config_key != config_key:
             connector_class = ConnectorRegistry.get(self.agent_framework)
@@ -150,7 +164,14 @@ class AgentBlock(BaseBlock):
                 timeout=self.timeout,
                 max_retries=self.max_retries,
             )
-            self._connector = connector_class(config=config)
+            try:
+                self._connector = connector_class(
+                    config=config, **self.connector_kwargs
+                )
+            except (TypeError, ValidationError) as e:
+                raise ConnectorError(
+                    f"Invalid connector_kwargs for '{self.agent_framework}': {e}"
+                ) from e
             self._connector_config_key = config_key
         return self._connector
 
@@ -355,8 +376,13 @@ class AgentBlock(BaseBlock):
 
         if self.async_mode:
             # Async execution
+            has_running_loop = True
             try:
                 asyncio.get_running_loop()
+            except RuntimeError:
+                has_running_loop = False
+
+            if has_running_loop:
                 # Already in async context - use thread executor
                 import concurrent.futures
 
@@ -366,7 +392,7 @@ class AgentBlock(BaseBlock):
                         self._process_batch_async(df, connector, messages_col),
                     )
                     results = future.result()
-            except RuntimeError:
+            else:
                 # No event loop - create one
                 results = asyncio.run(
                     self._process_batch_async(df, connector, messages_col)

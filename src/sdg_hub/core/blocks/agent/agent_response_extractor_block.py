@@ -5,11 +5,14 @@ This module provides the AgentResponseExtractorBlock for extracting text content
 and other fields from agent framework response objects (e.g., Langflow responses).
 """
 
-from typing import Any, cast
+from typing import Any, Optional, cast
 
-from pydantic import Field, model_validator
+from pydantic import Field, PrivateAttr, model_validator
 import pandas as pd
 
+from ...connectors.agent.base import BaseAgentConnector
+from ...connectors.exceptions import ConnectorError
+from ...connectors.registry import ConnectorRegistry
 from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
 from ..registry import BlockRegistry
@@ -61,6 +64,7 @@ class AgentResponseExtractorBlock(BaseBlock):
     """
 
     _flow_requires_jsonl_tmp: bool = True
+    _connector_cls: Optional[type[BaseAgentConnector]] = PrivateAttr(default=None)
 
     block_type: str = "agent_util"
 
@@ -76,6 +80,15 @@ class AgentResponseExtractorBlock(BaseBlock):
         default=False,
         description="Whether to extract session_id from responses.",
     )
+    extract_tool_trace: bool = Field(
+        default=False,
+        description=(
+            "Whether to extract the full tool call trace from agent responses. "
+            "For Langflow, this extracts the content_blocks 'Agent Steps' array "
+            "containing structured tool_use entries (name, tool_input, output) "
+            "and text entries (input/output messages)."
+        ),
+    )
     expand_lists: bool = Field(
         default=True,
         description="Whether to expand list inputs into individual rows (True) or preserve lists (False).",
@@ -88,18 +101,22 @@ class AgentResponseExtractorBlock(BaseBlock):
     @model_validator(mode="after")
     def validate_extraction_configuration(self):
         """Validate that at least one extraction field is enabled and pre-compute field names."""
-        if not any([self.extract_text, self.extract_session_id]):
+        if not any(
+            [self.extract_text, self.extract_session_id, self.extract_tool_trace]
+        ):
             raise ValueError(
                 "AgentResponseExtractorBlock requires at least one extraction field to be enabled: "
-                "extract_text or extract_session_id"
+                "extract_text, extract_session_id, or extract_tool_trace"
             )
 
-        # Validate agent_framework
-        supported_frameworks = ["langflow"]
-        if self.agent_framework not in supported_frameworks:
+        # Validate agent_framework via connector registry
+        try:
+            self._connector_cls = ConnectorRegistry.get(self.agent_framework)
+        except ConnectorError:
+            available = ConnectorRegistry.list_all()
             raise ValueError(
                 f"Unsupported agent_framework: '{self.agent_framework}'. "
-                f"Supported frameworks: {supported_frameworks}"
+                f"Supported frameworks: {available}"
             )
 
         # Pre-compute prefixed field names for efficiency
@@ -108,6 +125,7 @@ class AgentResponseExtractorBlock(BaseBlock):
             prefix = self.block_name + "_"
         self._text_field = f"{prefix}text"
         self._session_id_field = f"{prefix}session_id"
+        self._tool_trace_field = f"{prefix}tool_trace"
 
         # Advertise output columns for standard collision checks
         self.output_cols = self._get_output_columns()
@@ -138,84 +156,10 @@ class AgentResponseExtractorBlock(BaseBlock):
                 f"Using the first column: {input_cols[0]}"
             )
 
-    def _extract_langflow_fields(self, response: dict) -> dict[str, Any]:
-        """Extract fields from a Langflow response object.
-
-        Langflow response structure:
-        {
-            "session_id": "...",
-            "outputs": [
-                {
-                    "outputs": [
-                        {
-                            "results": {
-                                "message": {
-                                    "text": "..."
-                                }
-                            }
-                        }
-                    ]
-                }
-            ]
-        }
-
-        Parameters
-        ----------
-        response : dict
-            Response object from Langflow API.
-
-        Returns
-        -------
-        dict[str, Any]
-            Dictionary with extracted fields using prefixed field names.
-
-        Raises
-        ------
-        ValueError
-            If none of the requested fields are found in the response.
-        """
-        extracted = {}
-        missing_fields = []
-
-        if self.extract_text:
-            try:
-                text = response["outputs"][0]["outputs"][0]["results"]["message"][
-                    "text"
-                ]
-                if text is None:
-                    logger.warning("Text field is None, using empty string instead")
-                    extracted[self._text_field] = ""
-                else:
-                    extracted[self._text_field] = text
-            except (KeyError, IndexError, TypeError):
-                missing_fields.append("text")
-
-        if self.extract_session_id:
-            if "session_id" not in response:
-                missing_fields.append("session_id")
-            else:
-                if response["session_id"] is None:
-                    logger.warning(
-                        "Session ID field is None, using empty string instead"
-                    )
-                    extracted[self._session_id_field] = ""
-                else:
-                    extracted[self._session_id_field] = response["session_id"]
-
-        if missing_fields:
-            logger.warning(
-                f"Requested fields {missing_fields} not found in response. "
-                f"Available keys: {list(response.keys())}"
-            )
-
-        if not extracted:
-            raise ValueError(
-                f"No requested fields found in response. Available keys: {list(response.keys())}"
-            )
-        return extracted
-
     def _extract_fields_from_response(self, response: dict) -> dict[str, Any]:
         """Extract specified fields from a single response object.
+
+        Delegates to the connector class registered for this agent framework.
 
         Parameters
         ----------
@@ -232,10 +176,47 @@ class AgentResponseExtractorBlock(BaseBlock):
         ValueError
             If none of the requested fields are found in the response.
         """
-        if self.agent_framework == "langflow":
-            return self._extract_langflow_fields(response)
-        else:
-            raise ValueError(f"Unsupported agent_framework: '{self.agent_framework}'")
+        extracted: dict[str, Any] = {}
+        missing_fields: list[str] = []
+        # Resolve connector at extraction time so that runtime changes
+        # to agent_framework (e.g. via set_agent_config) are respected.
+        connector_cls = cast(
+            type[BaseAgentConnector],
+            ConnectorRegistry.get(self.agent_framework),
+        )
+
+        if self.extract_text:
+            text = connector_cls.extract_text(response)
+            if text is not None:
+                extracted[self._text_field] = text
+            else:
+                missing_fields.append("text")
+
+        if self.extract_session_id:
+            session_id = connector_cls.extract_session_id(response)
+            if session_id is not None:
+                extracted[self._session_id_field] = session_id
+            else:
+                missing_fields.append("session_id")
+
+        if self.extract_tool_trace:
+            tool_trace = connector_cls.extract_tool_trace(response)
+            if tool_trace is not None:
+                extracted[self._tool_trace_field] = tool_trace
+            else:
+                missing_fields.append("tool_trace")
+
+        if missing_fields:
+            logger.warning(
+                f"Requested fields {missing_fields} not found in response. "
+                f"Available keys: {list(response.keys())}"
+            )
+
+        if not extracted:
+            raise ValueError(
+                f"No requested fields found in response. Available keys: {list(response.keys())}"
+            )
+        return extracted
 
     def _get_output_columns(self) -> list[str]:
         """Get the list of output columns based on extraction settings."""
@@ -244,6 +225,8 @@ class AgentResponseExtractorBlock(BaseBlock):
             columns.append(self._text_field)
         if self.extract_session_id:
             columns.append(self._session_id_field)
+        if self.extract_tool_trace:
+            columns.append(self._tool_trace_field)
         return columns
 
     def _generate(self, sample: dict) -> list[dict]:

@@ -1,0 +1,192 @@
+metadata:
+  id: domain-code-eval
+  name: "Domain Code Evaluation Benchmark Generator"
+  description: >-
+    Generate verified code evaluation benchmarks for custom domains. Inspired by
+    AutoCodeBench (Tencent, 2025) and CRUXEval (Meta, 2024), this flow generates
+    domain-specific Python functions, verifies them via sandboxed execution, and
+    reverse-generates problem descriptions. The output is a ready-to-use evaluation
+    benchmark where every solution and test suite is execution-verified.
+  version: "1.0.0"
+  author: "SDG Hub Contributors"
+  recommended_models:
+    default: "gpt-5.1-codex-mini"
+    compatible:
+      - "openai/gpt-5.1-codex-mini"
+      - "meta-llama/Llama-3.3-70B-Instruct"
+      - "Qwen/Qwen2.5-Coder-32B-Instruct"
+    experimental:
+      - "gpt-4o"
+      - "anthropic/claude-sonnet-4-20250514"
+  tags:
+    - "code-evaluation"
+    - "benchmark-generation"
+    - "code-verification"
+    - "domain-specific"
+    - "synthetic-data"
+  license: "Apache-2.0"
+  dataset_requirements:
+    required_columns:
+      - "domain"
+      - "function_spec"
+      - "difficulty"
+      - "time_complexity"
+    description: >-
+      Input dataset must contain: 'domain' (e.g., "financial calculations"),
+      'function_spec' (what the function should do), 'difficulty'
+      ("beginner", "intermediate", or "advanced"), and 'time_complexity'
+      (e.g., "O(n)", "O(n log n)", "O(n^2)").
+
+blocks:
+  # ── Phase 1: Generate domain-specific function ──────────────────────
+  - block_type: "PromptBuilderBlock"
+    block_config:
+      block_name: "build_function_prompt"
+      input_cols:
+        - "domain"
+        - "function_spec"
+        - "difficulty"
+        - "time_complexity"
+      output_cols: "function_prompt"
+      prompt_config_path: "generate_function.yaml"
+
+  - block_type: "LLMChatBlock"
+    block_config:
+      block_name: "generate_function"
+      input_cols: "function_prompt"
+      output_cols: "raw_function"
+      max_tokens: 2048
+      temperature: 0.7
+      async_mode: true
+
+  - block_type: "LLMResponseExtractorBlock"
+    block_config:
+      block_name: "extract_function"
+      input_cols: "raw_function"
+      extract_content: true
+      expand_lists: true
+
+  - block_type: "TagParserBlock"
+    block_config:
+      block_name: "parse_function"
+      input_cols: "extract_function_content"
+      output_cols: "function_code"
+      start_tags:
+        - "[FUNCTION]"
+      end_tags:
+        - "[/FUNCTION]"
+
+  # ── Phase 2: Generate test suite ────────────────────────────────────
+  - block_type: "PromptBuilderBlock"
+    block_config:
+      block_name: "build_test_prompt"
+      input_cols:
+        - "function_code"
+        - "domain"
+      output_cols: "test_prompt"
+      prompt_config_path: "generate_tests.yaml"
+
+  - block_type: "LLMChatBlock"
+    block_config:
+      block_name: "generate_tests"
+      input_cols: "test_prompt"
+      output_cols: "raw_tests"
+      max_tokens: 2048
+      temperature: 0.3
+      async_mode: true
+
+  - block_type: "LLMResponseExtractorBlock"
+    block_config:
+      block_name: "extract_tests"
+      input_cols: "raw_tests"
+      extract_content: true
+      expand_lists: true
+
+  - block_type: "TagParserBlock"
+    block_config:
+      block_name: "parse_tests"
+      input_cols: "extract_tests_content"
+      output_cols: "test_code"
+      start_tags:
+        - "[TESTS]"
+      end_tags:
+        - "[/TESTS]"
+
+  - block_type: "TagParserBlock"
+    block_config:
+      block_name: "parse_input_generator"
+      input_cols: "extract_tests_content"
+      output_cols: "input_generator"
+      start_tags:
+        - "[INPUT_GENERATOR]"
+      end_tags:
+        - "[/INPUT_GENERATOR]"
+
+  # ── Phase 3: Verify via execution ───────────────────────────────────
+  - block_type: "TextConcatBlock"
+    block_config:
+      block_name: "combine_for_execution"
+      input_cols:
+        - "function_code"
+        - "test_code"
+      output_cols:
+        - "executable_code"
+      separator: "\n\n"
+
+  - block_type: "PythonInterpreterBlock"
+    block_config:
+      block_name: "verify_execution"
+      interpreter_framework: "monty"
+      input_cols:
+        - "executable_code"
+      output_cols:
+        - "execution_result"
+      timeout: 10.0
+      max_concurrency: 5
+
+  # ── Filter: drop rows where execution verification failed ──────────
+  - block_type: "ColumnValueFilterBlock"
+    block_config:
+      block_name: "filter_failed_executions"
+      input_cols:
+        - "execution_result_success"
+      filter_value: true
+      operation: "eq"
+
+  # ── Phase 4: Reverse problem generation ─────────────────────────────
+  - block_type: "PromptBuilderBlock"
+    block_config:
+      block_name: "build_problem_prompt"
+      input_cols:
+        - "function_code"
+        - "test_code"
+        - "domain"
+        - "time_complexity"
+      output_cols: "problem_prompt"
+      prompt_config_path: "generate_problem.yaml"
+
+  - block_type: "LLMChatBlock"
+    block_config:
+      block_name: "generate_problem"
+      input_cols: "problem_prompt"
+      output_cols: "raw_problem"
+      max_tokens: 1024
+      temperature: 0.5
+      async_mode: true
+
+  - block_type: "LLMResponseExtractorBlock"
+    block_config:
+      block_name: "extract_problem"
+      input_cols: "raw_problem"
+      extract_content: true
+      expand_lists: true
+
+  - block_type: "TagParserBlock"
+    block_config:
+      block_name: "parse_problem"
+      input_cols: "extract_problem_content"
+      output_cols: "problem_description"
+      start_tags:
+        - "[PROBLEM]"
+      end_tags:
+        - "[/PROBLEM]"

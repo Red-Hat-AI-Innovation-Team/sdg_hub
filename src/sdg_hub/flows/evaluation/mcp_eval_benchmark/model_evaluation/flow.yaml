@@ -1,0 +1,75 @@
+metadata:
+  name: Agent Tool-Use Evaluation
+  description: Scores an agent's tool-use traces against expert gold-standard
+    traces using an LLM-as-judge. Evaluates 6 dimensions — task fulfillment,
+    grounding, tool appropriateness, parameter accuracy, dependency awareness,
+    and parallelism/efficiency. Works with any agent framework that produces
+    tool call traces (LangGraph, Langflow, or direct MCP).
+  version: 2.0.0
+  author: SDG Hub Contributors
+  license: Apache-2.0
+  recommended_models:
+    default: openai/gpt-4o
+    compatible:
+    - openai/gpt-5.2
+    - openai/gpt-5-mini
+  tags:
+  - evaluation
+  - mcp
+  - benchmark
+  - model-evaluation
+  - llm-as-judge
+  dataset_requirements:
+    required_columns:
+    - question
+    - expert_answer_truncated
+    - expert_trace_formatted
+    - model_answer
+    - model_trace_formatted
+    description: "Input dataset with pre-formatted traces. Each row should contain:\
+      \ question (the evaluation prompt), expert_answer_truncated (gold-standard answer,\
+      \ truncated to 2000 chars), expert_trace_formatted (formatted expert tool trace\
+      \ string), model_answer (model's final answer text), model_trace_formatted (formatted\
+      \ model tool trace string)."
+  id: eager-path-837
+blocks:
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: build_judge_prompt
+    input_cols:
+      question: question
+      expert_answer_truncated: expert_answer_truncated
+      expert_trace_formatted: expert_trace_formatted
+      model_answer: model_answer
+      model_trace_formatted: model_trace_formatted
+    output_cols: judge_messages
+    prompt_config_path: prompts/judge.yaml
+- block_type: LLMChatBlock
+  block_config:
+    block_name: run_judge
+    input_cols: judge_messages
+    output_cols: judge_response
+    async_mode: true
+    temperature: 0.0
+    max_tokens: 1024
+    response_format:
+      type: json_object
+- block_type: LLMResponseExtractorBlock
+  block_config:
+    block_name: extract_judge
+    input_cols: judge_response
+    field_prefix: judge_
+    extract_content: true
+- block_type: JSONParserBlock
+  block_config:
+    block_name: parse_judge_scores
+    input_cols: judge_content
+    output_cols:
+    - task_fulfillment
+    - grounding
+    - tool_appropriateness
+    - parameter_accuracy
+    - dependency_awareness
+    - parallelism_and_efficiency
+    - rationale
+    expand_fields: true

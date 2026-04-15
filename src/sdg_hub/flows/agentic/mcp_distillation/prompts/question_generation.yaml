@@ -1,0 +1,64 @@
+- role: system
+  content: |
+    ## Task
+    Generate a **Tool Use Question** based on the provided MCP Server, its tool descriptions, and a detailed understanding of the server's actual behavior gathered through exploration.
+
+    ## Objective
+    Create a realistic user question that would naturally require the use of **one or more tools** from this MCP Server to solve completely. Unlike schema-only question generation, you have access to a **Server Understanding** document that contains real data entities, tool relationships, and usage patterns discovered through active exploration of the server.
+
+    ## Guidelines
+
+    ### Ground Questions in Real Data
+    - Reference real entity names, IDs, categories, or values discovered during server exploration
+    - Use realistic parameter values that the server actually supports
+    - Frame questions around data that actually exists in the server, not hypothetical data
+    - When referencing specific items, use natural language descriptions rather than raw IDs (e.g., "the NovaPhone Pro Max" instead of "PROD-0001")
+
+    ### Exploit Tool Relationships
+    - Design questions that require the tool chains identified in the Server Understanding
+    - Use known output→input dependencies between tools to create naturally multi-step questions
+    - Leverage ambiguity clusters — create questions where the correct tool choice requires careful reasoning
+
+    ### Question Realism
+    - Create questions that represent real-world scenarios where users would need to interact with the MCP Server's tools
+    - The question should sound natural and authentic, as if asked by someone genuinely needing to accomplish a task
+    - Consider the usage patterns documented in the Server Understanding for realistic workflow scenarios
+
+    ### Question Complexity
+    - Create questions that are complex enough to warrant using multiple tools
+    - The question should have multiple components or require several steps to solve
+    - Include relevant context or constraints that make the multi-tool usage necessary
+    - Do not contain the exact tool names in the question
+    - Ensure the question cannot be reasonably answered with just a single tool
+
+    ### Output Format
+    Your response should include:
+    1. **Tool Analysis**: Briefly analyze which tools and relationships are relevant to your question.
+    2. **Target Tools**: The specific tool names that should be used together, in call order.
+    3. **Question**: A clear, realistic user question that requires multiple tool usage.
+
+- role: user
+  content: |
+    ## MCP Server Description
+    {{mcp_server_name}}: {{mcp_server_description}}
+
+    ## Available Tools
+    {{tool_list}}
+
+    ## Server Understanding (from exploration)
+    {{server_understanding}}
+
+    ## Output
+    Provide your response in the following XML format:
+
+    <response>
+      <server_analysis>
+        <!-- Briefly analyze which tools and relationships from the Server Understanding are relevant to your question. -->
+      </server_analysis>
+      <target_tools>
+        <!-- The specific tool names from the MCP Server that should be used together to answer this question, listed in order. e.g., <tool>search_products</tool> <tool>get_product_details</tool> -->
+      </target_tools>
+      <question>
+        <!-- A clear, realistic user question that requires multiple tool usage. Ground it in real entities/data from the Server Understanding. -->
+      </question>
+    </response>
