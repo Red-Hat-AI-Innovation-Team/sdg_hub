@@ -187,15 +187,15 @@ class TestRagEvaluationIclPrompts:
             messages = yaml.safe_load(f)
 
         for i, msg in enumerate(messages):
-            assert isinstance(
-                msg, dict
-            ), f"{prompt_file} message {i} must be a dict, got {type(msg).__name__}"
-            assert (
-                "role" in msg
-            ), f"{prompt_file} message {i} is a dict but missing 'role'"
-            assert (
-                "content" in msg
-            ), f"{prompt_file} message {i} has 'role' but missing 'content'"
+            assert isinstance(msg, dict), (
+                f"{prompt_file} message {i} must be a dict, got {type(msg).__name__}"
+            )
+            assert "role" in msg, (
+                f"{prompt_file} message {i} is a dict but missing 'role'"
+            )
+            assert "content" in msg, (
+                f"{prompt_file} message {i} has 'role' but missing 'content'"
+            )
 
     @pytest.mark.parametrize("prompt_file", EXPECTED_PROMPTS)
     def test_prompt_last_message_is_user(self, prompt_file):
@@ -205,9 +205,9 @@ class TestRagEvaluationIclPrompts:
             messages = yaml.safe_load(f)
 
         last_msg = messages[-1]
-        assert isinstance(
-            last_msg, dict
-        ), f"{prompt_file}: last entry must be a dict, got {type(last_msg).__name__}"
+        assert isinstance(last_msg, dict), (
+            f"{prompt_file}: last entry must be a dict, got {type(last_msg).__name__}"
+        )
         assert last_msg.get("role") == "user", (
             f"{prompt_file}: last message should have role 'user', "
             f"got '{last_msg.get('role')}'"
@@ -229,9 +229,9 @@ class TestRagEvaluationIclPrompts:
             "{{topic}}",
         ]
         for var in expected_vars:
-            assert (
-                var in content
-            ), f"Conceptual QA prompt missing template variable: {var}"
+            assert var in content, (
+                f"Conceptual QA prompt missing template variable: {var}"
+            )
 
 
 class TestRagEvaluationIclFlowDiscovery:
