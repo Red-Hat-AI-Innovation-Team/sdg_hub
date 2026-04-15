@@ -329,10 +329,10 @@ class LLMChatBlock(BaseBlock):
         if self.max_completion_tokens is not None:
             completion_kwargs["max_completion_tokens"] = self.max_completion_tokens
 
-        # Apply non-block-field overrides (flow params + unknown LiteLLM params)
-        # BaseBlock already handles block field overrides by modifying instance
-        # attributes, but LiteLLM params that happen to also be model fields
-        # (like max_completion_tokens) need to pass through as well.
+        # Apply non-block-field overrides (flow params + unknown LiteLLM params).
+        # max_completion_tokens must also pass through here: when generate()
+        # is called directly (not via __call__), BaseBlock doesn't apply the
+        # setattr override, so self.max_completion_tokens stays None.
         litellm_passthrough_fields = {"max_completion_tokens"}
         non_block_overrides = {
             k: v

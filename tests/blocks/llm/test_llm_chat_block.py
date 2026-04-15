@@ -555,6 +555,47 @@ class TestLLMChatBlockValidation:
         # Should not raise any exception
         block._validate_custom(dataset)
 
+    def test_validation_with_complex_conversation(self):
+        """Test validation with complex multi-turn conversations."""
+        valid_data = [
+            {
+                "messages": [
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": "Hello, how are you?"},
+                    {
+                        "role": "assistant",
+                        "content": "I'm doing well, thank you! How can I help you today?",
+                    },
+                    {"role": "user", "content": "Can you help me with Python?"},
+                    {
+                        "role": "assistant",
+                        "content": "Absolutely! I'd be happy to help with Python. What specific question do you have?",
+                    },
+                ]
+            },
+            {
+                "messages": [
+                    {"role": "user", "content": "What's the weather like?"},
+                    {
+                        "role": "assistant",
+                        "content": "I don't have access to real-time weather data.",
+                    },
+                    {"role": "user", "content": "That's okay, thanks!"},
+                ]
+            },
+        ]
+        dataset = pd.DataFrame(valid_data)
+
+        block = LLMChatBlock(
+            block_name="test_validation",
+            input_cols="messages",
+            output_cols="response",
+            model="openai/gpt-3.5-turbo",
+        )
+
+        # Should not raise any exception
+        block._validate_custom(dataset)
+
 
 class TestMultipleResponses:
     """Test multiple response generation (n > 1)."""
@@ -1138,44 +1179,3 @@ class TestMaxCompletionTokens:
         call_kwargs = mock_litellm_completion.call_args[1]
         assert call_kwargs["max_completion_tokens"] == 2048
         assert "max_tokens" not in call_kwargs
-
-    def test_validation_with_complex_conversation(self):
-        """Test validation with complex multi-turn conversations."""
-        valid_data = [
-            {
-                "messages": [
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": "Hello, how are you?"},
-                    {
-                        "role": "assistant",
-                        "content": "I'm doing well, thank you! How can I help you today?",
-                    },
-                    {"role": "user", "content": "Can you help me with Python?"},
-                    {
-                        "role": "assistant",
-                        "content": "Absolutely! I'd be happy to help with Python. What specific question do you have?",
-                    },
-                ]
-            },
-            {
-                "messages": [
-                    {"role": "user", "content": "What's the weather like?"},
-                    {
-                        "role": "assistant",
-                        "content": "I don't have access to real-time weather data.",
-                    },
-                    {"role": "user", "content": "That's okay, thanks!"},
-                ]
-            },
-        ]
-        dataset = pd.DataFrame(valid_data)
-
-        block = LLMChatBlock(
-            block_name="test_validation",
-            input_cols="messages",
-            output_cols="response",
-            model="openai/gpt-3.5-turbo",
-        )
-
-        # Should not raise any exception
-        block._validate_custom(dataset)
