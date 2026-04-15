@@ -156,7 +156,7 @@ blocks:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `block_type` | `str` | Yes | Class name of the block (must exist in BlockRegistry). Valid values: `AgentBlock`, `AgentResponseExtractorBlock`, `ColumnValueFilterBlock`, `DuplicateColumnsBlock`, `IndexBasedMapperBlock`, `JSONParserBlock`, `JSONStructureBlock`, `LLMChatBlock`, `LLMResponseExtractorBlock`, `MCPAgentBlock`, `MeltColumnsBlock`, `PromptBuilderBlock`, `RegexParserBlock`, `RenameColumnsBlock`, `RowMultiplierBlock`, `SamplerBlock`, `TagParserBlock`, `TextConcatBlock`, `TextParserBlock` (deprecated), `UniformColumnValueSetter`. |
+| `block_type` | `str` | Yes | Class name of the block (must exist in BlockRegistry). Valid values: `AgentBlock`, `AgentResponseExtractorBlock`, `ColumnValueFilterBlock`, `DuplicateColumnsBlock`, `IndexBasedMapperBlock`, `JSONParserBlock`, `JSONStructureBlock`, `LLMChatBlock`, `LLMResponseExtractorBlock`, `MCPAgentBlock`, `MeltColumnsBlock`, `PromptBuilderBlock`, `RegexParserBlock`, `RenameColumnsBlock`, `RowMultiplierBlock`, `SamplerBlock`, `TagParserBlock`, `TextConcatBlock`, `UniformColumnValueSetter`. |
 | `block_config` | `dict` | Yes | Configuration passed to the block constructor. |
 | `block_config.block_name` | `str` | Yes | Unique name within the flow. |
 

@@ -6,7 +6,7 @@ import { CheckCircleIcon } from '@patternfly/react-icons';
  * Used in the NodeConfigDrawer for configuring evaluation nodes
  * 
  * Eval nodes are special - they auto-generate multiple blocks:
- * PromptBuilder + LLMChat + LLMResponseExtractor + TextParser + ColumnValueFilter
+ * PromptBuilder + LLMChat + LLMResponseExtractor + TagParserBlock/RegexParserBlock + ColumnValueFilter
  */
 export const EvalNodeConfig = {
   type: 'eval',

@@ -361,11 +361,14 @@ const blockGroupToNode = (group, index) => {
       filter_dtype: group[4].block_config?.convert_dtype || null,
     };
     
-    // Parse tags from TagParserBlock
+    // Parse config from TagParserBlock or RegexParserBlock
     const parserBlock = group[3];
-    if (parserBlock?.block_config?.start_tags) {
+    if (parserBlock?.block_type === 'TagParserBlock' && parserBlock?.block_config?.start_tags) {
       config.start_tags = parserBlock.block_config.start_tags;
       config.end_tags = parserBlock.block_config.end_tags || [];
+    }
+    if (parserBlock?.block_type === 'RegexParserBlock') {
+      config.parsing_pattern = parserBlock.block_config?.parsing_pattern || '';
     }
   } else if (blockType === 'PromptBuilderBlock') {
     nodeType = NODE_TYPES.PROMPT;

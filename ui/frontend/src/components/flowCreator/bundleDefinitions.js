@@ -11,7 +11,7 @@ export const BLOCK_BUNDLES = [
     icon: '📝',
     description: 'Generate summaries using LLM',
     blockCount: 5,
-    generates: ['DuplicateColumns', 'PromptBuilder', 'LLMChat', 'LLMParser', 'TextParser'],
+    generates: ['DuplicateColumns', 'PromptBuilder', 'LLMChat', 'LLMParser', 'TagParser'],
     parameters: {
       summary_type: { type: 'select', label: 'Summary Type', options: ['detailed', 'atomic_facts', 'extractive'], default: 'detailed' },
       input_column: { type: 'text', label: 'Input Column', default: 'document' },
@@ -26,7 +26,7 @@ export const BLOCK_BUNDLES = [
     icon: '❓',
     description: 'Generate question-answer pairs',
     blockCount: 4,
-    generates: ['PromptBuilder', 'LLMChat', 'LLMParser', 'TextParser'],
+    generates: ['PromptBuilder', 'LLMChat', 'LLMParser', 'TagParser'],
     parameters: {
       num_qa_pairs: { type: 'number', label: 'Number of Q&A Pairs', default: 1, min: 1, max: 20 },
       input_column: { type: 'text', label: 'Input Column (Document)', default: 'document' },
@@ -42,7 +42,7 @@ export const BLOCK_BUNDLES = [
     icon: '✓',
     description: 'Evaluate content quality with LLM',
     blockCount: 5,
-    generates: ['PromptBuilder', 'LLMChat', 'LLMParser', 'TextParser', 'Filter'],
+    generates: ['PromptBuilder', 'LLMChat', 'LLMParser', 'TagParser', 'Filter'],
     parameters: {
       evaluation_type: { type: 'select', label: 'Evaluation Type', options: ['faithfulness', 'relevancy', 'quality'], default: 'faithfulness' },
       input_column_1: { type: 'text', label: 'First Input Column', default: 'document' },

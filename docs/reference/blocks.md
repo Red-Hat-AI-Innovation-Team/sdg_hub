@@ -28,7 +28,7 @@ When reading raw markdown, refer to the quick reference below.
 | TagParserBlock | `from sdg_hub.core.blocks import TagParserBlock` | Parses text content using start/end tags |
 | JSONParserBlock | `from sdg_hub.core.blocks import JSONParserBlock` | Parses JSON from text and expands fields into separate columns |
 | RegexParserBlock | `from sdg_hub.core.blocks import RegexParserBlock` | Parses text content using regex patterns |
-| TextParserBlock | `from sdg_hub.core.blocks import TextParserBlock` | DEPRECATED: Use TagParserBlock or RegexParserBlock |
+
 
 ### Transform Blocks
 
@@ -118,11 +118,6 @@ When reading raw markdown, refer to the quick reference below.
       show_source: false
 
 ::: sdg_hub.core.blocks.parsing.regex_parser_block.RegexParserBlock
-    options:
-      members_order: source
-      show_source: false
-
-::: sdg_hub.core.blocks.parsing.text_parser_block.TextParserBlock
     options:
       members_order: source
       show_source: false

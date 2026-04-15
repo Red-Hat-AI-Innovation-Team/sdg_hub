@@ -85,14 +85,11 @@ dedicated documentation page.
 | Category | Blocks | Doc Page |
 |---|---|---|
 | **llm** | `LLMChatBlock`, `PromptBuilderBlock`, `LLMResponseExtractorBlock` | [LLM Blocks](llm-blocks.md) |
-| **parsing** | `TagParserBlock`, `RegexParserBlock`, `JSONParserBlock`, `TextParserBlock` (deprecated) | [Parsing Blocks](parsing-blocks.md) |
+| **parsing** | `TagParserBlock`, `RegexParserBlock`, `JSONParserBlock` | [Parsing Blocks](parsing-blocks.md) |
 | **transform** | `TextConcatBlock`, `DuplicateColumnsBlock`, `RenameColumnsBlock`, `MeltColumnsBlock`, `RowMultiplierBlock`, `IndexBasedMapperBlock`, `SamplerBlock`, `UniformColumnValueSetter`, `JSONStructureBlock` | [Transform Blocks](transform-blocks.md) |
 | **filtering** | `ColumnValueFilterBlock` | [Filtering Blocks](filtering-blocks.md) |
 | **agent** | `AgentBlock`, `AgentResponseExtractorBlock` | [Agent Blocks](agent-blocks.md) |
 | **mcp** | `MCPAgentBlock` | [Agent Blocks](agent-blocks.md) |
-
-`TextParserBlock` is deprecated -- use `TagParserBlock` or `RegexParserBlock`
-instead.
 
 ## Block Lifecycle
 

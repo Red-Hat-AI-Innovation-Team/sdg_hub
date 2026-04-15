@@ -623,6 +623,18 @@ const BlockConfigModal = ({ block, isEdit, onSubmit, onClose, onTempFlowCreated,
           </Grid>
         )}
 
+        {/* RegexParserBlock specific */}
+        {bundleBlock.block_type === 'RegexParserBlock' && (
+          <FormGroup label="Parsing Pattern (regex)" fieldId={`block-${blockIndex}-parsing-pattern`}>
+            <TextInput
+              type="text"
+              id={`block-${blockIndex}-parsing-pattern`}
+              value={blockConfig.parsing_pattern || ''}
+              onChange={(event, value) => handleBundleBlockChange(blockIndex, 'parsing_pattern', value)}
+            />
+          </FormGroup>
+        )}
+
         {/* PromptBuilderBlock specific */}
         {bundleBlock.block_type === 'PromptBuilderBlock' && blockConfig.format_as_messages !== undefined && (
           <FormGroup fieldId={`block-${blockIndex}-format-messages`}>

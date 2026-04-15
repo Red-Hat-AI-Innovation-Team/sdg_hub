@@ -366,7 +366,7 @@ Build pipelines with validation in mind. A common pattern chains
 prompt building, LLM generation, text parsing, and quality filtering:
 
 ```text
-PromptBuilder --> LLMChat --> TextParser --> QualityFilter
+PromptBuilder --> LLMChat --> TagParserBlock --> QualityFilter
 ```
 
 Each block validates its inputs and outputs. If a filter removes all rows,

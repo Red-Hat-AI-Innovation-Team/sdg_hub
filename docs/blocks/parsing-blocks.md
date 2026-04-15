@@ -1,6 +1,6 @@
 # Parsing Blocks
 
-Parsing blocks extract structured data from text output, typically the text content produced by LLM blocks. This page covers four blocks: `TagParserBlock` for XML/HTML tag extraction, `RegexParserBlock` for regex pattern extraction, `JSONParserBlock` for JSON parsing and field expansion, and `TextParserBlock` (deprecated).
+Parsing blocks extract structured data from text output, typically the text content produced by LLM blocks. This page covers three blocks: `TagParserBlock` for XML/HTML tag extraction, `RegexParserBlock` for regex pattern extraction, and `JSONParserBlock` for JSON parsing and field expansion.
 
 All parsing blocks operate on pandas DataFrames. They take a single input column of text and produce one or more output columns of extracted values.
 
@@ -160,6 +160,13 @@ result = parser.generate(dataset)
 #                       "Machine learning enables pattern recognition."]
 ```
 
+**Input / Output:**
+
+| llm_content (input) | answer (output) |
+|---|---|
+| `Reasoning: AI is broad.\nAnswer: Artificial Intelligence is a field of CS.\n` | `Artificial Intelligence is a field of CS.` |
+| `Let me explain.\nAnswer: Machine learning enables pattern recognition.\n` | `Machine learning enables pattern recognition.` |
+
 ### Multiple Capture Groups
 
 ```python
@@ -305,82 +312,6 @@ blocks:
 
 ---
 
-## TextParserBlock
-
-**DEPRECATED:** Use `TagParserBlock` or `RegexParserBlock` instead.
-
-TextParserBlock combines tag-based and regex-based parsing into a single block. It is deprecated and emits a `DeprecationWarning` on instantiation. The block registry description reads: "DEPRECATED: Use TagParserBlock or RegexParserBlock".
-
-### Configuration
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `block_name` | `str` | required | Unique identifier for this block instance |
-| `input_cols` | `str \| list[str]` | required | Single input column containing text to parse |
-| `output_cols` | `list[str]` | required | Output column names for extracted content |
-| `start_tags` | `list[str]` | `[]` | Start tags for tag-based extraction |
-| `end_tags` | `list[str]` | `[]` | End tags for tag-based extraction |
-| `parsing_pattern` | `Optional[str]` | `None` | Regex pattern with capture groups |
-| `parser_cleanup_tags` | `Optional[list[str]]` | `None` | Tags to remove from extracted content |
-
-Either `parsing_pattern` or `start_tags`/`end_tags` must be provided. If both are given, the regex pattern takes precedence.
-
-### Migration Guide
-
-Replace TextParserBlock with the appropriate specialized block:
-
-**Tag-based parsing -- use TagParserBlock:**
-
-```python
-# Before (deprecated)
-from sdg_hub.core.blocks import TextParserBlock
-
-parser = TextParserBlock(
-    block_name="old_parser",
-    input_cols="text",
-    output_cols=["answer"],
-    start_tags=["<answer>"],
-    end_tags=["</answer>"],
-)
-
-# After (recommended)
-from sdg_hub.core.blocks import TagParserBlock
-
-parser = TagParserBlock(
-    block_name="new_parser",
-    input_cols="text",
-    output_cols=["answer"],
-    start_tags=["<answer>"],
-    end_tags=["</answer>"],
-)
-```
-
-**Regex-based parsing -- use RegexParserBlock:**
-
-```python
-# Before (deprecated)
-from sdg_hub.core.blocks import TextParserBlock
-
-parser = TextParserBlock(
-    block_name="old_parser",
-    input_cols="text",
-    output_cols=["answer"],
-    parsing_pattern=r"Answer:\s*(.+?)(?:\n|$)",
-)
-
-# After (recommended)
-from sdg_hub.core.blocks import RegexParserBlock
-
-parser = RegexParserBlock(
-    block_name="new_parser",
-    input_cols="text",
-    output_cols=["answer"],
-    parsing_pattern=r"Answer:\s*(.+?)(?:\n|$)",
-)
-```
-
----
-
 ## Choosing a Parsing Block
 
 | Block | Best For | Input Format |
@@ -388,7 +319,6 @@ parser = RegexParserBlock(
 | `TagParserBlock` | XML-style or custom tag delimiters (`<tag>...</tag>`) | Structured text with consistent delimiters |
 | `RegexParserBlock` | Flexible patterns, key-value extraction, line-based formats | Text with identifiable patterns but no XML tags |
 | `JSONParserBlock` | JSON output from LLMs, structured data extraction | Text containing JSON objects |
-| `TextParserBlock` | Nothing -- deprecated | Use TagParserBlock or RegexParserBlock instead |
 
 ---
 
