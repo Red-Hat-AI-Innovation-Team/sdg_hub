@@ -100,41 +100,38 @@ class JSONParserBlock(BaseBlock):
             json_str = re.sub(r",\s*]", "]", json_str)
         return json_str
 
-    def _extract_delimited(
+    def _extract_or_recover(
         self, text: str, open_char: str, close_char: str
     ) -> Optional[str]:
-        """Extract text between the first open_char and last close_char.
+        """Extract delimited JSON, recovering truncated input if needed.
 
-        Returns
-        -------
-        Optional[str]
-            The extracted substring (inclusive of delimiters), or None.
+        Finds the first ``open_char`` and last ``close_char``. When the text
+        appears truncated (opener present but no matching closer), counts
+        unclosed delimiters and appends the required number of closers.
         """
         start = text.find(open_char)
-        end = text.rfind(close_char)
-        if start != -1 and end != -1 and end > start:
-            return text[start : end + 1]
-        return None
-
-    def _recover_truncated_object(self, text: str) -> Optional[str]:
-        """Attempt to recover a truncated JSON object by appending '}'.
-
-        Returns
-        -------
-        Optional[str]
-            Recovered JSON string, or None if no opening brace found.
-        """
-        start = text.find("{")
         if start == -1:
             return None
-        end = text.rfind("}")
+
+        end = text.rfind(close_char)
         if end != -1 and end > start:
-            return None  # Not truncated
+            return text[start : end + 1]
+
+        unclosed = 0
+        for ch in text[start:]:
+            if ch == open_char:
+                unclosed += 1
+            elif ch == close_char:
+                unclosed -= 1
+
+        if unclosed <= 0:
+            return None
+
         logger.warning(
-            "JSON object appears truncated (missing closing brace). "
-            "Attempting recovery by appending '}'."
+            f"JSON appears truncated (missing {unclosed} closing "
+            f"'{close_char}'). Attempting recovery."
         )
-        return text[start:].rstrip() + "}"
+        return text[start:].rstrip() + close_char * unclosed
 
     def _extract_json(self, text: str) -> Optional[str]:
         """Extract JSON from text, handling embedded JSON.
@@ -155,15 +152,11 @@ class JSONParserBlock(BaseBlock):
         if not self.extract_embedded:
             return text.strip()
 
-        result = self._extract_delimited(text, "{", "}")
+        result = self._extract_or_recover(text, "{", "}")
         if result is not None:
             return result
 
-        recovered = self._recover_truncated_object(text)
-        if recovered is not None:
-            return recovered
-
-        return self._extract_delimited(text, "[", "]")
+        return self._extract_or_recover(text, "[", "]")
 
     @staticmethod
     def _normalize_parsed(parsed: Any) -> dict[str, Any]:

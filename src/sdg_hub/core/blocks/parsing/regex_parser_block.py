@@ -1,16 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """Regex-based text parser block."""
 
-from itertools import chain
-from typing import Any, Optional, cast
+from typing import cast
 import re
 
-from pydantic import Field
 import pandas as pd
 
 from ...utils.logger_config import setup_logger
-from ..base import BaseBlock
 from ..registry import BlockRegistry
+from .base_text_parser_block import BaseTextParserBlock
 
 logger = setup_logger(__name__)
 
@@ -20,26 +18,15 @@ logger = setup_logger(__name__)
     "parsing",
     "Parses text content using regex patterns",
 )
-class RegexParserBlock(BaseBlock):
+class RegexParserBlock(BaseTextParserBlock):
     """Block for parsing text content using regex patterns."""
 
-    _flow_requires_jsonl_tmp: bool = True
-    block_type: str = "parser"
-
-    parsing_pattern: str = Field(..., description="Regex pattern with capture groups")
-    parser_cleanup_tags: Optional[list[str]] = Field(
-        default=None, description="Tags to remove from extracted content"
-    )
+    parsing_pattern: str
 
     def _validate_custom(self, dataset: pd.DataFrame) -> None:
         input_cols = cast(list[str], self.input_cols)
         if len(input_cols) != 1:
             raise ValueError("RegexParserBlock requires exactly one input column")
-
-    def _clean(self, value: str) -> str:
-        for tag in self.parser_cleanup_tags or []:
-            value = value.replace(tag, "")
-        return value
 
     def _parse_single_text(self, sample: dict, text: str) -> list[dict]:
         output_cols = cast(list[str], self.output_cols)
@@ -63,52 +50,3 @@ class RegexParserBlock(BaseBlock):
                 {**sample, output_cols[0]: self._clean(match.strip())}
                 for match in matches
             ]
-
-    def _accumulate_parsed_rows(
-        self, rows: list[dict], all_parsed: dict[str, list[str]]
-    ) -> None:
-        """Accumulate parsed column values from rows into the aggregation dict."""
-        output_cols = cast(list[str], self.output_cols)
-        for row in rows:
-            for col in output_cols:
-                if col in row:
-                    all_parsed[col].append(row[col])
-
-    def _parse_list_input(self, sample: dict, items: list) -> list[dict]:
-        """Parse a list of text items and merge results into a single row."""
-        output_cols = cast(list[str], self.output_cols)
-        all_parsed: dict[str, list[str]] = {col: [] for col in output_cols}
-        valid = 0
-        for item in items:
-            if not isinstance(item, str) or not item:
-                continue
-            rows = self._parse_single_text(sample, item)
-            if rows:
-                valid += 1
-                self._accumulate_parsed_rows(rows, all_parsed)
-        if valid == 0:
-            return []
-        return [{**sample, **all_parsed}]
-
-    def _parse_row(self, sample: dict) -> list[dict]:
-        input_cols = cast(list[str], self.input_cols)
-        text = sample[input_cols[0]]
-
-        if isinstance(text, list):
-            if not text:
-                logger.warning(f"Input column '{input_cols[0]}' contains empty list")
-                return []
-            return self._parse_list_input(sample, text)
-
-        if not isinstance(text, str) or not text:
-            return []
-
-        return self._parse_single_text(sample, text)
-
-    def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
-        if samples.empty:
-            return pd.DataFrame()
-        rows = list(
-            chain.from_iterable(map(self._parse_row, samples.to_dict("records")))
-        )
-        return pd.DataFrame(rows) if rows else pd.DataFrame()
