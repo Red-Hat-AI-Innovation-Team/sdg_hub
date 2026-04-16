@@ -22,11 +22,14 @@ const fragmentMono = Fragment_Mono({
   display: "swap",
 });
 
-const siteUrl = process.env.GITHUB_PAGES === "true"
-  ? "https://red-hat-ai-innovation-team.github.io/sdg_hub"
-  : "";
+const socialDescription =
+  "Composable blocks and flows for synthetic data generation";
 
 export const metadata: Metadata = {
+  metadataBase:
+    process.env.GITHUB_PAGES === "true"
+      ? new URL("https://red-hat-ai-innovation-team.github.io/sdg_hub")
+      : undefined,
   title: "SDG Hub",
   description:
     "A modular Python framework for building synthetic data generation pipelines using composable blocks and flows.",
@@ -35,15 +38,15 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "SDG Hub",
-    description: "Composable blocks and flows for synthetic data generation",
+    description: socialDescription,
     type: "website",
-    images: [{ url: `${siteUrl}/social-card.png`, width: 1200, height: 630 }],
+    images: [{ url: "/social-card.png", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
     title: "SDG Hub",
-    description: "Composable blocks and flows for synthetic data generation",
-    images: [`${siteUrl}/social-card.png`],
+    description: socialDescription,
+    images: ["/social-card.png"],
   },
 };
 
