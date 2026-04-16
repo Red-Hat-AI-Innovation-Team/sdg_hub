@@ -312,6 +312,9 @@ class BlockRegistry:
             logger.warning("No blocks registered yet.")
             return
 
+        if not logger.isEnabledFor(logging.INFO):
+            return
+
         table = Table(
             title="Available Blocks", show_header=True, header_style="bold magenta"
         )
@@ -332,8 +335,7 @@ class BlockRegistry:
 
             table.add_row(block_name, metadata.category, description)
 
-        if logger.isEnabledFor(logging.INFO):
-            _console.print(table)
+        _console.print(table)
 
         # Show summary
         total_blocks = len(cls._metadata)

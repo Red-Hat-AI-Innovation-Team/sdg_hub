@@ -184,6 +184,9 @@ def print_flow_info(flow: "Flow") -> None:
     None
     """
 
+    if not logger.isEnabledFor(logging.INFO):
+        return
+
     # Create main tree structure
     flow_tree = Tree(f"[bold bright_blue]{flow.metadata.name}[/bold bright_blue] Flow")
 
@@ -218,21 +221,20 @@ def print_flow_info(flow: "Flow") -> None:
         )
 
     # Print everything
-    if logger.isEnabledFor(logging.INFO):
-        _console.print()
-        _console.print(
-            Panel(
-                flow_tree,
-                title="[bold bright_white]Flow Information[/bold bright_white]",
-                border_style="bright_blue",
-            )
+    _console.print()
+    _console.print(
+        Panel(
+            flow_tree,
+            title="[bold bright_white]Flow Information[/bold bright_white]",
+            border_style="bright_blue",
         )
-        _console.print()
-        _console.print(
-            Panel(
-                blocks_table,
-                title="[bold bright_white]Block Details[/bold bright_white]",
-                border_style="bright_magenta",
-            )
+    )
+    _console.print()
+    _console.print(
+        Panel(
+            blocks_table,
+            title="[bold bright_white]Block Details[/bold bright_white]",
+            border_style="bright_magenta",
         )
-        _console.print()
+    )
+    _console.print()

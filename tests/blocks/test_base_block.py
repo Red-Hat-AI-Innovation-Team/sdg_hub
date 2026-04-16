@@ -371,6 +371,20 @@ class TestLogging:
 
     @patch("sdg_hub.core.blocks.base._console")
     @patch("sdg_hub.core.blocks.base.logger")
+    def test_log_input_data_logging_disabled(self, mock_logger, mock_console):
+        """Test input data logging is suppressed when logging level is above INFO."""
+        mock_logger.isEnabledFor.return_value = False
+        dataset = self.create_test_dataset()
+        block = DummyBlock(
+            block_name="test_block", input_cols=["input"], output_cols=["output"]
+        )
+
+        block._log_input_data(dataset)
+
+        mock_console.print.assert_not_called()
+
+    @patch("sdg_hub.core.blocks.base._console")
+    @patch("sdg_hub.core.blocks.base.logger")
     def test_log_output_data(self, mock_logger, mock_console):
         """Test output data logging."""
         mock_logger.isEnabledFor.return_value = True
@@ -397,6 +411,23 @@ class TestLogging:
         # Verify panel properties
         assert "test_block - Complete" in str(panel.title)
         assert panel.border_style == "green"
+
+    @patch("sdg_hub.core.blocks.base._console")
+    @patch("sdg_hub.core.blocks.base.logger")
+    def test_log_output_data_logging_disabled(self, mock_logger, mock_console):
+        """Test output data logging is suppressed when logging level is above INFO."""
+        mock_logger.isEnabledFor.return_value = False
+        input_dataset = self.create_test_dataset()
+        output_data = [
+            {"input": "test1", "category": "A", "new_col": "value1"},
+            {"input": "test2", "category": "B", "new_col": "value2"},
+        ]
+        output_dataset = pd.DataFrame(output_data)
+
+        block = DummyBlock(block_name="test_block")
+        block._log_output_data(input_dataset, output_dataset)
+
+        mock_console.print.assert_not_called()
 
 
 class TestCallMethod:
@@ -707,7 +738,7 @@ class TestStructuralFieldProtection:
             ]
         return pd.DataFrame(data)
 
-    @patch("sdg_hub.core.blocks.base.console")
+    @patch("sdg_hub.core.blocks.base._console")
     def test_reject_input_cols_override(self, mock_console):
         """Test that overriding input_cols at runtime raises ValueError."""
         dataset = self.create_test_dataset()
@@ -720,7 +751,7 @@ class TestStructuralFieldProtection:
         with pytest.raises(ValueError, match="Cannot override structural fields"):
             block(dataset, input_cols=["category"])
 
-    @patch("sdg_hub.core.blocks.base.console")
+    @patch("sdg_hub.core.blocks.base._console")
     def test_reject_output_cols_override(self, mock_console):
         """Test that overriding output_cols at runtime raises ValueError."""
         dataset = self.create_test_dataset()
@@ -733,7 +764,7 @@ class TestStructuralFieldProtection:
         with pytest.raises(ValueError, match="Cannot override structural fields"):
             block(dataset, output_cols=["other_output"])
 
-    @patch("sdg_hub.core.blocks.base.console")
+    @patch("sdg_hub.core.blocks.base._console")
     def test_reject_block_name_override(self, mock_console):
         """Test that overriding block_name at runtime raises ValueError."""
         dataset = self.create_test_dataset()
@@ -746,7 +777,7 @@ class TestStructuralFieldProtection:
         with pytest.raises(ValueError, match="Cannot override structural fields"):
             block(dataset, block_name="new_name")
 
-    @patch("sdg_hub.core.blocks.base.console")
+    @patch("sdg_hub.core.blocks.base._console")
     def test_reject_block_type_override(self, mock_console):
         """Test that overriding block_type at runtime raises ValueError."""
         dataset = self.create_test_dataset()
@@ -759,7 +790,7 @@ class TestStructuralFieldProtection:
         with pytest.raises(ValueError, match="Cannot override structural fields"):
             block(dataset, block_type="llm")
 
-    @patch("sdg_hub.core.blocks.base.console")
+    @patch("sdg_hub.core.blocks.base._console")
     def test_reject_multiple_structural_overrides(self, mock_console):
         """Test that overriding multiple structural fields lists all in the error."""
         dataset = self.create_test_dataset()
@@ -778,7 +809,7 @@ class TestStructuralFieldProtection:
         assert "input_cols" in str(exc_info.value)
         assert "output_cols" in str(exc_info.value)
 
-    @patch("sdg_hub.core.blocks.base.console")
+    @patch("sdg_hub.core.blocks.base._console")
     def test_allow_non_structural_overrides(self, mock_console):
         """Test that non-structural fields can still be overridden."""
         dataset = self.create_test_dataset()

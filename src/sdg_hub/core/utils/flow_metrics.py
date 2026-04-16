@@ -166,6 +166,9 @@ def display_metrics_summary(
     if not block_metrics:
         return
 
+    if not logger.isEnabledFor(logging.INFO):
+        return
+
     # Create the metrics table
     table = Table(
         show_header=True,
@@ -217,16 +220,15 @@ def display_metrics_summary(
     failed_blocks = len(block_metrics) - successful_blocks
     title, border_style = _resolve_panel_style(flow_name, failed_blocks, final_dataset)
 
-    if logger.isEnabledFor(logging.INFO):
-        _console.print()
-        _console.print(
-            Panel(
-                table,
-                title=title,
-                border_style=border_style,
-            )
+    _console.print()
+    _console.print(
+        Panel(
+            table,
+            title=title,
+            border_style=border_style,
         )
-        _console.print()
+    )
+    _console.print()
 
 
 def _format_time_str(seconds: float) -> str:

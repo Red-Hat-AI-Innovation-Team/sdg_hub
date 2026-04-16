@@ -383,6 +383,9 @@ class FlowRegistry:
             logger.info("Note: Only flows with 'metadata' section are discoverable.")
             return
 
+        if not logger.isEnabledFor(logging.INFO):
+            return
+
         # Prepare data with fallbacks
         flow_data = []
         for _, entry in cls._entries.items():
@@ -421,5 +424,4 @@ class FlowRegistry:
                 flow["description"],
             )
 
-        if logger.isEnabledFor(logging.INFO):
-            _console.print(table)
+        _console.print(table)

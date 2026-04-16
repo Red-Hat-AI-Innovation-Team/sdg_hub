@@ -504,6 +504,23 @@ class TestBlockRegistry:
                 "Summary" in str(call) for call in mock_logger.info.call_args_list
             )
 
+    def test_print_blocks_logging_disabled(self):
+        """Test that discover_blocks skips display when logging is above INFO."""
+
+        @BlockRegistry.register("ActiveBlock2", "test", "An active test block")
+        class ActiveBlock2(BaseBlock):
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
+                return samples
+
+        with (
+            patch("sdg_hub.core.blocks.registry._console") as mock_console,
+            patch("sdg_hub.core.blocks.registry.logger") as mock_logger,
+        ):
+            mock_logger.isEnabledFor.return_value = False
+            BlockRegistry.discover_blocks()
+
+            mock_console.print.assert_not_called()
+
     def test_fallback_validation_without_baseblock(self):
         """Test validation fallback when BaseBlock is not available."""
 

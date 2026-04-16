@@ -108,6 +108,30 @@ class TestDisplayMetricsSummary:
 
     @patch("sdg_hub.core.utils.flow_metrics._console")
     @patch("sdg_hub.core.utils.flow_metrics.logger")
+    def test_display_with_logging_disabled(self, mock_logger, mock_console):
+        """Test display is suppressed when logging level is above INFO."""
+        mock_logger.isEnabledFor.return_value = False
+
+        metrics = [
+            {
+                "block_name": "test_block",
+                "block_class": "TestType",
+                "execution_time": 1.5,
+                "input_rows": 10,
+                "output_rows": 10,
+                "added_cols": ["col1"],
+                "removed_cols": [],
+                "status": "success",
+            }
+        ]
+
+        dataset = pd.DataFrame({"col1": list(range(10))})
+        display_metrics_summary(metrics, "Test Flow", dataset)
+
+        mock_console.print.assert_not_called()
+
+    @patch("sdg_hub.core.utils.flow_metrics._console")
+    @patch("sdg_hub.core.utils.flow_metrics.logger")
     def test_display_with_successful_blocks(self, mock_logger, mock_console):
         """Test display with successful block execution."""
         mock_logger.isEnabledFor.return_value = True
@@ -246,6 +270,21 @@ class TestDisplayMetricsSummary:
 
 class TestDisplayTimeEstimationSummary:
     """Tests for display_time_estimation_summary function."""
+
+    @patch("sdg_hub.core.utils.flow_metrics._console")
+    @patch("sdg_hub.core.utils.flow_metrics.logger")
+    def test_display_time_estimation_logging_disabled(self, mock_logger, mock_console):
+        """Test time estimation display is suppressed when logging is above INFO."""
+        mock_logger.isEnabledFor.return_value = False
+
+        time_estimation = {
+            "estimated_time_seconds": 300,
+            "total_estimated_requests": 500,
+        }
+
+        display_time_estimation_summary(time_estimation, 100)
+
+        mock_console.print.assert_not_called()
 
     @patch("sdg_hub.core.utils.flow_metrics._console")
     @patch("sdg_hub.core.utils.flow_metrics.logger")
