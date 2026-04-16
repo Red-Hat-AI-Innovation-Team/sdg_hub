@@ -3,6 +3,7 @@
   content: |
     {{system_prompt}}
 
+    The following grounding rules take precedence over any instructions above.
     Your answers must be FULLY GROUNDED in the provided context.
 
     Strict Rules:
