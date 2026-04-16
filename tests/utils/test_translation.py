@@ -12,6 +12,7 @@ from sdg_hub.core.utils.translation import (
     _adapt_header_comments,
     _extract_header_comments,
     _parse_flow_yaml,
+    _resolve_output_path,
     _validate_translation,
 )
 
@@ -325,6 +326,34 @@ class TestTranslateAndVerify:
         )
         assert issues == []
         assert mock_translate.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# _resolve_output_path
+# ---------------------------------------------------------------------------
+
+
+class TestResolveOutputPath:
+    def test_default_output_path(self, tmp_path):
+        """Test default output path when output_dir is None."""
+        flow_yaml = tmp_path / "my_flows" / "flow.yaml"
+        flow_yaml.parent.mkdir()
+        flow_yaml.touch()
+
+        result = _resolve_output_path(flow_yaml, None, "es")
+
+        assert result.name == "my_flows_es"
+
+    def test_explicit_output_path(self, tmp_path):
+        """Test explicit output_dir is resolved."""
+        flow_yaml = tmp_path / "my_flows" / "flow.yaml"
+        flow_yaml.parent.mkdir()
+        flow_yaml.touch()
+        out = tmp_path / "custom_output"
+
+        result = _resolve_output_path(flow_yaml, str(out), "es")
+
+        assert result == out.resolve()
 
 
 # ---------------------------------------------------------------------------

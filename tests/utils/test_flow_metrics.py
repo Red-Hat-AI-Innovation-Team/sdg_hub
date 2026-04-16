@@ -181,6 +181,30 @@ class TestDisplayMetricsSummary:
         assert mock_console_instance.print.call_count >= 2
 
     @patch("sdg_hub.core.utils.flow_metrics.Console")
+    def test_display_with_removed_columns_only(self, mock_console):
+        """Test display with a block that only removes columns."""
+        mock_console_instance = MagicMock()
+        mock_console.return_value = mock_console_instance
+
+        metrics = [
+            {
+                "block_name": "test_block",
+                "block_class": "TestType",
+                "execution_time": 1.0,
+                "input_rows": 10,
+                "output_rows": 10,
+                "added_cols": [],
+                "removed_cols": ["old_col"],
+                "status": "success",
+            }
+        ]
+
+        dataset = pd.DataFrame({"col1": list(range(10))})
+        display_metrics_summary(metrics, "Test Flow", dataset)
+
+        assert mock_console_instance.print.call_count >= 2
+
+    @patch("sdg_hub.core.utils.flow_metrics.Console")
     def test_display_with_partial_completion(self, mock_console):
         """Test display with some blocks succeeded and some failed."""
         mock_console_instance = MagicMock()
