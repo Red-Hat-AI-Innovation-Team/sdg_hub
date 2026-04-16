@@ -327,12 +327,10 @@ def _execute_single_block(
         f"{block.block_name} ({block.__class__.__name__})"
     )
 
-    # Prepare block execution parameters
     block_kwargs = prepare_block_kwargs(block, runtime_params)
     if max_concurrency is not None:
         block_kwargs["_flow_max_concurrency"] = max_concurrency
 
-    # Capture metrics before execution
     start_time = time.perf_counter()
     input_rows = len(current_dataset)
     input_cols = set(current_dataset.columns)
@@ -901,7 +899,6 @@ def execute_flow(
         If flow validation fails, input dataset is empty, or model configuration
         is required but not set.
     """
-    # Convert to DataFrame if needed (backwards compatibility)
     dataset, was_dataset = convert_to_dataframe(dataset)
 
     original_columns = set(dataset.columns)
@@ -910,16 +907,13 @@ def execute_flow(
     )
     runtime_params = runtime_params or {}
 
-    # Validate all preconditions
     _validate_flow_preconditions(flow, dataset, save_freq, max_concurrency)
 
-    # Set up logging
     flow_logger, timestamp, flow_name = _setup_flow_logger(
         log_dir,
         flow.metadata.name,
     )
 
-    # Initialize checkpointer and handle fully-completed case
     checkpointer, completed_dataset, dataset, early_return = _initialize_checkpointer(
         flow,
         dataset,
@@ -934,7 +928,6 @@ def execute_flow(
     if early_return is not None:
         return early_return
 
-    # Log concurrency control if specified
     if max_concurrency is not None:
         flow_logger.info(f"Using max_concurrency={max_concurrency} for LLM requests")
 
@@ -944,11 +937,9 @@ def execute_flow(
         + (f" (max_concurrency={max_concurrency})" if max_concurrency else "")
     )
 
-    # Reset metrics for this execution
     flow._block_metrics = []
     run_start = time.perf_counter()
 
-    # Initialize column tracker for early dropping of unused columns
     column_tracker: Optional[ColumnDependencyTracker] = None
     if effective_output_columns is not None:
         column_tracker = ColumnDependencyTracker(
@@ -958,7 +949,6 @@ def execute_flow(
             "Column cleanup enabled - will drop unused intermediate columns"
         )
 
-    # Execute flow with metrics capture, ensuring metrics are always displayed/saved
     final_dataset = None
     execution_successful = False
 
@@ -989,7 +979,6 @@ def execute_flow(
 
         execution_successful = True
 
-        # Drop intermediate columns if output_columns is specified
         if effective_output_columns is not None and final_dataset is not None:
             final_dataset = _cleanup_final_columns(
                 final_dataset,
@@ -1010,7 +999,6 @@ def execute_flow(
             flow_logger,
         )
 
-    # Keep a basic log entry (only if execution was successful)
     if execution_successful and final_dataset is not None:
         logger.info(
             f"Flow '{flow.metadata.name}' completed successfully: "
