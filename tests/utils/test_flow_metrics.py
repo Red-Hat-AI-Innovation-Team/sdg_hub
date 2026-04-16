@@ -6,6 +6,7 @@ import pandas as pd
 # Third Party
 # First Party
 from sdg_hub.core.utils.flow_metrics import (
+    _format_block_row,
     aggregate_block_metrics,
     display_metrics_summary,
     display_time_estimation_summary,
@@ -203,6 +204,7 @@ class TestDisplayMetricsSummary:
         display_metrics_summary(metrics, "Test Flow", dataset)
 
         assert mock_console_instance.print.call_count >= 2
+        assert _format_block_row(metrics[0])[2] == "-1"
 
     @patch("sdg_hub.core.utils.flow_metrics.Console")
     def test_display_with_partial_completion(self, mock_console):

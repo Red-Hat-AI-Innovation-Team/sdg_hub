@@ -575,7 +575,7 @@ def _translate_all_prompts(
     structural_tags: frozenset[str],
     tag_rule: str,
     lang_code: str,
-) -> list[str]:
+) -> tuple[list[str], set[str]]:
     """Translate every prompt YAML in *prompt_mapping*, collecting issues.
 
     Parameters
@@ -595,10 +595,12 @@ def _translate_all_prompts(
 
     Returns
     -------
-    list[str]
-        Unresolved validation issues across all prompts.
+    tuple[list[str], set[str]]
+        Unresolved validation issues and the set of source basenames that were
+        successfully written to disk.
     """
     all_issues: list[str] = []
+    translated_basenames: set[str] = set()
     for source_path, out_path in prompt_mapping.items():
         issues = _translate_prompt_yaml(
             source_path,
@@ -616,7 +618,9 @@ def _translate_all_prompts(
             lang_code=lang_code,
         )
         all_issues.extend(issues)
-    return all_issues
+        if not issues:
+            translated_basenames.add(source_path.name)
+    return all_issues, translated_basenames
 
 
 def _resolve_output_path(
@@ -754,7 +758,7 @@ def translate_flow(
     )
 
     # Translate prompt YAMLs
-    all_issues = _translate_all_prompts(
+    all_issues, translated_basenames = _translate_all_prompts(
         prompt_mapping,
         lang,
         cfg,
@@ -764,7 +768,6 @@ def translate_flow(
     )
 
     # Adapt flow YAML -- only rewrite paths for prompts we actually translated
-    translated_basenames = {src.name for src in prompt_yamls}
     _adapt_flow_yaml(flow_yaml, flow_out, lang, lang_code, translated_basenames)
 
     # Summary
