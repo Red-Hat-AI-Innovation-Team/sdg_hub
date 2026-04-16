@@ -30,6 +30,7 @@ flow = Flow.from_yaml(flow_path)
 | code_evaluation | Domain Code Evaluation Benchmark Generator | `domain-code-eval` | gpt-5.1-codex-mini | domain, function_spec, difficulty, time_complexity |
 | evaluation | RAG Evaluation Dataset | `loud-dawn-245` | openai/gpt-oss-120b | document, document_outline |
 | evaluation | RAG Evaluation ICL Dataset | `keen-pearl-546` | openai/gpt-oss-120b | document, document_outline, icl_document, icl_query_1-3 |
+| evaluation | RAG Evaluation ICL Persona Dataset | `fresh-chord-196` | openai/gpt-oss-120b | document, document_outline, icl_document, icl_query_1-3, system_prompt |
 | evaluation | Agent Tool-Use Evaluation | `eager-path-837` | openai/gpt-4o | question, expert_answer_truncated, expert_trace_formatted, model_answer, model_trace_formatted |
 
 ---
@@ -512,6 +513,52 @@ dataset = Dataset.from_dict({
     "icl_query_1": ["How do I configure X when Y keeps timing out?"],
     "icl_query_2": ["We set up a pipeline but the labels get reused - is that expected?"],
     "icl_query_3": ["What's the best way to debug failed builds?"],
+})
+result = flow.generate(dataset, max_concurrency=20)
+```
+
+### RAG Evaluation ICL Persona Dataset (fresh-chord-196)
+
+Location: `src/sdg_hub/flows/evaluation/rag_evaluation_icl_persona/`
+
+Extends the ICL flow with persona-aware answer generation. Questions are
+generated identically (3-stage ICL pipeline), but answers are produced using a
+configurable `system_prompt` that defines the chatbot's tone, formatting, and
+response structure. Answers remain grounded in the document context while
+matching the persona.
+
+Default model: `openai/gpt-oss-120b`
+
+Required columns: `document`, `document_outline`, `icl_document`,
+`icl_query_1`, `icl_query_2`, `icl_query_3`, `system_prompt`
+
+Tags: `rag-evaluation`, `qa-pairs`, `icl`, `persona`
+
+```python
+from datasets import Dataset
+from sdg_hub import Flow
+from sdg_hub import FlowRegistry
+
+FlowRegistry.discover_flows()
+flow = Flow.from_yaml(
+    FlowRegistry.get_flow_path_safe("fresh-chord-196")
+)
+flow.set_model_config(
+    model="openai/gpt-oss-120b",
+    api_key="your-key",
+)
+
+persona = """You are a Senior Platform Engineer. Be conversational and direct.
+Explain WHY before WHAT. Use plain text formatting, no markdown."""
+
+dataset = Dataset.from_dict({
+    "document": ["Your document text..."],
+    "document_outline": ["Document Title"],
+    "icl_document": ["Example document for style reference..."],
+    "icl_query_1": ["How do I configure X when Y keeps timing out?"],
+    "icl_query_2": ["We set up a pipeline but the labels get reused - is that expected?"],
+    "icl_query_3": ["What's the best way to debug failed builds?"],
+    "system_prompt": [persona],
 })
 result = flow.generate(dataset, max_concurrency=20)
 ```
