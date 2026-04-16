@@ -163,7 +163,7 @@ result = parser.generate(dataset)
 **Input / Output:**
 
 | llm_content (input) | answer (output) |
-|---|---|
+|---------------------|-----------------|
 | `Reasoning: AI is broad.\nAnswer: Artificial Intelligence is a field of CS.\n` | `Artificial Intelligence is a field of CS.` |
 | `Let me explain.\nAnswer: Machine learning enables pattern recognition.\n` | `Machine learning enables pattern recognition.` |
 

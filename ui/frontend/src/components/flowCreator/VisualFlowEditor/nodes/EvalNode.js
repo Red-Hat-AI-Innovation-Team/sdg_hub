@@ -272,15 +272,16 @@ YES or NO
           extract_content: true,
         },
       },
-      // 4. Tag Parser
+      // 4. Parser (Tag or Regex)
       {
-        block_type: 'TagParserBlock',
+        block_type: config.parsing_pattern?.trim() ? 'RegexParserBlock' : 'TagParserBlock',
         block_config: {
           block_name: `parse_${baseName}`,
           input_cols: `extract_${baseName}_content`,
           output_cols: [`${baseName}_explanation`, `${baseName}_judgment`],
-          start_tags: getStartTags(),
-          end_tags: getEndTags(),
+          ...(config.parsing_pattern?.trim()
+            ? { parsing_pattern: config.parsing_pattern }
+            : { start_tags: getStartTags(), end_tags: getEndTags() }),
         },
       },
       // 5. Column Value Filter

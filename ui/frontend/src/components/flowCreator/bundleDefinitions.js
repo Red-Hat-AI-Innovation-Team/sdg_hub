@@ -26,7 +26,7 @@ export const BLOCK_BUNDLES = [
     icon: '❓',
     description: 'Generate question-answer pairs',
     blockCount: 4,
-    generates: ['PromptBuilder', 'LLMChat', 'LLMParser', 'TagParser'],
+    generates: ['PromptBuilder', 'LLMChat', 'LLMParser', 'RegexParser'],
     parameters: {
       num_qa_pairs: { type: 'number', label: 'Number of Q&A Pairs', default: 1, min: 1, max: 20 },
       input_column: { type: 'text', label: 'Input Column (Document)', default: 'document' },
