@@ -24,7 +24,12 @@ Example
 """
 
 # Import agent module to register connectors
-from .agent import BaseAgentConnector, LangflowConnector, LangGraphConnector
+from .agent import (
+    BaseAgentConnector,
+    GenericHTTPConnector,
+    LangflowConnector,
+    LangGraphConnector,
+)
 from .base import BaseConnector, ConnectorConfig
 from .code_interpreter import (
     BaseCodeInterpreterConnector,
@@ -48,6 +53,7 @@ __all__ = [
     # Agent connectors
     "BaseAgentConnector",
     "LangflowConnector",
+    "GenericHTTPConnector",
     "LangGraphConnector",
     # Code interpreter connectors
     "BaseCodeInterpreterConnector",
