@@ -100,10 +100,17 @@ class GenericHTTPConnector(BaseAgentConnector):
         description="Dot-notation path where session ID is placed in the request body.",
     )
 
-    @field_validator("request_message_path", "response_text_path")
+    @field_validator(
+        "request_message_path",
+        "response_text_path",
+        "request_session_id_path",
+        "response_session_id_path",
+    )
     @classmethod
-    def validate_path_format(cls, v: str) -> str:
+    def validate_path_format(cls, v: str | None) -> str | None:
         """Validate that path contains only valid dot-notation segments."""
+        if v is None:
+            return v
         for segment in v.split("."):
             if not segment:
                 raise ValueError(

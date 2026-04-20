@@ -242,6 +242,11 @@ class TestGenericHTTPConnector:
         with pytest.raises(ValueError, match="empty segment"):
             self._make_connector(request_message_path="input..question")
 
+    def test_validation_empty_path_segment_optional_field(self):
+        """Test validation rejects optional paths with empty segments."""
+        with pytest.raises(ValueError, match="empty segment"):
+            self._make_connector(response_session_id_path="meta..sid")
+
     def test_validation_requires_request_message_path(self):
         """Test that request_message_path is required."""
         with pytest.raises(ValueError):
