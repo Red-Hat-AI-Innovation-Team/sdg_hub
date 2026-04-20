@@ -152,6 +152,16 @@ class GenericHTTPConnector(BaseAgentConnector):
         _set_nested(payload, self.request_message_path, content)
 
         if self.request_session_id_path:
+            message_path = self.request_message_path
+            session_path = self.request_session_id_path
+            if (
+                message_path == session_path
+                or message_path.startswith(f"{session_path}.")
+                or session_path.startswith(f"{message_path}.")
+            ):
+                raise ConnectorError(
+                    "request_message_path and request_session_id_path must not overlap"
+                )
             _set_nested(payload, self.request_session_id_path, session_id)
 
         return payload

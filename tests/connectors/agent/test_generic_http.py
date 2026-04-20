@@ -153,6 +153,49 @@ class TestGenericHTTPConnector:
         assert "session_id" not in request
         assert request == {"input": {"question": "Hello"}}
 
+    def test_build_request_overlapping_paths_identical(self):
+        """Test error when message and session ID paths are identical."""
+        connector = self._make_connector(
+            request_message_path="input.query",
+            request_session_id_path="input.query",
+        )
+        messages = [{"role": "user", "content": "Hello"}]
+        with pytest.raises(ConnectorError, match="must not overlap"):
+            connector.build_request(messages, "session-1")
+
+    def test_build_request_overlapping_paths_parent_child(self):
+        """Test error when session ID path is parent of message path."""
+        connector = self._make_connector(
+            request_message_path="input.query",
+            request_session_id_path="input",
+        )
+        messages = [{"role": "user", "content": "Hello"}]
+        with pytest.raises(ConnectorError, match="must not overlap"):
+            connector.build_request(messages, "session-1")
+
+    def test_build_request_overlapping_paths_child_parent(self):
+        """Test error when message path is parent of session ID path."""
+        connector = self._make_connector(
+            request_message_path="input",
+            request_session_id_path="input.session_id",
+        )
+        messages = [{"role": "user", "content": "Hello"}]
+        with pytest.raises(ConnectorError, match="must not overlap"):
+            connector.build_request(messages, "session-1")
+
+    def test_build_request_non_overlapping_paths(self):
+        """Test that sibling paths work without error."""
+        connector = self._make_connector(
+            request_message_path="input.query",
+            request_session_id_path="input.session_id",
+        )
+        messages = [{"role": "user", "content": "Hello"}]
+        request = connector.build_request(messages, "s-1")
+
+        assert request == {
+            "input": {"query": "Hello", "session_id": "s-1"},
+        }
+
     def test_parse_response_valid_dict(self):
         """Test valid dict passes through with extracted text."""
         connector = self._make_connector()
