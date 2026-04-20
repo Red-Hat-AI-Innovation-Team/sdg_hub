@@ -191,6 +191,19 @@ class TestGenericHTTPConnector:
         assert parsed["_extracted_text"] == "hi"
         assert parsed["_extracted_session_id"] == "s-1"
 
+    def test_parse_response_strips_upstream_reserved_keys(self):
+        """Test that upstream _extracted_text/_extracted_session_id are stripped."""
+        connector = self._make_connector()
+        response = {
+            "output": {"answer": "real"},
+            "_extracted_text": "spoofed",
+            "_extracted_session_id": "spoofed-sid",
+        }
+        parsed = connector.parse_response(response)
+
+        assert parsed["_extracted_text"] == "real"
+        assert "_extracted_session_id" not in parsed
+
     def test_parse_response_non_dict_raises(self):
         """Test non-dict raises error."""
         connector = self._make_connector()

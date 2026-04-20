@@ -185,6 +185,10 @@ class GenericHTTPConnector(BaseAgentConnector):
                 f"Expected dict response, got {type(response).__name__}"
             )
 
+        # Remove reserved keys so upstream values can't leak through
+        response.pop("_extracted_text", None)
+        response.pop("_extracted_session_id", None)
+
         text = _get_nested(response, self.response_text_path)
         if text is not None:
             response["_extracted_text"] = str(text)
