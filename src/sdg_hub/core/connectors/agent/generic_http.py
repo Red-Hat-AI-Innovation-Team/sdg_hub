@@ -195,20 +195,23 @@ class GenericHTTPConnector(BaseAgentConnector):
                 f"Expected dict response, got {type(response).__name__}"
             )
 
-        # Remove reserved keys so upstream values can't leak through
-        response.pop("_extracted_text", None)
-        response.pop("_extracted_session_id", None)
+        # Work on a copy to avoid mutating the caller's dict
+        parsed = dict(response)
 
-        text = _get_nested(response, self.response_text_path)
+        # Remove reserved keys so upstream values can't leak through
+        parsed.pop("_extracted_text", None)
+        parsed.pop("_extracted_session_id", None)
+
+        text = _get_nested(parsed, self.response_text_path)
         if text is not None:
-            response["_extracted_text"] = str(text)
+            parsed["_extracted_text"] = str(text)
 
         if self.response_session_id_path:
-            session_id = _get_nested(response, self.response_session_id_path)
+            session_id = _get_nested(parsed, self.response_session_id_path)
             if session_id is not None:
-                response["_extracted_session_id"] = str(session_id)
+                parsed["_extracted_session_id"] = str(session_id)
 
-        return response
+        return parsed
 
     def _extract_last_user_message(self, messages: list[dict[str, Any]]) -> str:
         """Extract the last user message content.
