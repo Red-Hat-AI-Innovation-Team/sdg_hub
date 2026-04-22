@@ -125,6 +125,14 @@ class MockResponseBuilder:
 
     # -- content generators ---------------------------------------------------
 
+    @staticmethod
+    def _as_list(value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [value]
+        return list(value)
+
     def _generate_content(
         self,
         parser: dict[str, Any] | None,
@@ -141,15 +149,15 @@ class MockResponseBuilder:
         if btype == "TagParserBlock":
             return self._tag_content(cfg, filt)
         if btype == "JSONParserBlock":
-            return self._json_content(cfg)
+            return self._json_content(cfg, filt)
         if btype == "RegexParserBlock":
-            return self._regex_content(cfg)
+            return self._regex_content(cfg, filt)
         return "mock response text"
 
     def _tag_content(self, cfg: dict[str, Any], filt: dict[str, Any] | None) -> str:
-        start_tags: list[str] = cfg.get("start_tags", [])
-        end_tags: list[str] = cfg.get("end_tags", [])
-        output_cols: list[str] = cfg.get("output_cols", [])
+        start_tags = self._as_list(cfg.get("start_tags"))
+        end_tags = self._as_list(cfg.get("end_tags"))
+        output_cols = self._as_list(cfg.get("output_cols"))
 
         if not start_tags:
             return "mock text content"
@@ -201,20 +209,38 @@ class MockResponseBuilder:
         return str(val)
 
     @staticmethod
-    def _json_content(cfg: dict[str, Any]) -> str:
-        output_cols: list[str] = cfg.get("output_cols", [])
-        if not output_cols:
-            return json.dumps({"result": "mock value", "score": 5})
-        return json.dumps({col: f"mock {col}" for col in output_cols})
+    def _filter_col(filt: dict[str, Any]) -> str:
+        """Return the column name a ColumnValueFilterBlock reads from."""
+        fcfg = filt.get("block_config", {})
+        finput = fcfg.get("input_cols", [])
+        if isinstance(finput, list) and finput:
+            return str(finput[0])
+        if isinstance(finput, dict) and finput:
+            return str(next(iter(finput)))
+        return ""
 
-    @staticmethod
-    def _regex_content(cfg: dict[str, Any]) -> str:
+    def _json_content(self, cfg: dict[str, Any], filt: dict[str, Any] | None) -> str:
+        output_cols: list[str] = self._as_list(cfg.get("output_cols"))
+        if not output_cols:
+            data: dict[str, Any] = {"result": "mock value", "score": 5}
+        else:
+            data = {col: f"mock {col}" for col in output_cols}
+        if filt:
+            fcol = self._filter_col(filt)
+            if fcol in data or not output_cols:
+                data[fcol] = self._filter_passing_value(filt)
+        return json.dumps(data)
+
+    def _regex_content(self, cfg: dict[str, Any], filt: dict[str, Any] | None) -> str:
         pattern: str = cfg.get("parsing_pattern", "")
         if r"\d+" in pattern and r"\." in pattern:
             return "1. mock fact one\n2. mock fact two"
         if "Question" in pattern or "QUESTION" in pattern:
             return "[Question] mock question [Answer] mock answer"
-        return "mock regex content"
+        raise ValueError(
+            f"Unrecognized regex pattern in RegexParserBlock, "
+            f"add a handler in MockResponseBuilder._regex_content: {pattern!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -229,6 +255,8 @@ def build_seed_dataset(flow: Flow, num_rows: int = 2) -> pd.DataFrame:
         req = flow.metadata.dataset_requirements
         cols.extend(req.required_columns or [])
         cols.extend(getattr(req, "optional_columns", None) or [])
+        min_samples = getattr(req, "min_samples", 1) or 1
+        num_rows = max(num_rows, min_samples)
 
     if not cols:
         cols = ["text"]
@@ -261,12 +289,19 @@ def mock_litellm():
     def set_responses(mapping: dict[str, str]) -> None:
         response_map.update(mapping)
 
+    def _content_for(block_name: str) -> str:
+        if block_name not in response_map:
+            raise AssertionError(
+                f"No mock response configured for LLMChatBlock '{block_name}'"
+            )
+        return response_map[block_name]
+
     def _patched_sync(
         self: LLMChatBlock,
         messages_list: list[list[dict[str, Any]]],
         completion_kwargs: dict[str, Any],
     ) -> list[list[dict[str, Any]]]:
-        content = response_map.get(self.block_name, "mock fallback")
+        content = _content_for(self.block_name)
         return [[{"content": content}] for _ in messages_list]
 
     def _patched_async(
@@ -275,7 +310,7 @@ def mock_litellm():
         completion_kwargs: dict[str, Any],
         flow_max_concurrency: int | None = None,
     ) -> list[list[dict[str, Any]]]:
-        content = response_map.get(self.block_name, "mock fallback")
+        content = _content_for(self.block_name)
         return [[{"content": content}] for _ in messages_list]
 
     with (

@@ -46,6 +46,7 @@ def test_flow_runs_without_error(
     dataset = build_seed_dataset(flow)
     flow.set_model_config(model="mock/model", api_key="mock-key")
 
+    flow.dry_run(dataset)
     result = flow.generate(dataset)
 
     assert len(result) > 0, f"Flow produced empty output: {flow_yaml.name}"
