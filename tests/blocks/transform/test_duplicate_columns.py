@@ -31,9 +31,10 @@ class TestDuplicateColumnsBlock:
     def test_original_unmodified(self):
         block = DuplicateColumnsBlock(block_name="dup", input_cols={"source": "target"})
         df = pd.DataFrame({"source": ["a", "b"]})
+        original = df.copy()
         block.generate(df)
 
-        assert "target" not in df.columns
+        pd.testing.assert_frame_equal(df, original)
 
     def test_preserves_other_columns(self):
         block = DuplicateColumnsBlock(block_name="dup", input_cols={"source": "target"})

@@ -19,8 +19,9 @@ import yaml
 
 from sdg_hub.core.blocks.llm.llm_chat_block import LLMChatBlock
 from sdg_hub.core.flow.base import Flow
+import sdg_hub
 
-FLOWS_DIR = Path(__file__).resolve().parents[3] / "src" / "sdg_hub" / "flows"
+FLOWS_DIR = Path(sdg_hub.__file__).resolve().parent / "flows"
 
 SKIP_BLOCK_TYPES = frozenset(
     {
@@ -88,26 +89,32 @@ class MockResponseBuilder:
             if block["block_type"] != "LLMChatBlock":
                 continue
             block_name = block["block_config"]["block_name"]
-            parser = self._find_downstream_parser(i)
-            filt = self._find_downstream_filter(i, parser)
+            parser_result = self._find_downstream_parser(i)
+            if parser_result is not None:
+                parser, parser_idx = parser_result
+            else:
+                parser, parser_idx = None, None
+            filt = self._find_downstream_filter(i, parser_idx)
             response_map[block_name] = self._generate_content(parser, filt)
         return response_map
 
     # -- chain walking helpers ------------------------------------------------
 
-    def _find_downstream_parser(self, llm_idx: int) -> dict[str, Any] | None:
+    def _find_downstream_parser(
+        self, llm_idx: int
+    ) -> tuple[dict[str, Any], int] | None:
         for j in range(llm_idx + 1, min(llm_idx + 5, len(self.blocks))):
             btype = self.blocks[j]["block_type"]
             if btype in _PARSER_TYPES:
-                return self.blocks[j]
+                return self.blocks[j], j
             if btype == "LLMChatBlock":
                 break
         return None
 
     def _find_downstream_filter(
-        self, llm_idx: int, parser: dict[str, Any] | None
+        self, llm_idx: int, parser_idx: int | None
     ) -> dict[str, Any] | None:
-        start = self.blocks.index(parser) + 1 if parser is not None else llm_idx + 1
+        start = (parser_idx + 1) if parser_idx is not None else (llm_idx + 1)
         for j in range(start, min(start + 4, len(self.blocks))):
             btype = self.blocks[j]["block_type"]
             if btype == "ColumnValueFilterBlock":
@@ -182,7 +189,14 @@ class MockResponseBuilder:
     def _filter_passing_value(filt: dict[str, Any]) -> str:
         cfg = filt.get("block_config", {})
         val = cfg.get("filter_value")
+        if val is None:
+            block_name = cfg.get("block_name", "<unknown>")
+            raise ValueError(
+                f"ColumnValueFilterBlock '{block_name}' has no filter_value"
+            )
         if isinstance(val, list):
+            if not val:
+                raise ValueError("ColumnValueFilterBlock has empty filter_value list")
             return str(val[0])
         return str(val)
 

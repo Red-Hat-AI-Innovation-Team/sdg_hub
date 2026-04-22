@@ -9,6 +9,7 @@ not output correctness.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -22,13 +23,21 @@ from .conftest import (
     flow_id,
 )
 
+_DISCOVERED_FLOWS = discover_flow_yamls()
+assert _DISCOVERED_FLOWS, (
+    "No flow YAMLs discovered; check FLOWS_DIR resolution and SKIP_BLOCK_TYPES."
+)
+
 
 @pytest.mark.parametrize(
     "flow_yaml",
-    discover_flow_yamls(),
+    _DISCOVERED_FLOWS,
     ids=lambda p: flow_id(p),
 )
-def test_flow_runs_without_error(flow_yaml: Path, mock_litellm: ...) -> None:
+def test_flow_runs_without_error(
+    flow_yaml: Path,
+    mock_litellm: Callable[[dict[str, str]], None],
+) -> None:
     """Regression: flow loads, generates, and produces non-empty output."""
     response_map = MockResponseBuilder(flow_yaml).build()
     mock_litellm(response_map)
@@ -42,3 +51,9 @@ def test_flow_runs_without_error(flow_yaml: Path, mock_litellm: ...) -> None:
     assert len(result) > 0, f"Flow produced empty output: {flow_yaml.name}"
     new_cols = set(result.columns) - set(dataset.columns)
     assert new_cols, f"Flow did not add any columns: {flow_yaml.name}"
+
+    if flow.metadata and flow.metadata.output_columns:
+        expected = set(flow.metadata.output_columns)
+        assert expected.issubset(set(result.columns)), (
+            f"Missing declared output_columns: {expected - set(result.columns)}"
+        )
