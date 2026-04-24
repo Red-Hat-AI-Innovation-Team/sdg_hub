@@ -87,7 +87,7 @@ fi
 
 # ── Install + Start ──────────────────────────────────────────────────
 echo "Installing shared dependencies..."
-$UV_PIP fastmcp -q 2>&1 | tail -1
+$UV_PIP 'fastmcp<2' -q 2>&1 | tail -1
 
 echo "Installing per-server dependencies..."
 install_failures=0
