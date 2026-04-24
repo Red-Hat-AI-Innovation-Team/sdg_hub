@@ -55,8 +55,12 @@ Only the underlying LLM changes. This means you're evaluating your full agent st
 - **Agent dependencies** — install before starting agents:
 
   ```bash
-  uv pip install langchain-mcp-adapters langchain-openai langgraph "langgraph-cli[inmem]"
+  uv pip install "langchain-mcp-adapters>=0.2,<1" "langchain-openai>=1,<2" "langgraph>=1.1,<2" "langgraph-cli[inmem]>=0.4,<1"
   ```
+
+  > **Version note**: The agent script uses `langgraph.prebuilt.create_react_agent`
+  > which is deprecated in langgraph 1.x (replaced by `langchain.agents.create_agent`).
+  > Pin `langgraph<2` until the script is migrated.
 
 ## Quick start
 
