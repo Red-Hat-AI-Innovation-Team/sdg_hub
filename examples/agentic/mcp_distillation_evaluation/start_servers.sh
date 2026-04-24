@@ -83,14 +83,26 @@ if [[ "${1:-}" == "--stop" ]]; then
 fi
 
 # ── Install + Start ──────────────────────────────────────────────────
-echo "Installing dependencies..."
+echo "Installing shared dependencies..."
+$VENV_PYTHON -m pip install fastmcp -q 2>&1 | tail -1
+
+echo "Installing per-server dependencies..."
+install_failures=0
 for entry in "${SERVERS[@]}"; do
     IFS='|' read -r name port cwd cmd install display_name <<< "$entry"
     server_dir="$MCP_SERVERS_DIR/$cwd"
     [[ ! -d "$server_dir" ]] && continue
     echo "  ${display_name:-$name}..."
-    (cd "$server_dir" && eval "$install") 2>&1 | tail -1 || true
+    if ! (cd "$server_dir" && eval "$install") 2>&1; then
+        echo "    WARNING: install failed for ${display_name:-$name}"
+        install_failures=$((install_failures + 1))
+    fi
 done
+
+if [[ $install_failures -gt 0 ]]; then
+    echo ""
+    echo "WARNING: $install_failures server(s) had install failures (see above)"
+fi
 
 echo ""
 echo "Starting servers..."
