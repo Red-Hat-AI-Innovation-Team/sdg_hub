@@ -89,9 +89,20 @@ DEFAULT_MODEL = os.environ.get("DEFAULT_MODEL", "gpt-5.2")
 
 def _get_model(state, config):
     """Return the LLM, using configurable.model if provided at runtime."""
-    model_name = config.get("configurable", {}).get("model", DEFAULT_MODEL)
-    api_base = config.get("configurable", {}).get("api_base", None)
-    api_key = config.get("configurable", {}).get("api_key", None)
+    if hasattr(config, "configurable"):
+        configurable = config.configurable or {}
+    elif isinstance(config, dict):
+        configurable = config.get("configurable", {})
+    else:
+        configurable = {}
+    if isinstance(configurable, dict):
+        model_name = configurable.get("model", DEFAULT_MODEL)
+        api_base = configurable.get("api_base", None)
+        api_key = configurable.get("api_key", None)
+    else:
+        model_name = getattr(configurable, "model", DEFAULT_MODEL)
+        api_base = getattr(configurable, "api_base", None)
+        api_key = getattr(configurable, "api_key", None)
     kwargs = {"model": model_name}
     if api_base:
         kwargs["base_url"] = api_base
