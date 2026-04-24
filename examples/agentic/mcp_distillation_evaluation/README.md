@@ -49,9 +49,14 @@ Only the underlying LLM changes. This means you're evaluating your full agent st
 ## Prerequisites
 
 - **[uv](https://docs.astral.sh/uv/)** — sdg_hub uses `uv` for package management.
-  The server startup script installs MCP server dependencies via `uv pip install`.
+  The startup scripts install dependencies via `uv pip install`.
 - **Node.js + npm** — only needed for the DEX Paprika server
 - **OPENAI_API_KEY** — for the frontier model (generation) and judge (evaluation)
+- **Agent dependencies** — install before starting agents:
+
+  ```bash
+  uv pip install langchain-mcp-adapters langchain-openai langgraph "langgraph-cli[inmem]"
+  ```
 
 ## Quick start
 
