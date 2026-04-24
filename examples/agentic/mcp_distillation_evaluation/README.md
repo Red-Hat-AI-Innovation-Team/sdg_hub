@@ -46,6 +46,13 @@ Only the underlying LLM changes. This means you're evaluating your full agent st
 | `start_agents.sh` | Start/stop/check LangGraph agents with configurable model support |
 | `.env.example` | Template for API keys and agent URLs |
 
+## Prerequisites
+
+- **[uv](https://docs.astral.sh/uv/)** — sdg_hub uses `uv` for package management.
+  The server startup script installs MCP server dependencies via `uv pip install`.
+- **Node.js + npm** — only needed for the DEX Paprika server
+- **OPENAI_API_KEY** — for the frontier model (generation) and judge (evaluation)
+
 ## Quick start
 
 ```bash
