@@ -12,13 +12,14 @@ import json
 
 
 def normalize_tool_trace(raw_trace: list[dict] | str) -> list[dict]:
-    """Normalize a Langflow or LangGraph tool trace to canonical format.
+    """Normalize a tool trace to canonical format.
 
     Canonical format: ``[{"name": ..., "input": ..., "output": ...}, ...]``
 
-    Handles both:
-    - LangGraph: ``{"type": "tool_use", "tool_calls": [...]}`` + ``{"type": "tool_result", ...}``
-    - Langflow:  ``{"type": "tool_use", "name": ..., "tool_input": ..., "output": ...}``
+    Handles three formats:
+    - Standardized (ChatAgentResponse): ``{"role": "assistant", "tool_calls": [{"function": {"name": ..., "arguments": ...}}]}`` + ``{"role": "tool", ...}``
+    - Legacy LangGraph: ``{"type": "tool_use", "tool_calls": [...]}`` + ``{"type": "tool_result", ...}``
+    - Legacy Langflow:  ``{"type": "tool_use", "name": ..., "tool_input": ..., "output": ...}``
 
     Strips UI metadata (duration, header, icon) and text-type entries.
     """
@@ -33,11 +34,38 @@ def normalize_tool_trace(raw_trace: list[dict] | str) -> list[dict]:
         if not isinstance(entry, dict):
             continue
 
-        if entry.get("type") == "tool_use":
-            # LangGraph format
+        # Standardized format (ChatAgentResponse.model_dump())
+        if entry.get("role") == "assistant" and entry.get("tool_calls"):
+            for tc in entry["tool_calls"]:
+                func = tc.get("function", {})
+                args = func.get("arguments", "{}")
+                if isinstance(args, str):
+                    try:
+                        args = json.loads(args)
+                    except (json.JSONDecodeError, TypeError):
+                        args = {}
+                call: dict = {
+                    "name": func.get("name", ""),
+                    "input": args,
+                }
+                tc_id = tc.get("id")
+                if tc_id:
+                    pending[tc_id] = call
+                cleaned.append(call)
+
+        elif entry.get("role") == "tool":
+            tc_id = entry.get("tool_call_id")
+            content = entry.get("content", "")
+            if tc_id and tc_id in pending:
+                pending[tc_id]["output"] = content
+            elif cleaned and "output" not in cleaned[-1]:
+                cleaned[-1]["output"] = content
+
+        # Legacy format: type == "tool_use"
+        elif entry.get("type") == "tool_use":
             if "tool_calls" in entry:
                 for tc in entry["tool_calls"]:
-                    call: dict = {
+                    call = {
                         "name": tc.get("name", ""),
                         "input": tc.get("args", {}),
                     }
@@ -45,7 +73,6 @@ def normalize_tool_trace(raw_trace: list[dict] | str) -> list[dict]:
                     if tc_id:
                         pending[tc_id] = call
                     cleaned.append(call)
-            # Langflow format
             elif "name" in entry:
                 step: dict = {
                     "name": entry["name"],
@@ -56,7 +83,6 @@ def normalize_tool_trace(raw_trace: list[dict] | str) -> list[dict]:
                 cleaned.append(step)
 
         elif entry.get("type") == "tool_result":
-            # Match by tool_call id if available, else fall back to last call
             tc_id = entry.get("tool_call_id") or entry.get("id")
             if tc_id and tc_id in pending:
                 pending[tc_id]["output"] = entry.get("content", "")

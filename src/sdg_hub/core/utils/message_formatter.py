@@ -108,28 +108,83 @@ def _handle_tool_use_step(step: dict[str, Any]) -> list[dict[str, Any]]:
     return [assistant_msg, tool_msg]
 
 
+def _handle_standardized_assistant(step: dict[str, Any]) -> list[dict[str, Any]]:
+    """Convert a standardized assistant message with tool_calls.
+
+    Parameters
+    ----------
+    step : dict[str, Any]
+        A ChatAgentMessage dict with ``role == "assistant"`` and ``tool_calls``.
+
+    Returns
+    -------
+    list[dict[str, Any]]
+        A single-element list with the assistant tool_calls message.
+    """
+    tool_calls = []
+    for tc in step.get("tool_calls", []):
+        func = tc.get("function", {})
+        tool_calls.append(
+            {
+                "id": tc.get("id", f"call_{uuid.uuid4().hex[:24]}"),
+                "type": "function",
+                "function": {
+                    "name": func.get("name", ""),
+                    "arguments": func.get("arguments", "{}"),
+                },
+            }
+        )
+    return [{"role": "assistant", "content": None, "tool_calls": tool_calls}]
+
+
+def _handle_standardized_tool(step: dict[str, Any]) -> dict[str, Any]:
+    """Convert a standardized tool result message.
+
+    Parameters
+    ----------
+    step : dict[str, Any]
+        A ChatAgentMessage dict with ``role == "tool"``.
+
+    Returns
+    -------
+    dict[str, Any]
+        A tool response message.
+    """
+    return {
+        "role": "tool",
+        "tool_call_id": step.get("tool_call_id", ""),
+        "name": step.get("name", ""),
+        "content": step.get("content", ""),
+    }
+
+
 def tool_trace_to_messages(
     tool_trace: list[dict[str, Any]],
     tool_list: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Convert a Langflow tool trace and tool schemas into a structured
+    """Convert a tool trace and tool schemas into a structured
     tool-calling conversation.
+
+    Accepts both formats:
+    - **Standardized** (ChatAgentResponse): messages with ``role`` field
+    - **Legacy Langflow**: content_blocks with ``type`` field
 
     Parameters
     ----------
     tool_trace : list[dict]
-        The ``content_blocks`` contents extracted from a Langflow agent
-        response (via ``AgentResponseExtractorBlock`` with
-        ``extract_tool_trace=True``).  Each entry is one of:
+        Tool trace entries. Each entry is either:
 
+        Standardized format (from ChatAgentResponse.model_dump()):
+        - ``{"role": "assistant", "tool_calls": [{"function": {"name": ..., "arguments": ...}}]}``
+        - ``{"role": "tool", "name": "...", "content": "..."}``
+
+        Legacy Langflow format (content_blocks):
         - ``{"type": "text", "header": {"title": "Input"}, "text": "..."}``
         - ``{"type": "tool_use", "name": "...", "tool_input": {...}, "output": ...}``
-        - ``{"type": "text", "header": {"title": "Output"}, "text": "..."}``
 
     tool_list : list[dict]
         Tool schemas, each with ``name``, ``description``, and
-        ``inputSchema`` keys (the format produced by
-        ``create_dataset.py`` / the MCP tool listing).
+        ``inputSchema`` keys.
 
     Returns
     -------
@@ -148,12 +203,25 @@ def tool_trace_to_messages(
     messages: list[dict[str, Any]] = [_build_system_message(tool_list)]
 
     for step in tool_trace:
-        step_type = step.get("type")
+        role = step.get("role")
 
-        if step_type == "text":
-            messages.append(_handle_text_step(step))
-        elif step_type == "tool_use":
-            messages.extend(_handle_tool_use_step(step))
+        if role is not None:
+            # Standardized format
+            if role == "assistant" and step.get("tool_calls"):
+                messages.extend(_handle_standardized_assistant(step))
+            elif role == "tool":
+                messages.append(_handle_standardized_tool(step))
+            elif role == "assistant" and step.get("content"):
+                messages.append({"role": "assistant", "content": step["content"]})
+            elif role == "user":
+                messages.append({"role": "user", "content": step.get("content", "")})
+        else:
+            # Legacy Langflow format
+            step_type = step.get("type")
+            if step_type == "text":
+                messages.append(_handle_text_step(step))
+            elif step_type == "tool_use":
+                messages.extend(_handle_tool_use_step(step))
 
     return messages
 
