@@ -34,6 +34,7 @@ dependencies = [
     "httpx>=0.25.0,<1.0.0",
     "jinja2",
     "litellm>=1.73.0,<=1.82.6",       # capped due to security vulnerabilities in newer versions (ref: https://github.com/BerriAI/litellm/issues/24518)
+    "mlflow-tracing>=3.1.0",
     "mcp>=1.8.0,<2.0.0",              # Model Context Protocol for MCP agent block (1.8.0+ for streamablehttp_client)
     "rich",
     "pandas",

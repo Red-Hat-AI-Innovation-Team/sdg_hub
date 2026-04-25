@@ -2,17 +2,14 @@
 """Agent response extractor block for extracting fields from agent framework responses.
 
 This module provides the AgentResponseExtractorBlock for extracting text content
-and other fields from agent framework response objects (e.g., Langflow responses).
+and other fields from standardized ChatAgentResponse objects (serialized as dicts).
 """
 
 from typing import Any, Optional, cast
 
-from pydantic import Field, PrivateAttr, model_validator
+from pydantic import Field, model_validator
 import pandas as pd
 
-from ...connectors.agent.base import BaseAgentConnector
-from ...connectors.exceptions import ConnectorError
-from ...connectors.registry import ConnectorRegistry
 from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
 from ..registry import BlockRegistry
@@ -26,17 +23,16 @@ logger = setup_logger(__name__)
     "Extracts text content from agent framework responses",
 )
 class AgentResponseExtractorBlock(BaseBlock):
-    """Block for extracting fields from agent framework response objects.
+    """Block for extracting fields from standardized agent response objects.
 
-    This block extracts text content from agent framework responses.
-    It expects exactly one input column containing response objects (dict or list of dicts).
+    This block extracts text content, session IDs, and tool traces from
+    ChatAgentResponse dicts (as produced by AgentBlock). It works with any
+    agent framework since responses are already in a standardized format.
 
     Attributes
     ----------
     block_name : str
         Unique identifier for this block instance.
-    agent_framework : str
-        Agent framework whose response format to parse (e.g., 'langflow').
     input_cols : Union[str, List[str], Dict[str, Any], None]
         Input column name(s) containing agent response objects. Must specify exactly one column.
     output_cols : Union[str, List[str], Dict[str, Any], None]
@@ -45,6 +41,8 @@ class AgentResponseExtractorBlock(BaseBlock):
         Whether to extract text content from responses.
     extract_session_id : bool
         Whether to extract session_id from responses.
+    extract_tool_trace : bool
+        Whether to extract tool call trace from responses.
     expand_lists : bool
         Whether to expand list inputs into individual rows (True) or preserve lists (False).
         Default is True for backward compatibility.
@@ -55,8 +53,7 @@ class AgentResponseExtractorBlock(BaseBlock):
     Example
     -------
     >>> block = AgentResponseExtractorBlock(
-    ...     block_name="langflow_extractor",
-    ...     agent_framework="langflow",
+    ...     block_name="extractor",
     ...     input_cols="agent_response",
     ...     extract_text=True,
     ... )
@@ -64,14 +61,9 @@ class AgentResponseExtractorBlock(BaseBlock):
     """
 
     _flow_requires_jsonl_tmp: bool = True
-    _connector_cls: Optional[type[BaseAgentConnector]] = PrivateAttr(default=None)
 
     block_type: str = "agent_util"
 
-    agent_framework: str = Field(
-        ...,
-        description="Agent framework whose response format to parse (e.g., 'langflow')",
-    )
     extract_text: bool = Field(
         default=True,
         description="Whether to extract text content from responses.",
@@ -84,9 +76,8 @@ class AgentResponseExtractorBlock(BaseBlock):
         default=False,
         description=(
             "Whether to extract the full tool call trace from agent responses. "
-            "For Langflow, this extracts the content_blocks 'Agent Steps' array "
-            "containing structured tool_use entries (name, tool_input, output) "
-            "and text entries (input/output messages)."
+            "Collects all assistant messages with tool_calls and tool result "
+            "messages into a structured trace list."
         ),
     )
     expand_lists: bool = Field(
@@ -107,16 +98,6 @@ class AgentResponseExtractorBlock(BaseBlock):
             raise ValueError(
                 "AgentResponseExtractorBlock requires at least one extraction field to be enabled: "
                 "extract_text, extract_session_id, or extract_tool_trace"
-            )
-
-        # Validate agent_framework via connector registry
-        try:
-            self._connector_cls = ConnectorRegistry.get(self.agent_framework)
-        except ConnectorError:
-            available = ConnectorRegistry.list_all()
-            raise ValueError(
-                f"Unsupported agent_framework: '{self.agent_framework}'. "
-                f"Supported frameworks: {available}"
             )
 
         # Pre-compute prefixed field names for efficiency
@@ -157,14 +138,18 @@ class AgentResponseExtractorBlock(BaseBlock):
             )
 
     def _extract_fields_from_response(self, response: dict) -> dict[str, Any]:
-        """Extract specified fields from a single response object.
+        """Extract specified fields from a single standardized response object.
 
-        Delegates to the connector class registered for this agent framework.
+        The response is a ChatAgentResponse.model_dump() dict with structure:
+        - messages: list of message dicts with role, content, id, tool_calls, etc.
+        - custom_outputs: dict with session_id, etc.
+        - usage: dict with token counts
+        - finish_reason: str or None
 
         Parameters
         ----------
         response : dict
-            Response object from agent framework.
+            Standardized response object (ChatAgentResponse.model_dump()).
 
         Returns
         -------
@@ -178,29 +163,28 @@ class AgentResponseExtractorBlock(BaseBlock):
         """
         extracted: dict[str, Any] = {}
         missing_fields: list[str] = []
-        # Resolve connector at extraction time so that runtime changes
-        # to agent_framework (e.g. via set_agent_config) are respected.
-        connector_cls = cast(
-            type[BaseAgentConnector],
-            ConnectorRegistry.get(self.agent_framework),
-        )
+
+        messages = response.get("messages", [])
 
         if self.extract_text:
-            text = connector_cls.extract_text(response)
+            text = self._extract_text_from_messages(messages)
             if text is not None:
                 extracted[self._text_field] = text
             else:
                 missing_fields.append("text")
 
         if self.extract_session_id:
-            session_id = connector_cls.extract_session_id(response)
+            custom_outputs = response.get("custom_outputs")
+            session_id = (
+                custom_outputs.get("session_id") if custom_outputs is not None else None
+            )
             if session_id is not None:
                 extracted[self._session_id_field] = session_id
             else:
                 missing_fields.append("session_id")
 
         if self.extract_tool_trace:
-            tool_trace = connector_cls.extract_tool_trace(response)
+            tool_trace = self._extract_tool_trace_from_messages(messages)
             if tool_trace is not None:
                 extracted[self._tool_trace_field] = tool_trace
             else:
@@ -217,6 +201,58 @@ class AgentResponseExtractorBlock(BaseBlock):
                 f"No requested fields found in response. Available keys: {list(response.keys())}"
             )
         return extracted
+
+    @staticmethod
+    def _extract_text_from_messages(
+        messages: list[dict[str, Any]],
+    ) -> Optional[str]:
+        """Extract text from the last assistant message with non-empty content.
+
+        Parameters
+        ----------
+        messages : list[dict]
+            List of message dicts.
+
+        Returns
+        -------
+        str or None
+            Content of the last assistant message, or None if not found.
+        """
+        for msg in reversed(messages):
+            if msg.get("role") == "assistant" and msg.get("content"):
+                return msg["content"]
+        # Check for assistant messages with empty/None content
+        for msg in reversed(messages):
+            if msg.get("role") == "assistant":
+                return msg.get("content") or ""
+        return None
+
+    @staticmethod
+    def _extract_tool_trace_from_messages(
+        messages: list[dict[str, Any]],
+    ) -> Optional[list[dict[str, Any]]]:
+        """Extract tool-related messages from the message list.
+
+        Collects all assistant messages with tool_calls and all tool
+        result messages into a structured trace.
+
+        Parameters
+        ----------
+        messages : list[dict]
+            List of message dicts.
+
+        Returns
+        -------
+        list[dict] or None
+            List of tool-related message dicts, or None if none found.
+        """
+        trace: list[dict[str, Any]] = []
+        for msg in messages:
+            if msg.get("role") == "assistant" and msg.get("tool_calls"):
+                trace.append(msg)
+            elif msg.get("role") == "tool":
+                trace.append(msg)
+        return trace if trace else None
 
     def _get_output_columns(self) -> list[str]:
         """Get the list of output columns based on extraction settings."""

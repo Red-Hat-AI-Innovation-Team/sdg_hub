@@ -49,7 +49,6 @@ blocks:
 - block_type: AgentResponseExtractorBlock
   block_config:
     block_name: extract_exploration
-    agent_framework: langflow
     input_cols: exploration_response
     extract_text: true
     extract_session_id: false
@@ -163,7 +162,6 @@ blocks:
 - block_type: AgentResponseExtractorBlock
   block_config:
     block_name: extract_agent_text
-    agent_framework: langflow
     input_cols: agent_response
     extract_text: true
     extract_session_id: false

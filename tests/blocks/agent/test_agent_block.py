@@ -2,13 +2,28 @@
 """Tests for AgentBlock."""
 
 from unittest.mock import MagicMock, patch
+import uuid
 
+from mlflow.types.agent import (
+    ChatAgentMessage,
+    ChatAgentRequest,
+    ChatAgentResponse,
+)
 import pandas as pd
 import pytest
 
 from sdg_hub.core.blocks.agent import AgentBlock
 from sdg_hub.core.blocks.registry import BlockRegistry
 from sdg_hub.core.connectors.exceptions import ConnectorError
+
+
+def _make_response(content: str) -> ChatAgentResponse:
+    """Create a simple ChatAgentResponse for test mocking."""
+    return ChatAgentResponse(
+        messages=[
+            ChatAgentMessage(role="assistant", content=content, id=str(uuid.uuid4()))
+        ]
+    )
 
 
 class TestAgentBlockRegistration:
@@ -195,7 +210,7 @@ class TestAgentBlockHelperMethods:
         assert block._get_output_col() == "agent_response"
 
     def test_build_messages_from_list(self):
-        """Test building messages from list."""
+        """Test building messages from list of dicts."""
         block = AgentBlock(
             block_name="test",
             agent_framework="langflow",
@@ -208,7 +223,27 @@ class TestAgentBlockHelperMethods:
             {"role": "user", "content": "Hello"},
         ]
         result = block._build_messages(messages)
-        assert result == messages
+        assert len(result) == 1
+        assert isinstance(result[0], ChatAgentMessage)
+        assert result[0].role == "user"
+        assert result[0].content == "Hello"
+
+    def test_build_messages_from_chat_agent_messages(self):
+        """Test building messages from ChatAgentMessage objects."""
+        block = AgentBlock(
+            block_name="test",
+            agent_framework="langflow",
+            agent_url="http://localhost:7860",
+            input_cols=["messages"],
+            output_cols=["response"],
+        )
+
+        messages = [
+            ChatAgentMessage(role="user", content="Hello"),
+        ]
+        result = block._build_messages(messages)
+        assert len(result) == 1
+        assert result[0] is messages[0]
 
     def test_build_messages_from_dict(self):
         """Test building messages from single dict."""
@@ -222,7 +257,10 @@ class TestAgentBlockHelperMethods:
 
         message = {"role": "user", "content": "Hello"}
         result = block._build_messages(message)
-        assert result == [message]
+        assert len(result) == 1
+        assert isinstance(result[0], ChatAgentMessage)
+        assert result[0].role == "user"
+        assert result[0].content == "Hello"
 
     def test_build_messages_from_string(self):
         """Test building messages from plain string."""
@@ -235,7 +273,10 @@ class TestAgentBlockHelperMethods:
         )
 
         result = block._build_messages("Hello, world!")
-        assert result == [{"role": "user", "content": "Hello, world!"}]
+        assert len(result) == 1
+        assert isinstance(result[0], ChatAgentMessage)
+        assert result[0].role == "user"
+        assert result[0].content == "Hello, world!"
 
 
 class TestAgentBlockGenerate:
@@ -260,8 +301,8 @@ class TestAgentBlockGenerate:
 
         mock_connector = MagicMock()
         mock_connector.send.side_effect = [
-            {"output": "4"},
-            {"output": "6"},
+            _make_response("4"),
+            _make_response("6"),
         ]
 
         with patch.object(block, "_get_connector", return_value=mock_connector):
@@ -269,8 +310,15 @@ class TestAgentBlockGenerate:
 
         assert len(result) == 2
         assert "answer" in result.columns
-        assert result["answer"].iloc[0] == {"output": "4"}
-        assert result["answer"].iloc[1] == {"output": "6"}
+        # Result should be model_dump() dicts
+        assert isinstance(result["answer"].iloc[0], dict)
+        assert result["answer"].iloc[0]["messages"][-1]["content"] == "4"
+        assert result["answer"].iloc[1]["messages"][-1]["content"] == "6"
+
+        # Verify send was called with ChatAgentRequest
+        call_args = mock_connector.send.call_args_list[0]
+        request_arg = call_args[0][0]
+        assert isinstance(request_arg, ChatAgentRequest)
 
     def test_generate_uses_session_id_column(self):
         """Test that generate uses session_id_col if provided."""
@@ -291,14 +339,16 @@ class TestAgentBlockGenerate:
         )
 
         mock_connector = MagicMock()
-        mock_connector.send.return_value = {"output": "Hi"}
+        mock_connector.send.return_value = _make_response("Hi")
 
         with patch.object(block, "_get_connector", return_value=mock_connector):
             block.generate(df)
 
-        # Check that send was called with the session_id from the column
+        # Check that send was called with a ChatAgentRequest with correct session_id
         call_args = mock_connector.send.call_args
-        assert call_args[0][1] == "session-123"
+        request_arg = call_args[0][0]
+        assert isinstance(request_arg, ChatAgentRequest)
+        assert request_arg.context.conversation_id == "session-123"
 
     def test_generate_creates_uuid_session_id(self):
         """Test that generate creates UUID if no session_id_col."""
@@ -317,14 +367,16 @@ class TestAgentBlockGenerate:
         )
 
         mock_connector = MagicMock()
-        mock_connector.send.return_value = {"output": "Hi"}
+        mock_connector.send.return_value = _make_response("Hi")
 
         with patch.object(block, "_get_connector", return_value=mock_connector):
             block.generate(df)
 
-        # Check that send was called with a UUID-like string
+        # Check that send was called with a UUID-like session_id
         call_args = mock_connector.send.call_args
-        session_id = call_args[0][1]
+        request_arg = call_args[0][0]
+        assert isinstance(request_arg, ChatAgentRequest)
+        session_id = request_arg.context.conversation_id
         assert len(session_id) == 36  # UUID format
         assert session_id.count("-") == 4
 
@@ -346,7 +398,7 @@ class TestAgentBlockGenerate:
 
         mock_connector = MagicMock()
         mock_connector.asend = AsyncMock(
-            side_effect=[{"output": "A1"}, {"output": "A2"}]
+            side_effect=[_make_response("A1"), _make_response("A2")]
         )
 
         with patch.object(block, "_get_connector", return_value=mock_connector):
@@ -374,7 +426,7 @@ class TestAgentBlockGenerate:
 
         mock_connector = MagicMock()
         mock_connector.asend = AsyncMock(
-            side_effect=[{"output": "A1"}, {"output": "A2"}]
+            side_effect=[_make_response("A1"), _make_response("A2")]
         )
 
         with patch.object(block, "_get_connector", return_value=mock_connector):
@@ -481,11 +533,19 @@ class TestAgentBlockConnectorIntegration:
         class _TestConnector(BaseAgentConnector):
             custom_option: str = Field(default="default")
 
-            def build_request(self, messages, session_id):
+            def build_request(self, request):
                 return {}
 
             def parse_response(self, response):
-                return response
+                return ChatAgentResponse(
+                    messages=[
+                        ChatAgentMessage(
+                            role="assistant",
+                            content="",
+                            id=str(uuid.uuid4()),
+                        )
+                    ]
+                )
 
         ConnectorRegistry.register("_test_valid_kwargs")(_TestConnector)
         try:

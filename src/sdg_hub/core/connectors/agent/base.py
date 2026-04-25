@@ -4,7 +4,14 @@
 from abc import abstractmethod
 from typing import Any, Optional
 import asyncio
+import uuid
 
+from mlflow.types.agent import (
+    ChatAgentMessage,
+    ChatAgentRequest,
+    ChatAgentResponse,
+    ChatContext,
+)
 from pydantic import PrivateAttr
 
 from ...utils.logger_config import setup_logger
@@ -24,22 +31,29 @@ class BaseAgentConnector(BaseConnector):
     is derived automatically.
 
     Subclasses must implement:
-    - build_request: Convert messages to framework-specific format
-    - parse_response: Convert framework response to standard format
+    - build_request: Convert a ChatAgentRequest to framework-specific format
+    - parse_response: Convert framework response to ChatAgentResponse
 
     Example:
         ```python
         class MyAgentConnector(BaseAgentConnector):
-            def build_request(self, messages, session_id):
-                return {"input": messages[-1]["content"], "session": session_id}
+            def build_request(self, request):
+                return {"input": request.messages[-1].content}
 
             def parse_response(self, response):
-                return {"output": response["result"]}
+                return ChatAgentResponse(
+                    messages=[ChatAgentMessage(
+                        role="assistant",
+                        content=response["result"],
+                        id=str(uuid.uuid4()),
+                    )]
+                )
 
         connector = MyAgentConnector(config=ConnectorConfig(url="http://api"))
-        response = connector.send(
-            [{"role": "user", "content": "Hello"}], "session1"
+        request = ChatAgentRequest(
+            messages=[ChatAgentMessage(role="user", content="Hello")]
         )
+        response = connector.send(request)
         ```
     """
 
@@ -72,18 +86,14 @@ class BaseAgentConnector(BaseConnector):
     @abstractmethod
     def build_request(
         self,
-        messages: list[dict[str, Any]],
-        session_id: str,
+        request: ChatAgentRequest,
     ) -> dict[str, Any]:
         """Build framework-specific request payload.
 
         Parameters
         ----------
-        messages : list[dict]
-            List of messages in standard format:
-            [{"role": "user", "content": "Hello"}, ...]
-        session_id : str
-            Session identifier for conversation tracking.
+        request : ChatAgentRequest
+            Standardized agent request with messages and context.
 
         Returns
         -------
@@ -93,7 +103,7 @@ class BaseAgentConnector(BaseConnector):
         pass
 
     @abstractmethod
-    def parse_response(self, response: dict[str, Any]) -> dict[str, Any]:
+    def parse_response(self, response: dict[str, Any]) -> ChatAgentResponse:
         """Parse and validate framework response.
 
         Parameters
@@ -103,8 +113,8 @@ class BaseAgentConnector(BaseConnector):
 
         Returns
         -------
-        dict
-            Validated response dict.
+        ChatAgentResponse
+            Standardized agent response.
 
         Raises
         ------
@@ -115,34 +125,31 @@ class BaseAgentConnector(BaseConnector):
 
     async def _send_async(
         self,
-        messages: list[dict[str, Any]],
-        session_id: str,
-    ) -> dict[str, Any]:
+        request: ChatAgentRequest,
+    ) -> ChatAgentResponse:
         """Core async implementation.
 
         Parameters
         ----------
-        messages : list[dict]
-            Messages to send to the agent.
-        session_id : str
-            Session identifier.
+        request : ChatAgentRequest
+            Standardized agent request.
 
         Returns
         -------
-        dict
+        ChatAgentResponse
             Parsed response from the agent.
         """
         if not self.config.url:
             raise ConnectorError("No URL configured for connector")
 
         http_client = self._get_http_client()
-        request = self.build_request(messages, session_id)
+        payload = self.build_request(request)
         headers = self._build_headers()
 
         logger.debug(f"Sending request to {self.config.url}")
         raw_response = await http_client.post(
             url=self.config.url,
-            payload=request,
+            payload=payload,
             headers=headers,
         )
         logger.debug(f"Received response from {self.config.url}")
@@ -151,29 +158,25 @@ class BaseAgentConnector(BaseConnector):
 
     def send(
         self,
-        messages: list[dict[str, Any]],
-        session_id: str,
+        request: ChatAgentRequest,
         async_mode: bool = False,
     ):
-        """Send messages to the agent.
+        """Send a request to the agent.
 
         Parameters
         ----------
-        messages : list[dict]
-            Messages to send, in format:
-            [{"role": "user", "content": "Hello"}, ...]
-        session_id : str
-            Session identifier for conversation tracking.
+        request : ChatAgentRequest
+            Standardized agent request with messages and context.
         async_mode : bool, optional
             If True, returns a coroutine. If False (default), runs synchronously.
 
         Returns
         -------
-        dict or Coroutine[dict]
-            Response dict, or coroutine if async_mode=True.
+        ChatAgentResponse or Coroutine[ChatAgentResponse]
+            Response, or coroutine if async_mode=True.
         """
         if async_mode:
-            return self._send_async(messages, session_id)
+            return self._send_async(request)
 
         # Sync mode: run async code in event loop
         try:
@@ -184,33 +187,30 @@ class BaseAgentConnector(BaseConnector):
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(
                     asyncio.run,
-                    self._send_async(messages, session_id),
+                    self._send_async(request),
                 )
                 return future.result()
         except RuntimeError:
             # No event loop - create one
-            return asyncio.run(self._send_async(messages, session_id))
+            return asyncio.run(self._send_async(request))
 
     async def asend(
         self,
-        messages: list[dict[str, Any]],
-        session_id: str,
-    ) -> dict[str, Any]:
+        request: ChatAgentRequest,
+    ) -> ChatAgentResponse:
         """Async send - convenience wrapper.
 
         Parameters
         ----------
-        messages : list[dict]
-            Messages to send.
-        session_id : str
-            Session identifier.
+        request : ChatAgentRequest
+            Standardized agent request.
 
         Returns
         -------
-        dict
+        ChatAgentResponse
             Response from the agent.
         """
-        return await self._send_async(messages, session_id)
+        return await self._send_async(request)
 
     def execute(self, request: dict[str, Any]) -> dict[str, Any]:
         """Execute a request (BaseConnector interface).
@@ -218,71 +218,33 @@ class BaseAgentConnector(BaseConnector):
         Parameters
         ----------
         request : dict
-            Request containing 'messages' and 'session_id' keys.
+            Request containing 'messages' and optionally 'session_id' keys.
 
         Returns
         -------
         dict
-            Response from the agent.
+            Response from the agent as a dict.
         """
-        return self.send(
-            messages=request["messages"],
-            session_id=request.get("session_id", "default"),
+        messages = request["messages"]
+        session_id = request.get("session_id", "default")
+
+        # Convert dict messages to ChatAgentMessage objects
+        agent_messages = []
+        for msg in messages:
+            if isinstance(msg, ChatAgentMessage):
+                agent_messages.append(msg)
+            else:
+                agent_messages.append(
+                    ChatAgentMessage(
+                        role=msg.get("role", "user"),
+                        content=msg.get("content", ""),
+                        id=str(uuid.uuid4()),
+                    )
+                )
+
+        agent_request = ChatAgentRequest(
+            messages=agent_messages,
+            context=ChatContext(conversation_id=session_id),
         )
-
-    # ------------------------------------------------------------------
-    # Response field extraction class methods
-    # ------------------------------------------------------------------
-    # These allow AgentResponseExtractorBlock to extract fields from
-    # framework-specific responses without instantiating a connector.
-    # Subclasses override to provide framework-specific parsing.
-
-    @classmethod
-    def extract_text(cls, response: dict[str, Any]) -> str | None:
-        """Extract text content from a framework response.
-
-        Parameters
-        ----------
-        response : dict
-            Raw response from the agent framework.
-
-        Returns
-        -------
-        str or None
-            Extracted text, or None if not found.
-        """
-        return None
-
-    @classmethod
-    def extract_session_id(cls, response: dict[str, Any]) -> str | None:
-        """Extract session ID from a framework response.
-
-        Parameters
-        ----------
-        response : dict
-            Raw response from the agent framework.
-
-        Returns
-        -------
-        str or None
-            Extracted session ID, or None if not found.
-        """
-        return None
-
-    @classmethod
-    def extract_tool_trace(
-        cls, response: dict[str, Any]
-    ) -> list[dict[str, Any]] | None:
-        """Extract tool call trace from a framework response.
-
-        Parameters
-        ----------
-        response : dict
-            Raw response from the agent framework.
-
-        Returns
-        -------
-        list[dict] or None
-            List of tool call step dicts, or None if not found.
-        """
-        return None
+        response = self.send(agent_request)
+        return response.model_dump()

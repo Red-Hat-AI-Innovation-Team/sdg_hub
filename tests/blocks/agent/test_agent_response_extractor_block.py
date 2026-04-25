@@ -1,6 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for AgentResponseExtractorBlock."""
 
+import json
+import uuid
+
+from mlflow.types.agent import ChatAgentMessage, ChatAgentResponse
+from mlflow.types.chat import Function, ToolCall
 import pandas as pd
 import pytest
 
@@ -8,16 +13,33 @@ from sdg_hub.core.blocks.agent import AgentResponseExtractorBlock
 from sdg_hub.core.blocks.registry import BlockRegistry
 
 
-# Sample Langflow response structure
-def make_langflow_response(text, session_id="session-123", content_blocks=None):
-    """Create a sample Langflow response structure."""
-    msg = {"text": text}
-    if content_blocks is not None:
-        msg["data"] = {"content_blocks": content_blocks}
-    return {
-        "session_id": session_id,
-        "outputs": [{"outputs": [{"results": {"message": msg}}]}],
-    }
+def make_standard_response(text, session_id=None, tool_messages=None):
+    """Create a standardized ChatAgentResponse.model_dump() dict.
+
+    Parameters
+    ----------
+    text : str
+        Text content for the final assistant message.
+    session_id : str, optional
+        Session ID to include in custom_outputs.
+    tool_messages : list[ChatAgentMessage], optional
+        Additional tool-related messages to include before the final assistant message.
+
+    Returns
+    -------
+    dict
+        ChatAgentResponse serialized as dict.
+    """
+    messages = []
+    if tool_messages:
+        messages.extend(tool_messages)
+    messages.append(
+        ChatAgentMessage(role="assistant", content=text, id=str(uuid.uuid4()))
+    )
+    custom_outputs = {"session_id": session_id} if session_id else None
+    return ChatAgentResponse(
+        messages=messages, custom_outputs=custom_outputs
+    ).model_dump()
 
 
 class TestAgentResponseExtractorBlockRegistration:
@@ -48,12 +70,10 @@ class TestAgentResponseExtractorBlockInitialization:
         """Test initialization with default settings."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
         )
 
         assert block.block_name == "test_extractor"
-        assert block.agent_framework == "langflow"
         assert block.input_cols == ["agent_response"]
         assert block.extract_text is True
         assert block.extract_session_id is False
@@ -64,7 +84,6 @@ class TestAgentResponseExtractorBlockInitialization:
         """Test initialization with custom settings."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             extract_session_id=True,
@@ -82,19 +101,9 @@ class TestAgentResponseExtractorBlockInitialization:
         with pytest.raises(ValueError, match="at least one extraction field"):
             AgentResponseExtractorBlock(
                 block_name="test_extractor",
-                agent_framework="langflow",
                 input_cols="agent_response",
                 extract_text=False,
                 extract_session_id=False,
-            )
-
-    def test_init_unsupported_framework(self):
-        """Test that initialization fails for unsupported framework."""
-        with pytest.raises(ValueError, match="Unsupported agent_framework"):
-            AgentResponseExtractorBlock(
-                block_name="test_extractor",
-                agent_framework="unsupported",
-                input_cols="agent_response",
             )
 
     def test_field_name_computation(self):
@@ -102,7 +111,6 @@ class TestAgentResponseExtractorBlockInitialization:
         # Test with empty prefix (should use block name)
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             field_prefix="",
         )
@@ -112,7 +120,6 @@ class TestAgentResponseExtractorBlockInitialization:
         # Test with custom prefix
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             field_prefix="agent_",
         )
@@ -120,20 +127,19 @@ class TestAgentResponseExtractorBlockInitialization:
         assert block._session_id_field == "agent_session_id"
 
 
-class TestAgentResponseExtractorBlockLangflowExtraction:
-    """Test AgentResponseExtractorBlock Langflow extraction."""
+class TestAgentResponseExtractorBlockExtraction:
+    """Test AgentResponseExtractorBlock extraction from standardized responses."""
 
     def test_extract_text_only(self):
-        """Test extracting only text from Langflow response."""
+        """Test extracting only text from standard response."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             extract_session_id=False,
         )
 
-        response = make_langflow_response("Hello world")
+        response = make_standard_response("Hello world")
         dataset = pd.DataFrame(
             {"agent_response": [response], "other_col": ["other_value"]}
         )
@@ -146,16 +152,15 @@ class TestAgentResponseExtractorBlockLangflowExtraction:
         assert result["other_col"][0] == "other_value"
 
     def test_extract_all_fields(self):
-        """Test extracting all fields from Langflow response."""
+        """Test extracting all fields from standard response."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             extract_session_id=True,
         )
 
-        response = make_langflow_response("Hello world", "session-abc")
+        response = make_standard_response("Hello world", "session-abc")
         dataset = pd.DataFrame({"agent_response": [response]})
 
         result = block.generate(dataset)
@@ -168,13 +173,12 @@ class TestAgentResponseExtractorBlockLangflowExtraction:
         """Test extracting with custom field prefix."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             field_prefix="agent_",
         )
 
-        response = make_langflow_response("Hello world")
+        response = make_standard_response("Hello world")
         dataset = pd.DataFrame({"agent_response": [response]})
 
         result = block.generate(dataset)
@@ -184,41 +188,42 @@ class TestAgentResponseExtractorBlockLangflowExtraction:
         assert result["agent_text"][0] == "Hello world"
 
     def test_missing_text_field(self, caplog):
-        """Test handling missing text field with partial extraction."""
+        """Test handling when no assistant message has content."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             extract_session_id=True,
         )
 
-        # Response with session_id but malformed outputs (no text)
-        dataset = pd.DataFrame(
-            {"agent_response": [{"session_id": "session-123", "outputs": []}]}
-        )
+        # Response with session_id but empty assistant content
+        response = ChatAgentResponse(
+            messages=[
+                ChatAgentMessage(role="assistant", content="", id=str(uuid.uuid4()))
+            ],
+            custom_outputs={"session_id": "session-123"},
+        ).model_dump()
+
+        dataset = pd.DataFrame({"agent_response": [response]})
 
         result = block.generate(dataset)
 
         assert len(result) == 1
         assert result["test_extractor_session_id"][0] == "session-123"
-        assert "test_extractor_text" not in result.columns.tolist()
-        assert "Requested fields ['text'] not found in response" in caplog.text
+        # Empty content should still be extracted (the assistant message exists)
+        assert result["test_extractor_text"][0] == ""
 
     def test_missing_session_id_field(self, caplog):
-        """Test handling missing session_id field."""
+        """Test handling missing session_id in custom_outputs."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             extract_session_id=True,
         )
 
-        # Response with text but no session_id
-        response = {
-            "outputs": [{"outputs": [{"results": {"message": {"text": "Hi"}}}]}]
-        }
+        # Response with text but no session_id in custom_outputs
+        response = make_standard_response("Hi")
         dataset = pd.DataFrame({"agent_response": [response]})
 
         result = block.generate(dataset)
@@ -235,16 +240,15 @@ class TestAgentResponseExtractorBlockListResponsesExpandTrue:
         """Test expanding list of responses into individual rows."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             expand_lists=True,
         )
 
         responses = [
-            make_langflow_response("Response 1"),
-            make_langflow_response("Response 2"),
-            make_langflow_response("Response 3"),
+            make_standard_response("Response 1"),
+            make_standard_response("Response 2"),
+            make_standard_response("Response 3"),
         ]
         dataset = pd.DataFrame(
             {"agent_response": [responses], "other_col": ["original_value"]}
@@ -268,7 +272,6 @@ class TestAgentResponseExtractorBlockListResponsesExpandTrue:
         """Test expanding multiple samples with list responses."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             expand_lists=True,
@@ -278,10 +281,10 @@ class TestAgentResponseExtractorBlockListResponsesExpandTrue:
             {
                 "agent_response": [
                     [
-                        make_langflow_response("Sample 1 Response 1"),
-                        make_langflow_response("Sample 1 Response 2"),
+                        make_standard_response("Sample 1 Response 1"),
+                        make_standard_response("Sample 1 Response 2"),
                     ],
-                    [make_langflow_response("Sample 2 Response 1")],
+                    [make_standard_response("Sample 2 Response 1")],
                 ],
                 "sample_id": [1, 2],
             }
@@ -301,7 +304,6 @@ class TestAgentResponseExtractorBlockListResponsesExpandTrue:
         """Test handling empty list responses."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             expand_lists=True,
@@ -317,7 +319,6 @@ class TestAgentResponseExtractorBlockListResponsesExpandTrue:
         """Test handling invalid items in list responses."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             expand_lists=True,
@@ -327,9 +328,9 @@ class TestAgentResponseExtractorBlockListResponsesExpandTrue:
             {
                 "agent_response": [
                     [
-                        make_langflow_response("Valid response"),
-                        {"outputs": []},  # Invalid - missing text path
-                        make_langflow_response("Another valid response"),
+                        make_standard_response("Valid response"),
+                        {"messages": []},  # Invalid - no assistant message
+                        make_standard_response("Another valid response"),
                     ]
                 ]
             }
@@ -348,14 +349,15 @@ class TestAgentResponseExtractorBlockListResponsesExpandTrue:
         """Test handling when all items in list are invalid."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             expand_lists=True,
         )
 
-        # All items missing the text path
-        dataset = pd.DataFrame({"agent_response": [[{"outputs": []}, {"outputs": []}]]})
+        # All items have no extractable fields
+        dataset = pd.DataFrame(
+            {"agent_response": [[{"other": "data"}, {"other": "data2"}]]}
+        )
 
         with pytest.raises(ValueError, match="No valid responses found in list input"):
             block.generate(dataset)
@@ -368,16 +370,15 @@ class TestAgentResponseExtractorBlockListResponsesExpandFalse:
         """Test preserving list structure in output."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             expand_lists=False,
         )
 
         responses = [
-            make_langflow_response("Response 1"),
-            make_langflow_response("Response 2"),
-            make_langflow_response("Response 3"),
+            make_standard_response("Response 1"),
+            make_standard_response("Response 2"),
+            make_standard_response("Response 3"),
         ]
         dataset = pd.DataFrame(
             {"agent_response": [responses], "other_col": ["original_value"]}
@@ -397,7 +398,6 @@ class TestAgentResponseExtractorBlockListResponsesExpandFalse:
         """Test preserving multiple fields as lists."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             extract_session_id=True,
@@ -408,8 +408,8 @@ class TestAgentResponseExtractorBlockListResponsesExpandFalse:
             {
                 "agent_response": [
                     [
-                        make_langflow_response("Response 1", "session-1"),
-                        make_langflow_response("Response 2", "session-2"),
+                        make_standard_response("Response 1", "session-1"),
+                        make_standard_response("Response 2", "session-2"),
                     ]
                 ]
             }
@@ -425,7 +425,6 @@ class TestAgentResponseExtractorBlockListResponsesExpandFalse:
         """Test handling empty list with preserve structure."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             expand_lists=False,
@@ -441,13 +440,14 @@ class TestAgentResponseExtractorBlockListResponsesExpandFalse:
         """Test handling when all items in list are invalid with preserve structure."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             expand_lists=False,
         )
 
-        dataset = pd.DataFrame({"agent_response": [[{"outputs": []}, {"outputs": []}]]})
+        dataset = pd.DataFrame(
+            {"agent_response": [[{"other": "data"}, {"other": "data2"}]]}
+        )
 
         with pytest.raises(ValueError, match="No valid responses found in list input"):
             block.generate(dataset)
@@ -460,11 +460,10 @@ class TestAgentResponseExtractorBlockValidation:
         """Test validation with single input column."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
         )
 
-        dataset = pd.DataFrame({"agent_response": [make_langflow_response("test")]})
+        dataset = pd.DataFrame({"agent_response": [make_standard_response("test")]})
 
         # Should not raise any exception
         block._validate_custom(dataset)
@@ -473,14 +472,13 @@ class TestAgentResponseExtractorBlockValidation:
         """Test validation warning with multiple input columns."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols=["col1", "col2"],
         )
 
         dataset = pd.DataFrame(
             {
-                "col1": [make_langflow_response("test1")],
-                "col2": [make_langflow_response("test2")],
+                "col1": [make_standard_response("test1")],
+                "col2": [make_standard_response("test2")],
             }
         )
 
@@ -493,7 +491,6 @@ class TestAgentResponseExtractorBlockValidation:
         """Test validation fails with no input columns."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols=[],
         )
 
@@ -510,7 +507,6 @@ class TestAgentResponseExtractorBlockErrorHandling:
         """Test handling invalid input data type."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
         )
 
@@ -525,7 +521,6 @@ class TestAgentResponseExtractorBlockErrorHandling:
         """Test handling empty dataset."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
         )
 
@@ -540,58 +535,35 @@ class TestAgentResponseExtractorBlockErrorHandling:
         """Test handling when no fields can be extracted."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
         )
 
-        # Response with no extractable fields
+        # Response with no extractable fields (no messages key)
         dataset = pd.DataFrame({"agent_response": [{"other_field": "value"}]})
 
         with pytest.raises(ValueError, match="No requested fields found in response"):
             block.generate(dataset)
 
-    def test_none_text_handled_gracefully(self, caplog):
-        """Test handling when text field is None."""
+    def test_empty_content_handled_gracefully(self):
+        """Test handling when assistant message has empty content."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
         )
 
-        response = {
-            "session_id": "abc",
-            "outputs": [{"outputs": [{"results": {"message": {"text": None}}}]}],
-        }
+        response = ChatAgentResponse(
+            messages=[
+                ChatAgentMessage(role="assistant", content="", id=str(uuid.uuid4()))
+            ],
+        ).model_dump()
         dataset = pd.DataFrame({"agent_response": [response]})
 
         result = block.generate(dataset)
 
         assert len(result) == 1
         assert result.iloc[0]["test_extractor_text"] == ""
-        assert "Text field is None, using empty string instead" in caplog.text
-
-    def test_none_session_id_handled_gracefully(self, caplog):
-        """Test handling when session_id field is None."""
-        block = AgentResponseExtractorBlock(
-            block_name="test_extractor",
-            agent_framework="langflow",
-            input_cols="agent_response",
-            extract_session_id=True,
-        )
-
-        response = {
-            "session_id": None,
-            "outputs": [{"outputs": [{"results": {"message": {"text": "Hi"}}}]}],
-        }
-        dataset = pd.DataFrame({"agent_response": [response]})
-
-        result = block.generate(dataset)
-
-        assert len(result) == 1
-        assert result.iloc[0]["test_extractor_session_id"] == ""
-        assert "Session ID field is None, using empty string instead" in caplog.text
 
 
 class TestAgentResponseExtractorBlockIntegration:
@@ -601,16 +573,15 @@ class TestAgentResponseExtractorBlockIntegration:
         """Test integration with typical AgentBlock output format."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
         )
 
-        # Simulate AgentBlock output
+        # Simulate AgentBlock output (model_dump() of ChatAgentResponse)
         dataset = pd.DataFrame(
             {
                 "question": ["What is 2+2?"],
-                "agent_response": [make_langflow_response("The answer is 4.")],
+                "agent_response": [make_standard_response("The answer is 4.")],
             }
         )
 
@@ -625,7 +596,6 @@ class TestAgentResponseExtractorBlockIntegration:
         """Test processing multiple responses (batch scenario)."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             extract_session_id=True,
@@ -635,9 +605,9 @@ class TestAgentResponseExtractorBlockIntegration:
             {
                 "question": ["Q1", "Q2", "Q3"],
                 "agent_response": [
-                    make_langflow_response("Answer 1", "session-1"),
-                    make_langflow_response("Answer 2", "session-2"),
-                    make_langflow_response("Answer 3", "session-3"),
+                    make_standard_response("Answer 1", "session-1"),
+                    make_standard_response("Answer 2", "session-2"),
+                    make_standard_response("Answer 3", "session-3"),
                 ],
             }
         )
@@ -657,79 +627,84 @@ class TestAgentResponseExtractorBlockIntegration:
         ]
 
 
-SAMPLE_CONTENT_BLOCKS = [
-    {
-        "title": "Agent Steps",
-        "contents": [
-            {"type": "text", "header": {"title": "Input"}, "text": "find laptops"},
-            {
-                "type": "tool_use",
-                "name": "search",
-                "tool_input": {"q": "laptops"},
-                "output": {"content": [{"type": "text", "text": '{"results": []}'}]},
-            },
-            {"type": "text", "header": {"title": "Output"}, "text": "No results."},
-        ],
-    }
-]
-
-
 class TestAgentResponseExtractorToolTrace:
     """Test extract_tool_trace feature."""
 
+    def _make_tool_response(self, text="answer"):
+        """Create a response with tool calls for testing."""
+        tc_id = str(uuid.uuid4())
+        tool_messages = [
+            ChatAgentMessage(
+                role="assistant",
+                content="",
+                id=str(uuid.uuid4()),
+                tool_calls=[
+                    ToolCall(
+                        id=tc_id,
+                        type="function",
+                        function=Function(
+                            name="search",
+                            arguments=json.dumps({"q": "laptops"}),
+                        ),
+                    )
+                ],
+            ),
+            ChatAgentMessage(
+                role="tool",
+                name="search",
+                content='{"results": []}',
+                id=str(uuid.uuid4()),
+                tool_call_id=tc_id,
+            ),
+        ]
+        return make_standard_response(text, tool_messages=tool_messages)
+
     def test_extract_tool_trace(self):
-        """Test extracting tool trace from content_blocks."""
+        """Test extracting tool trace from standardized response."""
         block = AgentResponseExtractorBlock(
             block_name="ext",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=False,
             extract_tool_trace=True,
         )
-        response = make_langflow_response(
-            "answer", content_blocks=SAMPLE_CONTENT_BLOCKS
-        )
+        response = self._make_tool_response()
         dataset = pd.DataFrame({"agent_response": [response]})
 
         result = block.generate(dataset)
 
         assert "ext_tool_trace" in result.columns
         trace = result["ext_tool_trace"].iloc[0]
-        assert len(trace) == 3
-        assert trace[0]["type"] == "text"
-        assert trace[1]["type"] == "tool_use"
+        assert len(trace) == 2  # assistant with tool_calls + tool result
+        assert trace[0]["role"] == "assistant"
+        assert trace[0]["tool_calls"][0]["function"]["name"] == "search"
+        assert trace[1]["role"] == "tool"
         assert trace[1]["name"] == "search"
-        assert trace[2]["type"] == "text"
 
     def test_extract_tool_trace_with_text(self):
         """Test extracting both text and tool trace."""
         block = AgentResponseExtractorBlock(
             block_name="ext",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             extract_tool_trace=True,
         )
-        response = make_langflow_response(
-            "answer", content_blocks=SAMPLE_CONTENT_BLOCKS
-        )
+        response = self._make_tool_response("the answer")
         dataset = pd.DataFrame({"agent_response": [response]})
 
         result = block.generate(dataset)
 
-        assert result["ext_text"].iloc[0] == "answer"
-        assert len(result["ext_tool_trace"].iloc[0]) == 3
+        assert result["ext_text"].iloc[0] == "the answer"
+        assert len(result["ext_tool_trace"].iloc[0]) == 2
 
     def test_extract_tool_trace_missing(self, caplog):
-        """Test graceful handling when content_blocks is missing."""
+        """Test graceful handling when no tool messages exist."""
         block = AgentResponseExtractorBlock(
             block_name="ext",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=True,
             extract_tool_trace=True,
         )
-        response = make_langflow_response("answer")
+        response = make_standard_response("answer")
         dataset = pd.DataFrame({"agent_response": [response]})
 
         result = block.generate(dataset)
@@ -741,7 +716,6 @@ class TestAgentResponseExtractorToolTrace:
         """Test initializing with only extract_tool_trace."""
         block = AgentResponseExtractorBlock(
             block_name="ext",
-            agent_framework="langflow",
             input_cols="agent_response",
             extract_text=False,
             extract_tool_trace=True,

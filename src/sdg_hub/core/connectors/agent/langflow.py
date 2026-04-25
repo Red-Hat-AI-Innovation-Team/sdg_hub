@@ -2,6 +2,15 @@
 """Langflow agent framework connector."""
 
 from typing import Any
+import json
+import uuid
+
+from mlflow.types.agent import (
+    ChatAgentMessage,
+    ChatAgentRequest,
+    ChatAgentResponse,
+)
+from mlflow.types.chat import Function, ToolCall
 
 from ...utils.logger_config import setup_logger
 from ..exceptions import ConnectorError
@@ -36,10 +45,11 @@ class LangflowConnector(BaseAgentConnector):
     ...     api_key="your-api-key",
     ... )
     >>> connector = LangflowConnector(config=config)
-    >>> response = connector.send(
-    ...     messages=[{"role": "user", "content": "Hello!"}],
-    ...     session_id="session-123",
+    >>> request = ChatAgentRequest(
+    ...     messages=[ChatAgentMessage(role="user", content="Hello!")],
+    ...     context=ChatContext(conversation_id="session-123"),
     ... )
+    >>> response = connector.send(request)
     """
 
     def _build_headers(self) -> dict[str, str]:
@@ -60,8 +70,7 @@ class LangflowConnector(BaseAgentConnector):
 
     def build_request(
         self,
-        messages: list[dict[str, Any]],
-        session_id: str,
+        request: ChatAgentRequest,
     ) -> dict[str, Any]:
         """Build Langflow-specific request payload.
 
@@ -70,17 +79,16 @@ class LangflowConnector(BaseAgentConnector):
 
         Parameters
         ----------
-        messages : list[dict]
-            Messages in standard format.
-        session_id : str
-            Session identifier.
+        request : ChatAgentRequest
+            Standardized agent request.
 
         Returns
         -------
         dict
             Langflow API request payload.
         """
-        input_value = self._extract_last_user_message(messages)
+        input_value = self._extract_last_user_message(request.messages)
+        session_id = (request.context.conversation_id if request.context else "") or ""
 
         return {
             "output_type": "chat",
@@ -89,8 +97,11 @@ class LangflowConnector(BaseAgentConnector):
             "session_id": session_id,
         }
 
-    def parse_response(self, response: dict[str, Any]) -> dict[str, Any]:
-        """Parse Langflow response.
+    def parse_response(self, response: dict[str, Any]) -> ChatAgentResponse:
+        """Parse Langflow response into ChatAgentResponse.
+
+        Extracts text, session_id, and tool traces from the Langflow
+        response format and produces a standardized ChatAgentResponse.
 
         Parameters
         ----------
@@ -99,8 +110,8 @@ class LangflowConnector(BaseAgentConnector):
 
         Returns
         -------
-        dict
-            Validated response dict.
+        ChatAgentResponse
+            Standardized agent response.
 
         Raises
         ------
@@ -112,70 +123,99 @@ class LangflowConnector(BaseAgentConnector):
                 f"Expected dict response, got {type(response).__name__}"
             )
 
-        return response
+        messages: list[ChatAgentMessage] = []
 
-    # ------------------------------------------------------------------
-    # Response field extraction
-    # ------------------------------------------------------------------
-
-    @classmethod
-    def extract_text(cls, response: dict[str, Any]) -> str | None:
-        """Extract text content from a Langflow response.
-
-        Navigates ``outputs[0].outputs[0].results.message.text``.
-
-        Parameters
-        ----------
-        response : dict
-            Raw Langflow API response.
-
-        Returns
-        -------
-        str or None
-            Extracted text, empty string if the field is explicitly None,
-            or None if the path does not exist.
-        """
+        # Extract text from outputs[0].outputs[0].results.message.text
+        text = None
         try:
             text = response["outputs"][0]["outputs"][0]["results"]["message"]["text"]
             if text is None:
                 logger.warning("Text field is None, using empty string instead")
-                return ""
-            return text
+                text = ""
         except (KeyError, IndexError, TypeError):
-            return None
+            pass
 
-    @classmethod
-    def extract_session_id(cls, response: dict[str, Any]) -> str | None:
-        """Extract session ID from a Langflow response.
+        # Extract session_id
+        session_id = None
+        if "session_id" in response:
+            session_id = response["session_id"]
+            if session_id is None:
+                logger.warning("Session ID field is None, using empty string instead")
+                session_id = ""
 
-        Parameters
-        ----------
-        response : dict
-            Raw Langflow API response.
+        # Extract tool trace from content_blocks
+        tool_contents = self._extract_tool_contents(response)
+        if tool_contents:
+            for entry in tool_contents:
+                if entry.get("type") == "tool_use":
+                    tc_id = str(uuid.uuid4())
+                    # Assistant message with tool_calls
+                    messages.append(
+                        ChatAgentMessage(
+                            role="assistant",
+                            content="",
+                            id=str(uuid.uuid4()),
+                            tool_calls=[
+                                ToolCall(
+                                    id=tc_id,
+                                    type="function",
+                                    function=Function(
+                                        name=entry.get("name", ""),
+                                        arguments=json.dumps(
+                                            entry.get("tool_input", {})
+                                        ),
+                                    ),
+                                )
+                            ],
+                        )
+                    )
+                    # Tool result message
+                    messages.append(
+                        ChatAgentMessage(
+                            role="tool",
+                            name=entry.get("name", ""),
+                            content=json.dumps(entry.get("output", "")),
+                            id=str(uuid.uuid4()),
+                            tool_call_id=tc_id,
+                        )
+                    )
 
-        Returns
-        -------
-        str or None
-            Extracted session ID, empty string if the field is explicitly
-            None, or None if the key is missing.
-        """
-        if "session_id" not in response:
-            return None
-        if response["session_id"] is None:
-            logger.warning("Session ID field is None, using empty string instead")
-            return ""
-        return response["session_id"]
+        # Final assistant message with text content
+        if text is not None:
+            messages.append(
+                ChatAgentMessage(
+                    role="assistant",
+                    content=text,
+                    id=str(uuid.uuid4()),
+                )
+            )
 
-    @classmethod
-    def extract_tool_trace(
-        cls, response: dict[str, Any]
+        # If no messages could be built, create a minimal response
+        if not messages:
+            messages.append(
+                ChatAgentMessage(
+                    role="assistant",
+                    content="",
+                    id=str(uuid.uuid4()),
+                )
+            )
+
+        custom_outputs = None
+        if session_id is not None:
+            custom_outputs = {"session_id": session_id}
+
+        return ChatAgentResponse(
+            messages=messages,
+            custom_outputs=custom_outputs,
+        )
+
+    def _extract_tool_contents(
+        self, response: dict[str, Any]
     ) -> list[dict[str, Any]] | None:
-        """Extract tool call trace from Langflow content_blocks.
+        """Extract tool call contents from Langflow content_blocks.
 
-        Langflow agent responses include an 'Agent Steps' content block
-        with structured entries for each step: user input (text), tool
-        calls (tool_use with name, tool_input, output), and final output
-        (text).
+        Tries both the ``data.content_blocks`` and direct
+        ``content_blocks`` paths on the message object.
 
         Parameters
         ----------
@@ -206,15 +246,14 @@ class LangflowConnector(BaseAgentConnector):
             except (KeyError, IndexError, TypeError):
                 continue
 
-        logger.warning("No content_blocks with tool trace found in Langflow response")
         return None
 
-    def _extract_last_user_message(self, messages: list[dict[str, Any]]) -> str:
+    def _extract_last_user_message(self, messages: list[ChatAgentMessage]) -> str:
         """Extract the last user message content.
 
         Parameters
         ----------
-        messages : list[dict]
+        messages : list[ChatAgentMessage]
             List of messages.
 
         Returns
@@ -228,8 +267,8 @@ class LangflowConnector(BaseAgentConnector):
             If no user message is found.
         """
         for msg in reversed(messages):
-            if msg.get("role") == "user" and msg.get("content"):
-                return msg["content"]
+            if msg.role == "user" and msg.content:
+                return msg.content
 
         raise ConnectorError(
             "No user message found in messages. "
