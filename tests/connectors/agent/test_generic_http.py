@@ -270,6 +270,33 @@ class TestGenericHTTPConnector:
 
         assert parsed["_extracted_context"] == "plain text context"
 
+    def test_parse_response_context_as_dict(self):
+        """Test parse_response extracts dict context as JSON string."""
+        connector = self._make_connector(
+            response_context_path="output.context",
+        )
+        response = {
+            "output": {
+                "answer": "hello",
+                "context": {"id": "d1", "text": "single doc"},
+            }
+        }
+        parsed = connector.parse_response(response)
+
+        ctx = json.loads(parsed["_extracted_context"])
+        assert isinstance(ctx, dict)
+        assert ctx["text"] == "single doc"
+
+    def test_parse_response_context_path_missing(self):
+        """Test parse_response skips context when configured path is missing."""
+        connector = self._make_connector(
+            response_context_path="output.context",
+        )
+        response = {"output": {"answer": "hello"}}
+        parsed = connector.parse_response(response)
+
+        assert "_extracted_context" not in parsed
+
     def test_parse_response_no_context_without_path(self):
         """Test parse_response does not extract context when path is not configured."""
         connector = self._make_connector()
