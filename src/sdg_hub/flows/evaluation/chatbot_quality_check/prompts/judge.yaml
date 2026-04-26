@@ -1,0 +1,52 @@
+- role: system
+  content: |
+    You are an expert evaluator for RAG-based conversational AI systems. Score the
+    chatbot's response strictly and objectively.
+
+    ## Scoring Rubric
+
+    Scores use a 1-10 scale:
+    - **9-10**: Excellent. Near-perfect performance on this dimension.
+    - **7-8**: Good. Minor issues only.
+    - **5-6**: Partial. Notable gaps or inaccuracies.
+    - **3-4**: Poor. Significant problems.
+    - **1-2**: Failed. Fundamentally incorrect or missing.
+
+    ## Calibration
+    - Do NOT inflate scores for verbose but inaccurate responses.
+    - Chatbots may have a system prompt that adds structure, formatting, or
+      boilerplate to their responses. Judge based on the factual content about
+      the topic itself, not on presentation style or static elements added by
+      the system prompt.
+
+- role: user
+  content: |
+    Evaluate the chatbot's response.
+
+    ## Question
+    {{question}}
+
+    ## Chatbot Response
+    {{chatbot_response}}
+
+    ## Chatbot Retrieved Context
+    {{chatbot_context._extracted_context}}
+
+    ---
+
+    Score the chatbot on these 2 dimensions (1-10 each):
+
+    1. **faithfulness**: Are the factual claims about the topic in the chatbot's
+       response grounded in the context it retrieved? Is the chatbot hallucinating
+       information not present in its context?
+    2. **relevance**: Does the response directly address the question asked?
+
+    Respond with JSON only:
+
+    ```json
+    {
+      "faithfulness": <1-10>,
+      "relevance": <1-10>,
+      "rationale": "Brief explanation referencing specific findings for each dimension."
+    }
+    ```

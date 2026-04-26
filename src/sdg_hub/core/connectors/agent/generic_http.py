@@ -99,12 +99,20 @@ class GenericHTTPConnector(BaseAgentConnector):
         None,
         description="Dot-notation path where session ID is placed in the request body.",
     )
+    response_context_path: Optional[str] = Field(
+        None,
+        description=(
+            "Dot-notation path to extract retrieved context from the response "
+            "(e.g., 'output.context'). Useful for RAG evaluation."
+        ),
+    )
 
     @field_validator(
         "request_message_path",
         "response_text_path",
         "request_session_id_path",
         "response_session_id_path",
+        "response_context_path",
     )
     @classmethod
     def validate_path_format(cls, v: str | None) -> str | None:
@@ -183,7 +191,7 @@ class GenericHTTPConnector(BaseAgentConnector):
         -------
         dict
             Response dict with ``_extracted_text`` (and optionally
-            ``_extracted_session_id``) injected.
+            ``_extracted_session_id`` and ``_extracted_context``) injected.
 
         Raises
         ------
@@ -201,6 +209,7 @@ class GenericHTTPConnector(BaseAgentConnector):
         # Remove reserved keys so upstream values can't leak through
         parsed.pop("_extracted_text", None)
         parsed.pop("_extracted_session_id", None)
+        parsed.pop("_extracted_context", None)
 
         text = _get_nested(parsed, self.response_text_path)
         if text is not None:
@@ -210,6 +219,11 @@ class GenericHTTPConnector(BaseAgentConnector):
             session_id = _get_nested(parsed, self.response_session_id_path)
             if session_id is not None:
                 parsed["_extracted_session_id"] = str(session_id)
+
+        if self.response_context_path:
+            context = _get_nested(parsed, self.response_context_path)
+            if context is not None:
+                parsed["_extracted_context"] = str(context)
 
         return parsed
 

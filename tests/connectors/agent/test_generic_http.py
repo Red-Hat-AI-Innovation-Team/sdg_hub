@@ -234,18 +234,45 @@ class TestGenericHTTPConnector:
         assert parsed["_extracted_text"] == "hi"
         assert parsed["_extracted_session_id"] == "s-1"
 
+    def test_parse_response_extracts_context(self):
+        """Test parse_response extracts context as string."""
+        connector = self._make_connector(
+            response_context_path="output.context",
+        )
+        response = {
+            "output": {
+                "answer": "hello",
+                "context": [{"page_content": "doc1"}, {"page_content": "doc2"}],
+            }
+        }
+        parsed = connector.parse_response(response)
+
+        assert parsed["_extracted_text"] == "hello"
+        assert "_extracted_context" in parsed
+        assert "page_content" in parsed["_extracted_context"]
+
+    def test_parse_response_no_context_without_path(self):
+        """Test parse_response does not extract context when path is not configured."""
+        connector = self._make_connector()
+        response = {"output": {"answer": "hello", "context": [{"page_content": "doc"}]}}
+        parsed = connector.parse_response(response)
+
+        assert "_extracted_context" not in parsed
+
     def test_parse_response_strips_upstream_reserved_keys(self):
-        """Test that upstream _extracted_text/_extracted_session_id are stripped."""
+        """Test that upstream reserved keys are stripped."""
         connector = self._make_connector()
         response = {
             "output": {"answer": "real"},
             "_extracted_text": "spoofed",
             "_extracted_session_id": "spoofed-sid",
+            "_extracted_context": "spoofed-ctx",
         }
         parsed = connector.parse_response(response)
 
         assert parsed["_extracted_text"] == "real"
         assert "_extracted_session_id" not in parsed
+        assert "_extracted_context" not in parsed
 
     def test_parse_response_non_dict_raises(self):
         """Test non-dict raises error."""
