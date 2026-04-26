@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for GenericHTTPConnector."""
 
+import json
+
 import pytest
 
 from sdg_hub.core.connectors.agent.generic_http import (
@@ -234,27 +236,44 @@ class TestGenericHTTPConnector:
         assert parsed["_extracted_text"] == "hi"
         assert parsed["_extracted_session_id"] == "s-1"
 
-    def test_parse_response_extracts_context(self):
-        """Test parse_response extracts context as string."""
+    def test_parse_response_extracts_context_as_json(self):
+        """Test parse_response extracts list context as JSON string."""
         connector = self._make_connector(
             response_context_path="output.context",
         )
         response = {
             "output": {
                 "answer": "hello",
-                "context": [{"page_content": "doc1"}, {"page_content": "doc2"}],
+                "context": [{"text": "doc1"}, {"text": "doc2"}],
             }
         }
         parsed = connector.parse_response(response)
 
         assert parsed["_extracted_text"] == "hello"
-        assert "_extracted_context" in parsed
-        assert "page_content" in parsed["_extracted_context"]
+        ctx = json.loads(parsed["_extracted_context"])
+        assert isinstance(ctx, list)
+        assert len(ctx) == 2
+        assert ctx[0]["text"] == "doc1"
+
+    def test_parse_response_extracts_context_non_list(self):
+        """Test parse_response extracts non-list context as string."""
+        connector = self._make_connector(
+            response_context_path="output.context",
+        )
+        response = {
+            "output": {
+                "answer": "hello",
+                "context": "plain text context",
+            }
+        }
+        parsed = connector.parse_response(response)
+
+        assert parsed["_extracted_context"] == "plain text context"
 
     def test_parse_response_no_context_without_path(self):
         """Test parse_response does not extract context when path is not configured."""
         connector = self._make_connector()
-        response = {"output": {"answer": "hello", "context": [{"page_content": "doc"}]}}
+        response = {"output": {"answer": "hello", "context": [{"text": "doc"}]}}
         parsed = connector.parse_response(response)
 
         assert "_extracted_context" not in parsed

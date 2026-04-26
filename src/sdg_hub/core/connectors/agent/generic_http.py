@@ -2,6 +2,7 @@
 """Generic HTTP agent connector for arbitrary REST chat endpoints."""
 
 from typing import Any, Optional
+import json
 
 from pydantic import Field, field_validator
 
@@ -223,7 +224,12 @@ class GenericHTTPConnector(BaseAgentConnector):
         if self.response_context_path:
             context = _get_nested(parsed, self.response_context_path)
             if context is not None:
-                parsed["_extracted_context"] = str(context)
+                if isinstance(context, (dict, list)):
+                    parsed["_extracted_context"] = json.dumps(
+                        context, ensure_ascii=False
+                    )
+                else:
+                    parsed["_extracted_context"] = str(context)
 
         return parsed
 

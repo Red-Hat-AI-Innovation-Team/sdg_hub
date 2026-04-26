@@ -28,7 +28,7 @@ blocks:
   block_config:
     block_name: send_to_chatbot
     agent_framework: generic_http
-    agent_url: http://localhost:8000/api/chat
+    agent_url: http://chatbot.example.com/api/chat
     input_cols:
     - question
     output_cols:
