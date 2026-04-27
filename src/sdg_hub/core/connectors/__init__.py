@@ -52,8 +52,8 @@ __all__ = [
     "ConnectorConfig",
     # Agent connectors
     "BaseAgentConnector",
-    "LangflowConnector",
     "GenericHTTPConnector",
+    "LangflowConnector",
     "LangGraphConnector",
     # Code interpreter connectors
     "BaseCodeInterpreterConnector",

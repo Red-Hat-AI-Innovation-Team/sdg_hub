@@ -226,12 +226,14 @@ class BaseAgentConnector(BaseConnector):
             Response from the agent as a dict.
         """
         messages = request["messages"]
-        session_id = request.get("session_id", "default")
+        session_id = request.get("session_id") or str(uuid.uuid4())
 
         # Convert dict messages to ChatAgentMessage objects
         agent_messages = []
         for msg in messages:
             if isinstance(msg, ChatAgentMessage):
+                if not msg.id:
+                    msg = msg.model_copy(update={"id": str(uuid.uuid4())})
                 agent_messages.append(msg)
             else:
                 agent_messages.append(

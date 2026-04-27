@@ -29,7 +29,7 @@ This forces per-framework translation at both the request and response level, an
 
 sdg_hub has a connector system (`BaseAgentConnector`) with per-framework subclasses:
 
-```
+```text
 Caller → build_request(messages, session_id) → framework HTTP API → parse_response(raw_dict) → raw dict
 ```
 
@@ -43,7 +43,7 @@ Caller → build_request(messages, session_id) → framework HTTP API → parse_
 
 Use `mlflow-tracing` types as the standard interface on both sides:
 
-```
+```text
 ChatAgentRequest → [per-framework connector] → ChatAgentResponse
 (standard in)       (wire translation)          (standard out)
 ```
@@ -97,7 +97,7 @@ ChatAgentResponse(
 
 **Result:**
 
-```
+```text
 Today:     N frameworks × (custom request + custom response) = 2N translation surfaces
 Phase 1:   N frameworks × (wire translation only) = N translations, uniform Python types
 ```
@@ -110,7 +110,7 @@ Phase 1:   N frameworks × (wire translation only) = N translations, uniform Pyt
 
 **Goal:** Eliminate per-framework connectors entirely. When agents expose A2A endpoints, a single `A2AConnector` replaces all framework-specific connectors.
 
-```
+```text
 ChatAgentRequest → [A2AConnector] → A2A protocol → any agent → A2A response → ChatAgentResponse
 (standard in)      (one connector)   (standard wire)                            (standard out)
 ```
@@ -197,7 +197,7 @@ If any of these fail, Phase 2 becomes: "add A2A as an optional connector for tex
 
 ## End State
 
-```
+```text
 Phase 1 (near-term):
     ChatAgentRequest → [LangflowConnector] → ChatAgentResponse
     ChatAgentRequest → [LangGraphConnector] → ChatAgentResponse

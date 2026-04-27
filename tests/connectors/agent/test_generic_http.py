@@ -1,6 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for GenericHTTPConnector."""
 
+from mlflow.types.agent import (
+    ChatAgentMessage,
+    ChatAgentRequest,
+    ChatAgentResponse,
+    ChatContext,
+)
 import pytest
 
 from sdg_hub.core.connectors.agent.generic_http import (
@@ -53,6 +59,13 @@ class TestHelperFunctions:
         assert _get_nested({"a": "string"}, "a.b") is None
 
 
+def _make_request(*contents: str, session_id: str = "") -> ChatAgentRequest:
+    """Build a ChatAgentRequest from user message strings."""
+    messages = [ChatAgentMessage(role="user", content=c) for c in contents]
+    ctx = ChatContext(conversation_id=session_id) if session_id else None
+    return ChatAgentRequest(messages=messages, context=ctx)
+
+
 class TestGenericHTTPConnector:
     """Tests for GenericHTTPConnector."""
 
@@ -71,215 +84,158 @@ class TestGenericHTTPConnector:
         assert ConnectorRegistry.get("generic_http") == GenericHTTPConnector
 
     def test_build_request_nested_path(self):
-        """Test request builds nested JSON from dot-notation path."""
-        connector = self._make_connector(
-            request_message_path="input.question",
-        )
-        messages = [{"role": "user", "content": "How do I get started?"}]
-        request = connector.build_request(messages, "session-1")
+        connector = self._make_connector(request_message_path="input.question")
+        req = _make_request("How do I get started?")
+        payload = connector.build_request(req)
 
-        assert request == {"input": {"question": "How do I get started?"}}
+        assert payload == {"input": {"question": "How do I get started?"}}
 
     def test_build_request_single_key(self):
-        """Test request with a flat path."""
-        connector = self._make_connector(
-            request_message_path="message",
-        )
-        messages = [{"role": "user", "content": "Hello"}]
-        request = connector.build_request(messages, "session-1")
+        connector = self._make_connector(request_message_path="message")
+        req = _make_request("Hello")
+        payload = connector.build_request(req)
 
-        assert request == {"message": "Hello"}
+        assert payload == {"message": "Hello"}
 
     def test_build_request_deep_path(self):
-        """Test request with a deeply nested path."""
         connector = self._make_connector(
             request_message_path="data.input.text.content",
         )
-        messages = [{"role": "user", "content": "Deep"}]
-        request = connector.build_request(messages, "session-1")
+        req = _make_request("Deep")
+        payload = connector.build_request(req)
 
-        assert request == {"data": {"input": {"text": {"content": "Deep"}}}}
+        assert payload == {"data": {"input": {"text": {"content": "Deep"}}}}
 
     def test_build_request_extracts_last_user_message(self):
-        """Test that the last user message is extracted."""
         connector = self._make_connector()
-        messages = [
-            {"role": "user", "content": "First"},
-            {"role": "assistant", "content": "Reply"},
-            {"role": "user", "content": "Second"},
-        ]
-        request = connector.build_request(messages, "session-1")
+        request = ChatAgentRequest(
+            messages=[
+                ChatAgentMessage(role="user", content="First"),
+                ChatAgentMessage(role="assistant", content="Reply"),
+                ChatAgentMessage(role="user", content="Second"),
+            ],
+        )
+        payload = connector.build_request(request)
 
-        assert request == {"input": {"question": "Second"}}
+        assert payload == {"input": {"question": "Second"}}
 
     def test_build_request_no_user_message_raises(self):
-        """Test error when no user message exists."""
         connector = self._make_connector()
+        request = ChatAgentRequest(
+            messages=[ChatAgentMessage(role="system", content="hi")],
+        )
         with pytest.raises(ConnectorError, match="No user message"):
-            connector.build_request([{"role": "system", "content": "hi"}], "session-1")
+            connector.build_request(request)
 
     def test_build_request_with_session_id_path(self):
-        """Test session ID is included when path is configured."""
-        connector = self._make_connector(
-            request_session_id_path="session_id",
-        )
-        messages = [{"role": "user", "content": "Hello"}]
-        request = connector.build_request(messages, "session-1")
+        connector = self._make_connector(request_session_id_path="session_id")
+        req = _make_request("Hello", session_id="session-1")
+        payload = connector.build_request(req)
 
-        assert request == {
+        assert payload == {
             "input": {"question": "Hello"},
             "session_id": "session-1",
         }
 
     def test_build_request_with_nested_session_id_path(self):
-        """Test session ID at a nested path."""
         connector = self._make_connector(
             request_session_id_path="metadata.session.id",
         )
-        messages = [{"role": "user", "content": "Hello"}]
-        request = connector.build_request(messages, "s-123")
+        req = _make_request("Hello", session_id="s-123")
+        payload = connector.build_request(req)
 
-        assert request == {
+        assert payload == {
             "input": {"question": "Hello"},
             "metadata": {"session": {"id": "s-123"}},
         }
 
     def test_build_request_without_session_id_path(self):
-        """Test session ID is excluded when path is not configured."""
         connector = self._make_connector()
-        messages = [{"role": "user", "content": "Hello"}]
-        request = connector.build_request(messages, "session-1")
+        req = _make_request("Hello", session_id="session-1")
+        payload = connector.build_request(req)
 
-        assert "session_id" not in request
-        assert request == {"input": {"question": "Hello"}}
+        assert "session_id" not in payload
+        assert payload == {"input": {"question": "Hello"}}
 
     def test_build_request_overlapping_paths_identical(self):
-        """Test error when message and session ID paths are identical."""
         connector = self._make_connector(
             request_message_path="input.query",
             request_session_id_path="input.query",
         )
-        messages = [{"role": "user", "content": "Hello"}]
+        req = _make_request("Hello", session_id="session-1")
         with pytest.raises(ConnectorError, match="must not overlap"):
-            connector.build_request(messages, "session-1")
+            connector.build_request(req)
 
     def test_build_request_overlapping_paths_parent_child(self):
-        """Test error when session ID path is parent of message path."""
         connector = self._make_connector(
             request_message_path="input.query",
             request_session_id_path="input",
         )
-        messages = [{"role": "user", "content": "Hello"}]
+        req = _make_request("Hello", session_id="session-1")
         with pytest.raises(ConnectorError, match="must not overlap"):
-            connector.build_request(messages, "session-1")
+            connector.build_request(req)
 
     def test_build_request_overlapping_paths_child_parent(self):
-        """Test error when message path is parent of session ID path."""
         connector = self._make_connector(
             request_message_path="input",
             request_session_id_path="input.session_id",
         )
-        messages = [{"role": "user", "content": "Hello"}]
+        req = _make_request("Hello", session_id="session-1")
         with pytest.raises(ConnectorError, match="must not overlap"):
-            connector.build_request(messages, "session-1")
+            connector.build_request(req)
 
     def test_build_request_non_overlapping_paths(self):
-        """Test that sibling paths work without error."""
         connector = self._make_connector(
             request_message_path="input.query",
             request_session_id_path="input.session_id",
         )
-        messages = [{"role": "user", "content": "Hello"}]
-        request = connector.build_request(messages, "s-1")
+        req = _make_request("Hello", session_id="s-1")
+        payload = connector.build_request(req)
 
-        assert request == {
+        assert payload == {
             "input": {"query": "Hello", "session_id": "s-1"},
         }
 
-    def test_parse_response_valid_dict(self):
-        """Test valid dict passes through with extracted text."""
+    def test_parse_response_extracts_text(self):
         connector = self._make_connector()
         response = {"output": {"answer": "42"}}
-        parsed = connector.parse_response(response)
+        result = connector.parse_response(response)
 
-        assert parsed["output"]["answer"] == "42"
-        assert parsed["_extracted_text"] == "42"
+        assert isinstance(result, ChatAgentResponse)
+        assert result.messages[-1].content == "42"
 
     def test_parse_response_extracts_text_from_configured_path(self):
-        """Test parse_response uses response_text_path to extract text."""
         connector = self._make_connector(
             response_text_path="data.reply.content",
         )
         response = {"data": {"reply": {"content": "hello world"}}}
-        parsed = connector.parse_response(response)
+        result = connector.parse_response(response)
 
-        assert parsed["_extracted_text"] == "hello world"
+        assert result.messages[-1].content == "hello world"
 
     def test_parse_response_missing_text_path(self):
-        """Test parse_response does not inject key when path is missing."""
         connector = self._make_connector()
         response = {"other": "value"}
-        parsed = connector.parse_response(response)
+        result = connector.parse_response(response)
 
-        assert "_extracted_text" not in parsed
+        assert result.messages[-1].content == ""
 
     def test_parse_response_extracts_session_id(self):
-        """Test parse_response extracts session ID when path is configured."""
         connector = self._make_connector(
             response_session_id_path="meta.sid",
         )
         response = {"output": {"answer": "hi"}, "meta": {"sid": "s-1"}}
-        parsed = connector.parse_response(response)
+        result = connector.parse_response(response)
 
-        assert parsed["_extracted_text"] == "hi"
-        assert parsed["_extracted_session_id"] == "s-1"
-
-    def test_parse_response_strips_upstream_reserved_keys(self):
-        """Test that upstream _extracted_text/_extracted_session_id are stripped."""
-        connector = self._make_connector()
-        response = {
-            "output": {"answer": "real"},
-            "_extracted_text": "spoofed",
-            "_extracted_session_id": "spoofed-sid",
-        }
-        parsed = connector.parse_response(response)
-
-        assert parsed["_extracted_text"] == "real"
-        assert "_extracted_session_id" not in parsed
+        assert result.messages[-1].content == "hi"
+        assert result.custom_outputs == {"session_id": "s-1"}
 
     def test_parse_response_non_dict_raises(self):
-        """Test non-dict raises error."""
         connector = self._make_connector()
         with pytest.raises(ConnectorError, match="Expected dict"):
             connector.parse_response(["not", "a", "dict"])
 
-    def test_extract_text_reads_injected_key(self):
-        """Test extract_text reads _extracted_text from parse_response."""
-        assert (
-            GenericHTTPConnector.extract_text({"_extracted_text": "hello"}) == "hello"
-        )
-
-    def test_extract_text_returns_none_without_key(self):
-        """Test extract_text returns None when _extracted_text is absent."""
-        assert GenericHTTPConnector.extract_text({"output": "value"}) is None
-
-    def test_extract_session_id_reads_injected_key(self):
-        """Test extract_session_id reads _extracted_session_id."""
-        assert (
-            GenericHTTPConnector.extract_session_id({"_extracted_session_id": "s-1"})
-            == "s-1"
-        )
-
-    def test_extract_session_id_returns_none_without_key(self):
-        """Test extract_session_id returns None when key is absent."""
-        assert GenericHTTPConnector.extract_session_id({"other": "val"}) is None
-
-    def test_extract_tool_trace_returns_none(self):
-        """Test extract_tool_trace always returns None."""
-        assert GenericHTTPConnector.extract_tool_trace({"any": "thing"}) is None
-
     def test_build_headers_with_api_key(self):
-        """Test default headers include Bearer auth."""
         connector = self._make_connector(
             config=ConnectorConfig(url="http://test", api_key="secret"),
         )
@@ -287,24 +243,20 @@ class TestGenericHTTPConnector:
         assert headers["Authorization"] == "Bearer secret"
 
     def test_build_headers_without_api_key(self):
-        """Test headers without API key."""
         connector = self._make_connector()
         headers = connector._build_headers()
         assert headers == {"Content-Type": "application/json"}
         assert "Authorization" not in headers
 
     def test_validation_empty_path_segment(self):
-        """Test validation rejects paths with empty segments."""
         with pytest.raises(ValueError, match="empty segment"):
             self._make_connector(request_message_path="input..question")
 
     def test_validation_empty_path_segment_optional_field(self):
-        """Test validation rejects optional paths with empty segments."""
         with pytest.raises(ValueError, match="empty segment"):
             self._make_connector(response_session_id_path="meta..sid")
 
     def test_validation_accepts_none_optional_paths(self):
-        """Test validation passes when optional paths are None."""
         connector = self._make_connector(
             request_session_id_path=None,
             response_session_id_path=None,
@@ -313,7 +265,6 @@ class TestGenericHTTPConnector:
         assert connector.response_session_id_path is None
 
     def test_validation_requires_request_message_path(self):
-        """Test that request_message_path is required."""
         with pytest.raises(ValueError):
             GenericHTTPConnector(
                 config=ConnectorConfig(url="http://test"),
@@ -321,7 +272,6 @@ class TestGenericHTTPConnector:
             )
 
     def test_validation_requires_response_text_path(self):
-        """Test that response_text_path is required."""
         with pytest.raises(ValueError):
             GenericHTTPConnector(
                 config=ConnectorConfig(url="http://test"),

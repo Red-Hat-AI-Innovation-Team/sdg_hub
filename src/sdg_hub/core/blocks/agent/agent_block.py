@@ -11,6 +11,7 @@ from mlflow.types.agent import (
     ChatAgentRequest,
     ChatContext,
 )
+from mlflow.types.chat import Function, ToolCall
 from pydantic import Field, PrivateAttr, ValidationError
 from tqdm import tqdm
 import pandas as pd
@@ -248,22 +249,42 @@ class AgentBlock(BaseBlock):
                 if isinstance(item, ChatAgentMessage):
                     result.append(item)
                 elif isinstance(item, dict):
-                    result.append(
-                        ChatAgentMessage(
-                            role=item.get("role", "user"),
-                            content=item.get("content", ""),
-                        )
-                    )
+                    kwargs: dict[str, Any] = {
+                        "role": item.get("role", "user"),
+                        "content": item.get("content", ""),
+                    }
+                    if item.get("name"):
+                        kwargs["name"] = item["name"]
+                    if item.get("tool_call_id"):
+                        kwargs["tool_call_id"] = item["tool_call_id"]
+                    if item.get("tool_calls"):
+                        kwargs["tool_calls"] = [
+                            ToolCall(
+                                id=tc.get("id", str(uuid.uuid4())),
+                                type=tc.get("type", "function"),
+                                function=Function(
+                                    name=tc.get("function", {}).get("name", ""),
+                                    arguments=tc.get("function", {}).get(
+                                        "arguments", "{}"
+                                    ),
+                                ),
+                            )
+                            for tc in item["tool_calls"]
+                        ]
+                    result.append(ChatAgentMessage(**kwargs))
                 else:
                     result.append(ChatAgentMessage(role="user", content=str(item)))
             return result
         elif isinstance(content, dict):
-            return [
-                ChatAgentMessage(
-                    role=content.get("role", "user"),
-                    content=content.get("content", ""),
-                )
-            ]
+            kwargs_single: dict[str, Any] = {
+                "role": content.get("role", "user"),
+                "content": content.get("content", ""),
+            }
+            if content.get("name"):
+                kwargs_single["name"] = content["name"]
+            if content.get("tool_call_id"):
+                kwargs_single["tool_call_id"] = content["tool_call_id"]
+            return [ChatAgentMessage(**kwargs_single)]
         elif isinstance(content, ChatAgentMessage):
             return [content]
         else:

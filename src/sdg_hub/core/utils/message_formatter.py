@@ -134,7 +134,13 @@ def _handle_standardized_assistant(step: dict[str, Any]) -> list[dict[str, Any]]
                 },
             }
         )
-    return [{"role": "assistant", "content": None, "tool_calls": tool_calls}]
+    return [
+        {
+            "role": "assistant",
+            "content": step.get("content") or None,
+            "tool_calls": tool_calls,
+        }
+    ]
 
 
 def _handle_standardized_tool(step: dict[str, Any]) -> dict[str, Any]:

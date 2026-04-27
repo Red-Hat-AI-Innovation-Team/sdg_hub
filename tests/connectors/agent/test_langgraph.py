@@ -449,8 +449,8 @@ class TestLangGraphParseResponseRoleMapping:
         assert len(result.messages) == 1
         assert result.messages[0].content == "valid"
 
-    def test_tool_call_id_fallback(self):
-        """Test tool message uses 'id' as fallback for tool_call_id."""
+    def test_tool_call_id_generated_when_missing(self):
+        """Test tool message gets a generated UUID when tool_call_id is missing."""
         connector = LangGraphConnector(config=ConnectorConfig(url="http://test"))
 
         response = {
@@ -459,9 +459,10 @@ class TestLangGraphParseResponseRoleMapping:
                     "type": "tool",
                     "name": "my_tool",
                     "content": "result",
-                    "id": "fallback-id",
+                    "id": "msg-own-id",
                 }
             ]
         }
         result = connector.parse_response(response)
-        assert result.messages[0].tool_call_id == "fallback-id"
+        assert result.messages[0].tool_call_id is not None
+        assert result.messages[0].tool_call_id != "msg-own-id"

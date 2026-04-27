@@ -13,6 +13,7 @@ from mlflow.types.agent import (
 from mlflow.types.chat import Function, ToolCall
 
 from ...utils.logger_config import setup_logger
+from ...utils.message_formatter import _extract_tool_output
 from ..exceptions import ConnectorError
 from ..registry import ConnectorRegistry
 from .base import BaseAgentConnector
@@ -132,8 +133,14 @@ class LangflowConnector(BaseAgentConnector):
             if text is None:
                 logger.warning("Text field is None, using empty string instead")
                 text = ""
-        except (KeyError, IndexError, TypeError):
-            pass
+        except (KeyError, IndexError, TypeError) as exc:
+            logger.debug(
+                "Could not extract text from Langflow response at "
+                "outputs[0].outputs[0].results.message.text: %s. "
+                "Available top-level keys: %s",
+                exc,
+                list(response.keys()),
+            )
 
         # Extract session_id
         session_id = None
@@ -174,11 +181,17 @@ class LangflowConnector(BaseAgentConnector):
                         ChatAgentMessage(
                             role="tool",
                             name=entry.get("name", ""),
-                            content=json.dumps(entry.get("output", "")),
+                            content=_extract_tool_output(entry.get("output", "")),
                             id=str(uuid.uuid4()),
                             tool_call_id=tc_id,
                         )
                     )
+
+        if text is None and tool_contents:
+            logger.warning(
+                "Text extraction failed but tool traces were found. "
+                "The response will contain tool messages but no final assistant text."
+            )
 
         # Final assistant message with text content
         if text is not None:

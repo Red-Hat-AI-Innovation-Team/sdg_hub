@@ -135,9 +135,26 @@ class LangGraphConnector(BaseAgentConnector):
             )
 
         # Convert ChatAgentMessage objects to dicts for LangGraph wire format
-        messages_as_dicts = [
-            {"role": msg.role, "content": msg.content or ""} for msg in request.messages
-        ]
+        messages_as_dicts = []
+        for msg in request.messages:
+            d: dict[str, Any] = {"role": msg.role, "content": msg.content or ""}
+            if msg.tool_calls:
+                d["tool_calls"] = [
+                    {
+                        "id": tc.id,
+                        "type": tc.type,
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
+                    }
+                    for tc in msg.tool_calls
+                ]
+            if msg.tool_call_id:
+                d["tool_call_id"] = msg.tool_call_id
+            if msg.name:
+                d["name"] = msg.name
+            messages_as_dicts.append(d)
 
         payload: dict[str, Any] = {
             "assistant_id": self.assistant_id,
@@ -235,7 +252,7 @@ class LangGraphConnector(BaseAgentConnector):
                         name=msg.get("name", ""),
                         content=str(msg.get("content", "")),
                         id=str(uuid.uuid4()),
-                        tool_call_id=msg.get("tool_call_id") or msg.get("id"),
+                        tool_call_id=msg.get("tool_call_id") or str(uuid.uuid4()),
                     )
                 )
             else:

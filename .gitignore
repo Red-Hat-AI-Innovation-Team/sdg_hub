@@ -182,3 +182,4 @@ website/node_modules/
 website/.next/
 website/out/
 .playwright-mcp/
+.claude/settings.local.json

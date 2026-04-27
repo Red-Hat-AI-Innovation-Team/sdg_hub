@@ -218,14 +218,16 @@ class AgentResponseExtractorBlock(BaseBlock):
         str or None
             Content of the last assistant message, or None if not found.
         """
+        fallback: Optional[str] = None
         for msg in reversed(messages):
-            if msg.get("role") == "assistant" and msg.get("content"):
-                return msg["content"]
-        # Check for assistant messages with empty/None content
-        for msg in reversed(messages):
-            if msg.get("role") == "assistant":
-                return msg.get("content") or ""
-        return None
+            if msg.get("role") != "assistant":
+                continue
+            content = msg.get("content")
+            if content:
+                return content
+            if fallback is None:
+                fallback = content or ""
+        return fallback
 
     @staticmethod
     def _extract_tool_trace_from_messages(

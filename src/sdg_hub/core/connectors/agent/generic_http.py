@@ -2,7 +2,13 @@
 """Generic HTTP agent connector for arbitrary REST chat endpoints."""
 
 from typing import Any, Optional
+import uuid
 
+from mlflow.types.agent import (
+    ChatAgentMessage,
+    ChatAgentRequest,
+    ChatAgentResponse,
+)
 from pydantic import Field, field_validator
 
 from ...utils.logger_config import setup_logger
@@ -69,10 +75,10 @@ class GenericHTTPConnector(BaseAgentConnector):
     ...     request_message_path="input.query",
     ...     response_text_path="output.result",
     ... )
-    >>> response = connector.send(
-    ...     messages=[{"role": "user", "content": "Hello!"}],
-    ...     session_id="session-123",
+    >>> request = ChatAgentRequest(
+    ...     messages=[ChatAgentMessage(role="user", content="Hello!")],
     ... )
+    >>> response = connector.send(request)
     """
 
     request_message_path: str = Field(
@@ -121,8 +127,7 @@ class GenericHTTPConnector(BaseAgentConnector):
 
     def build_request(
         self,
-        messages: list[dict[str, Any]],
-        session_id: str,
+        request: ChatAgentRequest,
     ) -> dict[str, Any]:
         """Build request payload by placing message content at the configured path.
 
@@ -131,10 +136,8 @@ class GenericHTTPConnector(BaseAgentConnector):
 
         Parameters
         ----------
-        messages : list[dict]
-            Messages in standard format.
-        session_id : str
-            Session identifier.
+        request : ChatAgentRequest
+            Standardized agent request.
 
         Returns
         -------
@@ -146,7 +149,8 @@ class GenericHTTPConnector(BaseAgentConnector):
         ConnectorError
             If no user message is found.
         """
-        content = self._extract_last_user_message(messages)
+        content = self._extract_last_user_message(request.messages)
+        session_id = (request.context.conversation_id if request.context else "") or ""
 
         payload: dict[str, Any] = {}
         _set_nested(payload, self.request_message_path, content)
@@ -166,13 +170,11 @@ class GenericHTTPConnector(BaseAgentConnector):
 
         return payload
 
-    def parse_response(self, response: dict[str, Any]) -> dict[str, Any]:
-        """Validate response and extract fields using configured paths.
+    def parse_response(self, response: dict[str, Any]) -> ChatAgentResponse:
+        """Parse response and build ChatAgentResponse.
 
         Extracts text (and optionally session ID) from the response using
-        the configured dot-notation paths, storing them under known keys
-        so the ``extract_text`` and ``extract_session_id`` classmethods
-        can retrieve them without instance access.
+        the configured dot-notation paths.
 
         Parameters
         ----------
@@ -181,9 +183,8 @@ class GenericHTTPConnector(BaseAgentConnector):
 
         Returns
         -------
-        dict
-            Response dict with ``_extracted_text`` (and optionally
-            ``_extracted_session_id``) injected.
+        ChatAgentResponse
+            Standardized agent response.
 
         Raises
         ------
@@ -195,30 +196,43 @@ class GenericHTTPConnector(BaseAgentConnector):
                 f"Expected dict response, got {type(response).__name__}"
             )
 
-        # Work on a copy to avoid mutating the caller's dict
-        parsed = dict(response)
+        messages: list[ChatAgentMessage] = []
 
-        # Remove reserved keys so upstream values can't leak through
-        parsed.pop("_extracted_text", None)
-        parsed.pop("_extracted_session_id", None)
-
-        text = _get_nested(parsed, self.response_text_path)
+        text = _get_nested(response, self.response_text_path)
         if text is not None:
-            parsed["_extracted_text"] = str(text)
+            messages.append(
+                ChatAgentMessage(
+                    role="assistant",
+                    content=str(text),
+                    id=str(uuid.uuid4()),
+                )
+            )
+        else:
+            messages.append(
+                ChatAgentMessage(
+                    role="assistant",
+                    content="",
+                    id=str(uuid.uuid4()),
+                )
+            )
 
+        custom_outputs = None
         if self.response_session_id_path:
-            session_id = _get_nested(parsed, self.response_session_id_path)
+            session_id = _get_nested(response, self.response_session_id_path)
             if session_id is not None:
-                parsed["_extracted_session_id"] = str(session_id)
+                custom_outputs = {"session_id": str(session_id)}
 
-        return parsed
+        return ChatAgentResponse(
+            messages=messages,
+            custom_outputs=custom_outputs,
+        )
 
-    def _extract_last_user_message(self, messages: list[dict[str, Any]]) -> str:
+    def _extract_last_user_message(self, messages: list[ChatAgentMessage]) -> str:
         """Extract the last user message content.
 
         Parameters
         ----------
-        messages : list[dict]
+        messages : list[ChatAgentMessage]
             List of messages.
 
         Returns
@@ -232,72 +246,10 @@ class GenericHTTPConnector(BaseAgentConnector):
             If no user message is found.
         """
         for msg in reversed(messages):
-            if msg.get("role") == "user" and msg.get("content"):
-                return msg["content"]
+            if msg.role == "user" and msg.content:
+                return msg.content
 
         raise ConnectorError(
             "No user message found in messages. "
             "Expected at least one message with role='user' and content."
         )
-
-    # ------------------------------------------------------------------
-    # Response field extraction
-    # ------------------------------------------------------------------
-
-    @classmethod
-    def extract_text(cls, response: dict[str, Any]) -> str | None:
-        """Extract text content from a generic HTTP response.
-
-        Reads from ``_extracted_text``, which is injected by
-        ``parse_response`` using the configured ``response_text_path``.
-
-        Parameters
-        ----------
-        response : dict
-            Response dict from ``parse_response``.
-
-        Returns
-        -------
-        str or None
-            Extracted text, or None if not found.
-        """
-        return response.get("_extracted_text")
-
-    @classmethod
-    def extract_session_id(cls, response: dict[str, Any]) -> str | None:
-        """Extract session ID from a generic HTTP response.
-
-        Reads from ``_extracted_session_id``, which is injected by
-        ``parse_response`` using the configured ``response_session_id_path``.
-
-        Parameters
-        ----------
-        response : dict
-            Response dict from ``parse_response``.
-
-        Returns
-        -------
-        str or None
-            Extracted session ID, or None if not configured or not found.
-        """
-        return response.get("_extracted_session_id")
-
-    @classmethod
-    def extract_tool_trace(
-        cls, response: dict[str, Any]
-    ) -> list[dict[str, Any]] | None:
-        """Extract tool trace from a generic HTTP response.
-
-        Generic HTTP endpoints typically don't produce tool traces.
-
-        Parameters
-        ----------
-        response : dict
-            Raw response from the endpoint.
-
-        Returns
-        -------
-        None
-            Always returns None.
-        """
-        return None
