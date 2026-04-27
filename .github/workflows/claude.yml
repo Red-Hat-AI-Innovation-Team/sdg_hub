@@ -76,7 +76,7 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: Run Claude Code
-        uses: anthropics/claude-code-action@e58dfa55559035499a4982426bb73605e8b5ad8e # v1
+        uses: anthropics/claude-code-action@567fe954a4527e81f132d87d1bdbcc94f7737434 # v1
         with:
           use_vertex: true
           trigger_phrase: "@claude-code"
