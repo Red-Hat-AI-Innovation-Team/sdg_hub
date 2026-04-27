@@ -171,6 +171,12 @@ class MockResponseBuilder:
         if not start_tags:
             return "mock text content"
 
+        if len(start_tags) != len(end_tags):
+            raise ValueError(
+                f"TagParserBlock has mismatched start_tags ({len(start_tags)}) "
+                f"and end_tags ({len(end_tags)})"
+            )
+
         parts: list[str] = []
         for i, (start, end) in enumerate(zip(start_tags, end_tags)):
             col = output_cols[i] if i < len(output_cols) else f"field_{i}"
@@ -226,7 +232,7 @@ class MockResponseBuilder:
             data = {col: f"mock {col}" for col in output_cols}
         if filt:
             fcol = self._filter_col(filt)
-            if fcol in data or not output_cols:
+            if fcol:
                 data[fcol] = self._filter_passing_value(filt)
         return json.dumps(data)
 
@@ -263,7 +269,7 @@ def build_seed_dataset(flow: Flow, num_rows: int = 2) -> pd.DataFrame:
     data: dict[str, Any] = {}
     for col in cols:
         if "pool" in col.lower():
-            data[col] = [["item_a", "item_b", "item_c"]] * num_rows
+            data[col] = [["item_a", "item_b", "item_c"] for _ in range(num_rows)]
         else:
             data[col] = [f"sample {col} text row {i}" for i in range(num_rows)]
 
@@ -308,7 +314,7 @@ def mock_litellm():
         self: LLMChatBlock,
         messages_list: list[list[dict[str, Any]]],
         completion_kwargs: dict[str, Any],
-        flow_max_concurrency: int | None = None,
+        flow_max_concurrency: int | None,
     ) -> list[list[dict[str, Any]]]:
         content = _content_for(self.block_name)
         return [[{"content": content}] for _ in messages_list]
