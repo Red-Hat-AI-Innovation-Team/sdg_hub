@@ -1030,13 +1030,13 @@ class MyInterpreterConnector(BaseCodeInterpreterConnector):
         """Execute code in the custom interpreter."""
         start = time.perf_counter()
         try:
-            # Your execution logic here
-            exec_globals = dict(inputs) if inputs else {}
-            exec(code, exec_globals)
+            # Delegate to a sandboxed runtime (container, subprocess, etc.).
+            # Do NOT use raw exec() for untrusted code.
+            output = self._run_in_sandbox(code, inputs, timeout)
             elapsed = (time.perf_counter() - start) * 1000
             return CodeExecutionResult(
                 success=True,
-                output=None,
+                output=output,
                 error=None,
                 return_value=None,
                 execution_time_ms=elapsed,
@@ -1050,6 +1050,19 @@ class MyInterpreterConnector(BaseCodeInterpreterConnector):
                 return_value=None,
                 execution_time_ms=elapsed,
             )
+
+    def _run_in_sandbox(
+        self,
+        code: str,
+        inputs: Optional[dict[str, Any]] = None,
+        timeout: Optional[float] = None,
+    ) -> str:
+        """Execute code in an isolated sandbox.
+
+        Replace this with your sandbox backend (e.g. subprocess, container,
+        or remote execution service).
+        """
+        raise NotImplementedError("Implement your sandbox backend here")
 ```
 
 After creating the file, add the import to `src/sdg_hub/core/connectors/code_interpreter/__init__.py`:

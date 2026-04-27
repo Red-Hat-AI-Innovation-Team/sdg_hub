@@ -236,8 +236,8 @@ Returns registered block names. Behavior depends on arguments:
 def categories(cls) -> list[str]:
 ```
 
-Returns a sorted list of all category names (e.g. `["agent", "filtering", "llm",
-"mcp", "parsing", "transform"]`).
+Returns a sorted list of all category names (e.g. `["agent", "code", "filtering",
+"llm", "mcp", "parsing", "transform"]`).
 
 ### `BlockMetadata` dataclass
 
