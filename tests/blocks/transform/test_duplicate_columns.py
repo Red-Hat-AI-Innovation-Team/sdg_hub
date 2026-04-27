@@ -61,5 +61,14 @@ class TestDuplicateColumnsBlock:
             DuplicateColumnsBlock(block_name="dup", input_cols={})
 
     def test_list_input_cols_raises(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="input_cols must be a dictionary"):
             DuplicateColumnsBlock(block_name="dup", input_cols=["col_a"])
+
+    def test_overwrite_existing_column(self):
+        block = DuplicateColumnsBlock(
+            block_name="dup", input_cols={"source": "existing"}
+        )
+        df = pd.DataFrame({"source": ["new"], "existing": ["old"]})
+        result = block.generate(df)
+
+        assert result["existing"].tolist() == ["new"]

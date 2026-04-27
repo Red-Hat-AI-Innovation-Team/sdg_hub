@@ -24,9 +24,10 @@ from .conftest import (
 )
 
 _DISCOVERED_FLOWS = discover_flow_yamls()
-assert _DISCOVERED_FLOWS, (
-    "No flow YAMLs discovered; check FLOWS_DIR resolution and SKIP_BLOCK_TYPES."
-)
+if not _DISCOVERED_FLOWS:
+    raise RuntimeError(
+        "No flow YAMLs discovered; check FLOWS_DIR resolution and SKIP_BLOCK_TYPES."
+    )
 
 
 @pytest.mark.parametrize(

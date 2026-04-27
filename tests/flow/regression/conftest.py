@@ -60,7 +60,12 @@ def flow_id(yaml_path: Path) -> str:
 def _has_unsupported_blocks(yaml_path: Path) -> bool:
     with open(yaml_path) as f:
         data = yaml.safe_load(f)
-    block_types = {b["block_type"] for b in data.get("blocks", [])}
+    if not isinstance(data, dict):
+        raise ValueError(f"Malformed flow YAML (expected mapping): {yaml_path}")
+    try:
+        block_types = {b["block_type"] for b in data.get("blocks", [])}
+    except (KeyError, TypeError) as exc:
+        raise ValueError(f"Malformed block entry in {yaml_path}: {exc}") from exc
     return bool(block_types & SKIP_BLOCK_TYPES)
 
 
@@ -72,15 +77,17 @@ def _has_unsupported_blocks(yaml_path: Path) -> bool:
 class MockResponseBuilder:
     """Reads a flow YAML and builds mock LLM responses satisfying downstream parsers.
 
-    Walks the block list to find each ``LLMChatBlock -> LLMResponseExtractorBlock
-    -> [Parser] -> [ColumnValueFilterBlock]`` chain and generates text content
-    that the parser will accept and that will pass any downstream filter.
+    Walks the block list to find each LLMChatBlock and its downstream parser
+    and optional filter, skipping intermediate blocks like
+    LLMResponseExtractorBlock that don't affect content shape.
     """
 
     def __init__(self, yaml_path: Path) -> None:
         with open(yaml_path) as f:
-            self.flow_data = yaml.safe_load(f)
-        self.blocks: list[dict[str, Any]] = self.flow_data.get("blocks", [])
+            data = yaml.safe_load(f)
+        if not isinstance(data, dict):
+            raise ValueError(f"Malformed flow YAML (expected mapping): {yaml_path}")
+        self.blocks: list[dict[str, Any]] = data.get("blocks", [])
 
     def build(self) -> dict[str, str]:
         """Return ``{llm_block_name: mock_content}`` for every LLMChatBlock."""
@@ -103,19 +110,21 @@ class MockResponseBuilder:
     def _find_downstream_parser(
         self, llm_idx: int
     ) -> tuple[dict[str, Any], int] | None:
-        for j in range(llm_idx + 1, min(llm_idx + 5, len(self.blocks))):
+        """Scan forward from *llm_idx* until a parser or chain-breaker is found."""
+        for j in range(llm_idx + 1, len(self.blocks)):
             btype = self.blocks[j]["block_type"]
             if btype in _PARSER_TYPES:
                 return self.blocks[j], j
-            if btype == "LLMChatBlock":
+            if btype in _CHAIN_BREAKERS:
                 break
         return None
 
     def _find_downstream_filter(
         self, llm_idx: int, parser_idx: int | None
     ) -> dict[str, Any] | None:
+        """Scan forward from *parser_idx* (or *llm_idx*) for a filter block."""
         start = (parser_idx + 1) if parser_idx is not None else (llm_idx + 1)
-        for j in range(start, min(start + 4, len(self.blocks))):
+        for j in range(start, len(self.blocks)):
             btype = self.blocks[j]["block_type"]
             if btype == "ColumnValueFilterBlock":
                 return self.blocks[j]
@@ -152,7 +161,7 @@ class MockResponseBuilder:
             return self._json_content(cfg, filt)
         if btype == "RegexParserBlock":
             return self._regex_content(cfg, filt)
-        return "mock response text"
+        raise ValueError(f"Unrecognized parser type: {btype!r}")
 
     def _tag_content(self, cfg: dict[str, Any], filt: dict[str, Any] | None) -> str:
         start_tags = self._as_list(cfg.get("start_tags"))
@@ -179,18 +188,8 @@ class MockResponseBuilder:
     def _tag_value(
         self, col: str, filt: dict[str, Any] | None, start_tag: str = ""
     ) -> str:
-        if filt:
-            fcfg = filt.get("block_config", {})
-            finput = fcfg.get("input_cols", [])
-            fcol = (
-                finput[0]
-                if isinstance(finput, list) and finput
-                else next(iter(finput), "")
-                if isinstance(finput, dict)
-                else ""
-            )
-            if fcol == col:
-                return self._filter_passing_value(filt)
+        if filt and self._filter_col(filt) == col:
+            return self._filter_passing_value(filt)
         return f"mock {col}"
 
     @staticmethod
@@ -278,7 +277,8 @@ def build_seed_dataset(flow: Flow, num_rows: int = 2) -> pd.DataFrame:
 
 @pytest.fixture()
 def mock_litellm():
-    """Patch LLMChatBlock internals so no real LLM calls are made.
+    """Patch ``LLMChatBlock._generate_sync`` and ``_run_async_generation``
+    so no real LLM calls are made.
 
     Yields a callable ``set_responses(mapping)`` where *mapping* is
     ``{block_name: content_text}``.  Each LLMChatBlock looks up its own
