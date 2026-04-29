@@ -4,6 +4,7 @@
 from abc import abstractmethod
 from typing import Any, Optional
 import asyncio
+import json
 import uuid
 
 from mlflow.types.agent import (
@@ -247,17 +248,22 @@ class BaseAgentConnector(BaseConnector):
                 if msg.get("tool_call_id"):
                     kwargs["tool_call_id"] = msg["tool_call_id"]
                 if msg.get("tool_calls"):
-                    kwargs["tool_calls"] = [
-                        ToolCall(
-                            id=tc.get("id", str(uuid.uuid4())),
-                            type=tc.get("type", "function"),
-                            function=Function(
-                                name=tc.get("function", {}).get("name", ""),
-                                arguments=tc.get("function", {}).get("arguments", "{}"),
-                            ),
+                    tool_calls = []
+                    for tc in msg["tool_calls"]:
+                        args = tc.get("function", {}).get("arguments", "{}")
+                        if not isinstance(args, str):
+                            args = json.dumps(args)
+                        tool_calls.append(
+                            ToolCall(
+                                id=tc.get("id", str(uuid.uuid4())),
+                                type=tc.get("type", "function"),
+                                function=Function(
+                                    name=tc.get("function", {}).get("name", ""),
+                                    arguments=args,
+                                ),
+                            )
                         )
-                        for tc in msg["tool_calls"]
-                    ]
+                    kwargs["tool_calls"] = tool_calls
                 agent_messages.append(ChatAgentMessage(**kwargs))
 
         agent_request = ChatAgentRequest(

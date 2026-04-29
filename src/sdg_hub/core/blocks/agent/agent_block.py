@@ -258,19 +258,22 @@ class AgentBlock(BaseBlock):
                     if item.get("tool_call_id"):
                         kwargs["tool_call_id"] = item["tool_call_id"]
                     if item.get("tool_calls"):
-                        kwargs["tool_calls"] = [
-                            ToolCall(
-                                id=tc.get("id", str(uuid.uuid4())),
-                                type=tc.get("type", "function"),
-                                function=Function(
-                                    name=tc.get("function", {}).get("name", ""),
-                                    arguments=tc.get("function", {}).get(
-                                        "arguments", "{}"
+                        tool_calls = []
+                        for tc in item["tool_calls"]:
+                            args = tc.get("function", {}).get("arguments", "{}")
+                            if not isinstance(args, str):
+                                args = json.dumps(args)
+                            tool_calls.append(
+                                ToolCall(
+                                    id=tc.get("id", str(uuid.uuid4())),
+                                    type=tc.get("type", "function"),
+                                    function=Function(
+                                        name=tc.get("function", {}).get("name", ""),
+                                        arguments=args,
                                     ),
-                                ),
+                                )
                             )
-                            for tc in item["tool_calls"]
-                        ]
+                        kwargs["tool_calls"] = tool_calls
                     result.append(ChatAgentMessage(**kwargs))
                 else:
                     result.append(ChatAgentMessage(role="user", content=str(item)))
