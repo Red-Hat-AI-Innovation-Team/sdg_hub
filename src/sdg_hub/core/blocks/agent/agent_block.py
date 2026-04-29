@@ -276,15 +276,7 @@ class AgentBlock(BaseBlock):
                     result.append(ChatAgentMessage(role="user", content=str(item)))
             return result
         elif isinstance(content, dict):
-            kwargs_single: dict[str, Any] = {
-                "role": content.get("role", "user"),
-                "content": content.get("content", ""),
-            }
-            if content.get("name"):
-                kwargs_single["name"] = content["name"]
-            if content.get("tool_call_id"):
-                kwargs_single["tool_call_id"] = content["tool_call_id"]
-            return [ChatAgentMessage(**kwargs_single)]
+            return self._build_messages([content])
         elif isinstance(content, ChatAgentMessage):
             return [content]
         else:

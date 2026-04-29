@@ -12,6 +12,7 @@ from mlflow.types.agent import (
     ChatAgentResponse,
     ChatContext,
 )
+from mlflow.types.chat import Function, ToolCall
 from pydantic import PrivateAttr
 
 from ...utils.logger_config import setup_logger
@@ -236,13 +237,28 @@ class BaseAgentConnector(BaseConnector):
                     msg = msg.model_copy(update={"id": str(uuid.uuid4())})
                 agent_messages.append(msg)
             else:
-                agent_messages.append(
-                    ChatAgentMessage(
-                        role=msg.get("role", "user"),
-                        content=msg.get("content", ""),
-                        id=str(uuid.uuid4()),
-                    )
-                )
+                kwargs: dict[str, Any] = {
+                    "role": msg.get("role", "user"),
+                    "content": msg.get("content", ""),
+                    "id": str(uuid.uuid4()),
+                }
+                if msg.get("name"):
+                    kwargs["name"] = msg["name"]
+                if msg.get("tool_call_id"):
+                    kwargs["tool_call_id"] = msg["tool_call_id"]
+                if msg.get("tool_calls"):
+                    kwargs["tool_calls"] = [
+                        ToolCall(
+                            id=tc.get("id", str(uuid.uuid4())),
+                            type=tc.get("type", "function"),
+                            function=Function(
+                                name=tc.get("function", {}).get("name", ""),
+                                arguments=tc.get("function", {}).get("arguments", "{}"),
+                            ),
+                        )
+                        for tc in msg["tool_calls"]
+                    ]
+                agent_messages.append(ChatAgentMessage(**kwargs))
 
         agent_request = ChatAgentRequest(
             messages=agent_messages,
