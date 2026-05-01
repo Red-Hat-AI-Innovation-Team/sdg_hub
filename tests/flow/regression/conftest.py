@@ -218,6 +218,8 @@ class MockResponseBuilder:
         """Return the column name a ColumnValueFilterBlock reads from."""
         fcfg = filt.get("block_config", {})
         finput = fcfg.get("input_cols", [])
+        if isinstance(finput, str):
+            return finput
         if isinstance(finput, list) and finput:
             return str(finput[0])
         if isinstance(finput, dict) and finput:
