@@ -134,6 +134,7 @@ select = [
     "I",   # isort
     "N",   # pep8-naming
     "Q",   # flake8-quotes
+    "T20", # flake8-print (ban print/pprint in src/)
     "TID", # flake8-tidy-imports
 ]
 ignore = [
@@ -141,6 +142,10 @@ ignore = [
     "E501",  # line too long
     "TID252", # Prefer absolute imports over relative imports from parent modules
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["T20"]
+"examples/**" = ["T20"]
 
 [tool.ruff.lint.isort]
 # same as .isort.cfg
