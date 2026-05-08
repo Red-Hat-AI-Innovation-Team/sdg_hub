@@ -143,8 +143,8 @@ Layer 0 (utils)        utils/                logger_config, error_handling,
 4. Register with `@BlockRegistry.register(name, category, description)`.
 5. Add tests under `tests/blocks/`.
 
-See [docs/blocks/custom-blocks.md](docs/blocks/custom-blocks.md) for a
-walkthrough.
+See [docs/agent-knowledge/block-invariants.md](docs/agent-knowledge/block-invariants.md)
+for the full checklist.
 
 ### Adding a new flow
 
@@ -154,7 +154,8 @@ walkthrough.
    `FlowRegistry.discover_flows()` to verify it is found.
 3. Call `Flow.from_yaml(path)` to load, then `flow.generate(dataset)` to run.
 
-See [docs/flows/custom-flows.md](docs/flows/custom-flows.md) for details.
+See [docs/agent-knowledge/flow-invariants.md](docs/agent-knowledge/flow-invariants.md)
+for the full checklist.
 
 ### Adding a new connector
 
@@ -165,8 +166,8 @@ See [docs/flows/custom-flows.md](docs/flows/custom-flows.md) for details.
 3. Register with `@ConnectorRegistry.register("name")`.
 4. Configure at runtime via `flow.set_agent_config(agent_framework="name", ...)`.
 
-See [docs/connectors/index.md](docs/connectors/index.md) for the connector
-reference.
+See [docs/agent-knowledge/connector-invariants.md](docs/agent-knowledge/connector-invariants.md)
+for the full checklist.
 
 ## Key Entry Points
 
