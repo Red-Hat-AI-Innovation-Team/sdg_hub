@@ -1,8 +1,8 @@
 # Agent-Maintained SDG Hub: Harness Engineering Design
 
-**Date:** 2026-05-07
+**Date:** 2026-05-07 (updated 2026-05-08)
 **Author:** Shiv (human) + Claude Code (agent)
-**Status:** Draft — pending review
+**Status:** Draft v2 — pending review
 
 ## 1. Vision
 
@@ -44,6 +44,8 @@ This design synthesizes patterns from five reference implementations:
 | [anthropics/cwc-long-running-agents](https://github.com/anthropics/cwc-long-running-agents) | Evidence-gated verification, operator controls (kill switch, steer), PROGRESS.md handoff, commit-on-stop |
 | [AndrewAltimit/template-repo](https://github.com/AndrewAltimit/template-repo) | Decision rubric with trust tiers, multi-profile reviews, iteration limits, agent board, review profiles |
 | [akashgit/remote-factory](https://github.com/akashgit/remote-factory) | Experiment-as-unit-of-work, three-tier scoring, FEEC priority, self-evolving playbooks (ACE), CEO completion guard, mandatory archival, non-overridable precheck gate |
+| [multica-ai/multica](https://github.com/multica-ai/multica) | Open-source managed agents platform. Self-hostable orchestration layer with issue-based task board, Autopilot scheduling, multi-agent coordination, session resumption, and skills system. Uses Claude Code CLI directly. |
+| [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview) | Claude Code as a Python/TypeScript library. Programmatic subagents with tool restrictions, hooks as Python callbacks, sessions with resume, custom tools via `@tool` decorator. Alternative to Managed Agents using your own infrastructure. |
 
 ---
 
@@ -341,83 +343,125 @@ Adapted from remote-factory. Six checks that **no agent can bypass**:
 
 ---
 
-## 5. Phase 3 — The Agent Loop
+## 5. Phase 3 — The Agent Loop (Multica-Orchestrated)
 
-### 5.1 Agent Architecture
+### 5.1 Orchestration Platform: Multica
 
-**Three-agent system** (adapted from Anthropic's Planner → Generator →
-Evaluator, with remote-factory's CEO orchestration):
+Instead of building custom orchestration from scratch, we use
+[Multica](https://github.com/multica-ai/multica) as the managed agents
+platform. Multica is self-hosted (Docker Compose + PostgreSQL), uses our
+existing Claude Code CLI subscription, and provides:
+
+- **Issue-based task board** where agents and humans share the same workflow
+- **Autopilot** for scheduled/triggered autonomous agent work
+- **Session resumption** — same (agent, issue) pairs auto-restore context
+- **Skills** injected into agent context via native `.claude/skills/` paths
+- **Agent-to-agent communication** with anti-loop protections
+- **Daemon** that spawns Claude Code processes with isolated workspaces
+
+**Multica handles logistics. Our harness handles quality.**
+
+### 5.2 Multica Setup
+
+**Self-host infrastructure:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/multica-ai/multica/main/scripts/install.sh | bash -s -- --with-server
+multica setup self-host
+```
+
+Services: PostgreSQL 17 (pgvector), Go backend, Next.js frontend.
+
+**Agent roster (configured in Multica):**
+
+| Agent Name | Backend | Skills | Role |
+|-----------|---------|--------|------|
+| `sdg-builder` | Claude Code (Opus 4.6) | synthetic-data-generation, block-invariants, testing-standards | Implements features, blocks, flows, connectors |
+| `sdg-evaluator` | Claude Code (Opus 4.6) | grading-criteria, testing-standards | Reviews builder output with fresh context |
+| `sdg-reviewer` | Claude Code (Sonnet 4.6) | block-invariants, flow-invariants, connector-invariants | Reviews code for architectural compliance |
+| `sdg-gardener` | Claude Code (Sonnet 4.6) | core-principles, tech-debt-tracker | Daily maintenance: doc gardening, quality grading, drift detection |
+
+**Skills (configured in Multica Settings → Skills):**
+
+Import existing SDG Hub skills + create new ones from the knowledge base:
+- `synthetic-data-generation` — existing 430-line SKILL.md
+- `block-invariants` — from `docs/agent-knowledge/block-invariants.md`
+- `flow-invariants` — from `docs/agent-knowledge/flow-invariants.md`
+- `grading-criteria` — from `docs/agent-knowledge/grading-criteria.md`
+- `testing-standards` — from `docs/agent-knowledge/testing-standards.md`
+- `core-principles` — from `docs/agent-knowledge/core-principles.md`
+
+### 5.3 Agent Loop (Multica-Orchestrated)
 
 ```
-Human writes prompt (issue, PR comment, or CLI)
+Human creates issue in Multica (or Autopilot triggers one)
   │
   ▼
-Orchestrator (Claude Code primary session)
+Multica assigns issue to sdg-builder agent
+  │
+  ├─ Daemon provisions isolated workspace
+  ├─ Injects CLAUDE.md, skills, issue context
+  ├─ Spawns Claude Code with --permission-mode bypassPermissions
+  │
+  ▼
+sdg-builder reads issue, implements in repo
   │
   ├─ Reads CLAUDE.md → routes to relevant knowledge base docs
-  ├─ Creates execution plan (docs/exec-plans/active/)
-  ├─ Records baseline score (eval/score.py)
-  │
-  ▼
-Builder (Claude Code in worktree)
-  │
-  ├─ Implements on feature branch
   ├─ Writes code + tests
   ├─ Runs structural tests + unit tests locally
   ├─ Iterates until passing
-  ├─ Opens PR (using PR template)
+  ├─ Opens PR via gh CLI (using PR template)
+  ├─ Posts results as Multica issue comment
+  ├─ @mentions sdg-evaluator for review
   │
   ▼
-Evaluator (Claude Code subagent — READ-ONLY)
+sdg-evaluator receives @mention, starts fresh session
   │
   ├─ Fresh context (no build history bias)
-  ├─ Reads spec / acceptance criteria
+  ├─ Reads spec / acceptance criteria from issue
   ├─ Runs git diff against baseline
   ├─ Runs tests independently
-  ├─ Reads test output (evidence files)
   ├─ Grades against criteria: correctness, composability,
   │   test quality, documentation
-  ├─ Returns machine-parseable verdict:
+  ├─ Posts verdict as issue comment:
   │     PASS — with evidence citations
   │     NEEDS_WORK — with specific, actionable findings
-  ├─ Cannot fix anything itself
   │
   ▼
-Review Phase
+If NEEDS_WORK: sdg-evaluator @mentions sdg-builder
+  │
+  ├─ Builder resumes session (Multica auto-restores context)
+  ├─ Iterates on feedback
+  ├─ Max 5 iterations (tracked via issue comments)
+  │
+  ▼
+CI runs on PR (8 checks + structural tests)
   │
   ├─ Cursor code review (existing workflow)
-  ├─ If NEEDS_WORK: findings → builder for iteration
-  ├─ Max 5 iterations (human can extend with override)
-  │
-  ▼
-Precheck Gate (NON-OVERRIDABLE)
-  │
-  ├─ Score direction check
-  ├─ Scope guard
-  ├─ Anti-pattern detection
-  ├─ Smoke test
-  ├─ Structural tests
-  ├─ Lint clean
+  ├─ Precheck gate (non-overridable):
+  │     score direction, scope, anti-pattern, smoke test,
+  │     structural tests, lint clean
   │
   ▼
 Merge Decision
   │
   ├─ Internal PR + all gates pass → auto-merge
   ├─ External PR → human maintainer approval
-  ├─ Any gate fails → revert, archive learnings
+  ├─ Any gate fails → agent comments on issue with failure details
   │
   ▼
 Post-Merge
   │
   ├─ Cursor docs agent updates documentation
-  ├─ Execution plan moved to completed/
   ├─ Archivist records outcome to .factory/archive/
+  ├─ Issue moved to "Done" in Multica
   └─ Quality grades updated
 ```
 
-### 5.2 Evidence-Gated Verification
+### 5.4 Evidence-Gated Verification
 
-Adapted from cwc-long-running-agents. Two Claude Code hooks:
+Adapted from cwc-long-running-agents. Two Claude Code hooks (configured in
+`.claude/settings.json` and injected into Multica workspaces via skills):
 
 **`track-read.sh`** (PreToolUse on Read):
 Records when the agent reads evidence files (test output, coverage reports,
@@ -431,51 +475,54 @@ output or execution evidence has been Read this session."
 This prevents agents from claiming "tests pass" without actually reading the
 test output.
 
-### 5.3 Operator Controls
+### 5.5 Operator Controls
 
-**Kill switch** (`kill-switch.sh`, PreToolUse on `*`):
-If an `AGENT_STOP` file exists at project root, blocks every tool call.
-Operator runs `touch AGENT_STOP` to halt; `rm AGENT_STOP` to resume.
+**Via Multica UI/CLI (primary):**
 
-**Steer file** (`steer.sh`, PreToolUse on `*`):
-If `STEER.md` has content, blocks the current tool call with
-`"OPERATOR STEERING: <content>"`, then clears the file. Fires once — lets a
-human redirect the agent mid-run without restarting.
+- **Abort task:** `multica task abort <task-id>` — stops the agent mid-run
+- **Steer via comment:** Post a comment on the Multica issue — agent reads
+  it on next session resumption or @mention
+- **Reassign:** Move issue to a different agent or back to human
 
-### 5.4 Session Continuity
+**Via file-based hooks (backup, for local Claude Code sessions):**
 
-**PROGRESS.md convention:**
-Agent reads PROGRESS.md at session start. If it doesn't exist, creates it
-with sections: `## Done`, `## In Progress`, `## Next`, `## Notes`. Updates
-after each completed item.
+- **Kill switch** (`kill-switch.sh`, PreToolUse on `*`): If `AGENT_STOP`
+  file exists, blocks every tool call.
+- **Steer file** (`steer.sh`, PreToolUse on `*`): If `STEER.md` has
+  content, injects it once into agent context.
 
-**commit-on-stop hook** (Stop hook):
-Auto-commits tracked changes at session end:
-`git commit -am "session checkpoint: <timestamp>"`. Only tracked files —
-ephemeral artifacts (screenshots, logs) stay out of git history.
+### 5.6 Session Continuity
 
-### 5.5 Auto-Merge Workflow
+**Multica handles this natively.** Session resumption is automatic per
+(agent, issue) pair — the daemon reuses the working directory and passes
+`--resume <session_id>` to Claude Code, preserving full conversation context.
+
+**commit-on-stop hook** (Stop hook) remains as a safety net:
+Auto-commits tracked changes at session end.
+
+### 5.7 Auto-Merge Workflow
 
 New GitHub Action (`auto-merge.yml`):
 
 Triggers: when all CI checks pass on a PR.
 
 Conditions for auto-merge:
-- PR author is `claude-code-action[bot]` or `cursor-code-review[bot]`
+- PR author is `claude-code-action[bot]` or agent-created
 - All CI checks pass (8 existing + structural tests + knowledge validation)
-- Evaluator subagent returned `PASS`
+- Evaluator agent posted `PASS` verdict on the Multica issue
 - No `needs-human-review` label
-- No `needs-rebase` label
 - PR is not from a fork (external contribution)
 
 If all conditions met: approve and merge via `gh pr merge --auto --squash`.
+Multica issue auto-transitions to "Done" on merge (via webhook or Autopilot).
 
-### 5.6 Iteration Limits
+### 5.8 Iteration Limits
 
-- Max **5 iterations** per agent per PR for the review-fix loop
+- Max **5 iterations** per agent per issue for the review-fix loop
+  (tracked via Multica issue comments)
 - Max **3 iterations** for the CI-failure-fix loop
-- Human maintainer can add `[CONTINUE]` comment to extend by 5 iterations
-- Independent counters for review-fix and CI-fix loops
+- Human maintainer can post `[CONTINUE]` comment to extend by 5 iterations
+- Multica's built-in retry mechanism handles agent task failures
 
 ---
 
@@ -483,16 +530,36 @@ If all conditions met: approve and merge via `gh pr merge --auto --squash`.
 
 ### 6.1 Daily Recurring Agent Tasks
 
-Implemented as GitHub Actions on cron schedules:
+Implemented as **Multica Autopilots** (replacing GitHub Action crons for
+agent-driven tasks). Each Autopilot creates an issue, assigns it to
+`sdg-gardener`, and follows the normal task lifecycle.
 
-| Task | Schedule | What it does |
-|------|----------|-------------|
-| Doc gardening | Daily 06:00 UTC | Scans knowledge base for stale docs (>90 days), checks cross-links, opens fix-up PRs |
-| Quality grading | Daily 07:00 UTC | Runs three-tier scoring, updates `docs/agent-knowledge/QUALITY.md` with per-domain grades |
-| Dead code scan | Daily 08:00 UTC | Finds unreferenced blocks, unused imports, orphaned test fixtures; opens cleanup PRs |
-| Pattern drift detection | Daily 09:00 UTC | Compares recent PRs against `core-principles.md`, flags deviations |
-| Dependency hygiene | Daily | Dependabot (existing) |
-| Flow regression | Every PR | CI pytest (existing) |
+| Task | Autopilot Trigger | Agent | Concurrency |
+|------|-------------------|-------|-------------|
+| Doc gardening | Cron: daily 06:00 UTC | sdg-gardener | `skip` (deduplicate) |
+| Quality grading | Cron: daily 07:00 UTC | sdg-gardener | `skip` |
+| Dead code scan | Cron: daily 08:00 UTC | sdg-gardener | `skip` |
+| Pattern drift detection | Cron: daily 09:00 UTC | sdg-gardener | `skip` |
+| Dependency hygiene | Daily | Dependabot (existing, stays in GitHub) |
+| Flow regression | Every PR | CI pytest (existing, stays in GitHub) |
+
+**Autopilot configuration example (doc gardening):**
+
+```
+Name: SDG Hub Doc Gardening
+Agent: sdg-gardener
+Trigger: schedule (0 6 * * *)
+Mode: create_issue
+Issue title template: "chore: daily doc gardening — {{date}}"
+Prompt: "Scan docs/agent-knowledge/ for stale docs (>90 days since
+  last verified). Check all cross-links resolve. Open fix-up PRs for
+  any issues found. Update QUALITY.md doc completeness grades."
+Concurrency: skip
+```
+
+CI-only checks (ruff, mypy, pytest, commitlint, etc.) remain as GitHub
+Actions — Multica handles agent-driven work, GitHub handles deterministic
+CI.
 
 ### 6.2 Quality Grades
 
@@ -621,6 +688,19 @@ Example evolved playbook:
 
 ## 8. Implementation Artifacts
 
+### 8.0 Multica Infrastructure
+
+```
+# Self-hosted Multica (Docker Compose)
+docker-compose.selfhost.yml        ← PostgreSQL 17, Go backend, Next.js frontend
+
+# Multica configuration (in Multica UI/CLI)
+4 agents:  sdg-builder, sdg-evaluator, sdg-reviewer, sdg-gardener
+6 skills:  imported from docs/agent-knowledge/
+4 autopilots: doc-gardening, quality-grading, dead-code-scan, pattern-drift
+1 project resource: GitHub repo link to sdg_hub
+```
+
 ### 8.1 New Files to Create
 
 ```
@@ -669,13 +749,9 @@ eval/score.py
 # Agent subagents
 .claude/agents/evaluator.md
 
-# Workflows
+# Workflows (CI-only — agent-driven tasks handled by Multica Autopilots)
 .github/workflows/auto-merge.yml
 .github/workflows/knowledge-validation.yml
-.github/workflows/quality-grading.yml
-.github/workflows/doc-gardening.yml
-.github/workflows/dead-code-scan.yml
-.github/workflows/pattern-drift.yml
 
 # Institutional memory
 .factory/archive/.gitkeep
@@ -701,26 +777,31 @@ pyproject.toml                         ← Add ruff rules (T201, D, UP)
 
 ## 9. Open Questions
 
-1. **Evaluator model:** Should the evaluator subagent use the same model
-   (Opus 4.6) or a different model for genuine independence? Using a different
-   model adds cost but reduces the risk of shared blind spots.
+1. **Evaluator model:** Should `sdg-evaluator` use the same model
+   (Opus 4.6) or a different model for genuine independence? Using a
+   different model adds cost but reduces shared blind spots.
 
 2. **Auto-merge confidence:** Should auto-merge require evaluator PASS +
    all CI green, or should there be additional quality thresholds
    (e.g., composite score ≥ 0.9)?
 
 3. **Playbook storage:** Should evolved playbooks live in the repo
-   (`.factory/playbooks/`) or in `~/.factory/playbooks/` (user-local)?
-   Repo storage means playbooks are versioned and shared; user-local means
-   they're personalized.
+   (`.factory/playbooks/`) or as Multica Skills (editable in UI)?
+   Repo storage means playbooks are versioned; Multica Skills means
+   they're editable without code changes.
 
-4. **Cross-project learning:** remote-factory supports learning across
-   multiple projects. If you maintain other repos, should the ACE system
-   learn from all of them?
+4. **GitHub ↔ Multica sync:** Should Multica be the primary issue tracker
+   (replacing GitHub Issues for internal work), or should there be
+   bidirectional sync? Multica doesn't have native GitHub Issue sync.
 
-5. **Cost budget:** Long-running agent sessions (6+ hours per the
-   Anthropic article) can be expensive. Should there be a per-PR or per-day
-   cost budget?
+5. **Cost budget:** Long-running agent sessions can be expensive. Multica
+   tracks token usage per task — should there be a per-issue or per-day
+   budget limit?
+
+6. **Multica daemon hosting:** The daemon runs on a user's machine and
+   spawns Claude Code. For 24/7 autonomous operation, where does the
+   daemon run? Options: always-on dev machine, dedicated VM, or
+   cloud instance.
 
 ---
 
