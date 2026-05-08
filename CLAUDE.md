@@ -6,7 +6,24 @@
 
 SDG Hub is a Python framework for synthetic data generation using composable blocks and flows. Blocks are processing units that transform datasets; flows chain blocks into pipelines defined in YAML.
 
-Core concept: `dataset → Block₁ → Block₂ → Block₃ → enriched_dataset`
+Core concept: `dataset -> Block1 -> Block2 -> Block3 -> enriched_dataset`
+
+For architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Agent Knowledge Base
+
+| Task | Read this first |
+|------|----------------|
+| Adding a block | docs/agent-knowledge/block-invariants.md |
+| Adding a flow | docs/agent-knowledge/flow-invariants.md |
+| Adding a connector | docs/agent-knowledge/connector-invariants.md |
+| Writing tests | docs/agent-knowledge/testing-standards.md |
+| Reviewing code | docs/agent-knowledge/grading-criteria.md |
+| Deciding to fix vs escalate | docs/agent-knowledge/decision-rubric.md |
+| Checking quality status | docs/agent-knowledge/QUALITY.md |
+| All principles | docs/agent-knowledge/core-principles.md |
+
+Full index: docs/agent-knowledge/index.md
 
 ## Development Commands
 
@@ -31,6 +48,9 @@ uv pip install .[examples] # With examples dependencies
 ```bash
 # Unit tests (excludes slow/integration)
 uv run pytest tests/blocks tests/connectors tests/flow tests/utils -m "not (examples or slow)"
+
+# Structural tests (architecture enforcement)
+uv run pytest tests/structural/
 
 # With coverage
 uv run pytest --cov=sdg_hub --cov-report=term tests/blocks tests/connectors tests/flow tests/utils
@@ -58,59 +78,6 @@ Hooks run automatically on commit:
 
 Commit prefixes: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
 
-## Codebase Orientation
-
-### Block System (`src/sdg_hub/core/blocks/`)
-
-Blocks are organized by category:
-
-| Category | What's there |
-|----------|-------------|
-| `llm/` | LLMChatBlock, PromptBuilderBlock, LLMResponseExtractorBlock |
-| `parsing/` | TagParserBlock, RegexParserBlock, JSONParserBlock |
-| `transform/` | TextConcatBlock, RenameColumnsBlock, MeltColumnsBlock, RowMultiplierBlock, and others |
-| `filtering/` | ColumnValueFilterBlock |
-| `agent/` | AgentBlock, AgentResponseExtractorBlock |
-| `mcp/` | MCPAgentBlock (agentic tool-use with remote MCP servers) |
-
-Run `BlockRegistry.discover_blocks()` to see all registered blocks.
-
-### Flow System (`src/sdg_hub/core/flow/`)
-
-Flows are YAML-defined pipelines that chain blocks. Key entry points: `Flow.from_yaml()`, `flow.generate()`, `flow.dry_run()`, `flow.set_model_config()`.
-
-Pre-built flows live in `src/sdg_hub/flows/` (knowledge infusion, red-teaming, RAG evaluation, MCP distillation, text analysis). Use `FlowRegistry.discover_flows()` to list them.
-
-### Connectors (`src/sdg_hub/core/connectors/`)
-
-Agent framework connectors for external integrations:
-- **Langflow** (`langflow`) -- visual LLM app builder
-- **LangGraph** (`langgraph`) -- stateful multi-actor agents
-
-Configure via `flow.set_agent_config(agent_framework="...", agent_url="...", agent_api_key="...")`.
-
-## Creating New Blocks
-
-1. Inherit from `BaseBlock`, implement `generate()`
-2. Use Pydantic fields for configuration
-3. Use `input_cols`/`output_cols` for column handling
-4. Register with `@BlockRegistry.register(name, category, description)`
-5. Add tests under `tests/blocks/`
-
-## Creating New Connectors
-
-1. Create a file in `src/sdg_hub/core/connectors/agent/`
-2. Inherit from `BaseAgentConnector`
-3. Implement `build_request()` and `parse_response()`
-4. Register with `@ConnectorRegistry.register("name")`
-
-## Testing Guidelines
-
-- Tests organized by category under `tests/blocks/`, `tests/connectors/`, `tests/flow/`, `tests/utils/`
-- Test config files in `tests/blocks/testdata/`
-- Mock LLM clients when testing LLM-powered blocks
-- Test both success and error cases
-
 ## Common Pitfalls
 
 - `flow.set_model_config(model="...", api_key="...")` must be called before `generate()` for any flow containing LLM blocks
@@ -130,6 +97,7 @@ All PRs must pass:
 | Ruff linting | `ruff check src/ tests/` | lint.yml |
 | Type checking | `mypy src/sdg_hub` | lint.yml |
 | Unit tests | `pytest tests/blocks tests/connectors tests/flow tests/utils` | test.yml |
+| Structural tests | `pytest tests/structural/` | test.yml |
 | Lock file sync | `uv lock --check` | lock.yml |
 | Markdown linting | `markdownlint-cli2` | docs.yml |
 | GitHub Actions lint | `actionlint` | actionlint.yml |
