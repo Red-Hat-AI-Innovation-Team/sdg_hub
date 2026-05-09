@@ -31,6 +31,11 @@ def build_report(before: dict, after: dict) -> tuple[str, bool]:
 
     for tier_name in before["tiers"]:
         b_score = before["tiers"][tier_name]["score"]
+        b_pct = f"{b_score:.0%}"
+        if tier_name not in after["tiers"]:
+            # Tier removed or renamed between branches
+            rows.append(f"| {tier_name} | {b_pct} | — | removed |")
+            continue
         a_score = after["tiers"][tier_name]["score"]
         delta = a_score - b_score
         icon = _delta_icon(delta)
@@ -97,7 +102,6 @@ def main() -> None:
 
     report, passed = build_report(before, after)
     print(report)  # noqa: T201
-
     sys.exit(0 if passed else 1)
 
 
