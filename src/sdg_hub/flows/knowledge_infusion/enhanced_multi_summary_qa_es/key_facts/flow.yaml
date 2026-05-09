@@ -74,11 +74,11 @@ blocks:
   block_config:
     block_name: rename_to_document_column
     input_cols:
-      atomic_facts: document
+      atomic_facts: key_facts_content
 - block_type: RegexParserBlock
   block_config:
     block_name: parse_atomic_facts_to_individual_facts
-    input_cols: document
+    input_cols: key_facts_content
     output_cols: key_fact
     parsing_pattern: '(?:^|\n)\s*\d+\.\s+(.*?)(?=\n\s*\d+\.\s+|\Z)'
 - block_type: PromptBuilderBlock

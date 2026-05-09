@@ -29,7 +29,7 @@ metadata:
     - icl_query_3
     description: 'Input dataset should contain Spanish documents with text content and domain classification. Each document should be substantial enough for meaningful question generation (minimum 100 words recommended). The flow generates detailed summaries and corresponding QA pairs in Spanish designed to help LLMs internalize document knowledge for knowledge tuning.'
   output_columns:
-  - document
+  - summarized_document
   - question
   - response
   - raw_document
@@ -84,13 +84,13 @@ blocks:
   block_config:
     block_name: rename_to_document_column
     input_cols:
-      summary: document
+      summary: summarized_document
 - block_type: PromptBuilderBlock
   block_config:
     block_name: question_generation_prompt
     input_cols:
     - domain
-    - document
+    - summarized_document
     - document_outline
     - icl_document
     - icl_query_1
@@ -128,7 +128,7 @@ blocks:
     block_name: answer_generation_prompt
     input_cols:
     - question
-    - document
+    - summarized_document
     - document_outline
     output_cols: answer_generation_prompt
     prompt_config_path: prompts/generate_answers_es.yaml
@@ -162,7 +162,7 @@ blocks:
   block_config:
     block_name: eval_faithful_prompt
     input_cols:
-    - document
+    - summarized_document
     - response
     output_cols: eval_faithful_prompt
     prompt_config_path: prompts/evaluate_faithfulness_es.yaml

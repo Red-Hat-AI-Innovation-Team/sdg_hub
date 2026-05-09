@@ -60,7 +60,7 @@
     * Devuelve la respuesta entre las etiquetas [Start of Answer] y [End of Answer].
 
     [Start of Context]
-    {{document}}
+    {{summarized_document}}
     [End of Context]
     [Start of Response]
     {{response}}

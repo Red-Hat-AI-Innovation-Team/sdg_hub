@@ -143,12 +143,12 @@ blocks:
   - block_type: RenameColumnsBlock
     block_config:
       block_name: rename_to_document_column
-      input_cols: {summary: document}
+      input_cols: {summary: summarized_document}
 
   - block_type: PromptBuilderBlock
     block_config:
       block_name: knowledge_generation_prompt
-      input_cols: [domain, document, document_outline, icl_document, icl_query_1, icl_response_1, icl_query_2, icl_response_2, icl_query_3, icl_response_3]
+      input_cols: [domain, summarized_document, document_outline, icl_document, icl_query_1, icl_response_1, icl_query_2, icl_response_2, icl_query_3, icl_response_3]
       output_cols: knowledge_generation_prompt
       prompt_config_path: prompts/generate_questions_responses_ja.yaml
 
@@ -178,7 +178,7 @@ blocks:
   - block_type: PromptBuilderBlock
     block_config:
       block_name: eval_faithful_prompt
-      input_cols: [document, response]
+      input_cols: [summarized_document, response]
       output_cols: eval_faithful_prompt
       prompt_config_path: prompts/evaluate_faithfulness_ja.yaml
       format_as_messages: true

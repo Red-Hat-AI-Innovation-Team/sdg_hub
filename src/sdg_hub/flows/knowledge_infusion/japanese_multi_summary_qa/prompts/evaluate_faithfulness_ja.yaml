@@ -58,7 +58,7 @@
     * Return the answer between [Start of Answer] and [End of Answer] tags.
 
     [Start of Context]
-    {{document}}
+    {{summarized_document}}
     [End of Context]
     [Start of Response]
     {{response}}

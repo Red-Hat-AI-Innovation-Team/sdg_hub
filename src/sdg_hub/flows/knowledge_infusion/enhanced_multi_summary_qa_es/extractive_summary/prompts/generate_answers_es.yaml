@@ -12,7 +12,7 @@
 
     Documento:
     {{document_outline}}
-    {{document}}
+    {{summarized_document}}
 
     Pregunta:
     {{question}}
