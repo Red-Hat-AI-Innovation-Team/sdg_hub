@@ -1,0 +1,66 @@
+name: Auto-merge agent PRs
+
+on:
+  pull_request_review:
+    types: [submitted]
+  check_suite:
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: >-
+      github.event.pull_request.user.login == 'claude-code-action[bot]' ||
+      github.event.pull_request.user.login == 'cursor-code-review[bot]' ||
+      contains(github.event.pull_request.labels.*.name, 'agent-pr')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@8d3c670f3fd2ce406b07e9f3e12e7ca9a8d64e09
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac47a3abe7cb2fca11b2ec9a8fb4ba1d4b42
+
+      - name: Check merge conditions
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # Skip if from a fork (external contribution)
+          IS_FORK=$(gh pr view "$PR_NUMBER" --json isCrossRepository --jq '.isCrossRepository')
+          if [ "$IS_FORK" = "true" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Skipping: PR is from a fork (external contribution)"
+            exit 0
+          fi
+
+          # Skip if needs-human-review label
+          LABELS=$(gh pr view "$PR_NUMBER" --json labels --jq '.labels[].name')
+          if echo "$LABELS" | grep -q "needs-human-review"; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Skipping: PR has needs-human-review label"
+            exit 0
+          fi
+
+          # Check all CI checks pass
+          CHECKS=$(gh pr checks "$PR_NUMBER" --json state --jq '[.[] | select(.state != "SUCCESS" and .state != "SKIPPED")] | length')
+          if [ "$CHECKS" != "0" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Skipping: Not all checks pass ($CHECKS failing)"
+            exit 0
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Auto-merge
+        if: steps.check.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr review "$PR_NUMBER" --approve --body "Auto-approved: agent PR with all checks passing."
+          gh pr merge "$PR_NUMBER" --auto --squash
