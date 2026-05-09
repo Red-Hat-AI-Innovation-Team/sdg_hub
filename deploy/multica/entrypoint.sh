@@ -3,6 +3,18 @@ set -e
 
 export HOME=/home/default
 
+mkdir -p /home/default/.claude
+cat > /home/default/.claude/mcp.json << 'MCPEOF'
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest", "--headless"]
+    }
+  }
+}
+MCPEOF
+
 multica config set server_url "${MULTICA_SERVER_URL:-http://multica-backend:8080}"
 multica config set app_url "${MULTICA_APP_URL:-http://localhost:3000}"
 
