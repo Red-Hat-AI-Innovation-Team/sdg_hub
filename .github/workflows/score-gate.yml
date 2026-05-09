@@ -48,7 +48,7 @@ jobs:
           enable-cache: true
 
       - name: "Install dependencies (PR branch)"
-        run: uv pip install .[dev]
+        run: uv sync --extra dev
 
       - name: "Score PR branch"
         run: uv run python eval/score.py --json > after_score.json
@@ -61,7 +61,7 @@ jobs:
           clean: false
 
       - name: "Install dependencies (main branch)"
-        run: uv pip install .[dev]
+        run: uv sync --extra dev
 
       - name: "Score main branch"
         run: |
