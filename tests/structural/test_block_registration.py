@@ -40,6 +40,10 @@ def test_all_concrete_blocks_are_registered() -> None:
     _import_all_block_modules()
 
     concrete_classes = _collect_concrete_subclasses(BaseBlock)
+    # Exclude test-only mock/dummy blocks defined outside src/
+    concrete_classes = {
+        cls for cls in concrete_classes if cls.__module__.startswith("sdg_hub")
+    }
     registered_classes = {
         BlockRegistry._metadata[name].block_class
         for name in BlockRegistry.list_blocks()
