@@ -1,0 +1,118 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: Score Gate
+
+on:
+  pull_request:
+    branches:
+      - "main"
+    types:
+      - opened
+      - synchronize
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LC_ALL: en_US.UTF-8
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  score-gate:
+    name: "Quality Score Gate"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Harden Runner"
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      # ── Score the PR branch ──────────────────────────────────────
+      - name: "Checkout PR branch"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: "Setup uv"
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.11"
+          enable-cache: true
+
+      - name: "Install dependencies (PR branch)"
+        run: uv pip install .[dev]
+
+      - name: "Score PR branch"
+        run: uv run python eval/score.py --json > after_score.json
+
+      # ── Score the base branch ────────────────────────────────────
+      - name: "Checkout main branch"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: main
+          clean: false
+
+      - name: "Install dependencies (main branch)"
+        run: uv pip install .[dev]
+
+      - name: "Score main branch"
+        run: uv run python eval/score.py --json > before_score.json
+
+      # ── Compare and report ───────────────────────────────────────
+      - name: "Checkout PR branch (for compare script)"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          clean: false
+
+      - name: "Compare scores"
+        id: compare
+        run: |
+          set +e
+          REPORT=$(uv run python eval/compare_scores.py before_score.json after_score.json)
+          EXIT_CODE=$?
+          set -e
+
+          echo "exit_code=${EXIT_CODE}" >> "$GITHUB_OUTPUT"
+
+          # Write report to file for the comment step
+          echo "$REPORT" > score_report.md
+
+          # Also print to the log
+          echo "$REPORT"
+
+      - name: "Post PR comment"
+        if: always() && steps.compare.outcome != 'skipped'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Delete any previous score-gate comment to avoid clutter
+          COMMENT_ID=$(gh api \
+            "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq '.[] | select(.body | startswith("## Quality Score Gate")) | .id' \
+            2>/dev/null | head -1)
+
+          if [ -n "$COMMENT_ID" ]; then
+            gh api \
+              --method DELETE \
+              "repos/${{ github.repository }}/issues/comments/${COMMENT_ID}" \
+              2>/dev/null || true
+          fi
+
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --body-file score_report.md
+
+      - name: "Enforce gate"
+        if: always() && steps.compare.outcome != 'skipped'
+        run: |
+          if [ "${{ steps.compare.outputs.exit_code }}" != "0" ]; then
+            echo "::error::Quality score gate failed. See the PR comment for details."
+            exit 1
+          fi
