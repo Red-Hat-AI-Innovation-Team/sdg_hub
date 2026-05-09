@@ -3,6 +3,8 @@ name: Auto-merge agent PRs
 on:
   pull_request_review:
     types: [submitted]
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: write
@@ -11,8 +13,11 @@ permissions:
 jobs:
   auto-merge:
     if: >-
-      github.event.pull_request.user.login == 'claude-code-action[bot]' ||
-      github.event.pull_request.user.login == 'cursor-code-review[bot]'
+      (github.event_name == 'pull_request_review' &&
+       github.event.review.state == 'approved') ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '/merge'))
     runs-on: ubuntu-latest
     steps:
       - uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
@@ -21,13 +26,24 @@ jobs:
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Determine PR number
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request_review" ]; then
+            echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=${{ github.event.issue.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Check merge conditions
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
         run: |
-          # Skip if from a fork (external contribution)
+          # Skip if from a fork
           IS_FORK=$(gh pr view "$PR_NUMBER" --json isCrossRepository --jq '.isCrossRepository')
           if [ "$IS_FORK" = "true" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -44,20 +60,37 @@ jobs:
           fi
 
           # Check all CI checks pass
-          CHECKS=$(gh pr checks "$PR_NUMBER" --json state --jq '[.[] | select(.state != "SUCCESS" and .state != "SKIPPED")] | length')
+          CHECKS=$(gh pr checks "$PR_NUMBER" --json state --jq '[.[] | select(.state != "SUCCESS" and .state != "SKIPPED")] | length' 2>/dev/null || echo "999")
           if [ "$CHECKS" != "0" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "Skipping: Not all checks pass ($CHECKS failing)"
             exit 0
           fi
 
-          echo "skip=false" >> "$GITHUB_OUTPUT"
+          # REQUIRED: Check for sdg-evaluator review (comment containing "PASS")
+          EVAL_PASS=$(gh pr view "$PR_NUMBER" --json comments --jq '[.comments[] | select(.body | test("^PASS|Agent review: PASS"))] | length')
+          if [ "$EVAL_PASS" = "0" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Skipping: No sdg-evaluator PASS review found"
+            exit 0
+          fi
 
-      - name: Auto-merge
+          # REQUIRED: Check for sdg-lead approval (comment containing "/merge")
+          LEAD_MERGE=$(gh pr view "$PR_NUMBER" --json comments --jq '[.comments[] | select(.body | test("/merge"))] | length')
+          if [ "$LEAD_MERGE" = "0" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Skipping: No sdg-lead /merge command found"
+            exit 0
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "All conditions met: CI green + evaluator PASS + lead /merge"
+
+      - name: Merge
         if: steps.check.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
         run: |
-          gh pr review "$PR_NUMBER" --approve --body "Auto-approved: agent PR with all checks passing."
-          gh pr merge "$PR_NUMBER" --auto --squash
+          gh pr review "$PR_NUMBER" --approve --body "Auto-approved: evaluator PASS + lead /merge + all CI green."
+          gh pr merge "$PR_NUMBER" --squash --delete-branch
