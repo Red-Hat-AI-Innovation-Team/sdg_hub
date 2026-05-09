@@ -1,0 +1,20 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [".claude/hooks/track-read.sh"]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [".claude/hooks/verify-gate.sh"]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [".claude/hooks/commit-on-stop.sh"]
+      }
+    ]
+  }
+}

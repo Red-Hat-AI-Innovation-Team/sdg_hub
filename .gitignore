@@ -183,3 +183,4 @@ website/.next/
 website/out/
 .playwright-mcp/
 .claude/settings.local.json
+.claude/.evidence-reads
