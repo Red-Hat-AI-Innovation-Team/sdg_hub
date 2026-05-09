@@ -9,6 +9,81 @@ Generate synthetic data using composable blocks and flows. Blocks are processing
 
 Core concept: `dataset -> Block_1 -> Block_2 -> Block_3 -> enriched_dataset`
 
+## Guided Onboarding
+
+When a user starts a session describing what data they need (e.g. "I want to generate QA pairs from my documents"), follow this interactive workflow:
+
+### Step 1: Understand the user's goal
+
+Ask clarifying questions to determine:
+- **Data type:** What kind of synthetic data? (QA pairs, summaries, red-team prompts, evaluation datasets, tool-use traces)
+- **Source data:** Where is their input data? (local files, HuggingFace dataset, manual input)
+- **Output format:** How should results be saved? (Parquet, CSV, JSONL, HuggingFace Hub)
+- **LLM provider:** Which model provider do they want to use? (OpenAI, Anthropic, local vLLM/Ollama, etc.)
+
+### Step 2: Detect data sources
+
+Scan the user's working directory for common data formats:
+```bash
+# Look for potential input data
+find . -maxdepth 3 -type f \( -name "*.csv" -o -name "*.parquet" -o -name "*.json" -o -name "*.jsonl" -o -name "*.txt" -o -name "*.pdf" -o -name "*.md" \) 2>/dev/null | head -20
+```
+
+Report what you find and suggest which files could serve as input data.
+
+### Step 3: Match to a flow
+
+Based on the user's goal, recommend the best approach:
+
+| User wants... | Recommended flow |
+|---------------|-----------------|
+| QA pairs from documents | `enhanced_multi_summary_qa` (knowledge_infusion) |
+| Text analysis / insights | `structured_insights` (text_analysis) |
+| Red-team / adversarial prompts | `prompt_generation` (red_team) |
+| RAG evaluation dataset | `rag_evaluation` (evaluation) |
+| MCP tool-use training data | `mcp_distillation` (agentic) |
+| Japanese QA pairs | `japanese_multi_summary_qa` (knowledge_infusion) |
+| Spanish QA pairs | `enhanced_multi_summary_qa_es` (knowledge_infusion) |
+| Something custom | Guide them through custom YAML flow creation |
+
+### Step 4: Configure and validate
+
+1. Check for API keys in environment variables (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.)
+2. Help set up model configuration
+3. Load and validate the dataset against flow requirements
+4. Run `dry_run()` with 2 samples first
+
+### Step 5: Generate and save
+
+1. Run `flow.generate()` with checkpointing enabled for large datasets
+2. Save output in the user's preferred format
+3. Show a summary of results (row count, columns, sample outputs)
+
+### Example conversation
+
+```
+User: "I have product descriptions in a CSV and want to generate customer FAQ pairs"
+
+Claude should:
+  1. Check if the CSV exists, read it, inspect column names
+  2. Recommend the enhanced_multi_summary_qa flow (doc_direct_qa variant)
+  3. Check for OPENAI_API_KEY or ask which provider to use
+  4. Create a small test with dry_run(sample_size=2)
+  5. Run full generation with checkpointing
+  6. Save output as Parquet and show sample results
+```
+
+```
+User: "Create a red-team evaluation dataset for my chatbot"
+
+Claude should:
+  1. Ask about target harm categories and scale needed
+  2. Recommend the prompt_generation flow from red_team
+  3. Configure model (suggest a capable model for nuanced generation)
+  4. Dry run first, then full generation
+  5. Save and summarize the adversarial prompts generated
+```
+
 ## Choose Your Approach
 
 | Approach | When to Use |
