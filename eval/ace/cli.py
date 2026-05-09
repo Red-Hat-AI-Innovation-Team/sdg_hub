@@ -29,40 +29,36 @@ from eval.ace.playbook import (
 def cmd_show(args: argparse.Namespace) -> None:
     entries = load_playbook(args.role)
     if not entries:
-        print(f"No playbook found for role '{args.role}'.")  # noqa: T201
+        print(f"No playbook found for role '{args.role}'.")
         return
-    print(format_for_prompt(args.role))  # noqa: T201
+    print(format_for_prompt(args.role))
 
 
 def cmd_add(args: argparse.Namespace) -> None:
     entry = add_entry(args.role, args.category, args.rule)
-    print(f"Added [{entry.id}] to {args.role} playbook: {entry.rule}")  # noqa: T201
+    print(f"Added [{entry.id}] to {args.role} playbook: {entry.rule}")
 
 
 def cmd_record(args: argparse.Namespace) -> None:
     try:
         record_outcome(args.role, args.id, args.outcome)
-        print(  # noqa: T201
-            f"Recorded '{args.outcome}' for [{args.id}] in {args.role} playbook."
-        )
+        print(f"Recorded '{args.outcome}' for [{args.id}] in {args.role} playbook.")
     except KeyError as exc:
-        print(f"Error: {exc}", file=sys.stderr)  # noqa: T201
+        print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
 
 
 def cmd_curate(args: argparse.Namespace) -> None:
     curated = curate(args.role)
-    print(  # noqa: T201
-        f"Curated {args.role} playbook: {len(curated)} entries remaining."
-    )
+    print(f"Curated {args.role} playbook: {len(curated)} entries remaining.")
 
 
 def cmd_init(_args: argparse.Namespace) -> None:
     created = init_playbooks()
     if created:
-        print(f"Created starter playbooks for: {', '.join(created)}")  # noqa: T201
+        print(f"Created starter playbooks for: {', '.join(created)}")
     else:
-        print("All playbooks already exist, nothing created.")  # noqa: T201
+        print("All playbooks already exist, nothing created.")
 
 
 def main() -> None:

@@ -51,7 +51,7 @@ def _get_current_diff() -> str:
     """Get the diff of the current branch against main."""
     result = _run(["git", "diff", "main...HEAD"])
     if result.returncode != 0:
-        print(f"Error getting diff: {result.stderr.strip()}", file=sys.stderr)  # noqa: T201
+        print(f"Error getting diff: {result.stderr.strip()}", file=sys.stderr)
         sys.exit(1)
     return result.stdout
 
@@ -79,12 +79,12 @@ def cmd_check() -> int:
     """Check the current PR diff against all recorded reverted diffs."""
     new_diff = _get_current_diff()
     if not new_diff.strip():
-        print("No diff found between current branch and main.")  # noqa: T201
+        print("No diff found between current branch and main.")
         return 0
 
     reverted_diffs = _load_reverted_diffs()
     if not reverted_diffs:
-        print("No reverted diffs recorded. Nothing to compare against.")  # noqa: T201
+        print("No reverted diffs recorded. Nothing to compare against.")
         return 0
 
     blocked = False
@@ -102,7 +102,7 @@ def cmd_check() -> int:
             if title:
                 label += f" ({title})"
 
-            print(  # noqa: T201
+            print(
                 f"BLOCKED: Current diff is {ratio:.0%} similar to "
                 f"reverted {label}. Threshold is "
                 f"{SIMILARITY_THRESHOLD:.0%}.",
@@ -113,7 +113,7 @@ def cmd_check() -> int:
     if blocked:
         return 1
 
-    print("No anti-pattern matches found. OK to proceed.")  # noqa: T201
+    print("No anti-pattern matches found. OK to proceed.")
     return 0
 
 
@@ -124,7 +124,7 @@ def cmd_record(pr_number: str) -> int:
     # Fetch the diff
     result = _run(["gh", "pr", "diff", pr_number])
     if result.returncode != 0:
-        print(  # noqa: T201
+        print(
             f"Error fetching diff for PR #{pr_number}: {result.stderr.strip()}",
             file=sys.stderr,
         )
@@ -132,7 +132,7 @@ def cmd_record(pr_number: str) -> int:
 
     diff_content = result.stdout
     if not diff_content.strip():
-        print(f"PR #{pr_number} has an empty diff.", file=sys.stderr)  # noqa: T201
+        print(f"PR #{pr_number} has an empty diff.", file=sys.stderr)
         return 1
 
     # Save the diff
@@ -154,8 +154,8 @@ def cmd_record(pr_number: str) -> int:
     meta_path = REVERTED_DIFFS_DIR / f"{pr_number}.json"
     meta_path.write_text(json.dumps(meta, indent=2) + "\n")
 
-    print(f"Recorded PR #{pr_number} diff to {diff_path.relative_to(ROOT)}")  # noqa: T201
-    print(f"Recorded PR #{pr_number} metadata to {meta_path.relative_to(ROOT)}")  # noqa: T201
+    print(f"Recorded PR #{pr_number} diff to {diff_path.relative_to(ROOT)}")
+    print(f"Recorded PR #{pr_number} metadata to {meta_path.relative_to(ROOT)}")
     return 0
 
 
@@ -163,10 +163,10 @@ def cmd_list() -> int:
     """List all recorded reverted PR patterns."""
     reverted_diffs = _load_reverted_diffs()
     if not reverted_diffs:
-        print("No reverted diffs recorded.")  # noqa: T201
+        print("No reverted diffs recorded.")
         return 0
 
-    print(f"Recorded reverted patterns ({len(reverted_diffs)}):\n")  # noqa: T201
+    print(f"Recorded reverted patterns ({len(reverted_diffs)}):\n")
     for pr_number in reverted_diffs:
         meta_file = REVERTED_DIFFS_DIR / f"{pr_number}.json"
         title = ""
@@ -181,8 +181,7 @@ def cmd_list() -> int:
             line += f" - {title}"
         if recorded_at:
             line += f" (recorded: {recorded_at})"
-        print(line)  # noqa: T201
-
+        print(line)
     return 0
 
 

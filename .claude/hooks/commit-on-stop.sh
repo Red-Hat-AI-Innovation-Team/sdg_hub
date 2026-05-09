@@ -6,5 +6,5 @@ if git diff --quiet HEAD 2>/dev/null; then
 fi
 
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-git add -A
-git commit -m "session checkpoint: $TIMESTAMP" --no-verify 2>/dev/null || true
+git add -u
+git commit -m "chore: session checkpoint $TIMESTAMP" 2>&1 || echo "WARNING: checkpoint commit failed" >&2

@@ -31,8 +31,20 @@ def _run(cmd: list[str], cwd: Path = ROOT) -> bool:
             capture_output=True,
             timeout=300,
         )
+        if result.returncode != 0 and result.stderr:
+            print(
+                f"  {' '.join(str(c) for c in cmd)}: exit {result.returncode}",
+                file=sys.stderr,
+            )
         return result.returncode == 0
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+    except subprocess.TimeoutExpired:
+        print(
+            f"  WARNING: {' '.join(str(c) for c in cmd)} timed out after 300s",
+            file=sys.stderr,
+        )
+        return False
+    except FileNotFoundError:
+        print(f"  WARNING: command not found: {cmd[0]}", file=sys.stderr)
         return False
 
 
@@ -140,7 +152,8 @@ def check_registry_count() -> float:
         parts = result.stdout.strip().split(",")
         b, f, c = int(parts[0]), int(parts[1]), int(parts[2])
         return 1.0 if b >= 1 and f >= 1 and c >= 1 else 0.0
-    except Exception:
+    except Exception as exc:
+        print(f"  WARNING: registry_count check failed: {exc}", file=sys.stderr)
         return 0.0
 
 
@@ -294,23 +307,23 @@ def evaluate() -> dict:
 
 def print_human(results: dict) -> None:
     """Print human-readable results."""
-    print("=" * 60)  # noqa: T201
-    print("  SDG Hub -- Three-Tier Composite Score")  # noqa: T201
-    print("=" * 60)  # noqa: T201
+    print("=" * 60)
+    print("  SDG Hub -- Three-Tier Composite Score")
+    print("=" * 60)
 
     for tier_name, tier_data in results["tiers"].items():
         w = tier_data["weight"]
         s = tier_data["score"]
-        print(f"\n  {tier_name.upper()} (weight: {w:.0%}): {s:.2%}")  # noqa: T201
+        print(f"\n  {tier_name.upper()} (weight: {w:.0%}): {s:.2%}")
         for check_name, check_data in tier_data["checks"].items():
             cw = check_data["weight"]
             cs = check_data["score"]
             status = "PASS" if cs >= 1.0 else "FAIL"
-            print(f"    [{status}] {check_name} (weight: {cw:.0%})")  # noqa: T201
+            print(f"    [{status}] {check_name} (weight: {cw:.0%})")
 
-    print("\n" + "-" * 60)  # noqa: T201
-    print(f"  COMPOSITE SCORE: {results['score']:.4f}")  # noqa: T201
-    print("=" * 60)  # noqa: T201
+    print("\n" + "-" * 60)
+    print(f"  COMPOSITE SCORE: {results['score']:.4f}")
+    print("=" * 60)
 
 
 def main() -> None:
@@ -321,7 +334,7 @@ def main() -> None:
     results = evaluate()
 
     if args.json:
-        print(json.dumps(results, indent=2))  # noqa: T201
+        print(json.dumps(results, indent=2))
     else:
         print_human(results)
 

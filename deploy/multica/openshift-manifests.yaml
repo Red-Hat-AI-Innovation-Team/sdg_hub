@@ -7,6 +7,7 @@ metadata:
     app.kubernetes.io/name: sdg-hub-agents
 
 ---
+# WARNING: Replace ALL placeholder values before deploying. See deploy/multica/README.md
 apiVersion: v1
 kind: Secret
 metadata:
@@ -185,9 +186,7 @@ spec:
             - name: ALLOW_SIGNUP
               value: "true"
             - name: APP_ENV
-              value: "development"
-            - name: MULTICA_DEV_VERIFICATION_CODE
-              value: "888888"
+              value: "production"
           volumeMounts:
             - name: uploads
               mountPath: /app/data/uploads

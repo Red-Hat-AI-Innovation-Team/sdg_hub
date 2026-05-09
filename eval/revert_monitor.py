@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import argparse
 import json
+import re
 import subprocess
 import sys
 
@@ -44,9 +45,17 @@ def _gh(args: list[str]) -> str:
             timeout=60,
         )
         if result.returncode != 0:
+            print(
+                f"WARNING: gh {' '.join(args)} failed (exit {result.returncode})",
+                file=sys.stderr,
+            )
             return ""
         return result.stdout.strip()
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+    except FileNotFoundError:
+        print("ERROR: 'gh' CLI not found", file=sys.stderr)
+        return ""
+    except subprocess.TimeoutExpired:
+        print(f"WARNING: gh {' '.join(args)} timed out", file=sys.stderr)
         return ""
 
 
@@ -70,7 +79,8 @@ def fetch_merged_prs() -> list[dict]:
         return []
     try:
         return json.loads(raw)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        print(f"WARNING: Failed to parse gh output: {exc}", file=sys.stderr)
         return []
 
 
@@ -94,7 +104,8 @@ def fetch_reverted_prs() -> list[dict]:
         return []
     try:
         return json.loads(raw)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        print(f"WARNING: Failed to parse gh output: {exc}", file=sys.stderr)
         return []
 
 
@@ -111,14 +122,11 @@ def classify_by_agent(
         stats[agent] = {"merged": 0, "reverted": 0}
 
     reverted_numbers: set[int] = set()
+    pr_ref_pattern = re.compile(r"#(\d+)")
     for pr in reverted_prs:
         title = pr.get("title", "")
-        # Extract PR number from typical revert titles like
-        # 'Revert "feat: ..." (#42)' or 'Revert #42'
-        for token in title.replace("#", "# ").split():
-            token = token.strip("()#,")
-            if token.isdigit():
-                reverted_numbers.add(int(token))
+        for m in pr_ref_pattern.finditer(title):
+            reverted_numbers.add(int(m.group(1)))
 
     for pr in merged_prs:
         author_login = ""
@@ -185,9 +193,8 @@ def save_report(report: dict) -> None:
 
 def print_human(rates: dict[str, dict], threshold: float) -> None:
     """Print human-readable revert rate table."""
-    print("Agent Revert Rate Report")  # noqa: T201
-    print("=" * 40)  # noqa: T201
-
+    print("Agent Revert Rate Report")
+    print("=" * 40)
     for agent in sorted(rates):
         data = rates[agent]
         merged = data["merged"]
@@ -206,9 +213,8 @@ def print_human(rates: dict[str, dict], threshold: float) -> None:
                 f"{reverted} reverted "
                 f"({pct:.1f}%) {status}"
             )
-        print(f"  {line}")  # noqa: T201
-
-    print()  # noqa: T201
+        print(f"  {line}")
+    print()
 
 
 def main() -> None:
@@ -232,11 +238,10 @@ def main() -> None:
     save_report(report)
 
     if args.json:
-        print(json.dumps(report, indent=2))  # noqa: T201
+        print(json.dumps(report, indent=2))
     else:
         print_human(rates, args.threshold)
-        print(f"  Report saved to {REPORT_PATH.relative_to(ROOT)}")  # noqa: T201
-
+        print(f"  Report saved to {REPORT_PATH.relative_to(ROOT)}")
     # Check for any agent exceeding threshold and exit accordingly.
     exceeded = [
         agent
@@ -245,14 +250,14 @@ def main() -> None:
     ]
 
     if exceeded:
-        print()  # noqa: T201
+        print()
         for agent in exceeded:
             pct = rates[agent]["rate"] * 100
-            print(  # noqa: T201
+            print(
                 f"  WARNING: {agent} revert rate {pct:.1f}% "
                 f"exceeds {args.threshold:.0%} threshold."
             )
-            print(  # noqa: T201
+            print(
                 f"  Suggestion: add 'needs-human-review' label to {agent}'s future PRs."
             )
         sys.exit(1)
