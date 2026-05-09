@@ -1,8 +1,8 @@
-FROM node:22-bookworm-slim
+FROM registry.redhat.io/ubi9/nodejs-22:latest
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl git ca-certificates openssh-client python3 python3-pip python3-venv \
-    && rm -rf /var/lib/apt/lists/*
+USER root
+
+RUN dnf install -y git openssh-clients python3 python3-pip && dnf clean all
 
 RUN npm install -g @anthropic-ai/claude-code@latest
 
