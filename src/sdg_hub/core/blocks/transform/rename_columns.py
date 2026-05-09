@@ -66,6 +66,9 @@ class RenameColumnsBlock(BaseBlock):
         if not self.output_cols:
             self.output_cols = list(input_cols_dict.values())
 
+    def _validate_output_columns(self, df: pd.DataFrame) -> None:
+        """Skip base collision check — RenameColumnsBlock handles this in generate()."""
+
     def generate(self, samples: pd.DataFrame, **kwargs: Any) -> pd.DataFrame:
         """Generate a dataset with renamed columns.
 
@@ -97,12 +100,13 @@ class RenameColumnsBlock(BaseBlock):
                 f"Original column names {sorted(missing_cols)} not in the dataset"
             )
 
-        # Check for column name collisions
-        # Strict validation: no target column name can be an existing column name
-        # This prevents chained/circular renames which can be confusing
+        # Check for column name collisions — target names must not already
+        # exist in the dataset UNLESS the existing column is itself being
+        # renamed away in the same block (pandas rename is atomic).
         target_cols = set(input_cols_dict.values())
+        source_cols = set(input_cols_dict.keys())
 
-        collision = target_cols & existing_cols
+        collision = target_cols & (existing_cols - source_cols)
         if collision:
             raise ValueError(
                 f"Cannot rename to existing column names: {sorted(collision)}. "

@@ -7,10 +7,12 @@ import pandas as pd
 import pytest
 
 from sdg_hub.core.blocks.transform.duplicate_columns import DuplicateColumnsBlock
+from sdg_hub.core.blocks.transform.rename_columns import RenameColumnsBlock
 from sdg_hub.core.blocks.transform.text_concat import TextConcatBlock
 from sdg_hub.core.flow.base import Flow
 from sdg_hub.core.flow.column_tracker import ColumnDependencyTracker
 from sdg_hub.core.flow.metadata import FlowMetadata
+from sdg_hub.core.utils.error_handling import FlowValidationError
 
 
 class TestFlowMetadataColumnCleanup:
@@ -299,7 +301,7 @@ class TestFlowColumnCleanup:
         )
 
         dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
-        with pytest.raises(FlowValidationError, match="output_columns not found"):
+        with pytest.raises(FlowValidationError, match="Unreachable output_columns"):
             flow.generate(dataset)
 
     def test_flow_early_drop_verified_mid_execution(self):
@@ -437,3 +439,137 @@ class TestCheckpointColumnCleanup:
         assert "b" in result.columns
         assert "output" in result.columns
         assert "intermediate" not in result.columns
+
+
+class TestColumnLifecycleValidation:
+    """Tests for runtime _validate_column_lifecycle fast-fail."""
+
+    def test_generate_rejects_unreachable_output_columns(self):
+        """flow.generate() raises before execution if output_columns are unreachable."""
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["nonexistent"],
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat",
+                    input_cols=["a", "b"],
+                    output_cols="ab",
+                ),
+            ],
+        )
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        with pytest.raises(FlowValidationError, match="Unreachable output_columns"):
+            flow.generate(dataset)
+
+    def test_dry_run_rejects_unreachable_output_columns(self):
+        """flow.dry_run() raises before execution if output_columns are unreachable."""
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["nonexistent"],
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat",
+                    input_cols=["a", "b"],
+                    output_cols="ab",
+                ),
+            ],
+        )
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        with pytest.raises(FlowValidationError, match="Unreachable output_columns"):
+            flow.dry_run(dataset)
+
+    def test_output_columns_typo_shows_did_you_mean(self):
+        """Typos in output_columns produce did-you-mean suggestions."""
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["ab_concated"],
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat",
+                    input_cols=["a", "b"],
+                    output_cols="ab_concatenated",
+                ),
+            ],
+        )
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        with pytest.raises(FlowValidationError, match="Did you mean"):
+            flow.generate(dataset)
+
+    def test_generate_rejects_rename_to_historical_column(self):
+        """flow.generate() raises if RenameColumnsBlock targets a historical column name."""
+        flow = Flow(
+            metadata=FlowMetadata(name="test"),
+            blocks=[
+                RenameColumnsBlock(
+                    block_name="rename1",
+                    input_cols={"a": "x"},
+                ),
+                RenameColumnsBlock(
+                    block_name="rename2",
+                    input_cols={"b": "a"},
+                ),
+            ],
+        )
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        with pytest.raises(FlowValidationError, match="previously existed"):
+            flow.generate(dataset)
+
+    def test_dry_run_rejects_rename_to_historical_column(self):
+        """flow.dry_run() raises if RenameColumnsBlock targets a historical column name."""
+        flow = Flow(
+            metadata=FlowMetadata(name="test"),
+            blocks=[
+                RenameColumnsBlock(
+                    block_name="rename1",
+                    input_cols={"a": "x"},
+                ),
+                RenameColumnsBlock(
+                    block_name="rename2",
+                    input_cols={"b": "a"},
+                ),
+            ],
+        )
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        with pytest.raises(FlowValidationError, match="previously existed"):
+            flow.dry_run(dataset)
+
+    def test_rename_to_fresh_name_succeeds(self):
+        """Renaming to a name that never existed is allowed."""
+        flow = Flow(
+            metadata=FlowMetadata(name="test"),
+            blocks=[
+                RenameColumnsBlock(
+                    block_name="rename",
+                    input_cols={"a": "alpha"},
+                ),
+            ],
+        )
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        result = flow.generate(dataset)
+        assert "alpha" in result.columns
+        assert "a" not in result.columns
+
+    def test_valid_output_columns_pass_lifecycle_check(self):
+        """Reachable output_columns pass validation and flow completes normally."""
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["ab"],
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat",
+                    input_cols=["a", "b"],
+                    output_cols="ab",
+                ),
+            ],
+        )
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        result = flow.generate(dataset)
+        assert "ab" in result.columns

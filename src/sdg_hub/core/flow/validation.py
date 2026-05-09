@@ -3,6 +3,7 @@
 
 # Standard
 from typing import TYPE_CHECKING, Any
+import difflib
 
 # Third Party
 import pandas as pd
@@ -67,6 +68,15 @@ class FlowValidator:
                         metadata=metadata,
                     )
                     errors.extend(oc_errors)
+
+            # Validate rename history: block renaming to a previously-existing
+            # column name that is no longer available
+            if isinstance(metadata, dict):
+                rh_errors = self._validate_rename_history(
+                    flow_config.get("blocks", []),
+                    metadata,
+                )
+                errors.extend(rh_errors)
 
         # Validate parameters if present
         if "parameters" in flow_config:
@@ -333,13 +343,105 @@ class FlowValidator:
 
         missing = [col for col in output_columns if col not in available_columns]
         if missing:
-            return [
-                f"Declared output_columns {missing} cannot be traced to any "
-                f"block output or dataset requirement. "
-                f"Available columns: {sorted(available_columns)}"
-            ]
+            errors: list[str] = []
+            for col in missing:
+                suggestions = difflib.get_close_matches(
+                    col, sorted(available_columns), n=3, cutoff=0.6
+                )
+                msg = (
+                    f"Declared output_column '{col}' cannot be traced to any "
+                    f"block output or dataset requirement."
+                )
+                if suggestions:
+                    msg += f" Did you mean: {suggestions}?"
+                errors.append(msg)
+            errors.append(f"Available columns: {sorted(available_columns)}")
+            return errors
 
         return []
+
+    def _validate_rename_history(
+        self,
+        block_configs: list[dict[str, Any]],
+        metadata: dict[str, Any],
+    ) -> list[str]:
+        """Validate that RenameColumnsBlock does not rename to a previously-existing name.
+
+        Tracks all column names ever seen through the block chain. If a rename
+        target matches a name that existed earlier but is no longer available,
+        this is likely a bug (the author intended to reference the original
+        column but it was already renamed/dropped).
+
+        Parameters
+        ----------
+        block_configs : list[dict[str, Any]]
+            Raw block configurations from YAML.
+        metadata : dict[str, Any]
+            Full metadata dict, used to read dataset_requirements.
+
+        Returns
+        -------
+        list[str]
+            Validation error messages.
+        """
+        available_columns: set[str] = set()
+        column_history: set[str] = set()
+
+        dataset_req = metadata.get("dataset_requirements", {})
+        if isinstance(dataset_req, dict):
+            for key in ("required_columns", "optional_columns"):
+                cols = dataset_req.get(key, [])
+                if isinstance(cols, list):
+                    for c in cols:
+                        if isinstance(c, str):
+                            available_columns.add(c)
+                            column_history.add(c)
+
+        errors: list[str] = []
+
+        for block_config in block_configs:
+            if not isinstance(block_config, dict):
+                continue
+
+            block_type = block_config.get("block_type", "")
+            config = block_config.get("block_config", {})
+            if not isinstance(config, dict):
+                continue
+
+            block_name = config.get("block_name", f"<unnamed {block_type}>")
+
+            if block_type == "RenameColumnsBlock":
+                input_cols = config.get("input_cols")
+                if isinstance(input_cols, dict):
+                    # Check all targets atomically against current state
+                    # (pandas rename applies all mappings simultaneously)
+                    for old_name, new_name in input_cols.items():
+                        if (
+                            isinstance(new_name, str)
+                            and new_name in column_history
+                            and new_name not in available_columns
+                        ):
+                            errors.append(
+                                f"Block '{block_name}' renames '{old_name}' to "
+                                f"'{new_name}', but '{new_name}' previously existed "
+                                f"and was renamed or dropped. This is likely a bug. "
+                                f"Available columns: {sorted(available_columns)}"
+                            )
+                    # Update state after all checks
+                    for old_name, new_name in input_cols.items():
+                        column_history.add(old_name)
+                        available_columns.discard(old_name)
+                        if isinstance(new_name, str):
+                            available_columns.add(new_name)
+                            column_history.add(new_name)
+            else:
+                output_cols = config.get("output_cols")
+                if output_cols:
+                    new_cols = self._extract_column_names(output_cols)
+                    available_columns.update(new_cols)
+                    column_history.update(new_cols)
+
+        return errors
 
     def validate_block_chain(self, blocks: list[Any]) -> list[str]:
         """Validate that blocks can be chained together.

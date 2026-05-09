@@ -4,6 +4,7 @@
 # Standard
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
+import difflib
 import logging
 import time
 import uuid
@@ -54,6 +55,87 @@ def _validate_max_concurrency(max_concurrency: Optional[int]) -> None:
         if max_concurrency <= 0:
             raise FlowValidationError(
                 f"max_concurrency must be greater than 0, got {max_concurrency}"
+            )
+
+
+def _validate_column_lifecycle(flow: "Flow", input_columns: set[str]) -> None:
+    """Validate column rename history and output_columns reachability at runtime.
+
+    Walks the instantiated block chain, tracking all column names ever seen.
+    Raises FlowValidationError if:
+    - A RenameColumnsBlock targets a name that previously existed but was
+      renamed/dropped (rename history violation).
+    - Any declared output_columns cannot be produced by the block chain.
+
+    Parameters
+    ----------
+    flow : Flow
+        The flow instance with instantiated blocks.
+    input_columns : set[str]
+        Column names from the input dataset.
+
+    Raises
+    ------
+    FlowValidationError
+        If rename history violations or unreachable output_columns are detected.
+    """
+    from ..blocks.transform.rename_columns import RenameColumnsBlock
+
+    available_columns = set(input_columns)
+    column_history = set(input_columns)
+
+    for block in flow.blocks:
+        if isinstance(block, RenameColumnsBlock) and isinstance(block.input_cols, dict):
+            # Check all targets atomically against current state
+            # (pandas rename applies all mappings simultaneously)
+            for old_name, new_name in block.input_cols.items():
+                if (
+                    isinstance(new_name, str)
+                    and new_name in column_history
+                    and new_name not in available_columns
+                ):
+                    raise FlowValidationError(
+                        f"Block '{block.block_name}' renames '{old_name}' to "
+                        f"'{new_name}', but '{new_name}' previously existed and "
+                        f"was renamed or dropped. "
+                        f"Available columns: {sorted(available_columns)}"
+                    )
+            # Update state after all checks
+            for old_name, new_name in block.input_cols.items():
+                column_history.add(old_name)
+                available_columns.discard(old_name)
+                if isinstance(new_name, str):
+                    available_columns.add(new_name)
+                    column_history.add(new_name)
+        else:
+            if hasattr(block, "output_cols") and block.output_cols:
+                if isinstance(block.output_cols, list):
+                    available_columns.update(block.output_cols)
+                    column_history.update(block.output_cols)
+                elif isinstance(block.output_cols, str):
+                    available_columns.add(block.output_cols)
+                    column_history.add(block.output_cols)
+                elif isinstance(block.output_cols, dict):
+                    available_columns.update(block.output_cols.keys())
+                    column_history.update(block.output_cols.keys())
+
+    if flow.metadata.output_columns:
+        output_cols_set = set(flow.metadata.output_columns)
+        missing = output_cols_set - available_columns
+        if missing:
+            msgs: list[str] = []
+            for col in sorted(missing):
+                suggestions = difflib.get_close_matches(
+                    col, sorted(available_columns), n=3, cutoff=0.6
+                )
+                msg = f"output_column '{col}' cannot be produced by the block chain."
+                if suggestions:
+                    msg += f" Did you mean: {suggestions}?"
+                msgs.append(msg)
+            raise FlowValidationError(
+                "Unreachable output_columns detected before execution:\n"
+                + "\n".join(msgs)
+                + f"\nAvailable columns: {sorted(available_columns)}"
             )
 
 
@@ -908,6 +990,7 @@ def execute_flow(
     runtime_params = runtime_params or {}
 
     _validate_flow_preconditions(flow, dataset, save_freq, max_concurrency)
+    _validate_column_lifecycle(flow, set(dataset.columns))
 
     flow_logger, timestamp, flow_name = _setup_flow_logger(
         log_dir,
@@ -1188,6 +1271,7 @@ def run_dry_run(
     """
     dataset, _ = convert_to_dataframe(dataset)
     _validate_dry_run_preconditions(flow, dataset, max_concurrency)
+    _validate_column_lifecycle(flow, set(dataset.columns))
 
     actual_sample_size = min(sample_size, len(dataset))
     runtime_params = runtime_params or {}

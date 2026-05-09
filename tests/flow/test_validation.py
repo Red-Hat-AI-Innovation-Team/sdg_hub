@@ -587,3 +587,166 @@ class TestOutputColumnsValidation:
         )
         errors = self.validator.validate_yaml_structure(config)
         assert errors == []
+
+    def test_output_columns_did_you_mean_suggestion(self):
+        """Test that typos in output_columns get did-you-mean suggestions."""
+        config = self._make_flow_config(
+            output_columns=["queston"],
+            blocks=[
+                {
+                    "block_type": "LLMChatBlock",
+                    "block_config": {
+                        "block_name": "gen_question",
+                        "input_cols": "text",
+                        "output_cols": "question",
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert any("Did you mean" in e for e in errors)
+        assert any("question" in e for e in errors)
+
+
+class TestRenameHistoryValidation:
+    """Test static rename history validation in FlowValidator."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.validator = FlowValidator()
+
+    def _make_flow_config(self, blocks, metadata_extra=None):
+        """Build a minimal flow config dict for testing."""
+        metadata = {"name": "Test Flow"}
+        if metadata_extra:
+            metadata.update(metadata_extra)
+        return {"metadata": metadata, "blocks": blocks}
+
+    def test_rename_to_historical_column_errors(self):
+        """Renaming to a column name that previously existed but was renamed away is an error."""
+        config = self._make_flow_config(
+            metadata_extra={
+                "dataset_requirements": {"required_columns": ["document", "text"]},
+            },
+            blocks=[
+                {
+                    "block_type": "RenameColumnsBlock",
+                    "block_config": {
+                        "block_name": "rename_doc",
+                        "input_cols": {"document": "raw_doc"},
+                    },
+                },
+                {
+                    "block_type": "RenameColumnsBlock",
+                    "block_config": {
+                        "block_name": "rename_back",
+                        "input_cols": {"text": "document"},
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert any("previously existed" in e for e in errors)
+        assert any("rename_back" in e for e in errors)
+
+    def test_rename_to_fresh_name_ok(self):
+        """Renaming to a name that never existed before is fine."""
+        config = self._make_flow_config(
+            metadata_extra={
+                "dataset_requirements": {"required_columns": ["document"]},
+            },
+            blocks=[
+                {
+                    "block_type": "RenameColumnsBlock",
+                    "block_config": {
+                        "block_name": "rename_doc",
+                        "input_cols": {"document": "raw_document"},
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert errors == []
+
+    def test_rename_to_still_available_name_ok(self):
+        """Renaming to a name that still exists in available_columns is not flagged.
+
+        The RenameColumnsBlock runtime handles collision detection separately.
+        This validation only catches 'ghost' names that were renamed away.
+        """
+        config = self._make_flow_config(
+            metadata_extra={
+                "dataset_requirements": {"required_columns": ["a", "b"]},
+            },
+            blocks=[
+                {
+                    "block_type": "LLMChatBlock",
+                    "block_config": {
+                        "block_name": "gen",
+                        "input_cols": "a",
+                        "output_cols": "c",
+                    },
+                },
+                {
+                    "block_type": "RenameColumnsBlock",
+                    "block_config": {
+                        "block_name": "rename_to_b",
+                        "input_cols": {"c": "b"},
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        rename_history_errors = [e for e in errors if "previously existed" in e]
+        assert rename_history_errors == []
+
+    def test_no_dataset_requirements_no_history(self):
+        """Without dataset_requirements, no column history is seeded."""
+        config = self._make_flow_config(
+            blocks=[
+                {
+                    "block_type": "LLMChatBlock",
+                    "block_config": {
+                        "block_name": "gen",
+                        "input_cols": "text",
+                        "output_cols": "summary",
+                    },
+                },
+                {
+                    "block_type": "RenameColumnsBlock",
+                    "block_config": {
+                        "block_name": "rename",
+                        "input_cols": {"summary": "result"},
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert errors == []
+
+    def test_rename_chain_with_intermediate_history_error(self):
+        """A chain of renames where a later rename targets an intermediate name."""
+        config = self._make_flow_config(
+            metadata_extra={
+                "dataset_requirements": {"required_columns": ["col_a"]},
+            },
+            blocks=[
+                {
+                    "block_type": "RenameColumnsBlock",
+                    "block_config": {
+                        "block_name": "step1",
+                        "input_cols": {"col_a": "col_b"},
+                    },
+                },
+                {
+                    "block_type": "RenameColumnsBlock",
+                    "block_config": {
+                        "block_name": "step2",
+                        "input_cols": {"col_b": "col_a"},
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert any("previously existed" in e for e in errors)
+        assert any("step2" in e for e in errors)
