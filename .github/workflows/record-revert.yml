@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: Record Reverted PR
+
+on:
+  pull_request:
+    branches:
+      - "main"
+    types:
+      - closed
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+
+env:
+  LC_ALL: en_US.UTF-8
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  record-revert:
+    name: "Record Reverted Agent PR"
+    if: >-
+      github.event.pull_request.merged == false &&
+      contains(github.event.pull_request.labels.*.name, 'agent-pr')
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Harden Runner"
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: "Checkout"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: "Setup uv"
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.11"
+          enable-cache: true
+
+      - name: "Install dependencies"
+        run: uv pip install .[dev]
+
+      - name: "Record reverted diff"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: uv run python eval/anti_pattern.py record "$PR_NUMBER"
