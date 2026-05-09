@@ -16,12 +16,13 @@ RUN LATEST=$(curl -sI https://github.com/multica-ai/multica/releases/latest | gr
     && chmod +x /usr/local/bin/multica \
     && rm -rf /tmp/multica*
 
-RUN useradd -m -s /bin/bash agent
-USER agent
-WORKDIR /home/agent
+RUN mkdir -p /home/default/multica_workspaces /home/default/.claude \
+    && chmod -R g+rwX /home/default
 
-RUN mkdir -p /home/agent/multica_workspaces /home/agent/.claude
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
-COPY --chown=agent:agent entrypoint.sh /home/agent/entrypoint.sh
+USER 1001
+WORKDIR /home/default
 
-ENTRYPOINT ["/home/agent/entrypoint.sh"]
+ENTRYPOINT ["entrypoint.sh"]
