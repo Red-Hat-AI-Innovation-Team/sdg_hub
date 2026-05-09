@@ -29,14 +29,18 @@ jobs:
         run: |
           errors=0
           for file in docs/agent-knowledge/*.md; do
-            grep -oP '\[.*?\]\(\K[^)]+\.md' "$file" 2>/dev/null | while read link; do
+            while IFS= read -r link; do
               dir=$(dirname "$file")
               if [ ! -f "$dir/$link" ] && [ ! -f "$link" ]; then
                 echo "::error file=$file::Broken link: $link"
                 errors=$((errors + 1))
               fi
-            done
+            done < <(grep -oP '\[.*?\]\(\K[^)]+\.md' "$file" 2>/dev/null)
           done
+          if [ "$errors" -gt 0 ]; then
+            echo "Found $errors broken link(s)"
+            exit 1
+          fi
 
       - name: Check index.md lists all knowledge base files
         run: |

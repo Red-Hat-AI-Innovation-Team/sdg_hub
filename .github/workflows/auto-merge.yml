@@ -3,8 +3,6 @@ name: Auto-merge agent PRs
 on:
   pull_request_review:
     types: [submitted]
-  check_suite:
-    types: [completed]
 
 permissions:
   contents: write
@@ -14,15 +12,14 @@ jobs:
   auto-merge:
     if: >-
       github.event.pull_request.user.login == 'claude-code-action[bot]' ||
-      github.event.pull_request.user.login == 'cursor-code-review[bot]' ||
-      contains(github.event.pull_request.labels.*.name, 'agent-pr')
+      github.event.pull_request.user.login == 'cursor-code-review[bot]'
     runs-on: ubuntu-latest
     steps:
-      - uses: step-security/harden-runner@8d3c670f3fd2ce406b07e9f3e12e7ca9a8d64e09
+      - uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac47a3abe7cb2fca11b2ec9a8fb4ba1d4b42
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Check merge conditions
         id: check

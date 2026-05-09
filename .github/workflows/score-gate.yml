@@ -126,8 +126,10 @@ jobs:
 
       - name: "Enforce gate"
         if: always() && steps.compare.outcome != 'skipped'
+        env:
+          EXIT_CODE: ${{ steps.compare.outputs.exit_code }}
         run: |
-          if [ "${{ steps.compare.outputs.exit_code }}" != "0" ]; then
+          if [ "$EXIT_CODE" != "0" ]; then
             echo "::error::Quality score gate failed. See the PR comment for details."
             exit 1
           fi
