@@ -1,0 +1,390 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: multica
+  labels:
+    app.kubernetes.io/name: multica
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: multica-secrets
+  namespace: multica
+type: Opaque
+stringData:
+  JWT_SECRET: "REPLACE_WITH_openssl_rand_-hex_32"
+  POSTGRES_PASSWORD: "REPLACE_WITH_STRONG_PASSWORD"
+  # Vertex AI credentials for Claude Code
+  CLAUDE_CODE_USE_VERTEX: "1"
+  ANTHROPIC_VERTEX_PROJECT_ID: "REPLACE_WITH_YOUR_GCP_PROJECT"
+  ANTHROPIC_VERTEX_REGION: "us-east5"
+  CLOUD_ML_REGION: "us-east5"
+  # Multica daemon token (generate from Multica UI: Settings → Runtimes → Add Runtime)
+  MULTICA_TOKEN: "REPLACE_WITH_DAEMON_TOKEN"
+  # GitHub token for PR operations
+  GITHUB_TOKEN: "REPLACE_WITH_GITHUB_PAT"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: multica-postgres-data
+  namespace: multica
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: gp3-csi
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: multica-backend-uploads
+  namespace: multica
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: gp3-csi
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: multica-daemon-workspaces
+  namespace: multica
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: gp3-csi
+  resources:
+    requests:
+      storage: 20Gi
+
+---
+# PostgreSQL 17 with pgvector
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multica-postgres
+  namespace: multica
+  labels:
+    app.kubernetes.io/name: multica
+    app.kubernetes.io/component: database
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: database
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: multica
+        app.kubernetes.io/component: database
+    spec:
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg17
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: multica
+            - name: POSTGRES_DB
+              value: multica
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: multica-secrets
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "multica"]
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "multica"]
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: pgdata
+          persistentVolumeClaim:
+            claimName: multica-postgres-data
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: multica-postgres
+  namespace: multica
+spec:
+  selector:
+    app.kubernetes.io/component: database
+  ports:
+    - port: 5432
+      targetPort: 5432
+
+---
+# Backend (Go API)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multica-backend
+  namespace: multica
+  labels:
+    app.kubernetes.io/name: multica
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: multica
+        app.kubernetes.io/component: backend
+    spec:
+      containers:
+        - name: backend
+          image: ghcr.io/multica-ai/multica-backend:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DATABASE_URL
+              value: "postgres://multica:$(POSTGRES_PASSWORD)@multica-postgres:5432/multica?sslmode=disable"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: multica-secrets
+                  key: POSTGRES_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: multica-secrets
+                  key: JWT_SECRET
+            - name: PORT
+              value: "8080"
+            - name: CORS_ALLOWED_ORIGINS
+              value: "https://multica.apps.REPLACE_WITH_CLUSTER_DOMAIN"
+            - name: ALLOW_SIGNUP
+              value: "true"
+            - name: APP_ENV
+              value: "development"
+            - name: MULTICA_DEV_VERIFICATION_CODE
+              value: "888888"
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/data/uploads
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: multica-backend-uploads
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: multica-backend
+  namespace: multica
+spec:
+  selector:
+    app.kubernetes.io/component: backend
+  ports:
+    - port: 8080
+      targetPort: 8080
+
+---
+# Frontend (Next.js)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multica-frontend
+  namespace: multica
+  labels:
+    app.kubernetes.io/name: multica
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: multica
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/multica-ai/multica-web:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              value: "https://multica-api.apps.REPLACE_WITH_CLUSTER_DOMAIN"
+            - name: NEXT_PUBLIC_WS_URL
+              value: "wss://multica-api.apps.REPLACE_WITH_CLUSTER_DOMAIN"
+            - name: HOSTNAME
+              value: "0.0.0.0"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: multica-frontend
+  namespace: multica
+spec:
+  selector:
+    app.kubernetes.io/component: frontend
+  ports:
+    - port: 3000
+      targetPort: 3000
+
+---
+# Daemon (Claude Code agent runner)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multica-daemon
+  namespace: multica
+  labels:
+    app.kubernetes.io/name: multica
+    app.kubernetes.io/component: daemon
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: daemon
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: multica
+        app.kubernetes.io/component: daemon
+    spec:
+      containers:
+        - name: daemon
+          image: quay.io/REPLACE_WITH_YOUR_ORG/multica-daemon:latest
+          env:
+            - name: MULTICA_SERVER_URL
+              value: "http://multica-backend:8080"
+            - name: MULTICA_APP_URL
+              value: "https://multica.apps.REPLACE_WITH_CLUSTER_DOMAIN"
+            - name: MULTICA_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: multica-secrets
+                  key: MULTICA_TOKEN
+            - name: CLAUDE_CODE_USE_VERTEX
+              valueFrom:
+                secretKeyRef:
+                  name: multica-secrets
+                  key: CLAUDE_CODE_USE_VERTEX
+            - name: ANTHROPIC_VERTEX_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: multica-secrets
+                  key: ANTHROPIC_VERTEX_PROJECT_ID
+            - name: ANTHROPIC_VERTEX_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: multica-secrets
+                  key: ANTHROPIC_VERTEX_REGION
+            - name: CLOUD_ML_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: multica-secrets
+                  key: CLOUD_ML_REGION
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: multica-secrets
+                  key: GITHUB_TOKEN
+          volumeMounts:
+            - name: workspaces
+              mountPath: /home/agent/multica_workspaces
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+      volumes:
+        - name: workspaces
+          persistentVolumeClaim:
+            claimName: multica-daemon-workspaces
+
+---
+# Routes (OpenShift-specific)
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: multica-frontend
+  namespace: multica
+spec:
+  host: multica.apps.REPLACE_WITH_CLUSTER_DOMAIN
+  to:
+    kind: Service
+    name: multica-frontend
+  port:
+    targetPort: 3000
+  tls:
+    termination: edge
+
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: multica-api
+  namespace: multica
+spec:
+  host: multica-api.apps.REPLACE_WITH_CLUSTER_DOMAIN
+  to:
+    kind: Service
+    name: multica-backend
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge

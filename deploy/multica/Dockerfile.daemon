@@ -1,0 +1,22 @@
+FROM node:22-bookworm-slim
+
+ARG MULTICA_VERSION=latest
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl git ca-certificates openssh-client python3 python3-pip python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL https://raw.githubusercontent.com/multica-ai/multica/main/scripts/install.sh \
+    | bash
+
+RUN npm install -g @anthropic-ai/claude-code@latest
+
+RUN useradd -m -s /bin/bash agent
+USER agent
+WORKDIR /home/agent
+
+RUN mkdir -p /home/agent/multica_workspaces /home/agent/.claude
+
+COPY entrypoint.sh /home/agent/entrypoint.sh
+
+ENTRYPOINT ["/home/agent/entrypoint.sh"]
