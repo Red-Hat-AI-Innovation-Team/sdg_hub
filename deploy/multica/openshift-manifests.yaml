@@ -2,16 +2,16 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: multica
+  name: sdg-hub-agents
   labels:
-    app.kubernetes.io/name: multica
+    app.kubernetes.io/name: sdg-hub-agents
 
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: multica-secrets
-  namespace: multica
+  namespace: sdg-hub-agents
 type: Opaque
 stringData:
   JWT_SECRET: "REPLACE_WITH_openssl_rand_-hex_32"
@@ -31,7 +31,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: multica-postgres-data
-  namespace: multica
+  namespace: sdg-hub-agents
 spec:
   accessModes: [ReadWriteOnce]
   storageClassName: gp3-csi
@@ -44,7 +44,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: multica-backend-uploads
-  namespace: multica
+  namespace: sdg-hub-agents
 spec:
   accessModes: [ReadWriteOnce]
   storageClassName: gp3-csi
@@ -57,7 +57,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: multica-daemon-workspaces
-  namespace: multica
+  namespace: sdg-hub-agents
 spec:
   accessModes: [ReadWriteOnce]
   storageClassName: gp3-csi
@@ -71,9 +71,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: multica-postgres
-  namespace: multica
+  namespace: sdg-hub-agents
   labels:
-    app.kubernetes.io/name: multica
+    app.kubernetes.io/name: sdg-hub-agents
     app.kubernetes.io/component: database
 spec:
   replicas: 1
@@ -85,7 +85,7 @@ spec:
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: multica
+        app.kubernetes.io/name: sdg-hub-agents
         app.kubernetes.io/component: database
     spec:
       containers:
@@ -131,7 +131,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: multica-postgres
-  namespace: multica
+  namespace: sdg-hub-agents
 spec:
   selector:
     app.kubernetes.io/component: database
@@ -145,9 +145,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: multica-backend
-  namespace: multica
+  namespace: sdg-hub-agents
   labels:
-    app.kubernetes.io/name: multica
+    app.kubernetes.io/name: sdg-hub-agents
     app.kubernetes.io/component: backend
 spec:
   replicas: 1
@@ -157,7 +157,7 @@ spec:
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: multica
+        app.kubernetes.io/name: sdg-hub-agents
         app.kubernetes.io/component: backend
     spec:
       containers:
@@ -218,7 +218,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: multica-backend
-  namespace: multica
+  namespace: sdg-hub-agents
 spec:
   selector:
     app.kubernetes.io/component: backend
@@ -232,9 +232,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: multica-frontend
-  namespace: multica
+  namespace: sdg-hub-agents
   labels:
-    app.kubernetes.io/name: multica
+    app.kubernetes.io/name: sdg-hub-agents
     app.kubernetes.io/component: frontend
 spec:
   replicas: 1
@@ -244,7 +244,7 @@ spec:
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: multica
+        app.kubernetes.io/name: sdg-hub-agents
         app.kubernetes.io/component: frontend
     spec:
       containers:
@@ -272,7 +272,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: multica-frontend
-  namespace: multica
+  namespace: sdg-hub-agents
 spec:
   selector:
     app.kubernetes.io/component: frontend
@@ -286,9 +286,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: multica-daemon
-  namespace: multica
+  namespace: sdg-hub-agents
   labels:
-    app.kubernetes.io/name: multica
+    app.kubernetes.io/name: sdg-hub-agents
     app.kubernetes.io/component: daemon
 spec:
   replicas: 1
@@ -300,7 +300,7 @@ spec:
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: multica
+        app.kubernetes.io/name: sdg-hub-agents
         app.kubernetes.io/component: daemon
     spec:
       containers:
@@ -362,7 +362,7 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: multica-frontend
-  namespace: multica
+  namespace: sdg-hub-agents
 spec:
   host: multica.apps.REPLACE_WITH_CLUSTER_DOMAIN
   to:
@@ -378,7 +378,7 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: multica-api
-  namespace: multica
+  namespace: sdg-hub-agents
 spec:
   host: multica-api.apps.REPLACE_WITH_CLUSTER_DOMAIN
   to:

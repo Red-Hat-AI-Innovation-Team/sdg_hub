@@ -46,7 +46,7 @@ docker push quay.io/YOUR_ORG/multica-daemon:latest
 oc apply -f openshift-manifests.yaml
 
 # Wait for pods
-oc -n multica get pods -w
+oc -n sdg-hub-agents get pods -w
 ```
 
 ### 4. Generate daemon token
@@ -57,12 +57,12 @@ oc -n multica get pods -w
 4. Copy the daemon token
 5. Update the secret:
    ```bash
-   oc -n multica patch secret multica-secrets \
+   oc -n sdg-hub-agents patch secret multica-secrets \
      --type merge -p '{"stringData":{"MULTICA_TOKEN":"mdt_YOUR_TOKEN"}}'
    ```
 6. Restart the daemon pod:
    ```bash
-   oc -n multica rollout restart deployment/multica-daemon
+   oc -n sdg-hub-agents rollout restart deployment/multica-daemon
    ```
 
 ### 5. Configure agents and skills
@@ -82,7 +82,7 @@ in the harness design spec.
 ## Architecture
 
 ```
-OpenShift Namespace: multica
+OpenShift Namespace: sdg-hub-agents
 ├── multica-postgres    (Deployment + PVC + Service)
 │   └── pgvector/pgvector:pg17
 ├── multica-backend     (Deployment + PVC + Service + Route)
