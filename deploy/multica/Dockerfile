@@ -4,7 +4,9 @@ USER root
 
 RUN dnf install -y git openssh-clients python3 python3-pip && dnf clean all
 
-RUN npm install -g @anthropic-ai/claude-code@latest
+RUN npm install -g @anthropic-ai/claude-code@latest @playwright/mcp@latest
+
+RUN npx playwright install --with-deps chromium
 
 RUN LATEST=$(curl -sI https://github.com/multica-ai/multica/releases/latest | grep -i '^location:' | sed 's/.*tag\///' | tr -d '\r\n') \
     && VERSION="${LATEST#v}" \

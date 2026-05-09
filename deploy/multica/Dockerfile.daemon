@@ -4,7 +4,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl git ca-certificates openssh-client python3 python3-pip python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g @anthropic-ai/claude-code@latest
+RUN npm install -g @anthropic-ai/claude-code@latest @playwright/mcp@latest
+
+RUN npx playwright install --with-deps chromium
 
 RUN LATEST=$(curl -sI https://github.com/multica-ai/multica/releases/latest | grep -i '^location:' | sed 's/.*tag\///' | tr -d '\r\n') \
     && VERSION="${LATEST#v}" \
