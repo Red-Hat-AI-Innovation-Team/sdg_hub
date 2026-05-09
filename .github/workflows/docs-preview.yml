@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: Docs Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    paths:
+      - "docs/**"
+      - "website/**"
+      - "mkdocs.yml"
+      - ".github/workflows/docs-preview.yml"
+
+concurrency:
+  group: docs-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  deploy-preview:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: website/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: pip install -e .
+
+      - name: Generate API reference JSON
+        run: python website/scripts/generate_api_reference.py
+
+      - name: Install Node dependencies
+        working-directory: website
+        run: npm ci
+
+      - name: Build static site
+        working-directory: website
+        run: npm run build
+
+      - name: Deploy preview
+        run: npx surge --project ./website/out --domain sdg-hub-pr-${{ github.event.pull_request.number }}.surge.sh
+        env:
+          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
+
+      - name: Comment preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const previewUrl = `https://sdg-hub-pr-${prNumber}.surge.sh`;
+            const marker = '<!-- docs-preview -->';
+            const body = [
+              marker,
+              `**Docs Preview:** ${previewUrl}`,
+              '',
+              'Preview is available until this PR is closed or merged.',
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+            const existing = comments.find(c => c.body?.startsWith(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
+
+  cleanup-preview:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Teardown preview
+        run: npx surge teardown sdg-hub-pr-${{ github.event.pull_request.number }}.surge.sh
+        env:
+          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
