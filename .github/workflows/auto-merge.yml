@@ -76,11 +76,11 @@ jobs:
             exit 0
           fi
 
-          # Must have /merge comment
-          MERGE_CMD=$(gh pr view "$PR_NUMBER" --json comments --jq '[.comments[] | select(.body | test("/merge"))] | length')
+          # Must have /merge comment from a trusted author (OWNER, MEMBER, or COLLABORATOR)
+          MERGE_CMD=$(gh pr view "$PR_NUMBER" --json comments --jq '[.comments[] | select((.body | test("^/merge")) and (.authorAssociation == "OWNER" or .authorAssociation == "MEMBER" or .authorAssociation == "COLLABORATOR"))] | length')
           if [ "$MERGE_CMD" = "0" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "Skipping: No /merge command found"
+            echo "Skipping: No /merge command from a trusted author (OWNER/MEMBER/COLLABORATOR)"
             exit 0
           fi
 
