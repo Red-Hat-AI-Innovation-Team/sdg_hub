@@ -7,7 +7,7 @@ This package provides various block implementations for data generation, process
 from .agent import AgentBlock, AgentResponseExtractorBlock
 from .base import BaseBlock
 from .code import PythonInterpreterBlock
-from .filtering import ColumnValueFilterBlock
+from .filtering import ColumnValueFilterBlock, SimilarityFilterBlock
 from .llm import (
     LLMChatBlock,
     LLMResponseExtractorBlock,
@@ -34,6 +34,7 @@ __all__ = [
     "BaseBlock",
     "BlockRegistry",
     "ColumnValueFilterBlock",
+    "SimilarityFilterBlock",
     "DuplicateColumnsBlock",
     "IndexBasedMapperBlock",
     "JSONParserBlock",
