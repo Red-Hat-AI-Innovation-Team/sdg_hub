@@ -230,6 +230,8 @@ class TestAgentResponseExtractorBlockExtraction:
 
         assert len(result) == 1
         assert result["test_extractor_text"][0] == "Hi"
+        assert "test_extractor_session_id" in result.columns
+        assert result["test_extractor_session_id"][0] is None
         assert "Requested fields ['session_id'] not found in response" in caplog.text
 
 
@@ -315,8 +317,8 @@ class TestAgentResponseExtractorBlockListResponsesExpandTrue:
 
         assert len(result) == 0
 
-    def test_expand_invalid_list_items(self, caplog):
-        """Test handling invalid items in list responses."""
+    def test_expand_list_with_missing_text(self, caplog):
+        """Test that rows with missing text get None instead of being dropped."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
             input_cols="agent_response",
@@ -329,7 +331,7 @@ class TestAgentResponseExtractorBlockListResponsesExpandTrue:
                 "agent_response": [
                     [
                         make_standard_response("Valid response"),
-                        {"messages": []},  # Invalid - no assistant message
+                        {"messages": []},  # No assistant message → text is None
                         make_standard_response("Another valid response"),
                     ]
                 ]
@@ -338,15 +340,16 @@ class TestAgentResponseExtractorBlockListResponsesExpandTrue:
 
         result = block.generate(dataset)
 
-        # Only valid responses should be included
-        assert len(result) == 2
+        assert len(result) == 3
+        assert "test_extractor_text" in result.columns
         assert result["test_extractor_text"].tolist() == [
             "Valid response",
+            None,
             "Another valid response",
         ]
 
-    def test_expand_all_invalid_list_items(self):
-        """Test handling when all items in list are invalid."""
+    def test_expand_all_none_extraction_results(self):
+        """Test that columns exist with defaults when all items have no extractable fields."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
             input_cols="agent_response",
@@ -354,13 +357,16 @@ class TestAgentResponseExtractorBlockListResponsesExpandTrue:
             expand_lists=True,
         )
 
-        # All items have no extractable fields
+        # All items have no extractable fields (no messages key)
         dataset = pd.DataFrame(
             {"agent_response": [[{"other": "data"}, {"other": "data2"}]]}
         )
 
-        with pytest.raises(ValueError, match="No valid responses found in list input"):
-            block.generate(dataset)
+        result = block.generate(dataset)
+
+        assert len(result) == 2
+        assert "test_extractor_text" in result.columns
+        assert result["test_extractor_text"].tolist() == [None, None]
 
 
 class TestAgentResponseExtractorBlockListResponsesExpandFalse:
@@ -436,8 +442,8 @@ class TestAgentResponseExtractorBlockListResponsesExpandFalse:
 
         assert len(result) == 0
 
-    def test_preserve_all_invalid_list_items(self):
-        """Test handling when all items in list are invalid with preserve structure."""
+    def test_preserve_all_none_extraction_results(self):
+        """Test that columns exist with defaults when all items have no extractable fields."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
             input_cols="agent_response",
@@ -449,8 +455,11 @@ class TestAgentResponseExtractorBlockListResponsesExpandFalse:
             {"agent_response": [[{"other": "data"}, {"other": "data2"}]]}
         )
 
-        with pytest.raises(ValueError, match="No valid responses found in list input"):
-            block.generate(dataset)
+        result = block.generate(dataset)
+
+        assert len(result) == 1
+        assert "test_extractor_text" in result.columns
+        assert result["test_extractor_text"][0] == [None, None]
 
 
 class TestAgentResponseExtractorBlockValidation:
@@ -531,8 +540,8 @@ class TestAgentResponseExtractorBlockErrorHandling:
         assert len(result) == 0
         assert "No samples to process" in caplog.text
 
-    def test_no_fields_extracted(self):
-        """Test handling when no fields can be extracted."""
+    def test_no_fields_extracted_produces_default_columns(self):
+        """Test that columns exist with defaults even when no fields are extracted."""
         block = AgentResponseExtractorBlock(
             block_name="test_extractor",
             input_cols="agent_response",
@@ -542,8 +551,11 @@ class TestAgentResponseExtractorBlockErrorHandling:
         # Response with no extractable fields (no messages key)
         dataset = pd.DataFrame({"agent_response": [{"other_field": "value"}]})
 
-        with pytest.raises(ValueError, match="No requested fields found in response"):
-            block.generate(dataset)
+        result = block.generate(dataset)
+
+        assert len(result) == 1
+        assert "test_extractor_text" in result.columns
+        assert result["test_extractor_text"][0] is None
 
     def test_empty_content_handled_gracefully(self):
         """Test handling when assistant message has empty content."""
@@ -697,7 +709,7 @@ class TestAgentResponseExtractorToolTrace:
         assert len(result["ext_tool_trace"].iloc[0]) == 2
 
     def test_extract_tool_trace_missing(self, caplog):
-        """Test graceful handling when no tool messages exist."""
+        """Test that tool_trace column exists with empty list when no tool messages exist."""
         block = AgentResponseExtractorBlock(
             block_name="ext",
             input_cols="agent_response",
@@ -710,6 +722,8 @@ class TestAgentResponseExtractorToolTrace:
         result = block.generate(dataset)
 
         assert result["ext_text"].iloc[0] == "answer"
+        assert "ext_tool_trace" in result.columns
+        assert result["ext_tool_trace"].iloc[0] == []
         assert "tool_trace" in caplog.text
 
     def test_init_tool_trace_only(self):
@@ -722,3 +736,128 @@ class TestAgentResponseExtractorToolTrace:
         )
         assert block.extract_tool_trace is True
         assert "ext_tool_trace" in block.output_cols
+
+
+class TestColumnExistenceWithAllNoneResults:
+    """Test that extraction columns always exist even when all results are None."""
+
+    def test_tool_trace_column_exists_when_all_none(self):
+        """tool_trace column must exist with [] when no responses have tool calls."""
+        block = AgentResponseExtractorBlock(
+            block_name="ext",
+            input_cols="agent_response",
+            extract_text=True,
+            extract_tool_trace=True,
+        )
+        dataset = pd.DataFrame(
+            {
+                "agent_response": [
+                    make_standard_response("answer1"),
+                    make_standard_response("answer2"),
+                ]
+            }
+        )
+
+        result = block.generate(dataset)
+
+        assert "ext_tool_trace" in result.columns
+        assert result["ext_tool_trace"].tolist() == [[], []]
+        assert result["ext_text"].tolist() == ["answer1", "answer2"]
+
+    def test_session_id_column_exists_when_all_none(self):
+        """session_id column must exist with None when no responses have session_id."""
+        block = AgentResponseExtractorBlock(
+            block_name="ext",
+            input_cols="agent_response",
+            extract_text=True,
+            extract_session_id=True,
+        )
+        dataset = pd.DataFrame(
+            {
+                "agent_response": [
+                    make_standard_response("answer1"),
+                    make_standard_response("answer2"),
+                ]
+            }
+        )
+
+        result = block.generate(dataset)
+
+        assert "ext_session_id" in result.columns
+        assert result["ext_session_id"].tolist() == [None, None]
+        assert result["ext_text"].tolist() == ["answer1", "answer2"]
+
+    def test_text_column_exists_when_all_none(self):
+        """text column must exist with None when no responses have text."""
+        block = AgentResponseExtractorBlock(
+            block_name="ext",
+            input_cols="agent_response",
+            extract_text=True,
+            extract_session_id=False,
+        )
+        dataset = pd.DataFrame(
+            {
+                "agent_response": [
+                    {"messages": []},
+                    {"messages": []},
+                ]
+            }
+        )
+
+        result = block.generate(dataset)
+
+        assert "ext_text" in result.columns
+        assert result["ext_text"].tolist() == [None, None]
+
+    def test_all_columns_exist_when_all_none(self):
+        """All three extraction columns must exist when all extractions return None."""
+        block = AgentResponseExtractorBlock(
+            block_name="ext",
+            input_cols="agent_response",
+            extract_text=True,
+            extract_session_id=True,
+            extract_tool_trace=True,
+        )
+        dataset = pd.DataFrame(
+            {
+                "agent_response": [
+                    {"messages": []},
+                ]
+            }
+        )
+
+        result = block.generate(dataset)
+
+        assert len(result) == 1
+        assert "ext_text" in result.columns
+        assert "ext_session_id" in result.columns
+        assert "ext_tool_trace" in result.columns
+        assert result["ext_text"][0] is None
+        assert result["ext_session_id"][0] is None
+        assert result["ext_tool_trace"][0] == []
+
+    def test_tool_trace_column_in_list_preserve_mode(self):
+        """tool_trace column must exist in preserve mode when all results are None."""
+        block = AgentResponseExtractorBlock(
+            block_name="ext",
+            input_cols="agent_response",
+            extract_text=True,
+            extract_tool_trace=True,
+            expand_lists=False,
+        )
+        dataset = pd.DataFrame(
+            {
+                "agent_response": [
+                    [
+                        make_standard_response("answer1"),
+                        make_standard_response("answer2"),
+                    ]
+                ]
+            }
+        )
+
+        result = block.generate(dataset)
+
+        assert "ext_tool_trace" in result.columns
+        assert result["ext_tool_trace"][0] == [[], []]
+        assert result["ext_text"][0] == ["answer1", "answer2"]

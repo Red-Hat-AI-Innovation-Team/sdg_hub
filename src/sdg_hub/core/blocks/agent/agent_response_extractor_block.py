@@ -155,11 +155,7 @@ class AgentResponseExtractorBlock(BaseBlock):
         -------
         dict[str, Any]
             Dictionary with extracted fields using prefixed field names.
-
-        Raises
-        ------
-        ValueError
-            If none of the requested fields are found in the response.
+            All requested columns are always present with defaults (None or []).
         """
         extracted: dict[str, Any] = {}
         missing_fields: list[str] = []
@@ -168,9 +164,8 @@ class AgentResponseExtractorBlock(BaseBlock):
 
         if self.extract_text:
             text = self._extract_text_from_messages(messages)
-            if text is not None:
-                extracted[self._text_field] = text
-            else:
+            extracted[self._text_field] = text
+            if text is None:
                 missing_fields.append("text")
 
         if self.extract_session_id:
@@ -178,16 +173,16 @@ class AgentResponseExtractorBlock(BaseBlock):
             session_id = (
                 custom_outputs.get("session_id") if custom_outputs is not None else None
             )
-            if session_id is not None:
-                extracted[self._session_id_field] = session_id
-            else:
+            extracted[self._session_id_field] = session_id
+            if session_id is None:
                 missing_fields.append("session_id")
 
         if self.extract_tool_trace:
             tool_trace = self._extract_tool_trace_from_messages(messages)
-            if tool_trace is not None:
-                extracted[self._tool_trace_field] = tool_trace
-            else:
+            extracted[self._tool_trace_field] = (
+                tool_trace if tool_trace is not None else []
+            )
+            if tool_trace is None:
                 missing_fields.append("tool_trace")
 
         if missing_fields:
@@ -196,10 +191,6 @@ class AgentResponseExtractorBlock(BaseBlock):
                 f"Available keys: {list(response.keys())}"
             )
 
-        if not extracted:
-            raise ValueError(
-                f"No requested fields found in response. Available keys: {list(response.keys())}"
-            )
         return extracted
 
     @staticmethod
