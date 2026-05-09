@@ -68,9 +68,7 @@ class SimilarityFilterBlock(BaseBlock):
     def validate_input_cols_not_empty(cls, v: list[str]) -> list[str]:
         """Validate that we have at least one input column."""
         if not v or len(v) == 0:
-            raise ValueError(
-                "SimilarityFilterBlock requires at least one input column"
-            )
+            raise ValueError("SimilarityFilterBlock requires at least one input column")
         return v
 
     def model_post_init(self, __context: Any) -> None:
