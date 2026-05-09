@@ -92,5 +92,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.pr.outputs.number }}
         run: |
+          gh pr edit "$PR_NUMBER" --add-label "agent-merged"
           gh pr review "$PR_NUMBER" --approve --body "Auto-approved: evaluator PASS + lead /merge + all CI green."
           gh pr merge "$PR_NUMBER" --squash --delete-branch
