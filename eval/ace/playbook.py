@@ -2,7 +2,7 @@
 """ACE Playbook system -- self-evolving behavioral rules for agents.
 
 Manages DO/DON'T rules that evolve from experiment data.
-Playbooks are stored as markdown at `.factory/playbooks/{role}.md`.
+Playbooks are stored as markdown at `eval/data/playbooks/{role}.md`.
 """
 
 from __future__ import annotations
@@ -92,7 +92,7 @@ def _next_id(entries: list[PlaybookEntry], role: str) -> str:
 
 
 def load_playbook(role: str) -> list[PlaybookEntry]:
-    """Load a playbook from `.factory/playbooks/{role}.md`."""
+    """Load a playbook from `eval/data/playbooks/{role}.md`."""
     path = _playbook_path(role)
     if not path.exists():
         return []
@@ -115,7 +115,7 @@ def load_playbook(role: str) -> list[PlaybookEntry]:
 
 
 def save_playbook(role: str, entries: list[PlaybookEntry]) -> None:
-    """Write a playbook to `.factory/playbooks/{role}.md`."""
+    """Write a playbook to `eval/data/playbooks/{role}.md`."""
     PLAYBOOKS_DIR.mkdir(parents=True, exist_ok=True)
 
     do_entries = [e for e in entries if e.category == "DO"]

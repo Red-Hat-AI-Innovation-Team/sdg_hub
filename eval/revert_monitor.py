@@ -186,7 +186,7 @@ def build_report(
 
 
 def save_report(report: dict) -> None:
-    """Persist report to .factory/archive/performance_report.json."""
+    """Persist report to eval/data/performance_report.json."""
     ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text(json.dumps(report, indent=2) + "\n")
 

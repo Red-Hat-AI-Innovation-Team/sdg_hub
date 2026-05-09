@@ -74,7 +74,7 @@ jobs:
 
       - name: "Check for anti-patterns"
         run: |
-          if compgen -G ".factory/archive/reverted_diffs/*.diff" > /dev/null; then
+          if compgen -G "eval/data/reverted_diffs/*.diff" > /dev/null; then
             echo "Reverted diffs found — running anti-pattern check…"
             uv run python eval/anti_pattern.py check
           else
