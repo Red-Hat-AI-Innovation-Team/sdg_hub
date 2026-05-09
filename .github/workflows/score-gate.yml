@@ -64,7 +64,13 @@ jobs:
         run: uv pip install .[dev]
 
       - name: "Score main branch"
-        run: uv run python eval/score.py --json > before_score.json
+        run: |
+          if [ -f eval/score.py ]; then
+            uv run python eval/score.py --json > before_score.json
+          else
+            echo '{"score": 0.0, "tiers": {}}' > before_score.json
+            echo "eval/score.py not found on main — using baseline score of 0.0"
+          fi
 
       # ── Anti-pattern detection ─────────────────────────────────
       - name: "Checkout PR branch (for anti-pattern check)"

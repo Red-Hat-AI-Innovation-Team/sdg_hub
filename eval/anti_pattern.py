@@ -26,7 +26,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parent.parent
-REVERTED_DIFFS_DIR = ROOT / ".factory" / "archive" / "reverted_diffs"
+REVERTED_DIFFS_DIR = ROOT / "eval" / "data" / "reverted_diffs"
 
 SIMILARITY_THRESHOLD = 0.6
 
@@ -122,6 +122,10 @@ def cmd_record(pr_number: str) -> int:
     REVERTED_DIFFS_DIR.mkdir(parents=True, exist_ok=True)
 
     # Fetch the diff
+    if not pr_number.isdigit():
+        print(f"Error: PR number must be numeric, got '{pr_number}'", file=sys.stderr)
+        return 1
+
     result = _run(["gh", "pr", "diff", pr_number])
     if result.returncode != 0:
         print(
