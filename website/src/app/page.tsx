@@ -105,7 +105,7 @@ export default function Home() {
         {/* CTA buttons */}
         <div className="relative mt-10 flex flex-wrap justify-center gap-4">
           <Link
-            href="/docs"
+            href="/docs/get-started"
             className="rounded-lg px-6 py-2.5 text-sm font-medium text-bg-0 transition-all hover:brightness-110"
             style={{ background: "var(--color-accent)" }}
           >

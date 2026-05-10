@@ -51,6 +51,7 @@ plugins:
   - llmstxt:
       sections:
         Getting Started:
+          - get-started.md
           - installation.md
           - quickstart.md
           - concepts.md
@@ -95,6 +96,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started:
+    - Get Started: get-started.md
     - Installation: installation.md
     - Quick Start: quickstart.md
     - Core Concepts: concepts.md
