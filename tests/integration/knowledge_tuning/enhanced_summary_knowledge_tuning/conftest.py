@@ -50,15 +50,3 @@ def notebook_path():
     return Path(
         "examples/knowledge_tuning/enhanced_summary_knowledge_tuning/knowledge_generation.ipynb"
     )
-
-
-@pytest.fixture(scope="session")
-def converted_script_dir(tmp_path_factory):
-    """Directory for converted notebook scripts."""
-    return tmp_path_factory.mktemp("converted_scripts")
-
-
-@pytest.fixture(scope="session")
-def test_output_dir(tmp_path_factory):
-    """Directory for test outputs."""
-    return tmp_path_factory.mktemp("test_outputs")
