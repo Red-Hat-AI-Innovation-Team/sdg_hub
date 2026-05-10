@@ -374,6 +374,25 @@ test(connectors): add integration tests for LangGraph connector
 - `docs/<description>` -- documentation changes
 - `chore/<description>` -- maintenance tasks
 
+### GitHub Labels
+
+Labels track the lifecycle of issues and pull requests. The agent-workflow
+labels below distinguish automated activity from human activity:
+
+| Label | Applied when | Color |
+|-------|-------------|-------|
+| `agent-assigned` | An agent is working on the issue | green |
+| `agent-pr` | PR was created by an agent | blue |
+| `agent-reviewed` | An agent has reviewed the PR | purple |
+| `agent-merged` | PR was merged by the auto-merge workflow (`/merge` command) | green |
+| `agent-blocked` | Agent hit a blocker and needs human input | yellow |
+| `needs-human-review` | Agent cannot proceed -- requires human judgment | red |
+| `human-merged` | PR was merged by a human maintainer (not via auto-merge) | light blue |
+
+Humans should add `human-merged` when they merge a PR themselves to
+distinguish human merges from agent-driven merges tracked by
+`agent-merged`.
+
 ### Pull Request Process
 
 1. Create a feature branch from `main`.
