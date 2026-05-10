@@ -7,6 +7,8 @@ RUN dnf install -y git openssh-clients python3 python3-pip \
     mesa-libgbm nss pango libdrm libxkbcommon \
     && dnf clean all
 
+RUN pip3 install --no-cache-dir uv jupyter nbconvert papermill
+
 RUN ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') \
     && curl -fsSL "https://github.com/cli/cli/releases/latest/download/gh_$(curl -sI https://github.com/cli/cli/releases/latest | grep -i '^location:' | sed 's/.*tag\/v//' | tr -d '\r\n')_linux_${ARCH}.tar.gz" \
        -o /tmp/gh.tar.gz \
