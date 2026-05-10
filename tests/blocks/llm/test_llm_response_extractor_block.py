@@ -150,7 +150,7 @@ class TestLLMResponseExtractorBlockSingleResponse:
         assert result["llm_content"][0] == "Hello world"
 
     def test_missing_fields_partial_extraction(self, caplog):
-        """Test that partial field extraction works when some fields are missing."""
+        """Test that missing fields get default values and columns always exist."""
         block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
@@ -170,10 +170,8 @@ class TestLLMResponseExtractorBlockSingleResponse:
 
         assert len(result) == 1
         assert result["test_parser_content"][0] == "Hello world"
-        # Only content field should be present since reasoning_content was missing
-        assert "test_parser_content" in result.columns.tolist()
-        # reasoning_content column should not be created since no valid values were found
-        assert "test_parser_reasoning_content" not in result.columns.tolist()
+        assert "test_parser_reasoning_content" in result.columns.tolist()
+        assert result["test_parser_reasoning_content"][0] == ""
 
         # Should log warning about missing field
         assert (
@@ -297,8 +295,8 @@ class TestLLMResponseExtractorBlockListResponsesExpandTrue:
 
         assert len(result) == 0
 
-    def test_expand_invalid_list_items(self, caplog):
-        """Test handling invalid items in list responses."""
+    def test_expand_list_with_missing_content(self, caplog):
+        """Test that rows with missing content get default "" instead of being dropped."""
         block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
@@ -306,16 +304,12 @@ class TestLLMResponseExtractorBlockListResponsesExpandTrue:
             expand_lists=True,
         )
 
-        # Test with separate datasets since PyArrow doesn't handle mixed types well
-        # Test with valid dict and dict missing content field
         dataset = pd.DataFrame(
             {
                 "llm_response": [
                     [
                         {"content": "Valid response"},
-                        {
-                            "other_field": "value"
-                        },  # Dict without content field - will be skipped
+                        {"other_field": "value"},  # Missing content → gets ""
                         {"content": "Another valid response"},
                     ]
                 ]
@@ -324,15 +318,16 @@ class TestLLMResponseExtractorBlockListResponsesExpandTrue:
 
         result = block.generate(dataset)
 
-        # The parser skips items without the required field, so only 2 valid items
-        assert len(result) == 2
+        assert len(result) == 3
+        assert "test_parser_content" in result.columns
         assert result["test_parser_content"].tolist() == [
             "Valid response",
+            "",
             "Another valid response",
         ]
 
-    def test_expand_all_invalid_list_items(self):
-        """Test handling when all items in list are invalid."""
+    def test_expand_all_none_extraction_results(self):
+        """Test that columns exist with defaults when all items have no extractable fields."""
         block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
@@ -340,14 +335,15 @@ class TestLLMResponseExtractorBlockListResponsesExpandTrue:
             expand_lists=True,
         )
 
-        # All items missing the content field
         dataset = pd.DataFrame(
             {"llm_response": [[{"other_field": "value1"}, {"other_field": "value2"}]]}
         )
 
-        # Should raise ValueError when no valid responses found
-        with pytest.raises(ValueError, match="No valid responses found in list input"):
-            block.generate(dataset)
+        result = block.generate(dataset)
+
+        assert len(result) == 2
+        assert "test_parser_content" in result.columns
+        assert result["test_parser_content"].tolist() == ["", ""]
 
 
 class TestLLMResponseExtractorBlockListResponsesExpandFalse:
@@ -430,8 +426,8 @@ class TestLLMResponseExtractorBlockListResponsesExpandFalse:
 
         assert len(result) == 0
 
-    def test_preserve_all_invalid_list_items(self):
-        """Test handling when all items in list are invalid with preserve structure."""
+    def test_preserve_all_none_extraction_results(self):
+        """Test that columns exist with defaults when all items have no extractable fields."""
         block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
@@ -439,14 +435,15 @@ class TestLLMResponseExtractorBlockListResponsesExpandFalse:
             expand_lists=False,
         )
 
-        # All items missing the content field
         dataset = pd.DataFrame(
             {"llm_response": [[{"other_field": "value1"}, {"other_field": "value2"}]]}
         )
 
-        # Should raise ValueError when no valid responses found
-        with pytest.raises(ValueError, match="No valid responses found in list input"):
-            block.generate(dataset)
+        result = block.generate(dataset)
+
+        assert len(result) == 1
+        assert "test_parser_content" in result.columns
+        assert result["test_parser_content"][0] == ["", ""]
 
 
 class TestLLMResponseExtractorBlockValidation:
@@ -524,8 +521,8 @@ class TestLLMResponseExtractorBlockErrorHandling:
         assert len(result) == 0
         assert "No samples to process" in caplog.text
 
-    def test_no_fields_extracted(self):
-        """Test handling when no fields can be extracted."""
+    def test_no_fields_extracted_produces_default_columns(self):
+        """Test that columns exist with defaults even when no fields are extracted."""
         block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
@@ -538,9 +535,11 @@ class TestLLMResponseExtractorBlockErrorHandling:
             }
         )
 
-        # Should raise ValueError when no requested fields are found
-        with pytest.raises(ValueError, match="No requested fields found in response"):
-            block.generate(dataset)
+        result = block.generate(dataset)
+
+        assert len(result) == 1
+        assert "test_parser_content" in result.columns
+        assert result["test_parser_content"][0] == ""
 
     def test_none_content_handled_gracefully(self, caplog):
         """Test handling when content field is None."""
@@ -669,4 +668,154 @@ class TestLLMResponseExtractorBlockIntegration:
         assert len(result) == 1
         assert isinstance(result["test_parser_content"][0], list)
         assert len(result["test_parser_content"][0]) == 3
-        # This format is suitable for a parser block to process each item in the list
+
+
+class TestColumnExistenceWithAllNoneResults:
+    """Test that extraction columns always exist even when all results are None."""
+
+    def test_tool_calls_column_exists_when_all_none(self):
+        """tool_calls column must exist with [] when no responses have tool calls."""
+        block = LLMResponseExtractorBlock(
+            block_name="ext",
+            input_cols="llm_response",
+            extract_content=True,
+            extract_tool_calls=True,
+        )
+        dataset = pd.DataFrame(
+            {
+                "llm_response": [
+                    {"content": "answer1"},
+                    {"content": "answer2"},
+                ]
+            }
+        )
+
+        result = block.generate(dataset)
+
+        assert "ext_tool_calls" in result.columns
+        assert result["ext_tool_calls"].tolist() == [[], []]
+        assert result["ext_content"].tolist() == ["answer1", "answer2"]
+
+    def test_reasoning_content_column_exists_when_all_none(self):
+        """reasoning_content column must exist with "" when no responses have it."""
+        block = LLMResponseExtractorBlock(
+            block_name="ext",
+            input_cols="llm_response",
+            extract_content=True,
+            extract_reasoning_content=True,
+        )
+        dataset = pd.DataFrame(
+            {
+                "llm_response": [
+                    {"content": "answer1"},
+                    {"content": "answer2"},
+                ]
+            }
+        )
+
+        result = block.generate(dataset)
+
+        assert "ext_reasoning_content" in result.columns
+        assert result["ext_reasoning_content"].tolist() == ["", ""]
+        assert result["ext_content"].tolist() == ["answer1", "answer2"]
+
+    def test_content_column_exists_when_all_none(self):
+        """content column must exist with "" when no responses have content."""
+        block = LLMResponseExtractorBlock(
+            block_name="ext",
+            input_cols="llm_response",
+            extract_content=True,
+        )
+        dataset = pd.DataFrame(
+            {
+                "llm_response": [
+                    {"other_key": "data"},
+                    {"other_key": "data2"},
+                ]
+            }
+        )
+
+        result = block.generate(dataset)
+
+        assert "ext_content" in result.columns
+        assert result["ext_content"].tolist() == ["", ""]
+
+    def test_all_columns_exist_when_all_none(self):
+        """All three extraction columns must exist when all extractions return defaults."""
+        block = LLMResponseExtractorBlock(
+            block_name="ext",
+            input_cols="llm_response",
+            extract_content=True,
+            extract_reasoning_content=True,
+            extract_tool_calls=True,
+        )
+        dataset = pd.DataFrame(
+            {
+                "llm_response": [
+                    {"other_key": "data"},
+                ]
+            }
+        )
+
+        result = block.generate(dataset)
+
+        assert len(result) == 1
+        assert "ext_content" in result.columns
+        assert "ext_reasoning_content" in result.columns
+        assert "ext_tool_calls" in result.columns
+        assert result["ext_content"][0] == ""
+        assert result["ext_reasoning_content"][0] == ""
+        assert result["ext_tool_calls"][0] == []
+
+    def test_tool_calls_column_in_list_preserve_mode(self):
+        """tool_calls column must exist in preserve mode when all results have no tool calls."""
+        block = LLMResponseExtractorBlock(
+            block_name="ext",
+            input_cols="llm_response",
+            extract_content=True,
+            extract_tool_calls=True,
+            expand_lists=False,
+        )
+        dataset = pd.DataFrame(
+            {
+                "llm_response": [
+                    [
+                        {"content": "answer1"},
+                        {"content": "answer2"},
+                    ]
+                ]
+            }
+        )
+
+        result = block.generate(dataset)
+
+        assert "ext_tool_calls" in result.columns
+        assert result["ext_tool_calls"][0] == [[], []]
+        assert result["ext_content"][0] == ["answer1", "answer2"]
+
+    def test_tool_calls_column_in_list_expand_mode(self):
+        """tool_calls column must exist in expand mode when no responses have tool calls."""
+        block = LLMResponseExtractorBlock(
+            block_name="ext",
+            input_cols="llm_response",
+            extract_content=True,
+            extract_tool_calls=True,
+            expand_lists=True,
+        )
+        dataset = pd.DataFrame(
+            {
+                "llm_response": [
+                    [
+                        {"content": "answer1"},
+                        {"content": "answer2"},
+                    ]
+                ]
+            }
+        )
+
+        result = block.generate(dataset)
+
+        assert len(result) == 2
+        assert "ext_tool_calls" in result.columns
+        assert result["ext_tool_calls"].tolist() == [[], []]
+        assert result["ext_content"].tolist() == ["answer1", "answer2"]
