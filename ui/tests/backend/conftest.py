@@ -345,12 +345,6 @@ def sample_dataset() -> pd.DataFrame:
 
 
 @pytest.fixture
-def empty_dataset() -> pd.DataFrame:
-    """Create an empty dataset for testing."""
-    return pd.DataFrame({"input": [], "label": []})
-
-
-@pytest.fixture
 def sample_jsonl_file(temp_dir) -> str:
     """Create a sample JSONL file."""
     file_path = Path(temp_dir) / "test_data.jsonl"
@@ -362,18 +356,6 @@ def sample_jsonl_file(temp_dir) -> str:
     with open(file_path, "w") as f:
         for item in data:
             f.write(json.dumps(item) + "\n")
-    return str(file_path)
-
-
-@pytest.fixture
-def sample_csv_file(temp_dir) -> str:
-    """Create a sample CSV file."""
-    file_path = Path(temp_dir) / "test_data.csv"
-    df = pd.DataFrame({
-        "input": ["test 1", "test 2", "test 3"],
-        "label": ["a", "b", "c"],
-    })
-    df.to_csv(file_path, index=False)
     return str(file_path)
 
 
@@ -566,45 +548,6 @@ def test_client(mock_sdg_hub, temp_dir) -> TestClient:
     finally:
         for p in patches:
             p.stop()
-
-
-@pytest.fixture
-def saved_config_file(temp_dir) -> str:
-    """Create a saved configurations file."""
-    file_path = Path(temp_dir) / "saved_configurations.json"
-    configs = [
-        {
-            "id": "config-1",
-            "flow_name": "Test Flow",
-            "flow_id": "test-flow-id",
-            "model_configuration": {"model": "test-model"},
-            "dataset_configuration": {"data_files": "test.jsonl"},
-            "status": "configured",
-            "created_at": "2024-01-01T00:00:00",
-        }
-    ]
-    with open(file_path, "w") as f:
-        json.dump(configs, f)
-    return str(file_path)
-
-
-@pytest.fixture
-def runs_history_file(temp_dir) -> str:
-    """Create a runs history file."""
-    file_path = Path(temp_dir) / "runs_history.json"
-    runs = [
-        {
-            "run_id": "run-1",
-            "config_id": "config-1",
-            "flow_name": "Test Flow",
-            "status": "completed",
-            "start_time": "2024-01-01T00:00:00",
-            "output_samples": 100,
-        }
-    ]
-    with open(file_path, "w") as f:
-        json.dump(runs, f)
-    return str(file_path)
 
 
 # ============================================================================
