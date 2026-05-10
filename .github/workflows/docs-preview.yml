@@ -4,6 +4,8 @@ name: Docs Preview
 
 on:
   pull_request:
+    branches:
+      - "main"
     types: [opened, synchronize, reopened, closed]
     paths:
       - "docs/**"
@@ -21,26 +23,35 @@ permissions:
 
 jobs:
   deploy-preview:
-    if: github.event.action != 'closed'
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: "Harden Runner"
+        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        with:
+          egress-policy: audit
 
-      - uses: actions/setup-node@v6
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: "22"
           cache: "npm"
           cache-dependency-path: website/package-lock.json
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
       - name: Install Python dependencies
-        run: pip install -e .
+        run: uv sync
 
       - name: Generate API reference JSON
-        run: python website/scripts/generate_api_reference.py
+        run: uv run python website/scripts/generate_api_reference.py
 
       - name: Install Node dependencies
         working-directory: website
@@ -56,7 +67,7 @@ jobs:
           SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
 
       - name: Comment preview URL
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
             const prNumber = context.payload.pull_request.number;
@@ -92,11 +103,52 @@ jobs:
               });
             }
 
-  cleanup-preview:
-    if: github.event.action == 'closed'
+  fork-notice:
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     steps:
+      - name: "Harden Runner"
+        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        with:
+          egress-policy: audit
+
+      - name: Notice
+        run: |
+          echo "::notice::Docs preview is not available for fork PRs. A maintainer will review the changes after merge."
+
+  cleanup-preview:
+    if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Harden Runner"
+        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        with:
+          egress-policy: audit
+
       - name: Teardown preview
         run: npx surge teardown sdg-hub-pr-${{ github.event.pull_request.number }}.surge.sh
         env:
           SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
+
+      - name: Update preview comment
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const marker = '<!-- docs-preview -->';
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+            const existing = comments.find(c => c.body?.startsWith(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: [marker, '**Docs Preview:** Torn down (PR closed).'].join('\n'),
+              });
+            }
