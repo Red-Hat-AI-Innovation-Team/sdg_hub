@@ -150,7 +150,7 @@ class TestLLMResponseExtractorBlockSingleResponse:
         assert result["llm_content"][0] == "Hello world"
 
     def test_missing_fields_partial_extraction(self, caplog):
-        """Test that partial field extraction works when some fields are missing."""
+        """Test that all requested columns are present even when some fields are missing."""
         block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
@@ -170,10 +170,9 @@ class TestLLMResponseExtractorBlockSingleResponse:
 
         assert len(result) == 1
         assert result["test_parser_content"][0] == "Hello world"
-        # Only content field should be present since reasoning_content was missing
         assert "test_parser_content" in result.columns.tolist()
-        # reasoning_content column should not be created since no valid values were found
-        assert "test_parser_reasoning_content" not in result.columns.tolist()
+        assert "test_parser_reasoning_content" in result.columns.tolist()
+        assert result["test_parser_reasoning_content"][0] == ""
 
         # Should log warning about missing field
         assert (
@@ -298,7 +297,7 @@ class TestLLMResponseExtractorBlockListResponsesExpandTrue:
         assert len(result) == 0
 
     def test_expand_invalid_list_items(self, caplog):
-        """Test handling invalid items in list responses."""
+        """Test handling items with missing fields in list responses."""
         block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
@@ -306,8 +305,6 @@ class TestLLMResponseExtractorBlockListResponsesExpandTrue:
             expand_lists=True,
         )
 
-        # Test with separate datasets since PyArrow doesn't handle mixed types well
-        # Test with valid dict and dict missing content field
         dataset = pd.DataFrame(
             {
                 "llm_response": [
@@ -315,7 +312,7 @@ class TestLLMResponseExtractorBlockListResponsesExpandTrue:
                         {"content": "Valid response"},
                         {
                             "other_field": "value"
-                        },  # Dict without content field - will be skipped
+                        },  # Dict without content field — gets default ""
                         {"content": "Another valid response"},
                     ]
                 ]
@@ -324,15 +321,15 @@ class TestLLMResponseExtractorBlockListResponsesExpandTrue:
 
         result = block.generate(dataset)
 
-        # The parser skips items without the required field, so only 2 valid items
-        assert len(result) == 2
+        assert len(result) == 3
         assert result["test_parser_content"].tolist() == [
             "Valid response",
+            "",
             "Another valid response",
         ]
 
-    def test_expand_all_invalid_list_items(self):
-        """Test handling when all items in list are invalid."""
+    def test_expand_all_missing_content_list_items(self):
+        """Test that all items produce rows with defaults when content is missing."""
         block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
@@ -340,14 +337,14 @@ class TestLLMResponseExtractorBlockListResponsesExpandTrue:
             expand_lists=True,
         )
 
-        # All items missing the content field
         dataset = pd.DataFrame(
             {"llm_response": [[{"other_field": "value1"}, {"other_field": "value2"}]]}
         )
 
-        # Should raise ValueError when no valid responses found
-        with pytest.raises(ValueError, match="No valid responses found in list input"):
-            block.generate(dataset)
+        result = block.generate(dataset)
+
+        assert len(result) == 2
+        assert result["test_parser_content"].tolist() == ["", ""]
 
 
 class TestLLMResponseExtractorBlockListResponsesExpandFalse:
@@ -430,8 +427,8 @@ class TestLLMResponseExtractorBlockListResponsesExpandFalse:
 
         assert len(result) == 0
 
-    def test_preserve_all_invalid_list_items(self):
-        """Test handling when all items in list are invalid with preserve structure."""
+    def test_preserve_all_missing_content_list_items(self):
+        """Test that all items produce defaults when content is missing with preserve structure."""
         block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
@@ -439,14 +436,14 @@ class TestLLMResponseExtractorBlockListResponsesExpandFalse:
             expand_lists=False,
         )
 
-        # All items missing the content field
         dataset = pd.DataFrame(
             {"llm_response": [[{"other_field": "value1"}, {"other_field": "value2"}]]}
         )
 
-        # Should raise ValueError when no valid responses found
-        with pytest.raises(ValueError, match="No valid responses found in list input"):
-            block.generate(dataset)
+        result = block.generate(dataset)
+
+        assert len(result) == 1
+        assert result["test_parser_content"][0] == ["", ""]
 
 
 class TestLLMResponseExtractorBlockValidation:
@@ -524,8 +521,8 @@ class TestLLMResponseExtractorBlockErrorHandling:
         assert len(result) == 0
         assert "No samples to process" in caplog.text
 
-    def test_no_fields_extracted(self):
-        """Test handling when no fields can be extracted."""
+    def test_missing_fields_get_defaults(self):
+        """Test that missing fields produce default values instead of raising."""
         block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
@@ -538,9 +535,11 @@ class TestLLMResponseExtractorBlockErrorHandling:
             }
         )
 
-        # Should raise ValueError when no requested fields are found
-        with pytest.raises(ValueError, match="No requested fields found in response"):
-            block.generate(dataset)
+        result = block.generate(dataset)
+
+        assert len(result) == 1
+        assert "test_parser_content" in result.columns.tolist()
+        assert result["test_parser_content"][0] == ""
 
     def test_none_content_handled_gracefully(self, caplog):
         """Test handling when content field is None."""
@@ -560,16 +559,16 @@ class TestLLMResponseExtractorBlockErrorHandling:
 
         result = block.generate(dataset)
 
-        # Should not raise error and should use empty string
         assert len(result) == 1
         assert result.iloc[0]["test_parser_content"] == ""
-        assert "Content field is None, using empty string instead" in caplog.text
+        assert "Requested fields ['content'] not found in response" in caplog.text
 
     def test_none_reasoning_content_handled_gracefully(self, caplog):
         """Test handling when reasoning_content field is None."""
         block = LLMResponseExtractorBlock(
             block_name="test_parser",
             input_cols="llm_response",
+            extract_content=False,
             extract_reasoning_content=True,
         )
 
@@ -583,11 +582,11 @@ class TestLLMResponseExtractorBlockErrorHandling:
 
         result = block.generate(dataset)
 
-        # Should not raise error and should use empty string
         assert len(result) == 1
         assert result.iloc[0]["test_parser_reasoning_content"] == ""
         assert (
-            "Reasoning content field is None, using empty string instead" in caplog.text
+            "Requested fields ['reasoning_content'] not found in response"
+            in caplog.text
         )
 
 
@@ -669,4 +668,142 @@ class TestLLMResponseExtractorBlockIntegration:
         assert len(result) == 1
         assert isinstance(result["test_parser_content"][0], list)
         assert len(result["test_parser_content"][0]) == 3
-        # This format is suitable for a parser block to process each item in the list
+
+
+class TestColumnExistenceWithAllNoneResults:
+    """Test that columns always exist even when all extraction results are None."""
+
+    def test_single_all_none_tool_calls(self):
+        """Test tool_calls column exists with default when all values are None."""
+        block = LLMResponseExtractorBlock(
+            block_name="test_parser",
+            input_cols="llm_response",
+            extract_content=False,
+            extract_tool_calls=True,
+        )
+
+        dataset = pd.DataFrame(
+            {"llm_response": [{"tool_calls": None}, {"tool_calls": None}]}
+        )
+
+        result = block.generate(dataset)
+
+        assert len(result) == 2
+        assert "test_parser_tool_calls" in result.columns.tolist()
+        assert result["test_parser_tool_calls"][0] == []
+        assert result["test_parser_tool_calls"][1] == []
+
+    def test_single_all_none_reasoning_content(self):
+        """Test reasoning_content column exists with default when all values are None."""
+        block = LLMResponseExtractorBlock(
+            block_name="test_parser",
+            input_cols="llm_response",
+            extract_content=False,
+            extract_reasoning_content=True,
+        )
+
+        dataset = pd.DataFrame(
+            {
+                "llm_response": [
+                    {"reasoning_content": None},
+                    {"reasoning_content": None},
+                ]
+            }
+        )
+
+        result = block.generate(dataset)
+
+        assert len(result) == 2
+        assert "test_parser_reasoning_content" in result.columns.tolist()
+        assert result["test_parser_reasoning_content"][0] == ""
+        assert result["test_parser_reasoning_content"][1] == ""
+
+    def test_single_all_none_content(self):
+        """Test content column exists with default when all values are None."""
+        block = LLMResponseExtractorBlock(
+            block_name="test_parser",
+            input_cols="llm_response",
+            extract_content=True,
+        )
+
+        dataset = pd.DataFrame({"llm_response": [{"content": None}, {"content": None}]})
+
+        result = block.generate(dataset)
+
+        assert len(result) == 2
+        assert "test_parser_content" in result.columns.tolist()
+        assert result["test_parser_content"][0] == ""
+        assert result["test_parser_content"][1] == ""
+
+    def test_single_all_none_all_fields(self):
+        """Test all columns exist with defaults when all values are None."""
+        block = LLMResponseExtractorBlock(
+            block_name="test_parser",
+            input_cols="llm_response",
+            extract_content=True,
+            extract_reasoning_content=True,
+            extract_tool_calls=True,
+        )
+
+        dataset = pd.DataFrame(
+            {
+                "llm_response": [
+                    {
+                        "content": None,
+                        "reasoning_content": None,
+                        "tool_calls": None,
+                    }
+                ]
+            }
+        )
+
+        result = block.generate(dataset)
+
+        assert len(result) == 1
+        assert "test_parser_content" in result.columns.tolist()
+        assert "test_parser_reasoning_content" in result.columns.tolist()
+        assert "test_parser_tool_calls" in result.columns.tolist()
+        assert result["test_parser_content"][0] == ""
+        assert result["test_parser_reasoning_content"][0] == ""
+        assert result["test_parser_tool_calls"][0] == []
+
+    def test_list_expand_all_none_tool_calls(self):
+        """Test tool_calls column exists in expand mode when all values are None."""
+        block = LLMResponseExtractorBlock(
+            block_name="test_parser",
+            input_cols="llm_response",
+            extract_content=False,
+            extract_tool_calls=True,
+            expand_lists=True,
+        )
+
+        dataset = pd.DataFrame(
+            {"llm_response": [[{"tool_calls": None}, {"tool_calls": None}]]}
+        )
+
+        result = block.generate(dataset)
+
+        assert len(result) == 2
+        assert "test_parser_tool_calls" in result.columns.tolist()
+        assert result["test_parser_tool_calls"][0] == []
+        assert result["test_parser_tool_calls"][1] == []
+
+    def test_list_preserve_all_none_tool_calls(self):
+        """Test tool_calls column exists in preserve mode when all values are None."""
+        block = LLMResponseExtractorBlock(
+            block_name="test_parser",
+            input_cols="llm_response",
+            extract_content=False,
+            extract_tool_calls=True,
+            expand_lists=False,
+        )
+
+        dataset = pd.DataFrame(
+            {"llm_response": [[{"tool_calls": None}, {"tool_calls": None}]]}
+        )
+
+        result = block.generate(dataset)
+
+        assert len(result) == 1
+        assert "test_parser_tool_calls" in result.columns.tolist()
+        assert result["test_parser_tool_calls"][0] == [[], []]
