@@ -1,12 +1,14 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import List, Dict, Any, Optional, Tuple, Callable
-import re
+
 from collections import defaultdict
-import numpy as np
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Optional, Tuple
+import re
+
 from datasets import Dataset
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
 
 # ========================
@@ -42,8 +44,8 @@ def take_best_sentence(context: str, query: str) -> str:
     if not sents:
         return context[:400]
     vect = TfidfVectorizer(ngram_range=(1, 2), min_df=1)
-    X = vect.fit_transform(sents + [query])
-    sims = cosine_similarity(X[:-1], X[-1])
+    tfidf_matrix = vect.fit_transform(sents + [query])
+    sims = cosine_similarity(tfidf_matrix[:-1], tfidf_matrix[-1])
     idx = int(np.argmax(sims))
     return sents[idx][:400]
 
@@ -107,9 +109,9 @@ def build_raft_samples(
     answer_builder: Callable[
         [Dict[str, Any], str], Tuple[str, str]
     ] = default_answer_builder,
-    text_field: str = "document",
+    text_field: str = "summary",
     question_field: str = "question",
-    group_by_doc: Optional[str] = "raw_document",
+    group_by_doc: Optional[str] = "document",
 ) -> List[Dict[str, Any]]:
     """
     Builds RAFT-style training samples from your dataset.
@@ -148,13 +150,13 @@ def build_raft_samples(
 
     # ---- Step 2: Fit TF-IDF retriever ----
     vect = TfidfVectorizer(ngram_range=(1, 2), min_df=1, max_df=0.98)
-    X = vect.fit_transform([c["text"] for c in all_chunks])
+    tfidf_matrix = vect.fit_transform([c["text"] for c in all_chunks])
 
     def retrieve_k(query: str, k: int) -> List[int]:
         if not query.strip():
             return list(rng.choice(len(all_chunks), size=k, replace=False))
         qv = vect.transform([query])
-        sims = cosine_similarity(X, qv).ravel()
+        sims = cosine_similarity(tfidf_matrix, qv).ravel()
         order = np.argsort(-sims)
         return list(map(int, order[:k]))
 

@@ -4,16 +4,16 @@
 from pathlib import Path
 from typing import List
 import json
+import logging
 import os
 import random
 import re
 import uuid
-import logging
-from rich.logging import RichHandler
 
 # Third Party
 from datasets import Dataset, concatenate_datasets
 from langchain_text_splitters import Language, RecursiveCharacterTextSplitter
+from rich.logging import RichHandler
 from tabulate import tabulate
 from transformers import AutoTokenizer
 import yaml
@@ -82,7 +82,7 @@ def get_summarization_instructions():
 
 def create_summarization_task_dataset(generated_dataset: Dataset):
     """
-    Create summarization dataset from non-base documents using predefined instructions.
+    Create summarization dataset from generated summaries using predefined instructions.
 
     Args:
         generated_dataset (Dataset): Input dataset containing documents and metadata
@@ -94,10 +94,10 @@ def create_summarization_task_dataset(generated_dataset: Dataset):
         return None
 
     summarization_ds = generated_dataset.filter(
-        lambda x: x["dataset_type"] != "base_document"
+        lambda x: x["dataset_type"] != "document"
     )
     unique_document_summarization = summarization_ds.to_pandas().drop_duplicates(
-        subset=["document"]
+        subset=["summary"]
     )
     unique_document_summarization = Dataset.from_pandas(unique_document_summarization)
     unique_document_summarization = unique_document_summarization.remove_columns(
@@ -106,16 +106,16 @@ def create_summarization_task_dataset(generated_dataset: Dataset):
             for col in unique_document_summarization.column_names
             if col
             not in [
-                "raw_document",
+                "document",
                 "document_outline",
                 "domain",
                 "dataset_type",
-                "document",
+                "summary",
             ]
         ]
     )
     unique_document_summarization = unique_document_summarization.rename_columns(
-        {"raw_document": "context", "document": "response"}
+        {"document": "context", "summary": "response"}
     )
 
     def __create_auxiliary_ds(rec):
@@ -129,7 +129,7 @@ def create_summarization_task_dataset(generated_dataset: Dataset):
         metadata = json.dumps(
             {
                 "dataset_type": rec["dataset_type"],
-                "raw_document": rec["context"],
+                "document": rec["context"],
                 "dataset": f"document_{rec['dataset_type']}",
                 "domain": rec["domain"],
             }
@@ -178,7 +178,7 @@ def mask_qa_per_doc(ds: Dataset, keep_no_qa_per_doc: int = None) -> Dataset:
     mask_entries = []
     doc_count = {}
 
-    for i, doc in enumerate(ds["document"]):
+    for i, doc in enumerate(ds["summary"]):
         if doc not in doc_count:
             doc_count[doc] = 1
         else:
@@ -235,18 +235,18 @@ def generate_knowledge_qa_dataset(
         generated_dataset = generated_dataset.filter(lambda x: x["unmask"])
 
     def __create_qa_row(rec):
-        context = rec["document"]
+        context = rec["summary"]
         instruction = rec["question"]
         response = rec["response"]
         metadata = {
-            "sdg_document": rec["document"],
+            "sdg_document": rec["summary"],
             "domain": rec["domain"],
             "dataset": "document_knowledge_qa",
         }
-        if "raw_document" in rec and "dataset_type" in rec:
+        if "document" in rec and "dataset_type" in rec:
             metadata.update(
                 {
-                    "raw_document": rec["raw_document"],
+                    "document": rec["document"],
                     "dataset_type": rec["dataset_type"],
                 }
             )
@@ -587,7 +587,7 @@ def build_chunks_from_docling_json(
 
         try:
             prev_page_number = current_book_page_number
-        except:
+        except Exception:
             logger.error(book_element)
     if "\n\n".join(current_buffer) not in document_chunks:
         document_chunks.append("\n\n".join(current_buffer))
@@ -602,7 +602,9 @@ def _num_chars_from_tokens(num_tokens) -> int:
     return int(num_tokens * 4)  # 1 token ~ 4 English character
 
 
-def chunk_document(documents: List, server_ctx_size, chunk_word_count, **kwargs) -> List[str]:
+def chunk_document(
+    documents: List, server_ctx_size, chunk_word_count, **kwargs
+) -> List[str]:
     """
     Iterates over the documents and splits them into chunks based on the word count provided by the user.
     Args:
@@ -761,14 +763,21 @@ class DocProcessor:
                     }
                 )
             )
-        df = safe_concatenate_datasets([ds.to_pandas() for ds in chunked_document_all_icl])
+        df = safe_concatenate_datasets(
+            [ds.to_pandas() for ds in chunked_document_all_icl]
+        )
         if df is None:
-            raise ValueError("No seed_examples found in user config. At least one seed example is required.")
+            raise ValueError(
+                "No seed_examples found in user config. At least one seed example is required."
+            )
         chunked_document_all_icl = Dataset.from_pandas(df)
         chunked_document_all_icl = chunked_document_all_icl.map(
             lambda x: {
                 "chunks": chunk_document(
-                    [x["document"]], server_ctx_size=server_ctx_size, chunk_word_count=chunk_word_count, **kwargs
+                    [x["document"]],
+                    server_ctx_size=server_ctx_size,
+                    chunk_word_count=chunk_word_count,
+                    **kwargs,
                 )
                 if get_token_count(x["document"], self.tokenizer) > 1024
                 else [x["document"]]
@@ -803,7 +812,9 @@ class DocProcessor:
         df = safe_concatenate_datasets([ds.to_pandas() for ds in datasets])
         return Dataset.from_pandas(df) if df is not None else None
 
-    def get_processed_markdown_dataset(self, list_md_files: list[Path], **kwargs) -> Dataset:
+    def get_processed_markdown_dataset(
+        self, list_md_files: list[Path], **kwargs
+    ) -> Dataset:
         chunks_mds = []
         for md_file in list_md_files:
             with open(md_file, "r", encoding="utf-8") as f:
