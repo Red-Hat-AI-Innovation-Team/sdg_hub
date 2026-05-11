@@ -50,7 +50,7 @@ class TestFlow:
     def create_mock_block(self, name="test_block", input_cols=None, output_cols=None):
         """Create a mock block for testing."""
         # First Party
-        from tests.flow.conftest import MockBlock
+        from tests.conftest import MockBlock
 
         return MockBlock(
             block_name=name,
@@ -399,7 +399,7 @@ class TestFlow:
     def test_dry_run_block_execution_failure(self):
         """Test dry_run exception handling when a block fails during execution."""
         # Create a block that raises an exception when executed
-        from tests.flow.conftest import MockBlock
+        from tests.conftest import MockBlock
 
         class FailingBlock(MockBlock):
             """Mock block that raises an exception during execution."""
@@ -555,7 +555,7 @@ class TestFlow:
         """Create a mock LLM block with model attributes."""
         # First Party
         from pydantic import SecretStr
-        from tests.flow.conftest import MockBlock
+        from tests.conftest import MockBlock
 
         block = MockBlock(block_name=name, input_cols=["input"], output_cols=["output"])
         # Set block_type to "llm" for detection
@@ -1505,7 +1505,7 @@ class TestFlow:
     def test_block_produces_empty_dataset_raises_empty_dataset_error(self):
         """Test that EmptyDatasetError is raised (not wrapped) when block produces empty dataset."""
         # First Party
-        from tests.flow.conftest import MockBlock
+        from tests.conftest import MockBlock
 
         # Create a block that returns empty dataset
         block = MockBlock(block_name="empty_producer")
@@ -1544,7 +1544,7 @@ class TestFlow:
     def test_dry_run_reraises_flow_validation_error(self):
         """Test that dry_run re-raises FlowValidationError without wrapping."""
         # First Party
-        from tests.flow.conftest import MockBlock
+        from tests.conftest import MockBlock
 
         block = self.create_mock_block("failing_block")
         flow = Flow(blocks=[block], metadata=self.test_metadata)
@@ -1568,7 +1568,7 @@ class TestFlow:
         import os
 
         # First Party
-        from tests.flow.conftest import MockBlock
+        from tests.conftest import MockBlock
 
         log_dir = Path(self.temp_dir) / "logs"
         os.makedirs(log_dir, exist_ok=True)
@@ -1603,7 +1603,7 @@ class TestFlow:
         agent_api_key=None,
     ):
         """Create a mock block with agent attributes for testing."""
-        from tests.flow.conftest import MockBlock
+        from tests.conftest import MockBlock
 
         block = MockBlock(block_name=name, input_cols=["input"], output_cols=["output"])
         block.block_type = "agent"

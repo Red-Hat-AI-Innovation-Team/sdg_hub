@@ -19,7 +19,7 @@ from sdg_hub.core.utils.time_estimator import (
     estimate_execution_time,
     is_llm_using_block,
 )
-from tests.flow.conftest import MockBlock
+from tests.conftest import MockBlock
 
 
 class TestTimeEstimation:

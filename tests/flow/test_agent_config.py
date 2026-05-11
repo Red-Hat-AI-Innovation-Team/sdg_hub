@@ -15,7 +15,7 @@ import yaml
 
 from sdg_hub import Flow, FlowMetadata
 from sdg_hub.core.flow.metadata import RecommendedModels
-from tests.flow.conftest import MockBlock
+from tests.conftest import MockBlock
 
 
 @pytest.fixture()
