@@ -8,18 +8,6 @@ import pytest
 from sdg_hub.core.blocks.transform import TextConcatBlock
 
 
-@pytest.fixture
-def sample_dataset():
-    """Create a sample dataset for testing."""
-    return pd.DataFrame(
-        {
-            "context": ["Context 1", "Context 2", "Context 3"],
-            "question": ["Question 1", "Question 2", "Question 3"],
-            "other_col": ["Other 1", "Other 2", "Other 3"],
-        }
-    )
-
-
 def test_basic_text_concat(sample_dataset):
     """Test basic text concatenation with default separator."""
     block = TextConcatBlock(

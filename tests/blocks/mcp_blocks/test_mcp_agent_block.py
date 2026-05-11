@@ -7,33 +7,6 @@ import pandas as pd
 import pytest
 
 
-class MockMessage:
-    """Mock message class that behaves like LiteLLM message."""
-
-    def __init__(self, content, tool_calls=None):
-        self.content = content
-        self.tool_calls = tool_calls or []
-
-    def model_dump(self):
-        result = {
-            "role": "assistant",
-            "content": self.content,
-        }
-        if self.tool_calls:
-            result["tool_calls"] = [
-                {
-                    "id": tc.id,
-                    "type": "function",
-                    "function": {
-                        "name": tc.function.name,
-                        "arguments": tc.function.arguments,
-                    },
-                }
-                for tc in self.tool_calls
-            ]
-        return result
-
-
 class MockToolCall:
     """Mock tool call from LLM response."""
 
@@ -65,12 +38,6 @@ class MockToolsResponse:
 
     def __init__(self, tools):
         self.tools = tools
-
-
-@pytest.fixture
-def sample_dataset():
-    """Create a sample dataset with queries."""
-    return pd.DataFrame({"question": ["What is Python?", "How do I use asyncio?"]})
 
 
 @pytest.fixture
@@ -218,7 +185,7 @@ class TestMCPAgentBlockGeneration:
     """Tests for MCPAgentBlock generation."""
 
     def test_generation_no_tool_calls(
-        self, sample_dataset, mock_sse_client, mock_client_session
+        self, sample_dataset, mock_sse_client, mock_client_session, mock_message_class
     ):
         """Test generation when LLM responds without tool calls."""
         from sdg_hub.core.blocks.mcp import MCPAgentBlock
@@ -231,7 +198,9 @@ class TestMCPAgentBlockGeneration:
         ) as mock_acompletion:
             mock_response = MagicMock()
             mock_response.choices = [
-                MagicMock(message=MockMessage("Python is a programming language."))
+                MagicMock(
+                    message=mock_message_class("Python is a programming language.")
+                )
             ]
 
             async def mock_completion(*args, **kwargs):
@@ -250,7 +219,7 @@ class TestMCPAgentBlockGeneration:
             result = block.generate(sample_dataset)
 
             assert "answer" in result.columns.tolist()
-            assert len(result["answer"]) == 2
+            assert len(result["answer"]) == 3
             # Output is now a trace dict
             trace = result["answer"].iloc[0]
             assert isinstance(trace, dict)
@@ -261,7 +230,9 @@ class TestMCPAgentBlockGeneration:
             final_msg = trace["messages"][-1]
             assert final_msg["content"] == "Python is a programming language."
 
-    def test_generation_with_tool_calls(self, mock_sse_client, mock_client_session):
+    def test_generation_with_tool_calls(
+        self, mock_sse_client, mock_client_session, mock_message_class
+    ):
         """Test generation when LLM makes tool calls."""
         from sdg_hub.core.blocks.mcp import MCPAgentBlock
 
@@ -276,12 +247,14 @@ class TestMCPAgentBlockGeneration:
             # First response: tool call
             tool_call = MockToolCall("call_123", "search", '{"query": "weather"}')
             first_response = MagicMock()
-            first_response.choices = [MagicMock(message=MockMessage(None, [tool_call]))]
+            first_response.choices = [
+                MagicMock(message=mock_message_class(None, [tool_call]))
+            ]
 
             # Second response: final answer
             second_response = MagicMock()
             second_response.choices = [
-                MagicMock(message=MockMessage("The weather is sunny."))
+                MagicMock(message=mock_message_class("The weather is sunny."))
             ]
 
             call_count = 0
@@ -316,7 +289,9 @@ class TestMCPAgentBlockGeneration:
             assert final_msg["content"] == "The weather is sunny."
             assert mock_session.call_tool.called
 
-    def test_generation_with_system_prompt(self, mock_sse_client, mock_client_session):
+    def test_generation_with_system_prompt(
+        self, mock_sse_client, mock_client_session, mock_message_class
+    ):
         """Test generation includes system prompt in messages."""
         from sdg_hub.core.blocks.mcp import MCPAgentBlock
 
@@ -328,7 +303,7 @@ class TestMCPAgentBlockGeneration:
             "sdg_hub.core.blocks.mcp.mcp_agent_block.acompletion"
         ) as mock_acompletion:
             mock_response = MagicMock()
-            mock_response.choices = [MagicMock(message=MockMessage("Hi there!"))]
+            mock_response.choices = [MagicMock(message=mock_message_class("Hi there!"))]
 
             async def mock_completion(*args, **kwargs):
                 # Verify system prompt is included
@@ -354,7 +329,7 @@ class TestMCPAgentBlockGeneration:
             assert trace["messages"][-1]["content"] == "Hi there!"
 
     def test_generation_max_iterations_reached(
-        self, mock_sse_client, mock_client_session
+        self, mock_sse_client, mock_client_session, mock_message_class
     ):
         """Test generation handles max iterations limit."""
         from sdg_hub.core.blocks.mcp import MCPAgentBlock
@@ -369,7 +344,9 @@ class TestMCPAgentBlockGeneration:
             # Always return tool calls (never completes)
             tool_call = MockToolCall("call_123", "search", '{"query": "test"}')
             mock_response = MagicMock()
-            mock_response.choices = [MagicMock(message=MockMessage(None, [tool_call]))]
+            mock_response.choices = [
+                MagicMock(message=mock_message_class(None, [tool_call]))
+            ]
 
             async def mock_completion(*args, **kwargs):
                 return mock_response

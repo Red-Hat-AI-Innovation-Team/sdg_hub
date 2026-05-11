@@ -13,37 +13,13 @@ from sdg_hub.core.blocks.llm import LLMChatBlock
 from sdg_hub.core.utils.error_handling import BlockValidationError
 
 
-class MockMessage:
-    """Mock message class that behaves like LiteLLM message for dict() conversion."""
-
-    def __init__(self, content):
-        self.content = content
-
-    def __iter__(self):
-        return iter(["content"])
-
-    def __getitem__(self, key):
-        if key == "content":
-            return self.content
-        raise KeyError(key)
-
-    def keys(self):
-        return ["content"]
-
-    def values(self):
-        return [self.content]
-
-    def items(self):
-        return [("content", self.content)]
-
-
 @pytest.fixture
-def mock_litellm_completion():
+def mock_litellm_completion(mock_message_class):
     """Mock LiteLLM completion function."""
     with patch("sdg_hub.core.blocks.llm.llm_chat_block.completion") as mock_completion:
         mock_response = MagicMock()
         choice = MagicMock()
-        choice.message = MockMessage("Test response")
+        choice.message = mock_message_class("Test response")
         mock_response.choices = [choice]
         # Mock model_dump() to return a proper dict structure
         mock_response.model_dump.return_value = {
@@ -56,14 +32,14 @@ def mock_litellm_completion():
 
 
 @pytest.fixture
-def mock_litellm_completion_multiple():
+def mock_litellm_completion_multiple(mock_message_class):
     """Mock LiteLLM completion function for multiple responses (n > 1)."""
     with patch("sdg_hub.core.blocks.llm.llm_chat_block.completion") as mock_completion:
         mock_response = MagicMock()
         choices = []
         for i in range(3):
             choice = MagicMock()
-            choice.message = MockMessage(f"Response {i + 1}")
+            choice.message = mock_message_class(f"Response {i + 1}")
             choices.append(choice)
         mock_response.choices = choices
         # Mock model_dump() to return a proper dict structure for multiple responses
@@ -81,14 +57,14 @@ def mock_litellm_completion_multiple():
 
 
 @pytest.fixture
-def mock_litellm_acompletion():
+def mock_litellm_acompletion(mock_message_class):
     """Mock LiteLLM async completion function."""
     with patch(
         "sdg_hub.core.blocks.llm.llm_chat_block.acompletion"
     ) as mock_acompletion:
         mock_response = MagicMock()
         choice = MagicMock()
-        choice.message = MockMessage("Test async response")
+        choice.message = mock_message_class("Test async response")
         mock_response.choices = [choice]
         # Mock model_dump() to return a proper dict structure
         mock_response.model_dump.return_value = {

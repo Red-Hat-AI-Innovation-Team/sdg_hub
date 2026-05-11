@@ -50,17 +50,6 @@ def sample_metadata():
 
 
 @pytest.fixture
-def sample_dataset():
-    """Create a sample dataset for testing."""
-    return pd.DataFrame(
-        {
-            "input": ["test input 1", "test input 2", "test input 3"],
-            "label": ["label1", "label2", "label3"],
-        }
-    )
-
-
-@pytest.fixture
 def empty_dataset():
     """Create an empty dataset for testing."""
     return pd.DataFrame({"input": [], "label": []})
