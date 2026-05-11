@@ -8,15 +8,15 @@ to your current task -- do not load all files at once.
 
 | File | Topic | Last verified |
 |------|-------|---------------|
-| [core-principles.md](core-principles.md) | Golden rules that apply to all contributions | 2026-05-08 |
-| [block-invariants.md](block-invariants.md) | Rules every block must follow | 2026-05-08 |
-| [flow-invariants.md](flow-invariants.md) | Rules every flow YAML must follow | 2026-05-08 |
-| [connector-invariants.md](connector-invariants.md) | Rules every connector must follow | 2026-05-08 |
-| [testing-standards.md](testing-standards.md) | What "tested" means and how to write tests | 2026-05-08 |
-| [grading-criteria.md](grading-criteria.md) | Quality criteria with hard thresholds | 2026-05-08 |
-| [decision-rubric.md](decision-rubric.md) | When to auto-fix, flag, or escalate | 2026-05-08 |
-| [QUALITY.md](QUALITY.md) | Quality grades per domain/layer | 2026-05-08 |
-| [tech-debt-tracker.md](tech-debt-tracker.md) | Known debt, prioritized | 2026-05-08 |
+| [core-principles.md](core-principles.md) | Golden rules that apply to all contributions | 2026-05-11 |
+| [block-invariants.md](block-invariants.md) | Rules every block must follow | 2026-05-11 |
+| [flow-invariants.md](flow-invariants.md) | Rules every flow YAML must follow | 2026-05-11 |
+| [connector-invariants.md](connector-invariants.md) | Rules every connector must follow | 2026-05-11 |
+| [testing-standards.md](testing-standards.md) | What "tested" means and how to write tests | 2026-05-11 |
+| [grading-criteria.md](grading-criteria.md) | Quality criteria with hard thresholds | 2026-05-11 |
+| [decision-rubric.md](decision-rubric.md) | When to auto-fix, flag, or escalate | 2026-05-11 |
+| [QUALITY.md](QUALITY.md) | Quality grades per domain/layer | 2026-05-11 |
+| [tech-debt-tracker.md](tech-debt-tracker.md) | Known debt, prioritized | 2026-05-11 |
 
 ## Progressive Disclosure
 
