@@ -29,15 +29,13 @@ src/sdg_hub/
         blocks/                   # Block system
             base.py               #   BaseBlock (Pydantic + ABC)
             registry.py           #   BlockRegistry + BlockMetadata
-            llm/                  #   LLMChatBlock, PromptBuilderBlock, LLMResponseExtractorBlock
+            llm/                  #   LLMChatBlock, PromptBuilderBlock, LLMResponseExtractorBlock, ErrorHandlerBlock
             parsing/              #   TagParserBlock, RegexParserBlock, JSONParserBlock (+ BaseTextParserBlock)
-            transform/            #   TextConcatBlock, RenameColumnsBlock, MeltColumnsBlock, RowMultiplierBlock, SamplerBlock, etc.
+            transform/            #   TextConcatBlock, RenameColumnsBlock, MeltColumnsBlock, RowMultiplierBlock, SamplerBlock, DuplicateColumnsBlock, IndexBasedMapperBlock, JsonStructureBlock, UniformColValSetterBlock
             filtering/            #   ColumnValueFilterBlock
             agent/                #   AgentBlock, AgentResponseExtractorBlock
             mcp/                  #   MCPAgentBlock (agentic tool-use with remote MCP servers)
             code/                 #   PythonInterpreterBlock
-            evaluation/           #   (reserved for evaluation blocks)
-            generator/            #   (reserved; contains magpie/ sub-package)
 
         connectors/               # External service integrations
             base.py               #   BaseConnector + ConnectorConfig (Pydantic + ABC)
@@ -82,8 +80,8 @@ src/sdg_hub/
             prompts/              #   Shared prompt templates (YAML)
 
     flows/                        # Pre-built flow definitions (YAML + prompts)
-        knowledge_infusion/       #   Document-grounded QA generation
-        evaluation/               #   RAG evaluation, MCP eval benchmark
+        knowledge_infusion/       #   Document-grounded QA generation (localized variants: Spanish, Japanese)
+        evaluation/               #   RAG evaluation, RAG evaluation ICL, MCP eval benchmark
         agentic/                  #   MCP tool-use distillation
         red_team/                 #   Adversarial prompt generation
         text_analysis/            #   Structured text insights
