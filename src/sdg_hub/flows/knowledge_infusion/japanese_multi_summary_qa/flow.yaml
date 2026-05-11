@@ -36,11 +36,6 @@ metadata:
     description: "Input dataset should contain documents with Japanese text content and domain classification. Each document should be substantial enough for meaningful question generation (minimum 100 words recommended)."
 
 blocks:
-  - block_type: DuplicateColumnsBlock
-    block_config:
-      block_name: duplicate_document_col
-      input_cols: {document: base_document}
-
   - block_type: PromptBuilderBlock
     block_config:
       block_name: detailed_summary_prompt
@@ -133,22 +128,23 @@ blocks:
   - block_type: MeltColumnsBlock
     block_config:
       block_name: melt_summary_columns
-      input_cols: [summary_detailed, summary_extractive, summary_atomic_facts, base_document]
+      input_cols: [summary_detailed, summary_extractive, summary_atomic_facts, document]
       output_cols: [summary, dataset_type]
-
-  - block_type: RenameColumnsBlock
-    block_config:
-      block_name: rename_to_raw_document_column
-      input_cols: {document: raw_document}
-  - block_type: RenameColumnsBlock
-    block_config:
-      block_name: rename_to_document_column
-      input_cols: {summary: document}
 
   - block_type: PromptBuilderBlock
     block_config:
       block_name: knowledge_generation_prompt
-      input_cols: [domain, document, document_outline, icl_document, icl_query_1, icl_response_1, icl_query_2, icl_response_2, icl_query_3, icl_response_3]
+      input_cols:
+        domain: domain
+        summary: document
+        document_outline: document_outline
+        icl_document: icl_document
+        icl_query_1: icl_query_1
+        icl_response_1: icl_response_1
+        icl_query_2: icl_query_2
+        icl_response_2: icl_response_2
+        icl_query_3: icl_query_3
+        icl_response_3: icl_response_3
       output_cols: knowledge_generation_prompt
       prompt_config_path: prompts/generate_questions_responses_ja.yaml
 
@@ -178,7 +174,9 @@ blocks:
   - block_type: PromptBuilderBlock
     block_config:
       block_name: eval_faithful_prompt
-      input_cols: [document, response]
+      input_cols:
+        summary: document
+        response: response
       output_cols: eval_faithful_prompt
       prompt_config_path: prompts/evaluate_faithfulness_ja.yaml
       format_as_messages: true
