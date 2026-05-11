@@ -299,7 +299,6 @@ class AgentResponseExtractorBlock(BaseBlock):
         """Process list input while preserving list structure."""
         output_columns = self._get_output_columns()
         all_extracted: dict[str, list[Any]] = {col: [] for col in output_columns}
-        valid_responses = 0
 
         for i, response in enumerate(raw_output):
             if not isinstance(response, dict):
@@ -308,17 +307,11 @@ class AgentResponseExtractorBlock(BaseBlock):
                 )
                 continue
 
-            try:
-                extracted = self._extract_fields_from_response(response)
-                valid_responses += 1
-                for col in output_columns:
-                    if col in extracted:
-                        all_extracted[col].append(extracted[col])
-            except ValueError as e:
-                logger.warning(f"Failed to extract fields from list item {i}: {e}")
-                continue
+            extracted = self._extract_fields_from_response(response)
+            for col in output_columns:
+                all_extracted[col].append(extracted[col])
 
-        if valid_responses == 0:
+        if all(len(v) == 0 for v in all_extracted.values()):
             raise ValueError(
                 f"No valid responses found in list input for column '{input_column}'"
             )
@@ -338,13 +331,9 @@ class AgentResponseExtractorBlock(BaseBlock):
                 )
                 continue
 
-            try:
-                extracted = self._extract_fields_from_response(response)
-                result_row = {**sample, **extracted}
-                all_results.append(result_row)
-            except ValueError as e:
-                logger.warning(f"Failed to extract fields from list item {i}: {e}")
-                continue
+            extracted = self._extract_fields_from_response(response)
+            result_row = {**sample, **extracted}
+            all_results.append(result_row)
 
         if not all_results:
             raise ValueError(
