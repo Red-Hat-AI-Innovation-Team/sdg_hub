@@ -5,6 +5,7 @@
 from pathlib import Path
 
 # Third Party
+import pandas as pd
 import pytest
 import yaml
 
@@ -206,6 +207,7 @@ class TestRagEvaluationIclPersonaPrompts:
         with open(path, encoding="utf-8") as f:
             messages = yaml.safe_load(f)
 
+        assert messages, f"{prompt_file}: prompt must contain at least one message"
         last_msg = messages[-1]
         assert isinstance(last_msg, dict), (
             f"{prompt_file}: last entry must be a dict, got {type(last_msg).__name__}"
@@ -262,3 +264,26 @@ class TestRagEvaluationIclPersonaFlowDiscovery:
         path = FlowRegistry.get_flow_path("RAG Evaluation ICL Persona Dataset Flow")
         assert path is not None
         assert "rag_evaluation_icl_persona" in path
+
+
+class TestRagEvaluationIclPersonaErrorPaths:
+    """Test that the flow rejects invalid inputs."""
+
+    def test_flow_rejects_missing_system_prompt(self):
+        """Flow should fail validation when system_prompt column is missing."""
+        flow = Flow.from_yaml(str(FLOW_YAML))
+        flow.set_model_config(model="test/model")
+
+        dataset = pd.DataFrame(
+            {
+                "document": ["text"],
+                "document_outline": ["outline"],
+                "icl_document": ["doc"],
+                "icl_query_1": ["q1"],
+                "icl_query_2": ["q2"],
+                "icl_query_3": ["q3"],
+            }
+        )
+
+        errors = flow.validate_dataset(dataset)
+        assert any("system_prompt" in e for e in errors)

@@ -21,4 +21,4 @@
     Question:
     {{question}}
 
-    Provide a direct answer using ONLY the information stated above, following the persona and tone defined in the system prompt.
+    Provide a direct answer using ONLY the information stated above, following the persona and tone defined above.

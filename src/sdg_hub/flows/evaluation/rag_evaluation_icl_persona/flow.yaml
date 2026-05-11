@@ -1,3 +1,5 @@
+# This flow extends rag_evaluation_icl with persona-aware answer generation.
+# Prompts other than answer_generation.yaml are shared with rag_evaluation_icl.
 metadata:
   name: RAG Evaluation ICL Persona Dataset Flow
   description: Generates realistic Q&A pairs for RAG evaluation using the 3-stage question generation pipeline with ICL-driven style and persona-aware answer generation.

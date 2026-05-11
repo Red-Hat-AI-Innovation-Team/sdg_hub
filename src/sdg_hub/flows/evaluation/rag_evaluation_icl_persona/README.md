@@ -83,7 +83,7 @@ For generic extractive answers without persona, use `rag_evaluation_icl` instead
 
 ```python
 from datasets import Dataset
-from sdg_hub.core.flow import Flow, FlowRegistry
+from sdg_hub import Flow, FlowRegistry
 
 # Load flow
 FlowRegistry.discover_flows()
