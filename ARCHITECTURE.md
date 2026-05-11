@@ -23,21 +23,18 @@ with external services (agent frameworks, HTTP APIs, code interpreters).
 ```
 src/sdg_hub/
     __init__.py
-    _version.py
 
     core/                         # Framework internals
         blocks/                   # Block system
             base.py               #   BaseBlock (Pydantic + ABC)
             registry.py           #   BlockRegistry + BlockMetadata
-            llm/                  #   LLMChatBlock, PromptBuilderBlock, LLMResponseExtractorBlock
+            llm/                  #   LLMChatBlock, PromptBuilderBlock, LLMResponseExtractorBlock, LLMErrorHandler
             parsing/              #   TagParserBlock, RegexParserBlock, JSONParserBlock (+ BaseTextParserBlock)
-            transform/            #   TextConcatBlock, RenameColumnsBlock, MeltColumnsBlock, RowMultiplierBlock, SamplerBlock, etc.
+            transform/            #   TextConcatBlock, RenameColumnsBlock, MeltColumnsBlock, RowMultiplierBlock, SamplerBlock, DuplicateColumnsBlock, IndexBasedMapperBlock, JsonStructureBlock, UniformColValSetterBlock
             filtering/            #   ColumnValueFilterBlock
             agent/                #   AgentBlock, AgentResponseExtractorBlock
             mcp/                  #   MCPAgentBlock (agentic tool-use with remote MCP servers)
             code/                 #   PythonInterpreterBlock
-            evaluation/           #   (reserved for evaluation blocks)
-            generator/            #   (reserved; contains magpie/ sub-package)
 
         connectors/               # External service integrations
             base.py               #   BaseConnector + ConnectorConfig (Pydantic + ABC)
