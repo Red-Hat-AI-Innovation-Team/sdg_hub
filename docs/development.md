@@ -374,6 +374,25 @@ test(connectors): add integration tests for LangGraph connector
 - `docs/<description>` -- documentation changes
 - `chore/<description>` -- maintenance tasks
 
+### GitHub Labels
+
+The repository uses the following labels to track agent and human
+contributions through the PR lifecycle:
+
+| Label | Color | Description |
+|-------|-------|-------------|
+| `agent-assigned` | `#0e8a16` | An agent is working on this issue |
+| `agent-blocked` | `#e4e669` | Agent hit a blocker and needs human input |
+| `agent-merged` | `#0e8a16` | Merged by sdg-lead agent via `/merge` command |
+| `agent-pr` | `#1d76db` | PR created by an agent |
+| `agent-reviewed` | `#5319e7` | Agent has reviewed this PR |
+| `human-merged` | `#c5def5` | Merged by a human maintainer |
+| `needs-human-review` | `#d93f0b` | Agent cannot proceed — requires human judgment |
+
+The `human-merged` label is applied manually by human maintainers when
+they merge a PR themselves, distinguishing their merges from automated
+agent merges tracked by `agent-merged`.
+
 ### Pull Request Process
 
 1. Create a feature branch from `main`.
