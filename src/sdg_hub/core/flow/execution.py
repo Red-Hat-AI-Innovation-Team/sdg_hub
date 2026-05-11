@@ -514,6 +514,58 @@ def _setup_flow_logger(
     return flow_logger, timestamp, flow_name
 
 
+def _validate_output_columns_against_blocks(
+    flow: "Flow",
+    dataset: pd.DataFrame,
+) -> None:
+    """Validate that output_columns are producible by the flow's blocks.
+
+    Traces column availability through the block chain to verify that all
+    declared output_columns will exist after execution. Catches config errors
+    like typos early, before any blocks are executed.
+
+    Parameters
+    ----------
+    flow : Flow
+        The flow instance.
+    dataset : pd.DataFrame
+        Input dataset (used to seed available columns).
+
+    Raises
+    ------
+    FlowValidationError
+        If any output_columns cannot be traced to a block output or input column.
+    """
+    if not flow.metadata.output_columns:
+        return
+
+    output_columns = set(flow.metadata.output_columns)
+    available_columns = set(dataset.columns.tolist())
+
+    for block in flow.blocks:
+        block_output_cols = block.output_cols
+
+        if block_output_cols:
+            if isinstance(block_output_cols, list):
+                available_columns.update(block_output_cols)
+            elif isinstance(block_output_cols, dict):
+                available_columns.update(block_output_cols.keys())
+
+        if block.__class__.__name__ == "RenameColumnsBlock" and isinstance(
+            block.input_cols, dict
+        ):
+            for old_name in block.input_cols:
+                available_columns.discard(old_name)
+
+    invalid_columns = output_columns - available_columns
+    if invalid_columns:
+        raise FlowValidationError(
+            f"output_columns {sorted(invalid_columns)} are not produced by any block "
+            f"and are not in the input dataset. "
+            f"Available columns: {sorted(available_columns)}"
+        )
+
+
 def _validate_flow_preconditions(
     flow: "Flow",
     dataset: pd.DataFrame,
@@ -578,6 +630,8 @@ def _validate_flow_preconditions(
         raise FlowValidationError(
             "Dataset validation failed:\n" + "\n".join(dataset_errors)
         )
+
+    _validate_output_columns_against_blocks(flow, dataset)
 
 
 def _initialize_checkpointer(

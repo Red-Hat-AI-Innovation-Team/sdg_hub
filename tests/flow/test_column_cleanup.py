@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 from sdg_hub.core.blocks.transform.duplicate_columns import DuplicateColumnsBlock
+from sdg_hub.core.blocks.transform.rename_columns import RenameColumnsBlock
 from sdg_hub.core.blocks.transform.text_concat import TextConcatBlock
 from sdg_hub.core.flow.base import Flow
 from sdg_hub.core.flow.column_tracker import ColumnDependencyTracker
@@ -299,7 +300,7 @@ class TestFlowColumnCleanup:
         )
 
         dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
-        with pytest.raises(FlowValidationError, match="output_columns not found"):
+        with pytest.raises(FlowValidationError, match="not produced by any block"):
             flow.generate(dataset)
 
     def test_flow_early_drop_verified_mid_execution(self):
@@ -437,3 +438,302 @@ class TestCheckpointColumnCleanup:
         assert "b" in result.columns
         assert "output" in result.columns
         assert "intermediate" not in result.columns
+
+
+class TestOutputColumnsValidation:
+    """Tests for pre-execution output_columns validation against block outputs."""
+
+    def test_valid_output_columns_no_error(self):
+        """Test that valid output_columns pass validation without error."""
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["ab"],
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat",
+                    input_cols=["a", "b"],
+                    output_cols="ab",
+                ),
+            ],
+        )
+
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        result = flow.generate(dataset)
+        assert "ab" in result.columns
+
+    def test_typo_in_output_columns_raises(self):
+        """Test that a typo in output_columns is caught before execution."""
+        from sdg_hub.core.utils.error_handling import FlowValidationError
+
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["summarry"],
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat",
+                    input_cols=["a", "b"],
+                    output_cols="summary",
+                ),
+            ],
+        )
+
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        with pytest.raises(FlowValidationError, match="summarry") as exc_info:
+            flow.generate(dataset)
+        assert "not produced by any block" in str(exc_info.value)
+        assert "summary" in str(exc_info.value)
+
+    def test_input_passthrough_columns_accepted(self):
+        """Test that input columns referenced in output_columns are accepted."""
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["a", "ab"],
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat",
+                    input_cols=["a", "b"],
+                    output_cols="ab",
+                ),
+            ],
+        )
+
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        result = flow.generate(dataset)
+        assert "a" in result.columns
+        assert "ab" in result.columns
+
+    def test_multiple_invalid_columns_all_listed(self):
+        """Test that all invalid columns appear in the error message."""
+        from sdg_hub.core.utils.error_handling import FlowValidationError
+
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["bad1", "bad2", "output"],
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat",
+                    input_cols=["a", "b"],
+                    output_cols="output",
+                ),
+            ],
+        )
+
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.generate(dataset)
+        assert "bad1" in str(exc_info.value)
+        assert "bad2" in str(exc_info.value)
+
+    def test_rename_block_tracks_column_availability(self):
+        """Test that RenameColumnsBlock properly updates tracked columns."""
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["new_a"],
+            ),
+            blocks=[
+                RenameColumnsBlock(
+                    block_name="rename",
+                    input_cols={"a": "new_a"},
+                ),
+            ],
+        )
+
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        result = flow.generate(dataset)
+        assert "new_a" in result.columns
+
+    def test_rename_block_old_name_not_available(self):
+        """Test that renamed-away columns are correctly marked unavailable."""
+        from sdg_hub.core.utils.error_handling import FlowValidationError
+
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["a"],
+            ),
+            blocks=[
+                RenameColumnsBlock(
+                    block_name="rename",
+                    input_cols={"a": "new_a"},
+                ),
+            ],
+        )
+
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        with pytest.raises(FlowValidationError, match="not produced by any block"):
+            flow.generate(dataset)
+
+    def test_no_output_columns_skips_validation(self):
+        """Test that flows without output_columns skip validation entirely."""
+        flow = Flow(
+            metadata=FlowMetadata(name="test"),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat",
+                    input_cols=["a", "b"],
+                    output_cols="ab",
+                ),
+            ],
+        )
+
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        result = flow.generate(dataset)
+        assert "a" in result.columns
+        assert "b" in result.columns
+        assert "ab" in result.columns
+
+    def test_error_message_lists_available_columns(self):
+        """Test that the error message includes all available columns."""
+        from sdg_hub.core.utils.error_handling import FlowValidationError
+
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["nonexistent"],
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat",
+                    input_cols=["a", "b"],
+                    output_cols="output",
+                ),
+            ],
+        )
+
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        with pytest.raises(FlowValidationError) as exc_info:
+            flow.generate(dataset)
+        msg = str(exc_info.value)
+        assert "Available columns:" in msg
+        assert "a" in msg
+        assert "b" in msg
+        assert "output" in msg
+
+    def test_multi_block_chain_validation(self):
+        """Test validation traces columns through a multi-block chain."""
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["final"],
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="step1",
+                    input_cols=["a", "b"],
+                    output_cols="intermediate",
+                ),
+                DuplicateColumnsBlock(
+                    block_name="step2",
+                    input_cols={"intermediate": "final"},
+                ),
+            ],
+        )
+
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        result = flow.generate(dataset)
+        assert "final" in result.columns
+
+
+class TestCheckpointResumeWithChangedCleanup:
+    """Tests for checkpoint resume with changed column cleanup settings."""
+
+    def test_resume_with_new_output_columns(self, tmp_path):
+        """Test resuming from a checkpoint created without output_columns,
+        where the new run uses output_columns with early column dropping."""
+        from sdg_hub.core.flow.checkpointer import FlowCheckpointer
+
+        flow_v1 = Flow(
+            metadata=FlowMetadata(name="test"),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat",
+                    input_cols=["a", "b"],
+                    output_cols="output",
+                ),
+            ],
+        )
+
+        checkpoint_dir = str(tmp_path / "checkpoints")
+        checkpointer = FlowCheckpointer(
+            checkpoint_dir=checkpoint_dir, flow_id=flow_v1.metadata.id
+        )
+        completed = pd.DataFrame(
+            {"a": ["1"], "b": ["2"], "output": ["12"], "extra": ["bonus"]}
+        )
+        checkpointer.add_completed_samples(completed)
+        checkpointer.save_final_checkpoint()
+
+        flow_v2 = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["output"],
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat",
+                    input_cols=["a", "b"],
+                    output_cols="output",
+                ),
+            ],
+        )
+
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        result = flow_v2.generate(dataset, checkpoint_dir=checkpoint_dir)
+
+        assert "a" in result.columns
+        assert "b" in result.columns
+        assert "output" in result.columns
+        assert "extra" not in result.columns
+
+    def test_resume_checkpoint_rows_have_extra_columns(self, tmp_path):
+        """Test that old checkpoint rows with columns not in new output_columns
+        are properly cleaned up."""
+        from sdg_hub.core.flow.checkpointer import FlowCheckpointer
+
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["output"],
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat",
+                    input_cols=["a", "b"],
+                    output_cols="output",
+                ),
+            ],
+        )
+
+        checkpoint_dir = str(tmp_path / "checkpoints")
+        checkpointer = FlowCheckpointer(
+            checkpoint_dir=checkpoint_dir, flow_id=flow.metadata.id
+        )
+        completed = pd.DataFrame(
+            {
+                "a": ["1", "2"],
+                "b": ["3", "4"],
+                "output": ["13", "24"],
+                "old_col1": ["x", "y"],
+                "old_col2": ["m", "n"],
+            }
+        )
+        checkpointer.add_completed_samples(completed)
+        checkpointer.save_final_checkpoint()
+
+        dataset = pd.DataFrame({"a": ["1", "2"], "b": ["3", "4"]})
+        result = flow.generate(dataset, checkpoint_dir=checkpoint_dir)
+
+        assert "output" in result.columns
+        assert "a" in result.columns
+        assert "b" in result.columns
+        assert "old_col1" not in result.columns
+        assert "old_col2" not in result.columns
