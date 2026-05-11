@@ -1,14 +1,19 @@
 # SPDX-License-Identifier: Apache-2.0
 """Three-tier composite scoring script for SDG Hub.
 
-Tiers:
-  - Hygiene  (0.30): pytest, ruff, mypy, structural tests
-  - Growth   (0.20): registered blocks+flows+connectors, test coverage
-  - Project  (0.50): block tests, flow tests, connector tests
+Evaluates project health across three weighted tiers:
+
+  - Hygiene  (30%): pytest, ruff, mypy, structural tests
+  - Growth   (20%): registered blocks+flows+connectors, test coverage
+  - Project  (50%): block tests, flow tests, connector tests
+
+Each tier runs its checks and produces a 0–1 score. The composite score is
+the weighted sum of all tier scores (range 0.0–1.0). The process exits 0
+when the composite is at least 0.5, or 1 otherwise.
 
 Usage:
   uv run python eval/score.py          # human-readable output
-  uv run python eval/score.py --json   # JSON output
+  uv run python eval/score.py --json   # machine-readable JSON output
 """
 
 from __future__ import annotations
