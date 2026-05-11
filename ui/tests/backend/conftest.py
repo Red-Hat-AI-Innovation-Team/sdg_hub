@@ -336,21 +336,6 @@ def temp_dir() -> Generator[str, None, None]:
 
 
 @pytest.fixture
-def sample_dataset() -> pd.DataFrame:
-    """Create a sample dataset for testing."""
-    return pd.DataFrame({
-        "input": ["test input 1", "test input 2", "test input 3"],
-        "label": ["label1", "label2", "label3"],
-    })
-
-
-@pytest.fixture
-def empty_dataset() -> pd.DataFrame:
-    """Create an empty dataset for testing."""
-    return pd.DataFrame({"input": [], "label": []})
-
-
-@pytest.fixture
 def sample_jsonl_file(temp_dir) -> str:
     """Create a sample JSONL file."""
     file_path = Path(temp_dir) / "test_data.jsonl"
@@ -362,18 +347,6 @@ def sample_jsonl_file(temp_dir) -> str:
     with open(file_path, "w") as f:
         for item in data:
             f.write(json.dumps(item) + "\n")
-    return str(file_path)
-
-
-@pytest.fixture
-def sample_csv_file(temp_dir) -> str:
-    """Create a sample CSV file."""
-    file_path = Path(temp_dir) / "test_data.csv"
-    df = pd.DataFrame({
-        "input": ["test 1", "test 2", "test 3"],
-        "label": ["a", "b", "c"],
-    })
-    df.to_csv(file_path, index=False)
     return str(file_path)
 
 
