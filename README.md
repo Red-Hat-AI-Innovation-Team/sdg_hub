@@ -56,6 +56,82 @@ See the [Quick Start](docs/quickstart.md) for a full walkthrough, or browse [all
 - [API Reference](docs/reference/) -- auto-generated from source
 - [Contributing](CONTRIBUTING.md) -- development setup and contribution guidelines
 
+## Coding Agent Plugin
+
+SDG Hub is available as a plugin for five major coding agents, bringing synthetic data generation directly into your coding workflow.
+
+<details>
+<summary><strong>Claude Code</strong></summary>
+
+**Via org marketplace** (recommended — includes all Red Hat AI plugins):
+```
+/plugin marketplace add Red-Hat-AI-Innovation-Team/plugins
+/plugin install sdg-hub@Red-Hat-AI-Innovation-Team/plugins
+```
+
+**Via this repo directly:**
+```
+/plugin marketplace add Red-Hat-AI-Innovation-Team/sdg_hub
+/plugin install sdg-hub@Red-Hat-AI-Innovation-Team/sdg_hub
+```
+
+**From a local clone:**
+```bash
+git clone https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
+/plugin marketplace add /path/to/sdg_hub
+```
+</details>
+
+<details>
+<summary><strong>Cursor</strong></summary>
+
+Clone the repo and open it — Cursor discovers the plugin via `.cursor-plugin/plugin.json` automatically.
+</details>
+
+<details>
+<summary><strong>Gemini CLI</strong></summary>
+
+```bash
+gemini extensions install https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub
+```
+</details>
+
+<details>
+<summary><strong>Codex CLI</strong></summary>
+
+```bash
+git clone https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git ~/.codex/sdg-hub
+mkdir -p ~/.agents/skills
+ln -s ~/.codex/sdg-hub/skills ~/.agents/skills/sdg-hub
+```
+
+Restart Codex to discover the skills. See `.codex-plugin/INSTALL.md` for full instructions.
+</details>
+
+<details>
+<summary><strong>OpenCode</strong></summary>
+
+Add to your `opencode.json`:
+
+```json
+{
+  "plugin": ["sdg-hub@git+https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git"]
+}
+```
+
+Restart OpenCode. See `.opencode-plugin/INSTALL.md` for full instructions.
+</details>
+
+### After Installing
+
+Run `/sdg-setup` (or invoke the `setup-guide` skill) to configure your LLM provider and model.
+
+| Command | Description |
+|---|---|
+| `/sdg-setup` | Guided first-time configuration |
+| `/sdg-generate <flow> <input-file>` | Run synthetic data generation using a flow |
+| `/sdg-flows [list\|search\|inspect]` | Browse and inspect available flows |
+
 ## License
 
 Apache License 2.0 -- see [LICENSE](LICENSE).
