@@ -64,11 +64,6 @@ class BlockRegistry:
     _metadata: dict[str, BlockMetadata] = {}
     _categories: dict[str, set[str]] = {}
 
-    @staticmethod
-    def _format_error(action: str, block_name: str, detail: str) -> str:
-        """Build a standard registry error message."""
-        return f"BlockRegistry.{action}: block '{block_name}' {detail}"
-
     @classmethod
     def register(
         cls,
@@ -102,15 +97,6 @@ class BlockRegistry:
         def decorator(block_class: type) -> type:
             # Validate the class
             cls._validate_block_class(block_class)
-
-            if block_name in cls._metadata:
-                raise ValueError(
-                    cls._format_error(
-                        "register",
-                        block_name,
-                        "is already registered",
-                    )
-                )
 
             # Create metadata
             metadata = BlockMetadata(
@@ -205,15 +191,21 @@ class BlockRegistry:
                 block_name, available_blocks, n=3, cutoff=0.6
             )
 
-            detail = "not found in registry."
-            if suggestions:
-                detail += f" Did you mean: {', '.join(suggestions)}?"
-            if available_blocks:
-                detail += f"\nAvailable blocks: {', '.join(sorted(available_blocks))}"
-            if cls._categories:
-                detail += f"\nCategories: {', '.join(sorted(cls._categories.keys()))}"
+            error_msg = f"Block '{block_name}' not found in registry."
 
-            error_msg = cls._format_error("get", block_name, detail)
+            if suggestions:
+                error_msg += f" Did you mean: {', '.join(suggestions)}?"
+
+            if available_blocks:
+                error_msg += (
+                    f"\nAvailable blocks: {', '.join(sorted(available_blocks))}"
+                )
+
+            if cls._categories:
+                error_msg += (
+                    f"\nCategories: {', '.join(sorted(cls._categories.keys()))}"
+                )
+
             logger.error(error_msg)
             raise KeyError(error_msg)
 
@@ -260,11 +252,8 @@ class BlockRegistry:
         if category not in cls._categories:
             available_categories = sorted(cls._categories.keys())
             raise KeyError(
-                cls._format_error(
-                    "get",
-                    category,
-                    f"category not found. Available categories: {', '.join(available_categories)}",
-                )
+                f"Category '{category}' not found. "
+                f"Available categories: {', '.join(available_categories)}"
             )
         return sorted(cls._categories[category])
 
@@ -320,9 +309,7 @@ class BlockRegistry:
     def discover_blocks(cls) -> None:
         """Print a Rich-formatted table of all available blocks."""
         if not cls._metadata:
-            logger.warning(
-                cls._format_error("discover_blocks", "*", "none registered yet")
-            )
+            logger.warning("No blocks registered yet.")
             return
 
         if not logger.isEnabledFor(logging.INFO):
