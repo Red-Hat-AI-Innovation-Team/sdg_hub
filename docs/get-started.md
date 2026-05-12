@@ -1,6 +1,6 @@
 # Get Started
 
-Get up and running with SDG Hub in two steps using [Claude Code](https://claude.ai/claude-code).
+Get up and running with SDG Hub in minutes using [Claude Code](https://claude.ai/claude-code).
 
 ## Prerequisites
 
@@ -12,10 +12,12 @@ Get up and running with SDG Hub in two steps using [Claude Code](https://claude.
 
 ## Step 1: Bootstrap SDG Hub
 
-Run this command to install SDG Hub and clone the repository:
+Download the bootstrap script and review it before running:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Red-Hat-AI-Innovation-Team/sdg_hub/main/scripts/bootstrap.sh | claude --dangerously-skip-permissions
+curl -fsSL https://raw.githubusercontent.com/Red-Hat-AI-Innovation-Team/sdg_hub/main/scripts/bootstrap.sh -o bootstrap.sh
+less bootstrap.sh   # review the script
+bash bootstrap.sh
 ```
 
 ### What this does
