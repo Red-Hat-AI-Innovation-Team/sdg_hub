@@ -265,7 +265,9 @@ class FlowValidator:
         if isinstance(output_cols, list):
             return output_cols
         if isinstance(output_cols, dict):
-            return list(output_cols.keys())
+            names = list(output_cols.keys())
+            names.extend(v for v in output_cols.values() if isinstance(v, str))
+            return names
         return []
 
     def _validate_output_columns_against_blocks(

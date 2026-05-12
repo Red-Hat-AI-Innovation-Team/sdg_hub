@@ -550,6 +550,9 @@ def _validate_output_columns_against_blocks(
                 available_columns.update(block_output_cols)
             elif isinstance(block_output_cols, dict):
                 available_columns.update(block_output_cols.keys())
+                available_columns.update(
+                    v for v in block_output_cols.values() if isinstance(v, str)
+                )
 
         if block.__class__.__name__ == "RenameColumnsBlock" and isinstance(
             block.input_cols, dict

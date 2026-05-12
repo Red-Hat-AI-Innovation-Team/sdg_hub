@@ -642,6 +642,30 @@ class TestOutputColumnsValidation:
         result = flow.generate(dataset)
         assert "final" in result.columns
 
+    def test_dict_output_cols_values_tracked(self):
+        """Test that dict output_cols with string values are tracked as available."""
+        from sdg_hub.core.flow.execution import _validate_output_columns_against_blocks
+
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["new_a"],
+            ),
+            blocks=[
+                RenameColumnsBlock(
+                    block_name="rename",
+                    input_cols={"a": "new_a"},
+                ),
+            ],
+        )
+
+        # Force output_cols to be a dict (simulates blocks that keep dict output_cols)
+        flow.blocks[0].output_cols = {"a": "new_a"}
+
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        # Should not raise — "new_a" is a string value in the dict
+        _validate_output_columns_against_blocks(flow, dataset)
+
 
 class TestCheckpointResumeWithChangedCleanup:
     """Tests for checkpoint resume with changed column cleanup settings."""
