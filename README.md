@@ -58,7 +58,7 @@ See the [Quick Start](docs/quickstart.md) for a full walkthrough, or browse [all
 
 ## Coding Agent Plugin
 
-SDG Hub is available as a plugin for five major coding agents, bringing synthetic data generation directly into your coding workflow.
+SDG Hub is available as a plugin for four major coding agents, bringing synthetic data generation directly into your coding workflow.
 
 <details>
 <summary><strong>Claude Code</strong></summary>
@@ -86,14 +86,6 @@ git clone https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
 <summary><strong>Cursor</strong></summary>
 
 Clone the repo and open it — Cursor discovers the plugin via `.cursor-plugin/plugin.json` automatically.
-</details>
-
-<details>
-<summary><strong>Gemini CLI</strong></summary>
-
-```bash
-gemini extensions install https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub
-```
 </details>
 
 <details>
