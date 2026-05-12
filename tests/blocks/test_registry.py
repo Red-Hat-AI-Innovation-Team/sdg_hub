@@ -127,7 +127,9 @@ class TestBlockRegistry:
 
     def test_register_invalid_class(self):
         """Test that registering invalid class raises ValueError."""
-        with pytest.raises(ValueError, match="Expected a class"):
+        with pytest.raises(
+            ValueError, match=r"\[REG001\] Invalid block type: expected class"
+        ):
 
             @BlockRegistry.register("InvalidBlock", "test")
             def not_a_class():
