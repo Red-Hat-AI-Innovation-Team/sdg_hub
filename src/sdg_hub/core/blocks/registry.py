@@ -132,7 +132,7 @@ class BlockRegistry:
         return decorator
 
     @classmethod
-    def _format_error(cls, code: str, context: str, detail: str = "") -> str:
+    def _format_registry_error(cls, code: str, context: str, detail: str = "") -> str:
         """Format a registry error message with consistent structure.
 
         Parameters
@@ -172,7 +172,7 @@ class BlockRegistry:
         """
         if not inspect.isclass(block_class):
             raise ValueError(
-                cls._format_error(
+                cls._format_registry_error(
                     "REG001",
                     "Invalid block type",
                     f"expected class, got {type(block_class)}",
