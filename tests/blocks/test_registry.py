@@ -173,11 +173,12 @@ class TestBlockRegistry:
         assert retrieved_class == TestBlock
 
     def test_get_block_class_not_found(self):
-        """Test error when block not found."""
+        """Test error when block not found uses standard format."""
         with pytest.raises(KeyError) as exc_info:
             BlockRegistry._get("NonExistentBlock")
 
         error_msg = str(exc_info.value)
+        assert "BlockRegistry.get:" in error_msg
         assert "NonExistentBlock" in error_msg
         assert "not found in registry" in error_msg
 
@@ -193,6 +194,7 @@ class TestBlockRegistry:
             BlockRegistry._get("TestBloc")  # Missing 'k'
 
         error_msg = str(exc_info.value)
+        assert "BlockRegistry.get:" in error_msg
         assert "Did you mean: TestBlock" in error_msg
 
     def test_get_block_class_deprecated_warning(self):
@@ -256,13 +258,14 @@ class TestBlockRegistry:
         assert test_blocks == ["Block1", "Block2"]
 
     def test_list_blocks_by_category_not_found(self):
-        """Test error when category not found using list_blocks."""
+        """Test error when category not found uses standard format."""
         with pytest.raises(KeyError) as exc_info:
             BlockRegistry.list_blocks(category="NonExistentCategory")
 
         error_msg = str(exc_info.value)
+        assert "BlockRegistry.get:" in error_msg
         assert "NonExistentCategory" in error_msg
-        assert "not found" in error_msg
+        assert "category not found" in error_msg
 
     def test_list_blocks_flat(self):
         """Test listing all blocks as a flat list (default behavior)."""
@@ -338,13 +341,14 @@ class TestBlockRegistry:
         assert isinstance(category2_blocks, list)
 
     def test_list_blocks_category_not_found(self):
-        """Test error when filtering by non-existent category."""
+        """Test error when filtering by non-existent category uses standard format."""
         with pytest.raises(KeyError) as exc_info:
             BlockRegistry.list_blocks(category="NonExistentCategory")
 
         error_msg = str(exc_info.value)
+        assert "BlockRegistry.get:" in error_msg
         assert "NonExistentCategory" in error_msg
-        assert "not found" in error_msg
+        assert "category not found" in error_msg
 
     def test_list_blocks_include_deprecated(self):
         """Test listing blocks with deprecated filtering."""
@@ -469,10 +473,12 @@ class TestBlockRegistry:
         assert public_result == private_result
 
     def test_print_blocks_empty_registry(self):
-        """Test printing blocks when registry is empty."""
+        """Test printing blocks when registry is empty uses standard format."""
         with patch("sdg_hub.core.blocks.registry.logger") as mock_logger:
             BlockRegistry.discover_blocks()
-            mock_logger.warning.assert_called_once_with("No blocks registered yet.")
+            call_args = mock_logger.warning.call_args[0][0]
+            assert "BlockRegistry.discover_blocks:" in call_args
+            assert "none registered yet" in call_args
 
     def test_print_blocks_with_blocks(self):
         """Test printing blocks with Rich formatting."""
@@ -566,7 +572,7 @@ class TestBlockRegistry:
         assert len(blocks_in_category) == 2
 
     def test_error_message_shows_available_blocks_and_categories(self):
-        """Test that error messages show helpful context."""
+        """Test that error messages show helpful context with standard format."""
 
         @BlockRegistry.register("ExistingBlock", "existing_category")
         class ExistingBlock(BaseBlock):
@@ -577,5 +583,33 @@ class TestBlockRegistry:
             BlockRegistry._get("NonExistentBlock")
 
         error_msg = str(exc_info.value)
+        assert "BlockRegistry.get:" in error_msg
         assert "Available blocks: ExistingBlock" in error_msg
         assert "Categories: existing_category" in error_msg
+
+    def test_register_duplicate_block_raises(self):
+        """Test that registering a block with an existing name raises ValueError."""
+
+        @BlockRegistry.register("DuplicateBlock", "test")
+        class FirstBlock(BaseBlock):
+            def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
+                return samples
+
+        with pytest.raises(ValueError) as exc_info:
+
+            @BlockRegistry.register("DuplicateBlock", "test")
+            class SecondBlock(BaseBlock):
+                def generate(self, samples: pd.DataFrame, **kwargs) -> pd.DataFrame:
+                    return samples
+
+        error_msg = str(exc_info.value)
+        assert "BlockRegistry.register:" in error_msg
+        assert "DuplicateBlock" in error_msg
+        assert "is already registered" in error_msg
+
+    def test_format_error_standard_structure(self):
+        """Test that _format_error produces the expected format."""
+        msg = BlockRegistry._format_error(
+            "register", "MyBlock", "is already registered"
+        )
+        assert msg == "BlockRegistry.register: block 'MyBlock' is already registered"
