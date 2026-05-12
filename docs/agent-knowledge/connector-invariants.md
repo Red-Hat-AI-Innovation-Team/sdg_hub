@@ -74,5 +74,5 @@ class MyAgentConnector(BaseAgentConnector):
 - [ ] Required abstract methods implemented
 - [ ] `@ConnectorRegistry.register("name")` decorator present
 - [ ] Test file exists at `tests/connectors/{type}/test_{name}.py`
-- [ ] Tests cover success and error cases
+- [ ] Tests cover success and error cases — see [testing-standards.md](testing-standards.md)
 - [ ] Class has a docstring
