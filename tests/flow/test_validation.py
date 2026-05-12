@@ -587,3 +587,57 @@ class TestOutputColumnsValidation:
         )
         errors = self.validator.validate_yaml_structure(config)
         assert errors == []
+
+    def test_output_columns_with_dict_output_cols(self):
+        """Test validation with blocks that have dict output_cols (keys + string values)."""
+        config = self._make_flow_config(
+            output_columns=["mapped_name"],
+            blocks=[
+                {
+                    "block_type": "SomeBlock",
+                    "block_config": {
+                        "block_name": "dict_output",
+                        "input_cols": ["text"],
+                        "output_cols": {"source_col": "mapped_name"},
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert errors == []
+
+    def test_output_columns_with_dict_output_cols_key_referenced(self):
+        """Test that dict output_cols keys are also tracked as available."""
+        config = self._make_flow_config(
+            output_columns=["source_col"],
+            blocks=[
+                {
+                    "block_type": "SomeBlock",
+                    "block_config": {
+                        "block_name": "dict_output",
+                        "input_cols": ["text"],
+                        "output_cols": {"source_col": "mapped_name"},
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert errors == []
+
+    def test_output_columns_with_dict_non_string_values_not_tracked(self):
+        """Test that non-string values in dict output_cols are not treated as columns."""
+        config = self._make_flow_config(
+            output_columns=["not_a_column"],
+            blocks=[
+                {
+                    "block_type": "SomeBlock",
+                    "block_config": {
+                        "block_name": "dict_output",
+                        "input_cols": ["text"],
+                        "output_cols": {"key1": 42, "key2": ["list_val"]},
+                    },
+                },
+            ],
+        )
+        errors = self.validator.validate_yaml_structure(config)
+        assert any("not_a_column" in e for e in errors)

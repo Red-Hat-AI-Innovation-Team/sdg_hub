@@ -666,6 +666,77 @@ class TestOutputColumnsValidation:
         # Should not raise — "new_a" is a string value in the dict
         _validate_output_columns_against_blocks(flow, dataset)
 
+    def test_dict_output_cols_keys_tracked(self):
+        """Test that dict output_cols keys are tracked as available columns."""
+        from sdg_hub.core.flow.execution import _validate_output_columns_against_blocks
+
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["src_col"],
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat",
+                    input_cols=["a", "b"],
+                    output_cols="dummy",
+                ),
+            ],
+        )
+
+        flow.blocks[0].output_cols = {"src_col": "mapped_col"}
+
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        _validate_output_columns_against_blocks(flow, dataset)
+
+    def test_dict_output_cols_non_string_values_ignored(self):
+        """Test that non-string values in dict output_cols are not tracked."""
+        from sdg_hub.core.flow.execution import _validate_output_columns_against_blocks
+        from sdg_hub.core.utils.error_handling import FlowValidationError
+
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["missing_col"],
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat",
+                    input_cols=["a", "b"],
+                    output_cols="dummy",
+                ),
+            ],
+        )
+
+        flow.blocks[0].output_cols = {"key1": 42, "key2": ["not", "a", "string"]}
+
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        with pytest.raises(FlowValidationError, match="not produced by any block"):
+            _validate_output_columns_against_blocks(flow, dataset)
+
+    def test_dict_output_cols_both_keys_and_values_available(self):
+        """Test that both dict keys and string values are available for output_columns."""
+        from sdg_hub.core.flow.execution import _validate_output_columns_against_blocks
+
+        flow = Flow(
+            metadata=FlowMetadata(
+                name="test",
+                output_columns=["src", "dst"],
+            ),
+            blocks=[
+                TextConcatBlock(
+                    block_name="concat",
+                    input_cols=["a", "b"],
+                    output_cols="dummy",
+                ),
+            ],
+        )
+
+        flow.blocks[0].output_cols = {"src": "dst"}
+
+        dataset = pd.DataFrame({"a": ["1"], "b": ["2"]})
+        _validate_output_columns_against_blocks(flow, dataset)
+
 
 class TestCheckpointResumeWithChangedCleanup:
     """Tests for checkpoint resume with changed column cleanup settings."""
