@@ -86,12 +86,10 @@ git clone https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
 <summary><strong>Codex CLI</strong></summary>
 
 ```bash
-git clone https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git ~/.codex/sdg-hub
-mkdir -p ~/.agents/skills
-ln -s ~/.codex/sdg-hub/.claude/skills ~/.agents/skills/sdg-hub
+codex plugin marketplace add Red-Hat-AI-Innovation-Team/plugins
 ```
 
-Restart Codex to discover the skills. See `.codex-plugin/INSTALL.md` for full instructions.
+Then install the plugin from the marketplace. See `.codex-plugin/INSTALL.md` for manual installation.
 </details>
 
 ### After Installing

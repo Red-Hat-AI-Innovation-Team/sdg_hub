@@ -1,25 +1,27 @@
 # Installing sdg-hub for Codex
 
-Enable sdg-hub synthetic data generation skills in Codex via native skill discovery.
+## Via Marketplace (Recommended)
 
-## Prerequisites
+```bash
+codex plugin marketplace add Red-Hat-AI-Innovation-Team/plugins
+```
 
-- Git
-- Python 3.10+ with uv or pip
-- [Codex CLI](https://github.com/openai/codex) installed
+Then install the plugin from the marketplace. The Python library will need to be installed separately:
 
-## Installation
+```bash
+pip install sdg-hub
+```
 
-1. **Clone the sdg-hub repository:**
+## Manual Installation
+
+If you prefer to install manually:
+
+1. **Clone the repository:**
    ```bash
    git clone https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git ~/.codex/sdg-hub
    ```
 
 2. **Install the Python library:**
-   ```bash
-   cd ~/.codex/sdg-hub && uv sync --extra dev
-   ```
-   Or with pip:
    ```bash
    pip install -e ~/.codex/sdg-hub
    ```
@@ -30,39 +32,18 @@ Enable sdg-hub synthetic data generation skills in Codex via native skill discov
    ln -s ~/.codex/sdg-hub/.claude/skills ~/.agents/skills/sdg-hub
    ```
 
-   **Windows (PowerShell):**
-   ```powershell
-   New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.agents\skills"
-   cmd /c mklink /J "$env:USERPROFILE\.agents\skills\sdg-hub" "$env:USERPROFILE\.codex\sdg-hub\.claude\skills"
-   ```
-
 4. **Restart Codex** to discover the skills.
-
-## Path Resolution
-
-When skills reference `${CLAUDE_PLUGIN_ROOT}/scripts/...`, use the clone path instead:
-```bash
-~/.codex/sdg-hub/scripts/
-```
-
-## Verify
-
-```bash
-ls -la ~/.agents/skills/sdg-hub
-```
-
-You should see a symlink pointing to the sdg-hub skills directory.
 
 ## Updating
 
+Marketplace installs update automatically. For manual installs:
 ```bash
 cd ~/.codex/sdg-hub && git pull
 ```
 
-Skills update instantly through the symlink.
-
 ## Uninstalling
 
+For manual installs:
 ```bash
 rm ~/.agents/skills/sdg-hub
 rm -rf ~/.codex/sdg-hub
