@@ -58,7 +58,7 @@ See the [Quick Start](docs/quickstart.md) for a full walkthrough, or browse [all
 
 ## Coding Agent Plugin
 
-SDG Hub is available as a plugin for four major coding agents, bringing synthetic data generation directly into your coding workflow.
+SDG Hub is available as a plugin for two coding agents, bringing synthetic data generation directly into your coding workflow.
 
 <details>
 <summary><strong>Claude Code</strong></summary>
@@ -83,12 +83,6 @@ git clone https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
 </details>
 
 <details>
-<summary><strong>Cursor</strong></summary>
-
-Clone the repo and open it — Cursor discovers the plugin via `.cursor-plugin/plugin.json` automatically.
-</details>
-
-<details>
 <summary><strong>Codex CLI</strong></summary>
 
 ```bash
@@ -100,29 +94,15 @@ ln -s ~/.codex/sdg-hub/skills ~/.agents/skills/sdg-hub
 Restart Codex to discover the skills. See `.codex-plugin/INSTALL.md` for full instructions.
 </details>
 
-<details>
-<summary><strong>OpenCode</strong></summary>
-
-Add to your `opencode.json`:
-
-```json
-{
-  "plugin": ["sdg-hub@git+https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git"]
-}
-```
-
-Restart OpenCode. See `.opencode-plugin/INSTALL.md` for full instructions.
-</details>
-
 ### After Installing
 
-Run `/sdg-setup` (or invoke the `setup-guide` skill) to configure your LLM provider and model.
+Invoke the `setup-guide` skill to configure your LLM provider and model.
 
-| Command | Description |
+| Skill | Description |
 |---|---|
-| `/sdg-setup` | Guided first-time configuration |
-| `/sdg-generate <flow> <input-file>` | Run synthetic data generation using a flow |
-| `/sdg-flows [list\|search\|inspect]` | Browse and inspect available flows |
+| `setup-guide` | Guided first-time configuration |
+| `data-generation` | Run synthetic data generation using a flow |
+| `flow-browser` | Browse and inspect available flows |
 
 ## License
 

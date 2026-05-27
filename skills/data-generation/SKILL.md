@@ -1,46 +1,41 @@
 ---
 name: data-generation
 description: "Use when the user wants to generate synthetic data, create training datasets, run data generation pipelines, build custom flows, or produce synthetic data from documents. Applies to tasks like: QA generation, knowledge infusion, red-teaming, RAG evaluation, MCP distillation, code evaluation."
+allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/sdg_generate.sh:*)", "Bash(${CLAUDE_PLUGIN_ROOT}/scripts/sdg_detect.sh:*)", "Bash(${CLAUDE_PLUGIN_ROOT}/scripts/sdg_flows.sh:*)"]
 ---
 
 # Synthetic Data Generation
 
 Help the user generate synthetic data using sdg_hub flows.
 
-## Detection
-
-First, check the environment:
+## Step 1: Check Environment
 
 ```!
 "${CLAUDE_PLUGIN_ROOT}/scripts/sdg_detect.sh"
 ```
 
-## Routing
+### If not ready
 
-Based on detection results:
+- `library=missing` and `config=missing`: invoke the `setup-guide` skill.
+- `library=installed` and `config=missing`: tell the user to run the `setup-guide` skill to configure.
 
-### Nothing available (`library=missing`, `config=missing`)
-Invoke the `setup-guide` skill to walk through installation and configuration.
+### If ready (`library=installed`, `config=found`)
 
-### Config missing but library installed (`library=installed`, `config=missing`)
-Ask the user to run `/sdg-setup` to configure, or invoke the `setup-guide` skill.
+Proceed to Step 2.
 
-### Ready (`library=installed`, `config=found`)
-Proceed based on the user's intent.
-
-## Approach Selection
+## Step 2: Approach Selection
 
 Help the user choose the right approach:
 
-| User wants | Approach | Route to |
+| User wants | Approach | Next step |
 |---|---|---|
-| Use an existing pipeline | Pre-built flow | `/sdg-flows` then `/sdg-generate` |
+| Use an existing pipeline | Pre-built flow | Invoke `flow-browser` skill, then run generation |
 | Build a custom pipeline in Python | Custom Python | Provide code example using `BaseBlock` and `Flow` |
-| Define a pipeline in YAML | Custom YAML flow | Help author YAML, then `/sdg-generate` |
+| Define a pipeline in YAML | Custom YAML flow | Help author YAML, then run generation |
 | Agent-based generation (Langflow, LangGraph) | Agent pipeline | Help integrate with agent frameworks |
 | MCP tool-use distillation | MCP pipeline | Help set up MCP agent block |
 
-## Flow Detection
+## Step 3: Flow Detection
 
 If the user mentions a specific use case, suggest the matching flow:
 
@@ -52,13 +47,32 @@ If the user mentions a specific use case, suggest the matching flow:
 | "code", "programming", "evaluation" | Code evaluation flows |
 | "MCP", "tool calling", "distillation" | MCP distillation flows |
 
-Route to `/sdg-flows search <category>` to find specific flows.
+Search for matching flows:
+```!
+"${CLAUDE_PLUGIN_ROOT}/scripts/sdg_flows.sh" search "<category>"
+```
 
-## Generation Execution
+## Step 4: Execute Generation
 
-For generation requests with a known flow and input file, route to `/sdg-generate`.
+If the user doesn't specify a flow, suggest they invoke the `flow-browser` skill first.
 
 Recommend starting with `--sample 2` for a dry run: "I suggest running a dry-run with 2 samples first to verify the flow works before processing the full dataset."
+
+```!
+"${CLAUDE_PLUGIN_ROOT}/scripts/sdg_generate.sh" $ARGUMENTS
+```
+
+## Step 5: Present Results
+
+1. **Generation status** — Whether generation completed successfully
+2. **Row counts** — Input rows processed and output rows generated
+3. **Output location** — Path to the generated dataset
+4. **Errors** — If any rows failed, report the count and suggest checking the output for error entries
+
+If generation failed, suggest troubleshooting:
+- Missing columns: Check that the input dataset has the columns required by the flow
+- API errors: Verify API key and endpoint in `.sdg-hub/config.json`
+- Rate limiting: Reduce concurrency or add delay
 
 ## Custom Flow Authoring
 

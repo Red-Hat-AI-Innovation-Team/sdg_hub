@@ -1,10 +1,10 @@
 ---
-description: "List, search, and inspect available SDG flows"
-argument-hint: "[list|search <query>|inspect <flow>]"
+name: flow-browser
+description: "Use when the user wants to list, search, or inspect available SDG flows and data generation pipelines. Applies to browsing flow catalogs, finding flows by use case, or understanding what a specific flow does."
 allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/sdg_flows.sh:*)", "Bash(${CLAUDE_PLUGIN_ROOT}/scripts/sdg_detect.sh:*)"]
 ---
 
-# sdg-hub Flows
+# Flow Browser
 
 Browse and inspect available synthetic data generation flows.
 
@@ -14,11 +14,9 @@ Browse and inspect available synthetic data generation flows.
 "${CLAUDE_PLUGIN_ROOT}/scripts/sdg_detect.sh"
 ```
 
-If `library=missing`, tell the user to install sdg_hub first.
+If `library=missing`, tell the user to install sdg_hub first via the `setup-guide` skill.
 
 ## Step 2: Route by Action
-
-Parse `$ARGUMENTS` to determine the action:
 
 ### List all flows (default)
 
@@ -46,6 +44,6 @@ Show detailed information:
 1. **Flow name and description**
 2. **Block pipeline** — ordered list of blocks in the flow
 3. **Required columns** — input dataset columns needed
-4. **Usage example** — suggest a `/sdg-generate` command
+4. **Usage example** — suggest using the `data-generation` skill with this flow
 
 If no action is specified, default to `list`.
