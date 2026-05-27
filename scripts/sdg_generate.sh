@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-# Execute synthetic data generation using a flow
+# Execute synthetic data generation using a flow.
+#
+# Usage: sdg_generate.sh <flow> <input-file> [--output FILE] [--sample N]
+# Output: JSON with status, row counts, and output file path.
+#
+# Reads model config from .sdg-hub/config.json (override via
+# SDG_HUB_CONFIG env var).
 set -euo pipefail
 
 source "$(dirname "${BASH_SOURCE[0]}")/_env.sh"

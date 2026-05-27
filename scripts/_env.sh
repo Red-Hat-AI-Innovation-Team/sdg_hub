@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Shared environment setup: resolve the project's virtual-env Python.
 # Sourced by other scripts in this directory — not run directly.
+#
+# Exports: $PYTHON — path to the Python interpreter.
+# Resolution order: $VIRTUAL_ENV/bin/python → .venv/bin/python → error.
 
 _SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _REPO_ROOT="$(cd "$_SCRIPTS_DIR/.." && pwd)"

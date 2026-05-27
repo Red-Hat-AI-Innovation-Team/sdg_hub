@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
-# List, search, and inspect available SDG flows
+# List, search, and inspect available SDG flows.
+#
+# Usage: sdg_flows.sh <action> [args]
+# Actions:
+#   list              — list all registered flows
+#   search <query>    — search flows by name or tag
+#   inspect <flow>    — show flow details (blocks, required columns)
+# Output: JSON for each action.
 set -euo pipefail
 
 source "$(dirname "${BASH_SOURCE[0]}")/_env.sh"
