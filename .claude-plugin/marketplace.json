@@ -1,7 +1,8 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "sdg-hub",
-  "description": "Synthetic data generation — composable blocks and YAML-defined flows for building LLM training datasets",
+  "metadata": {
+    "description": "Synthetic data generation — composable blocks and YAML-defined flows for building LLM training datasets"
+  },
   "owner": {
     "name": "Red Hat AI Innovation Team"
   },
