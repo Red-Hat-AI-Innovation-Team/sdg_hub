@@ -24,7 +24,7 @@ Enable sdg-hub synthetic data generation skills in Codex via native skill discov
    pip install -e ~/.codex/sdg-hub
    ```
 
-3. **Create the skills symlink:**
+3. **Create the skills symlink** (skills are in `.claude/skills/` — shared between Claude Code and Codex):
    ```bash
    mkdir -p ~/.agents/skills
    ln -s ~/.codex/sdg-hub/.claude/skills ~/.agents/skills/sdg-hub

@@ -23,20 +23,38 @@ If `library=missing`:
 - If yes and `installer=pip`: run `pip install sdg_hub`
 - If `installer=none`: tell the user they need Python and pip/uv installed first
 
-## Step 3: Collect Configuration
+## Step 3: Quick Setup or Custom
+
+Also check for API keys in the environment:
+```!
+echo "openai_key=${OPENAI_API_KEY:+found}" "anthropic_key=${ANTHROPIC_API_KEY:+found}"
+```
+
+**If an API key was detected**, offer a one-question fast path:
+
+> "I detected your OpenAI API key. I can set up with these defaults:
+> - Model: `openai/gpt-4o-mini`
+> - Temperature: `0.7`
+> - Concurrency: `5`
+>
+> Accept these defaults, or would you like to customize?"
+
+If the user accepts, skip to Step 5 using the detected key and defaults.
+
+For Anthropic keys, default to `anthropic/claude-sonnet-4-20250514`.
+
+**If no API key was detected**, or the user wants to customize, proceed to Step 4.
+
+## Step 4: Collect Configuration
 
 Ask these questions **one at a time**:
 
 1. **Model**: "Which LLM model do you want to use for generation?" — e.g., `openai/gpt-4o-mini`, `meta-llama/Llama-3.3-70B-Instruct`, `anthropic/claude-sonnet-4-20250514`
 2. **API endpoint**: "What's your model endpoint URL?" — e.g., `http://localhost:8000/v1` for vLLM, or leave empty for cloud provider defaults
 3. **API key**: "What's your API key?" — required for cloud providers
-
-## Step 4: Generation Settings
-
-Ask:
-1. **Temperature**: "What temperature for generation?" (default: 0.7)
-2. **Max concurrency**: "How many parallel LLM requests?" (default: 5) — higher is faster but may hit rate limits
-3. **Checkpoint directory**: "Where should generation checkpoints be saved?" (default: `./checkpoints`) — allows resuming interrupted runs
+4. **Temperature**: "What temperature for generation?" (default: 0.7)
+5. **Max concurrency**: "How many parallel LLM requests?" (default: 5) — higher is faster but may hit rate limits
+6. **Checkpoint directory**: "Where should generation checkpoints be saved?" (default: `./checkpoints`) — allows resuming interrupted runs
 
 ## Step 5: Save Config
 
