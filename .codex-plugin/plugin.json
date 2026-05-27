@@ -5,5 +5,5 @@
   "author": {
     "name": "Red Hat AI Innovation Team"
   },
-  "skills": "./skills"
+  "skills": "./.claude/skills"
 }

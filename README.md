@@ -88,7 +88,7 @@ git clone https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
 ```bash
 git clone https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git ~/.codex/sdg-hub
 mkdir -p ~/.agents/skills
-ln -s ~/.codex/sdg-hub/skills ~/.agents/skills/sdg-hub
+ln -s ~/.codex/sdg-hub/.claude/skills ~/.agents/skills/sdg-hub
 ```
 
 Restart Codex to discover the skills. See `.codex-plugin/INSTALL.md` for full instructions.

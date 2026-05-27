@@ -27,13 +27,13 @@ Enable sdg-hub synthetic data generation skills in Codex via native skill discov
 3. **Create the skills symlink:**
    ```bash
    mkdir -p ~/.agents/skills
-   ln -s ~/.codex/sdg-hub/skills ~/.agents/skills/sdg-hub
+   ln -s ~/.codex/sdg-hub/.claude/skills ~/.agents/skills/sdg-hub
    ```
 
    **Windows (PowerShell):**
    ```powershell
    New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.agents\skills"
-   cmd /c mklink /J "$env:USERPROFILE\.agents\skills\sdg-hub" "$env:USERPROFILE\.codex\sdg-hub\skills"
+   cmd /c mklink /J "$env:USERPROFILE\.agents\skills\sdg-hub" "$env:USERPROFILE\.codex\sdg-hub\.claude\skills"
    ```
 
 4. **Restart Codex** to discover the skills.
@@ -42,9 +42,7 @@ Enable sdg-hub synthetic data generation skills in Codex via native skill discov
 
 When skills reference `${CLAUDE_PLUGIN_ROOT}/scripts/...`, use the clone path instead:
 ```bash
-~/.codex/sdg-hub/scripts/sdg_detect.sh
-~/.codex/sdg-hub/scripts/sdg_generate.sh
-~/.codex/sdg-hub/scripts/sdg_flows.sh
+~/.codex/sdg-hub/scripts/
 ```
 
 ## Verify

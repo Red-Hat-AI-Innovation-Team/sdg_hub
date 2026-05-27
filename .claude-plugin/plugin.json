@@ -3,5 +3,6 @@
   "description": "Synthetic data generation — composable blocks and YAML-defined flows for building LLM training datasets",
   "author": {
     "name": "Red Hat AI Innovation Team"
-  }
+  },
+  "skills": "./.claude/skills"
 }
