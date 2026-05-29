@@ -57,11 +57,9 @@ done
 
 # Read config if available
 MODEL=""
-API_KEY=""
 API_BASE=""
 if [ -f "$CONFIG_PATH" ]; then
     MODEL=$(CONFIG_PATH="$CONFIG_PATH" $PYTHON -c "import json,os; print(json.load(open(os.environ['CONFIG_PATH'])).get('model', ''))" 2>/dev/null || echo "")
-    API_KEY=$(CONFIG_PATH="$CONFIG_PATH" $PYTHON -c "import json,os; print(json.load(open(os.environ['CONFIG_PATH'])).get('api_key', ''))" 2>/dev/null || echo "")
     API_BASE=$(CONFIG_PATH="$CONFIG_PATH" $PYTHON -c "import json,os; print(json.load(open(os.environ['CONFIG_PATH'])).get('api_base', ''))" 2>/dev/null || echo "")
     [ -z "$CONCURRENCY" ] && CONCURRENCY=$(CONFIG_PATH="$CONFIG_PATH" $PYTHON -c "import json,os; print(json.load(open(os.environ['CONFIG_PATH'])).get('max_concurrency', 5))" 2>/dev/null || echo "5")
 fi
@@ -76,7 +74,7 @@ fi
 # Execute generation
 SDG_FLOW="$FLOW" SDG_INPUT="$INPUT_FILE" SDG_OUTPUT="$OUTPUT_FILE" \
 SDG_SAMPLE="${SAMPLE:-0}" SDG_CONCURRENCY="$CONCURRENCY" \
-SDG_MODEL="$MODEL" SDG_API_KEY="$API_KEY" SDG_API_BASE="$API_BASE" \
+SDG_MODEL="$MODEL" SDG_API_BASE="$API_BASE" \
 SDG_CONFIG="$CONFIG_PATH" \
 $PYTHON -c "
 import json, os, sys
@@ -86,7 +84,6 @@ input_file = os.environ['SDG_INPUT']
 output_file = os.environ['SDG_OUTPUT']
 sample_n = int(os.environ['SDG_SAMPLE'])
 model = os.environ.get('SDG_MODEL', '')
-api_key = os.environ.get('SDG_API_KEY', '')
 
 from sdg_hub import Flow, FlowRegistry
 from datasets import Dataset

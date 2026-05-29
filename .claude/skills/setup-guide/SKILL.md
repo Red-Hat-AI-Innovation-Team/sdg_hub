@@ -51,19 +51,31 @@ Ask these questions **one at a time**:
 
 1. **Model**: "Which LLM model do you want to use for generation?" — e.g., `openai/gpt-4o-mini`, `meta-llama/Llama-3.3-70B-Instruct`, `anthropic/claude-sonnet-4-20250514`
 2. **API endpoint**: "What's your model endpoint URL?" — e.g., `http://localhost:8000/v1` for vLLM, or leave empty for cloud provider defaults
-3. **API key**: "What's your API key?" — required for cloud providers
-4. **Temperature**: "What temperature for generation?" (default: 0.7)
-5. **Max concurrency**: "How many parallel LLM requests?" (default: 5) — higher is faster but may hit rate limits
-6. **Checkpoint directory**: "Where should generation checkpoints be saved?" (default: `./checkpoints`) — allows resuming interrupted runs
+3. **Temperature**: "What temperature for generation?" (default: 0.7)
+4. **Max concurrency**: "How many parallel LLM requests?" (default: 5) — higher is faster but may hit rate limits
+5. **Checkpoint directory**: "Where should generation checkpoints be saved?" (default: `./checkpoints`) — allows resuming interrupted runs
 
-## Step 5: Save Config
+## Step 5: Ensure API Key
+
+API keys are read from environment variables — **never store them in the config file**. LiteLLM (used by sdg_hub) reads standard env vars automatically.
+
+If no API key was detected in Step 3, tell the user to set the appropriate environment variable:
+
+> "Set your API key as an environment variable before running generation:
+> ```bash
+> export OPENAI_API_KEY="sk-..."        # OpenAI models
+> export ANTHROPIC_API_KEY="sk-ant-..."  # Anthropic models
+> ```
+> For local endpoints (vLLM, Ollama) that don't require authentication, no API key is needed.
+> LiteLLM picks up these env vars automatically — no extra configuration required."
+
+## Step 6: Save Config
 
 Write the config to `.sdg-hub/config.json`:
 
 ```json
 {
   "model": "<model>",
-  "api_key": "<api_key>",
   "api_base": "<endpoint>",
   "temperature": 0.7,
   "max_concurrency": 5,
@@ -73,7 +85,18 @@ Write the config to `.sdg-hub/config.json`:
 
 Add `.sdg-hub/` to `.gitignore` if not already present.
 
-## Step 6: Verify
+Confirm the config file was written, then report success:
+
+> "Setup complete! To run generation, use the `data-generation` skill, or the `flow-browser` skill to browse available flows.
+>
+> **API keys** are read from environment variables, not the config file. Make sure the appropriate variable is set in your shell:
+> ```bash
+> export OPENAI_API_KEY="sk-..."        # OpenAI models
+> export ANTHROPIC_API_KEY="sk-ant-..."  # Anthropic models
+> ```
+> Local endpoints (vLLM, Ollama) don't need an API key."
+
+## Step 7: Verify
 
 List available flows to confirm the installation works:
 
