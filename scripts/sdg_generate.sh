@@ -101,7 +101,14 @@ print(f'Loaded {len(ds)} rows from {input_file}')
 
 # Apply model config if provided
 api_base = os.environ.get('SDG_API_BASE', '')
-concurrency = int(os.environ.get('SDG_CONCURRENCY', '5'))
+_raw_concurrency = os.environ.get('SDG_CONCURRENCY', '5')
+try:
+    concurrency = int(_raw_concurrency)
+    if concurrency < 1:
+        raise ValueError('must be >= 1')
+except ValueError:
+    print(f'Warning: invalid SDG_CONCURRENCY={_raw_concurrency!r}, falling back to 5')
+    concurrency = 5
 if model:
     config_kwargs = {}
     if api_base:
