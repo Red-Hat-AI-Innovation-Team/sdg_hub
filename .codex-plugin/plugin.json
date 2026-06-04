@@ -1,0 +1,9 @@
+{
+  "name": "sdg-hub",
+  "description": "Synthetic data generation — composable blocks and YAML-defined flows for building LLM training datasets",
+  "version": "1.0.0",
+  "author": {
+    "name": "Red Hat AI Innovation Team"
+  },
+  "skills": "./.claude/skills"
+}

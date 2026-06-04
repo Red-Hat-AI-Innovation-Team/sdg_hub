@@ -56,6 +56,52 @@ See the [Quick Start](docs/quickstart.md) for a full walkthrough, or browse [all
 - [API Reference](docs/reference/) -- auto-generated from source
 - [Contributing](CONTRIBUTING.md) -- development setup and contribution guidelines
 
+## Coding Agent Plugin
+
+SDG Hub is available as a plugin for two coding agents, bringing synthetic data generation directly into your coding workflow.
+
+<details>
+<summary><strong>Claude Code</strong></summary>
+
+**Via org marketplace** (recommended — includes all Red Hat AI plugins):
+```bash
+/plugin marketplace add Red-Hat-AI-Innovation-Team/plugins
+/plugin install sdg-hub@Red-Hat-AI-Innovation-Team/plugins
+```
+
+**Via this repo directly:**
+```bash
+/plugin marketplace add Red-Hat-AI-Innovation-Team/sdg_hub
+/plugin install sdg-hub@Red-Hat-AI-Innovation-Team/sdg_hub
+```
+
+**From a local clone:**
+```bash
+git clone https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub.git
+/plugin marketplace add /path/to/sdg_hub
+```
+</details>
+
+<details>
+<summary><strong>Codex CLI</strong></summary>
+
+```bash
+codex plugin marketplace add Red-Hat-AI-Innovation-Team/plugins
+```
+
+Then install the plugin from the marketplace. See `.codex-plugin/INSTALL.md` for manual installation.
+</details>
+
+### After Installing
+
+Invoke the `setup-guide` skill to configure your LLM provider and model.
+
+| Skill | Description |
+|---|---|
+| `setup-guide` | Guided first-time configuration |
+| `data-generation` | Run synthetic data generation using a flow |
+| `flow-browser` | Browse and inspect available flows |
+
 ## License
 
 Apache License 2.0 -- see [LICENSE](LICENSE).
