@@ -92,25 +92,36 @@ from datasets import Dataset
 if flow_name.endswith('.yaml') or flow_name.endswith('.yml'):
     flow = Flow.from_yaml(flow_name)
 else:
-    flow = FlowRegistry.get_flow(flow_name)
+    flow_path = FlowRegistry.get_flow_path_safe(flow_name)
+    flow = Flow.from_yaml(flow_path)
 
 # Load dataset
 ds = Dataset.from_json(input_file)
 print(f'Loaded {len(ds)} rows from {input_file}')
 
+# Apply model config if provided
+api_base = os.environ.get('SDG_API_BASE', '')
+concurrency = int(os.environ.get('SDG_CONCURRENCY', '5'))
+if model:
+    config_kwargs = {}
+    if api_base:
+        config_kwargs['api_base'] = api_base
+    flow.set_model_config(model=model, **config_kwargs)
+    print(f'Model config: model={model}, api_base={api_base or "(default)"}')
+
 # Dry run if requested
 if sample_n > 0:
     sample_ds = ds.select(range(min(sample_n, len(ds))))
     print(f'Running dry-run with {len(sample_ds)} samples...')
-    result = flow.generate(sample_ds)
+    result = flow.generate(sample_ds, max_concurrency=concurrency)
     print(f'Dry-run produced {len(result)} rows')
 
 # Full generation
 print(f'Running full generation on {len(ds)} rows...')
-result = flow.generate(ds)
+result = flow.generate(ds, max_concurrency=concurrency)
 
 # Save output
-result.to_json(output_file, orient='records', lines=True)
+result.to_json(output_file)
 print(json.dumps({
     'status': 'complete',
     'flow': flow_name,

@@ -24,7 +24,7 @@ fi
 # Check installer
 if command -v uv > /dev/null 2>&1; then
     echo "installer=uv"
-elif command -v pip > /dev/null 2>&1; then
+elif $PYTHON -m pip --version > /dev/null 2>&1; then
     echo "installer=pip"
 else
     echo "installer=none"

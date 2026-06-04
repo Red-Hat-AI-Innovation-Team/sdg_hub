@@ -64,13 +64,13 @@ SDG Hub is available as a plugin for two coding agents, bringing synthetic data 
 <summary><strong>Claude Code</strong></summary>
 
 **Via org marketplace** (recommended — includes all Red Hat AI plugins):
-```
+```bash
 /plugin marketplace add Red-Hat-AI-Innovation-Team/plugins
 /plugin install sdg-hub@Red-Hat-AI-Innovation-Team/plugins
 ```
 
 **Via this repo directly:**
-```
+```bash
 /plugin marketplace add Red-Hat-AI-Innovation-Team/sdg_hub
 /plugin install sdg-hub@Red-Hat-AI-Innovation-Team/sdg_hub
 ```

@@ -4,7 +4,7 @@
 # Usage: sdg_flows.sh <action> [args]
 # Actions:
 #   list              — list all registered flows
-#   search <query>    — search flows by name or tag
+#   search <tag>      — search flows by tag
 #   inspect <flow>    — show flow details (blocks, required columns)
 # Output: JSON for each action.
 set -euo pipefail
@@ -16,7 +16,7 @@ usage() {
     echo ""
     echo "Actions:"
     echo "  list               List all available flows"
-    echo "  search <query>     Search flows by name or tag"
+    echo "  search <tag>       Search flows by tag"
     echo "  inspect <flow>     Show detailed flow information"
     exit 1
 }
@@ -33,12 +33,14 @@ import json
 
 flows = FlowRegistry.list_flows()
 result = []
-for name, meta in flows.items():
-    entry = {'name': name}
-    if hasattr(meta, 'description'):
-        entry['description'] = meta.description
-    if hasattr(meta, 'tags'):
-        entry['tags'] = meta.tags
+for flow in flows:
+    entry = {'id': flow['id'], 'name': flow['name']}
+    meta = FlowRegistry.get_flow_metadata(flow['id'])
+    if meta:
+        if meta.description:
+            entry['description'] = meta.description
+        if meta.tags:
+            entry['tags'] = meta.tags
     result.append(entry)
 
 print(json.dumps(result, indent=2))
@@ -46,20 +48,22 @@ print(json.dumps(result, indent=2))
         ;;
 
     search)
-        [ -z "${2:-}" ] && die "No search query provided. Usage: sdg_flows.sh search <query>"
+        [ -z "${2:-}" ] && die "No search query provided. Usage: sdg_flows.sh search <tag>"
         SDG_QUERY="$2" $PYTHON -c "
 from sdg_hub import FlowRegistry
 import json, os
 
 query = os.environ['SDG_QUERY']
-flows = FlowRegistry.search_flows(query)
+flows = FlowRegistry.search_flows(tag=query)
 result = []
-for name, meta in flows.items():
-    entry = {'name': name}
-    if hasattr(meta, 'description'):
-        entry['description'] = meta.description
-    if hasattr(meta, 'tags'):
-        entry['tags'] = meta.tags
+for flow in flows:
+    entry = {'id': flow['id'], 'name': flow['name']}
+    meta = FlowRegistry.get_flow_metadata(flow['id'])
+    if meta:
+        if meta.description:
+            entry['description'] = meta.description
+        if meta.tags:
+            entry['tags'] = meta.tags
     result.append(entry)
 
 print(json.dumps(result, indent=2))
@@ -77,7 +81,8 @@ flow_name = os.environ['SDG_FLOW']
 if flow_name.endswith('.yaml') or flow_name.endswith('.yml'):
     flow = Flow.from_yaml(flow_name)
 else:
-    flow = FlowRegistry.get_flow(flow_name)
+    flow_path = FlowRegistry.get_flow_path_safe(flow_name)
+    flow = Flow.from_yaml(flow_path)
 
 info = {
     'name': flow_name,
