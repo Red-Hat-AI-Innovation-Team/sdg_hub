@@ -107,7 +107,15 @@ def _create_graph():
     for tool in tools:
         tool.handle_tool_error = True
     print(f"[{MCP_SERVER_NAME}] Loaded {len(tools)} tools from {MCP_SERVER_URL}")
-    return create_react_agent(_get_model, tools)
+    return create_react_agent(
+        _get_model,
+        tools,
+        prompt=(
+            "You MUST use the available tools to answer every question. "
+            "Never answer from your own knowledge. "
+            "Always call at least one tool before responding."
+        ),
+    )
 
 graph = _create_graph()
 PYEOF
