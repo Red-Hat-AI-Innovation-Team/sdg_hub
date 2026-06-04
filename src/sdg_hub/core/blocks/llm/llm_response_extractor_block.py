@@ -144,62 +144,40 @@ class LLMResponseExtractorBlock(BaseBlock):
         Returns
         -------
         dict[str, Any]
-            Dictionary with extracted fields using prefixed field names
-
-        Raises
-        ------
-        ValueError
-            If none of the requested fields are found in the response
+            Dictionary with extracted fields using prefixed field names.
+            All requested columns are always present with defaults
+            (``""`` for content/reasoning_content, ``[]`` for tool_calls).
         """
         extracted: dict[str, Any] = {}
         missing_fields: list[str] = []
 
         if self.extract_content:
-            if "content" not in response:
+            content = response.get("content")
+            extracted[self._content_field] = content if content is not None else ""
+            if content is None:
                 missing_fields.append("content")
-            else:
-                if response["content"] is None:
-                    ## skip this field
-                    logger.warning("Content field is None, using empty string instead")
-                    extracted[self._content_field] = ""
-                else:
-                    extracted[self._content_field] = response["content"]
 
         if self.extract_reasoning_content:
-            if "reasoning_content" not in response:
+            reasoning_content = response.get("reasoning_content")
+            extracted[self._reasoning_content_field] = (
+                reasoning_content if reasoning_content is not None else ""
+            )
+            if reasoning_content is None:
                 missing_fields.append("reasoning_content")
-            else:
-                if response["reasoning_content"] is None:
-                    ## skip this field
-                    logger.warning(
-                        "Reasoning content field is None, using empty string instead"
-                    )
-                    extracted[self._reasoning_content_field] = ""
-                else:
-                    extracted[self._reasoning_content_field] = response[
-                        "reasoning_content"
-                    ]
 
         if self.extract_tool_calls:
-            if "tool_calls" not in response:
+            tool_calls = response.get("tool_calls")
+            extracted[self._tool_calls_field] = (
+                tool_calls if tool_calls is not None else []
+            )
+            if tool_calls is None:
                 missing_fields.append("tool_calls")
-            else:
-                if response["tool_calls"] is None:
-                    ## skip this field
-                    logger.warning("Tool calls field is None, using empty list instead")
-                    extracted[self._tool_calls_field] = []
-                else:
-                    extracted[self._tool_calls_field] = response["tool_calls"]
 
         if missing_fields:
             logger.warning(
                 f"Requested fields {missing_fields} not found in response. Available keys: {list(response.keys())}"
             )
 
-        if not extracted:
-            raise ValueError(
-                f"No requested fields found in response. Available keys: {list(response.keys())}"
-            )
         return extracted
 
     def _get_output_columns(self) -> list[str]:
@@ -265,22 +243,17 @@ class LLMResponseExtractorBlock(BaseBlock):
                 )
                 continue
 
-            try:
-                extracted = self._extract_fields_from_response(response)
-                valid_responses += 1
-                for col in output_columns:
-                    if col in extracted:
-                        all_extracted[col].append(extracted[col])
-            except ValueError as e:
-                logger.warning(f"Failed to extract fields from list item {i}: {e}")
-                continue
+            extracted = self._extract_fields_from_response(response)
+            valid_responses += 1
+            for col in output_columns:
+                if col in extracted:
+                    all_extracted[col].append(extracted[col])
 
         if valid_responses == 0:
             raise ValueError(
                 f"No valid responses found in list input for column '{input_column}'"
             )
 
-        # Return single row with lists as values
         return [{**sample, **all_extracted}]
 
     def _process_list_expand_rows(
@@ -296,14 +269,9 @@ class LLMResponseExtractorBlock(BaseBlock):
                 )
                 continue
 
-            try:
-                extracted = self._extract_fields_from_response(response)
-                # Create a row for this response
-                result_row = {**sample, **extracted}
-                all_results.append(result_row)
-            except ValueError as e:
-                logger.warning(f"Failed to extract fields from list item {i}: {e}")
-                continue
+            extracted = self._extract_fields_from_response(response)
+            result_row = {**sample, **extracted}
+            all_results.append(result_row)
 
         if not all_results:
             raise ValueError(
@@ -314,7 +282,6 @@ class LLMResponseExtractorBlock(BaseBlock):
 
     def _process_single_input(self, sample: dict, raw_output: dict) -> list[dict]:
         """Process single response object."""
-        # _extract_fields_from_response now raises ValueError if no fields found
         extracted = self._extract_fields_from_response(raw_output)
         return [{**sample, **extracted}]
 
