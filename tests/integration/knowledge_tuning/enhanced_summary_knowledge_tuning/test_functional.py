@@ -125,10 +125,10 @@ def test_notebook_execution_and_output_validity(
         summary_type = output_file.parent.name
         total_records = len(dataset)
 
-        # Count unique raw documents and generated summaries/key facts
+        # Count unique original documents and generated summaries/key facts
         unique_raw_docs = (
-            len(set(dataset["raw_document"]))
-            if "raw_document" in dataset.columns.tolist()
+            len(set(dataset["document"]))
+            if "document" in dataset.columns.tolist()
             else 0
         )
 
@@ -141,8 +141,8 @@ def test_notebook_execution_and_output_validity(
             )
         else:
             unique_summaries = (
-                len(set(dataset["document"]))
-                if "document" in dataset.columns.tolist()
+                len(set(dataset["summary"]))
+                if "summary" in dataset.columns.tolist()
                 else 0
             )
 
