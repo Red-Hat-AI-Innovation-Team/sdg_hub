@@ -2,6 +2,7 @@
 """Generic HTTP agent connector for arbitrary REST chat endpoints."""
 
 from typing import Any, Optional
+import json
 import uuid
 
 from mlflow.types.agent import (
@@ -60,6 +61,10 @@ class GenericHTTPConnector(BaseAgentConnector):
         Dot-notation path to extract session ID from the response.
     request_session_id_path : str, optional
         Dot-notation path where session ID is placed in the request body.
+    response_context_path : str, optional
+        Dot-notation path to extract retrieved context from the response
+        (e.g., ``"output.context"``). ``dict`` and ``list`` values are
+        JSON-serialized; other values are stringified.
 
     Example
     -------
@@ -105,12 +110,17 @@ class GenericHTTPConnector(BaseAgentConnector):
         None,
         description="Dot-notation path where session ID is placed in the request body.",
     )
+    response_context_path: Optional[str] = Field(
+        None,
+        description="Dot-notation path to extract context from the response.",
+    )
 
     @field_validator(
         "request_message_path",
         "response_text_path",
         "request_session_id_path",
         "response_session_id_path",
+        "response_context_path",
     )
     @classmethod
     def validate_path_format(cls, v: str | None) -> str | None:
@@ -173,8 +183,8 @@ class GenericHTTPConnector(BaseAgentConnector):
     def parse_response(self, response: dict[str, Any]) -> ChatAgentResponse:
         """Parse response and build ChatAgentResponse.
 
-        Extracts text (and optionally session ID) from the response using
-        the configured dot-notation paths.
+        Extracts text (and optionally session ID and context) from the
+        response using the configured dot-notation paths.
 
         Parameters
         ----------
@@ -216,15 +226,23 @@ class GenericHTTPConnector(BaseAgentConnector):
                 )
             )
 
-        custom_outputs = None
+        custom_outputs: dict[str, Any] = {}
         if self.response_session_id_path:
             session_id = _get_nested(response, self.response_session_id_path)
             if session_id is not None:
-                custom_outputs = {"session_id": str(session_id)}
+                custom_outputs["session_id"] = str(session_id)
+
+        if self.response_context_path:
+            context = _get_nested(response, self.response_context_path)
+            if context is not None:
+                if isinstance(context, (dict, list)):
+                    custom_outputs["context"] = json.dumps(context, ensure_ascii=False)
+                else:
+                    custom_outputs["context"] = str(context)
 
         return ChatAgentResponse(
             messages=messages,
-            custom_outputs=custom_outputs,
+            custom_outputs=custom_outputs or None,
         )
 
     def _extract_last_user_message(self, messages: list[ChatAgentMessage]) -> str:
