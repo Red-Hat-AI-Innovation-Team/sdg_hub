@@ -1,0 +1,16 @@
+- role: system
+  content: You are an AI assistant that is expert at answering coding questions.
+
+- role: user
+  content: |
+    Generate the python code to solve the question provided:
+    
+    {{question}}
+
+    Strictly follow this format for your generated code:
+
+    [ANSWER]
+    <Insert the code here>
+    [END_ANSWER]
+
+    

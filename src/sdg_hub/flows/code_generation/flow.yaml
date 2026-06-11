@@ -1,0 +1,81 @@
+metadata:
+  id: coding-questions-generator
+  name: "Coding Questions Generator"
+  description: "Flow to generate new coding questions and their answers based on seed questions and answers."
+  version: "1.0.0"
+  author: "LLM Eval UFCG"
+
+  recommended_models:
+    default: "openai/gpt-4.1-nano"
+    compatible: []
+    experimental: []
+  
+  tags:
+    - "question-generation"
+  
+  license: "Apache-2.0"
+
+  dataset_requirements:
+    required_columns:
+      - "seed_question"
+    description: "Input dataset should contain 'seed_question' column for generation of new questions."
+  output_columns:
+    - question
+    - answer
+  
+blocks:
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: new_question_generator
+      input_cols: [seed_question]
+      output_cols: [question_generation_prompt]
+      prompt_config_path: "prompts/question_generation_prompt.yaml"
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: question_generation
+      input_cols: [question_generation_prompt]
+      output_cols: [question_list]
+      max_tokens: 2048
+      async_mode: false
+  - block_type: LLMResponseExtractorBlock
+    block_config:
+      block_name: extract_questions
+      input_cols: [question_list]
+      extract_content: true
+  - block_type: TagParserBlock
+    block_config:
+      block_name: parse_question_list
+      input_cols: extract_questions_content
+      output_cols: question
+      start_tags:
+      - '[QUESTION]'
+      end_tags:
+      - '[END_QUESTION]'
+  - block_type: PromptBuilderBlock
+    block_config:
+      block_name: new_question_answer_generator
+      input_cols: [question]
+      output_cols: [answer_generation_prompt]
+      prompt_config_path: "prompts/answer_generation_prompt.yaml"
+  - block_type: LLMChatBlock
+    block_config:
+      block_name: answer_generation
+      input_cols: [answer_generation_prompt]
+      output_cols: [answer_list]
+      max_tokens: 2048
+      async_mode: false
+  - block_type: LLMResponseExtractorBlock
+    block_config:
+      block_name: extract_answers
+      input_cols: [answer_list]
+      extract_content: true
+  - block_type: TagParserBlock
+    block_config:
+      block_name: parse_answer_list
+      input_cols: extract_answers_content
+      output_cols: answer
+      start_tags:
+      - '[ANSWER]'
+      end_tags:
+      - '[END_ANSWER]'
+
