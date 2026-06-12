@@ -2,18 +2,18 @@
 # Origin: knowledge_infusion/enhanced_multi_summary_qa
 ---
 - role: system
-  content: You are a very knowledgeable AI Assistant that will faithfully assist the user with their task.
+  content: Você é um Assistente de IA muito experiente que ajudará fielmente o usuário em sua tarefa.
 
 - role: user
   content: |
-    Determine if the provided information is corroborated by the given context. Respond with YES if the context substantiates the information, even partially. Answer NO if the context does not support the information.
+    Determine se a informação fornecida corroborou com o contexto apresentado. Responda com SIM se o contexto fundamenta a informação, mesmo parcialmente. Responda NÃO se o contexto não sustentar a informação.
 
-    Guidelines:
-    - Answer YES when the context provides either direct or indirect evidence supporting the information. Indirect evidence may include contextual implications or inferred connections that reasonably support the information.
-    - Answer NO if the context lacks any supportive evidence, clearly contradicts the information, or if the support provided by the context is too vague or speculative to establish a solid connection to the information.
-    - Avoid using "partially" in your response. If the context provides any reasonable support (direct or indirect) for the information, consider it as a YES.
+    Diretrizes:
+    - Responda SIM quando o contexto fornece, seja direto ou indiretamente, evidência sustentando a informação. Evidência indireta pode incluir implicações contextuais ou conexões inferidas que sustentam razoavelmente a informação.
+    - Responda NÃO se o contexto não apresenta nenhuma evidência que o sustente, contradizer claramente a informação, ou se o suporte fornecido pelo contexto for muito vago ou especulatvo para estabelecer uma conexão sólida com a informação.
+    - Evite usar "parcialmente" em sua resposta. Se o contexto fornece qualquer suporte razoável (direto ou indireto) para a informação, considere-a como SIM. 
 
-    Strictly answer in this format:
+    Responda estritamente neste formato:
     [Start of Context]
     ...
     [End of Context]
@@ -27,15 +27,15 @@
     ...
     [End of Answer]
 
-    Example 1:
+    Exemplo 1:
     [Start of Context]
-    An apple pie is a fruit pie with apples as the main filling. It's often served with whipped cream, ice cream, custard, or cheddar cheese. Typically, it has a double crust, with pastry above and below the filling. The upper crust can be solid or latticed.
+    Uma torta de maçã é uma torta de frutas com maçã como recheio principal. Geralmente é servida com chantilly, sorvete, quindim, ou queijo cheddar. Normalmente, possui crosta dupla, com massa folhada por cima e por baixo do recheio. A crosta de cima pode ser sólida ou entrelaçada.
     [End of Context]
     [Start of Response]
-    Apple pie is generally double-crusted.
+    Torta de maçã geralmente leva duas camadas de massa.
     [End of Response]
     [Start of Explanation]
-    The context directly supports the information by stating that apple pie is "generally double-crusted," which matches the information provided.
+    O contexto sustenta diretamente a informação ao afirmar que a torta de maçã "geralmente leva duas camadas de massa," o que coincide com a informação fornecida.
     [End of Explanation]
     [Start of Answer]
     YES
@@ -43,21 +43,21 @@
 
     Example 2:
     [Start of Context]
-    An apple pie is a fruit pie with apples as the main filling. It's often served with whipped cream, ice cream, custard, or cheddar cheese. Typically, it has a double crust, with pastry above and below the filling. The upper crust can be solid or latticed.
+    Uma torta de maçã é uma torta de frutas com maçã como recheio principal. Geralmente é servida com chantilly, sorvete, quindim, ou queijo cheddar. Normalmente, possui crosta dupla, com massa folhada por cima e por baixo do recheio. A crosta de cima pode ser sólida ou entrelaçada.
     [End of Context]
     [Start of Response]
-    Apple pies taste bad.
+    Tortas de maçã tem gosto ruim.
     [End of Response]
     [Start of Explanation]
-    The context does not provide any information about the taste of apple pies. The statement "Apple pies taste bad" is a subjective opinion and is not supported or mentioned in the given context.
+    O contexto não fornece nenhuma informação sobre o sabor de tortas de maçã. A afirmação "Tortas de maçã tem gosto ruim" é uma opinião subjetiva e não é apoiada ou mencionada pelo contexto dado.
     [End of Explanation]
     [Start of Answer]
     NO
     [End of Answer]
 
-    Now, based on the above examples and guidelines, determine if the following information is supported by the context provided. Answer YES or NO.
-    * Return the explanation within the [Start of Explanation] and [End of Explanation] tags.
-    * Return the answer between [Start of Answer] and [End of Answer] tags.
+    Agora, baseado nos exemplos e instruções acima, determine se a informação a seguir é apoiada pelo contexto fornecido. Responda YES ou NO.
+    * Retorne a explicação dentro das tags [Start of Explanation] e [End of Explanation].
+    * Retorne a resposta entre as tags [Start of Answer] e [End of Answer].
 
     [Start of Context]
     {{document}}

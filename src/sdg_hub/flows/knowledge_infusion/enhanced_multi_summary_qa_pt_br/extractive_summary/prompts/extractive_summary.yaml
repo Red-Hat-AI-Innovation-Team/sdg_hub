@@ -1,6 +1,6 @@
 # Prompt used in: extractive_summary flow
 # Origin: knowledge_infusion/enhanced_multi_summary_qa_pt_br
---- 
+---
 - role: system
   content: You are an expert at summarizing text.
 
@@ -31,10 +31,6 @@
     2. > "Empresas notaram que a produtividade se manteve estável, enquanto a satisfação dos funcionários aumentou."
     3. > "Entretanto, desafios como vácuos na comunicação e problemas de coerência no time surgiram."
     4. > "Firmas estão adotando modelos híbridos para balancear flexibilidade e colaboração."
-
-    ### Annotations:
-
-    ### Extract 1
     > "Trabalho remoto cresceu mais que 150% desde 2020 devido a pandemia."
 
     * **Context Marker**: Esse é a frase de abertura, providenciando contexto temporal e o catalisador para as mudanças dicutidas depois.
