@@ -1,0 +1,34 @@
+# Prompt used in: extractive_summary flow
+# Origin: knowledge_infusion/enhanced_multi_summary_qa
+---
+- role: system
+  content: Você é um Assistente de IA muito inteligente que vai auxiliar fielmente o usuário em sua tarefa.
+
+- role: user
+  content: |
+    Desenvolva uma série de perguntas educativas no domínio legal baseadas no documento fornecido.
+
+    As questôes devem:
+    * Auto-suficiente – compreensiveis sem a necessidade de referenciar tabelas, figuras ou trechos específicos.
+    * Foque nos exemplos fornecidos e siga o formato e estilo dos exemplos fornecidos.
+    * Possível responder independentemente – evite referencias indiretas à teoremas, figuras ou textos.
+    * Variedade de dificuldade - O nível de dificuldade deve ser o mesmo dos exemplos.
+    * Gere pelo menos 3 questões para cada exemplo fornecido.
+    * NÃO use "o documento", "no documento", "como no documento" ou similares. 
+
+    Cada par de questão e resposta deve servir como uma mini-lição, encapsulando um conceito chave ou ideia do capítulo de modo acessível e informativo sem que o leitor precise consultar o documento.
+
+    Siga esse formato à risca para cada questão que você gerar enquanto responde
+ 
+    [QUESTION]
+    <Coloque a questão aqui>
+    [END]
+
+    Aqui estão alguns exemplos de questões:
+    [EXAMPLES]
+    {document_questions}
+
+    Agora, aqui está o documento:
+    [DOCUMENT]
+    {{document_outline}}
+    {{document}}

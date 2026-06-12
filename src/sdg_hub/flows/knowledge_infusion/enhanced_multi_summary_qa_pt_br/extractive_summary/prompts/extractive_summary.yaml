@@ -1,0 +1,68 @@
+# Prompt used in: extractive_summary flow
+# Origin: knowledge_infusion/enhanced_multi_summary_qa_pt_br
+--- 
+- role: system
+  content: You are an expert at summarizing text.
+
+- role: user
+  content: |
+    Você vai criar um Resumo Extrativo Aprimorado a partir do documento fornecido.
+    Diferente de um resumo extrativo comum, que somente retira frases-chave, um Resumo Extrativo Aprimorado adiciona informações ricas em contexto e classificação cognitiva para cada segmento extraído.
+    Para cada seção relevante do documento, extraia de 2 a 4 partes-chave, e liste-as. Então, extraia anotação para cada um. Estruture sua resposta deste modo:
+
+    ### Extracts from the Passage:
+    [Lista de extrações]
+
+    ### Annotations:
+
+    ### Extract [Number]
+    > "[Citação direta do texto original]"
+
+    **Context Marker**: [Breve descrição de como essa extração se encaixa na estrutura narrativa e argumentativa do documento]
+    **Relevance**: [Avalie como Baixo, Médio, Médio-Alta, Alta ou Muito Alta e brevemente explique a importância para os temas principais]
+    **Relationship**: [Explique como essa citação se conecta com outras extrações, especificando o número da extração, ou conceitos no documento]
+
+    Para lhe ajudar a entender a tarefa, aqui está um exemplo:
+    Documento:
+    Trabalho remoto cresceu mais que 150% desde 2020 devido a pandemia. Empresas notaram que a produtividade se manteve estável, enquanto a satisfação dos funcionários aumentou. Entretanto, desafios como vácuos na comunicação e problemas de coerência no time surgiram. Firmas estão adotando modelos híbridos para balancear flexibilidade e colaboração.
+
+    ### Extracts from the Passage:
+    1. > "Trabalho remoto cresceu mais que 150% desde 2020 devido a pandemia."
+    2. > "Empresas notaram que a produtividade se manteve estável, enquanto a satisfação dos funcionários aumentou."
+    3. > "Entretanto, desafios como vácuos na comunicação e problemas de coerência no time surgiram."
+    4. > "Firmas estão adotando modelos híbridos para balancear flexibilidade e colaboração."
+
+    ### Annotations:
+
+    ### Extract 1
+    > "Trabalho remoto cresceu mais que 150% desde 2020 devido a pandemia."
+
+    * **Context Marker**: Esse é a frase de abertura, providenciando contexto temporal e o catalisador para as mudanças dicutidas depois.
+    * **Relevance**: **Muito Alta** – A frase introduz o tema central e quantifica a escala da transformação, enraizando toda a discussão.
+    * **Relationship**: Estabelece a causa das mudanças nos padrões de trabalho; aponta diretamente para as avaliações nas Citações 2 e 3, e na mudança resultante na Citação 4.
+
+    ### Extract 2
+    > "Empresas notaram que a produtividade se manteve estável, enquanto a satisfação dos funcionários aumentou."
+
+    * **Context Marker**: Posicionado depois do crescimento do trabalho remoto, essa citação resumi os benefícios chave percebidos pelas empresas.
+    * **Relevance**: **Alta** – Destaca o porquê do trabalho remoto ter apoiadores: entrega continuidade de negócios e aumenta a moral dos funcionários.
+    * **Relationship**: Trabalha em conjunto com a Citação 3 para mostrar uma visão equilibrada dos resultados do trabalho remoto; explica parte do motivo por trás dos modelos híbridos na Citação 4. 
+
+    ### Extract 3
+    > "Entretanto, desafios como vácuos na comunicação e problemas de coerência no time surgiram."
+
+    * **Context Marker**: Marca a reviravolta na narrativa, mudando o foco dos benefícios para as complicações do trabalho remoto.
+    * **Relevance**: **Alta** – Adiciona nuance ao introduzir pontos negativos críticos que as empresas enfrentaram.
+    * **Relationship**: Contrasta com a Citação 2, desenvolve o raciocínio para a solução de modelo híbrido da Citação 4.
+
+    ### Extract 4
+    > "Firmas estão adotando modelos híbridos para balancear flexibilidade e colaboração."
+
+    * **Context Marker**: Concluindo a análise, apresentando o consenso emergente ou a estratégia que está sendo adotada em resposta as menções anteriores.
+    * **Relevance**: **Muito Alta** – Sintetisa as conclusões do documento em uma solução inovadora.
+    * **Relationship**: Resolve a tensão destacada na Citações 2 e 3; representa a evolução causada pela situação da Citação 1.
+
+    Agora é sua vez de criar um Resumo Extrativo Avançado com base no documento fornecido.
+    Documento:
+    {{document_outline}}
+    {{document}}

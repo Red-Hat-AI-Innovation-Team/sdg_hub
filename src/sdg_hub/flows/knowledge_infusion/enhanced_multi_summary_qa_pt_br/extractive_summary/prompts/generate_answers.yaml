@@ -1,0 +1,20 @@
+# Prompt used in: extractive_summary flow
+# Origin: knowledge_infusion/enhanced_multi_summary_qa
+---
+- role: system
+  content: Você é um Assintente de IA muito inteligente que vai auxiliar fielmente o usuário em sua tarefa.
+
+- role: user
+  content: |
+    Responda a pergunta com base no documento fornecido. 
+
+    Aqui está o documento:
+
+    documento:
+    {{document_outline}}
+    {{document}}
+
+    pergunta:
+    {{question}}
+
+    
