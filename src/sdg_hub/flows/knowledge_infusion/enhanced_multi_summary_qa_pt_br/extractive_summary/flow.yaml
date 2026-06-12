@@ -1,12 +1,13 @@
 metadata:
   name: Extractive Summary Knowledge Tuning Dataset Generation Flow (Portuguese)
-  description: Generate extractive summary from the input document. Each document is first converted into list of knowledge segments for creating extractive summary and then annotated with context, relationship and relevance. This is then converted
+  description: Generate extractive summary from the input document in portuguese. Each document is first converted into list of knowledge segments for creating extractive summary and then annotated with context, relationship and relevance. This is then converted
     into Question-Answer pairs in Portuguese.
   version: 1.0.0
   author: LLM Eval UFCG
   recommended_models:
     default: openai/gpt-4.1-nano
     compatible:
+    - openai/gpt-oss-120b
     - meta-llama/Llama-3.3-70B-Instruct
     - microsoft/phi-4
     - mistralai/Mixtral-8x7B-Instruct-v0.1
@@ -25,7 +26,10 @@ metadata:
     - document
     - document_outline
     - domain
-    - document_questions
+    - icl_document
+    - icl_query_1
+    - icl_query_2
+    - icl_query_3
     description: 'Input dataset should contain Portuguese documents with text content and domain classification. Each document should be substantial enough for meaningful question generation (minimum 100 words recommended). The flow generates extractive summaries and corresponding QA pairs in Portuguese designed to help LLMs internalize document knowledge for knowledge tuning.'
     output_columns:
   - document
@@ -91,7 +95,10 @@ blocks:
     - domain
     - document
     - document_outline
-    - document_questions
+    - icl_document
+    - icl_query_1
+    - icl_query_2
+    - icl_query_3
     output_cols: question_generation_prompt
     prompt_config_path: prompts/generate_question_list.yaml
     format_as_messages: true
