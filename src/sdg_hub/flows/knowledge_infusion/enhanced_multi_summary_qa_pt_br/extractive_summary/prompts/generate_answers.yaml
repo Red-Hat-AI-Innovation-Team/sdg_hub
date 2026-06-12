@@ -2,7 +2,7 @@
 # Origin: knowledge_infusion/enhanced_multi_summary_qa
 ---
 - role: system
-  content: Você é um Assintente de IA muito inteligente que vai auxiliar fielmente o usuário em sua tarefa.
+  content: Você é um Assistente de IA muito experiente que ajudará o usuário fielmente em sua tarefa.
 
 - role: user
   content: |
@@ -10,9 +10,9 @@
 
     Aqui está o documento:
 
-    documento:
+    Documento:
     {{document_outline}}
     {{document}}
 
-    pergunta:
+    Pergunta:
     {{question}}

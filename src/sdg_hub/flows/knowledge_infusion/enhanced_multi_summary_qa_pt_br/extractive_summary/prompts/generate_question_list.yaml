@@ -2,33 +2,47 @@
 # Origin: knowledge_infusion/enhanced_multi_summary_qa
 ---
 - role: system
-  content: Você é um Assistente de IA muito inteligente que vai auxiliar fielmente o usuário em sua tarefa.
+  content: Você é um assistente de IA muito experiente que ajudará o usuário fielmente em sua tarefa.
 
 - role: user
   content: |
-    Desenvolva uma série de perguntas educativas no domínio legal baseadas no documento fornecido.
+    Desenvolva uma série de questões educacionais a partir de um capítulo de um livro didático de {{domain}}.
 
     As questôes devem:
-    * Auto-suficiente – compreensiveis sem a necessidade de referenciar tabelas, figuras ou trechos específicos.
-    * Foque nos exemplos fornecidos e siga o formato e estilo dos exemplos fornecidos.
-    * Possível responder independentemente – evite referencias indiretas à teoremas, figuras ou textos.
-    * Variedade de dificuldade - O nível de dificuldade deve ser o mesmo dos exemplos.
-    * Gere pelo menos 3 questões para cada exemplo fornecido.
-    * NÃO use "o documento", "no documento", "como no documento" ou similares. 
+    * Autossuficiente - compreensível sem necessidade de consultar tabelas, figuras ou seções de texto específicas.
+    * Concentre-se no exemplo fornecido e siga o formato e o estilo dos exemplos apresentados.
+    * Relevante para o assunto - com base na área de atuação do livro didático (por exemplo, jurídica, científica, etc.).
+    * Responda de forma independente - evite referências diretas a teoremas, figuras ou números no texto.
+    * Nível de dificuldade variado - Faça com que a dificuldade seja igual aos exemplos fornecidos.
+    * Utilize o mesmo formato dos exemplos fornecidos.
 
-    Cada par de questão e resposta deve servir como uma mini-lição, encapsulando um conceito chave ou ideia do capítulo de modo acessível e informativo sem que o leitor precise consultar o documento.
-
-    Siga esse formato à risca para cada questão que você gerar enquanto responde
-
+    Siga rigorosamente este formato para cada pergunta que você gerar ao responder.
+ 
     [QUESTION]
     <Coloque a questão aqui>
     [END]
 
+    Cada par de perguntas e respostas deve funcionar como uma miniaula independente, sintetizando um conceito ou ideia-chave do capítulo de forma acessível e informativa, sem exigir que o leitor consulte o livro didático.
+
     Aqui estão alguns exemplos de questões:
-    [EXAMPLES]
-    {document_questions}
+
+    [Document]
+    {{icl_document}}
+
+    [QUESTION]
+    {{icl_query_1}}
+    [END]
+
+    [QUESTION]
+    {{icl_query_2}}
+    [END]
+
+    [QUESTION]
+    {{icl_query_3}}
+    [END]
 
     Agora, aqui está o documento:
     [DOCUMENT]
     {{document_outline}}
     {{document}}
+    
