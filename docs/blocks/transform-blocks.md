@@ -315,22 +315,29 @@ print(result["selected_response"].tolist())
 
 ## SamplerBlock
 
-Randomly samples a specified number of values from a list, set, or weighted dictionary column and outputs the sampled values to a new column.
+Randomly samples values from a list column (cell mode) or across rows of a scalar column (column mode).
+
+**Cell mode** (default): samples from a list, set, or weighted dictionary within each row and outputs to a single column. When `input_cols` contains dictionaries, values are treated as weights for weighted sampling.
+
+**Column mode** (`source: "column"`): samples scalar values from a column across all rows and writes each sample into a separate output column — useful for constructing few-shot example sets for LLM prompts.
 
 ### Configuration
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `block_name` | `str` | required | Unique identifier for this block instance |
-| `input_cols` | `list[str]` | required | Single input column containing lists/sets/dicts to sample from |
-| `output_cols` | `list[str]` | required | Single output column for sampled values |
-| `num_samples` | `int` | `5` | Number of values to sample from each list |
+| `input_cols` | `list[str]` | required | Single input column to sample from |
+| `output_cols` | `list[str]` | required | Cell mode: single output column. Column mode: one column per sample (`len` must equal `num_samples`) |
+| `num_samples` | `int` | `5` | Number of values to sample |
 | `random_seed` | `int` or `null` | `null` | Seed for reproducible sampling |
-| `return_scalar` | `bool` | `false` | When `num_samples=1`, return a scalar instead of a single-element list |
+| `return_scalar` | `bool` | `false` | Cell mode only. When `num_samples=1`, return a scalar instead of a single-element list |
+| `source` | `"cell"` or `"column"` | `"cell"` | `"cell"` samples from a list within each row; `"column"` samples scalar values across rows |
+| `exclude_self` | `bool` | `true` | Column mode only. Exclude the current row's value from the sampling pool |
+| `exclude_by_value` | `bool` | `false` | Column mode only. When `true` and `exclude_self` is `true`, exclude all pool entries matching the current row's value (not just its index). Use after `RowMultiplierBlock` to avoid sampling duplicated copies of the same row |
+| `replace` | `bool` | `false` | Sample with replacement (`true`) or without (`false`) |
+| `sample_range` | `list[int]` or `null` | `null` | Column mode only. Restrict the sampling pool to rows `[start, end)` |
 
-When `input_cols` contains dictionaries, values are treated as weights for weighted sampling (without replacement).
-
-### Python Example
+### Python Example — Cell Mode
 
 ```python
 from sdg_hub.core.blocks import SamplerBlock
@@ -356,7 +363,27 @@ print(result["sampled_keywords"].tolist())
 # Output: Two randomly sampled keywords per row
 ```
 
-### YAML Example
+### Python Example — Column Mode
+
+```python
+block = SamplerBlock(
+    block_name="fewshot",
+    source="column",
+    input_cols=["question"],
+    output_cols=["example1", "example2"],
+    num_samples=2,
+    random_seed=42,
+)
+
+dataset = pd.DataFrame({
+    "question": ["What is AI?", "Define ML", "Explain NLP", "What is CV?"],
+})
+
+result = block(dataset)
+# Each row gets 2 values sampled from other rows' questions
+```
+
+### YAML Example — Cell Mode
 
 ```yaml
 - block_type: "SamplerBlock"
@@ -369,6 +396,23 @@ print(result["sampled_keywords"].tolist())
     num_samples: 2
     random_seed: 42
     return_scalar: false
+```
+
+### YAML Example — Column Mode
+
+```yaml
+- block_type: "SamplerBlock"
+  block_config:
+    block_name: "fewshot_examples"
+    source: "column"
+    input_cols:
+      - "question"
+    output_cols:
+      - "example1"
+      - "example2"
+    num_samples: 2
+    exclude_self: true
+    random_seed: 42
 ```
 
 ---

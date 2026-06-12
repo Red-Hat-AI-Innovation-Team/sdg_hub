@@ -42,7 +42,7 @@ When reading raw markdown, refer to the quick reference below.
 | UniformColumnValueSetter | `from sdg_hub.core.blocks import UniformColumnValueSetter` | Replaces all values in a column with a summary statistic (mode, mean, median) |
 | JSONStructureBlock | `from sdg_hub.core.blocks.transform.json_structure_block import JSONStructureBlock` | Combines multiple columns into a single JSON object column |
 | RowMultiplierBlock | `from sdg_hub.core.blocks.transform.row_multiplier import RowMultiplierBlock` | Duplicates each row a configurable number of times |
-| SamplerBlock | `from sdg_hub.core.blocks.transform.sampler import SamplerBlock` | Randomly samples n values from a list column |
+| SamplerBlock | `from sdg_hub.core.blocks.transform.sampler import SamplerBlock` | Randomly samples values from a list column (cell mode) or across rows (column mode) |
 
 ### Filtering Blocks
 

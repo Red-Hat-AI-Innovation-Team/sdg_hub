@@ -137,14 +137,14 @@ def test_sampler_validation_input_cols():
 def test_sampler_validation_output_cols():
     """Test validation errors for output_cols."""
     with pytest.raises(
-        ValueError, match="SamplerBlock requires exactly one output column"
+        ValueError, match="SamplerBlock requires exactly one output column in cell mode"
     ):
         SamplerBlock(
             block_name="test", input_cols=["items"], output_cols=[], num_samples=3
         )
 
     with pytest.raises(
-        ValueError, match="SamplerBlock requires exactly one output column"
+        ValueError, match="SamplerBlock requires exactly one output column in cell mode"
     ):
         SamplerBlock(
             block_name="test",
@@ -392,3 +392,410 @@ def test_sampler_return_scalar_with_dict():
     # Should return scalar value
     assert not isinstance(result["sampled"].iloc[0], list)
     assert result["sampled"].iloc[0] in ["a", "b", "c"]
+
+
+# --- Column mode tests ---
+
+
+def test_column_mode_basic():
+    """Column mode samples K values from the column into K output columns."""
+    dataset = pd.DataFrame({"question": [f"q{i}" for i in range(10)]})
+
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["question"],
+        output_cols=["fs1", "fs2", "fs3"],
+        num_samples=3,
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+
+    assert len(result) == 10
+    assert list(result.columns) == ["question", "fs1", "fs2", "fs3"]
+
+    for idx in range(len(result)):
+        shots = [
+            result["fs1"].iloc[idx],
+            result["fs2"].iloc[idx],
+            result["fs3"].iloc[idx],
+        ]
+        for s in shots:
+            assert s in dataset["question"].tolist()
+
+
+def test_column_mode_exclude_self():
+    """When exclude_self=True, a row's own value never appears in its samples."""
+    dataset = pd.DataFrame({"question": [f"q{i}" for i in range(20)]})
+
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["question"],
+        output_cols=["fs1", "fs2"],
+        num_samples=2,
+        exclude_self=True,
+        random_seed=0,
+    )
+
+    result = block.generate(dataset)
+
+    for idx in range(len(result)):
+        own_value = result["question"].iloc[idx]
+        shots = [result["fs1"].iloc[idx], result["fs2"].iloc[idx]]
+        assert own_value not in shots, (
+            f"Row {idx} value '{own_value}' should not appear in its own shots"
+        )
+
+
+def test_column_mode_exclude_self_false():
+    """When exclude_self=False, self-sampling is allowed."""
+    dataset = pd.DataFrame({"question": ["a", "b", "c"]})
+
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["question"],
+        output_cols=["fs1", "fs2"],
+        num_samples=2,
+        exclude_self=False,
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+
+    assert len(result) == 3
+    for idx in range(len(result)):
+        shots = [result["fs1"].iloc[idx], result["fs2"].iloc[idx]]
+        for s in shots:
+            assert s in ["a", "b", "c"]
+
+
+def test_column_mode_reproducibility():
+    """Same random_seed produces identical results in column mode."""
+    dataset = pd.DataFrame({"question": [f"q{i}" for i in range(20)]})
+
+    kwargs = dict(
+        block_name="test_col",
+        source="column",
+        input_cols=["question"],
+        output_cols=["fs1", "fs2", "fs3"],
+        num_samples=3,
+        random_seed=123,
+    )
+
+    result1 = SamplerBlock(**kwargs).generate(dataset)
+    result2 = SamplerBlock(**kwargs).generate(dataset)
+
+    pd.testing.assert_frame_equal(result1, result2)
+
+
+def test_column_mode_preserves_existing_columns():
+    """Output DataFrame retains all original columns in column mode."""
+    dataset = pd.DataFrame({"question": ["a", "b", "c", "d"], "extra": [1, 2, 3, 4]})
+
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["question"],
+        output_cols=["fs1"],
+        num_samples=1,
+        exclude_self=True,
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+
+    assert "extra" in result.columns
+    assert list(result["extra"]) == [1, 2, 3, 4]
+
+
+def test_column_mode_sample_range():
+    """sample_range restricts the pool to the specified row range."""
+    dataset = pd.DataFrame({"val": [f"v{i}" for i in range(10)]})
+
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["val"],
+        output_cols=["s1", "s2"],
+        num_samples=2,
+        exclude_self=False,
+        sample_range=[0, 3],
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+
+    pool = {"v0", "v1", "v2"}
+    for idx in range(len(result)):
+        shots = [result["s1"].iloc[idx], result["s2"].iloc[idx]]
+        for s in shots:
+            assert s in pool, f"Row {idx} sampled '{s}' outside range [0, 3)"
+
+
+def test_column_mode_sample_range_validation():
+    """Rejects invalid sample_range values."""
+    with pytest.raises(ValueError, match="2-element list"):
+        SamplerBlock(
+            block_name="test",
+            source="column",
+            input_cols=["q"],
+            output_cols=["s1"],
+            num_samples=1,
+            sample_range=[0],
+        )
+
+    with pytest.raises(ValueError, match="start must be less than end"):
+        SamplerBlock(
+            block_name="test",
+            source="column",
+            input_cols=["q"],
+            output_cols=["s1"],
+            num_samples=1,
+            sample_range=[5, 3],
+        )
+
+    with pytest.raises(ValueError, match="non-negative"):
+        SamplerBlock(
+            block_name="test",
+            source="column",
+            input_cols=["q"],
+            output_cols=["s1"],
+            num_samples=1,
+            sample_range=[-1, 3],
+        )
+
+
+def test_column_mode_sample_range_exceeds_dataset():
+    """Rejects sample_range that exceeds dataset length."""
+    dataset = pd.DataFrame({"val": ["a", "b", "c"]})
+
+    block = SamplerBlock(
+        block_name="test",
+        source="column",
+        input_cols=["val"],
+        output_cols=["s1"],
+        num_samples=1,
+        sample_range=[0, 10],
+    )
+
+    with pytest.raises(ValueError, match="exceeds dataset length"):
+        block(dataset)
+
+
+def test_column_mode_with_replacement():
+    """Column mode with replace=True allows duplicate samples."""
+    dataset = pd.DataFrame({"val": ["a", "b"]})
+
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["val"],
+        output_cols=["s1", "s2", "s3", "s4", "s5"],
+        num_samples=5,
+        exclude_self=False,
+        replace=True,
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+
+    assert len(result) == 2
+    for idx in range(len(result)):
+        shots = [result[f"s{j + 1}"].iloc[idx] for j in range(5)]
+        for s in shots:
+            assert s in ["a", "b"]
+
+
+def test_cell_mode_with_replacement():
+    """Cell mode with replace=True allows duplicate samples."""
+    data = {"items": [["a", "b"]]}
+    dataset = pd.DataFrame(data)
+
+    block = SamplerBlock(
+        block_name="test_replace",
+        input_cols=["items"],
+        output_cols=["sampled"],
+        num_samples=5,
+        replace=True,
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+
+    assert len(result["sampled"].iloc[0]) == 5
+    for s in result["sampled"].iloc[0]:
+        assert s in ["a", "b"]
+
+
+def test_column_mode_output_cols_mismatch():
+    """Rejects output_cols length != num_samples in column mode."""
+    with pytest.raises(
+        ValueError, match="output_cols length .* must match num_samples"
+    ):
+        SamplerBlock(
+            block_name="test",
+            source="column",
+            input_cols=["q"],
+            output_cols=["fs1", "fs2"],
+            num_samples=3,
+        )
+
+
+def test_column_mode_too_few_rows():
+    """Rejects dataset too small to sample from without replacement."""
+    dataset = pd.DataFrame({"val": ["a", "b"]})
+
+    block = SamplerBlock(
+        block_name="test",
+        source="column",
+        input_cols=["val"],
+        output_cols=["s1", "s2"],
+        num_samples=2,
+        exclude_self=True,
+    )
+
+    with pytest.raises(ValueError, match="needs at least 3"):
+        block(dataset)
+
+
+def test_column_mode_called_via_dunder_call():
+    """Column mode works correctly when invoked via __call__."""
+    dataset = pd.DataFrame({"question": [f"q{i}" for i in range(10)]})
+
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["question"],
+        output_cols=["fs1", "fs2"],
+        num_samples=2,
+        random_seed=42,
+    )
+
+    result = block(dataset)
+
+    assert len(result) == 10
+    assert "fs1" in result.columns
+    assert "fs2" in result.columns
+
+
+# --- exclude_by_value tests ---
+
+
+def test_column_mode_exclude_by_value():
+    """exclude_by_value excludes all pool entries matching the current row's value."""
+    dataset = pd.DataFrame({"q": ["a", "a", "a", "b", "c"]})
+
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["q"],
+        output_cols=["s1"],
+        num_samples=1,
+        exclude_self=True,
+        exclude_by_value=True,
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+
+    # Rows 0, 1, 2 all have value "a" — none of their samples should be "a"
+    for idx in range(3):
+        assert result["s1"].iloc[idx] != "a", (
+            f"Row {idx} sampled 'a' despite exclude_by_value=True"
+        )
+
+
+def test_column_mode_exclude_by_value_after_multiply():
+    """Simulates RowMultiplierBlock then column-mode sampling with exclude_by_value."""
+    # Simulate 3 original rows multiplied 2x
+    original = pd.DataFrame({"q": ["alpha", "beta", "gamma"]})
+    multiplied = pd.concat([original] * 2, ignore_index=True)
+    # multiplied: alpha, beta, gamma, alpha, beta, gamma
+
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["q"],
+        output_cols=["fs1"],
+        num_samples=1,
+        exclude_self=True,
+        exclude_by_value=True,
+        random_seed=42,
+    )
+
+    result = block.generate(multiplied)
+
+    for idx in range(len(result)):
+        own_value = result["q"].iloc[idx]
+        assert result["fs1"].iloc[idx] != own_value, (
+            f"Row {idx} (value='{own_value}') sampled itself"
+        )
+
+
+def test_column_mode_exclude_by_value_false_allows_duplicates():
+    """Without exclude_by_value, index-only exclusion lets duplicate values through."""
+    # 4 copies of "a" and 1 "b" — index exclusion removes only one "a"
+    dataset = pd.DataFrame({"q": ["a", "a", "a", "a", "b"]})
+
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["q"],
+        output_cols=["s1", "s2", "s3"],
+        num_samples=3,
+        exclude_self=True,
+        exclude_by_value=False,
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+
+    # Row 0 has value "a", but with index-only exclusion the other "a" copies are eligible
+    row0_shots = [result["s1"].iloc[0], result["s2"].iloc[0], result["s3"].iloc[0]]
+    assert "a" in row0_shots, "Index-only exclusion should still allow duplicate values"
+
+
+def test_column_mode_exclude_by_value_pool_too_small():
+    """Raises when exclude_by_value leaves too few pool entries for without-replacement."""
+    # All values are "a" except one "b" — after excluding "a", only 1 left, need 2
+    dataset = pd.DataFrame({"q": ["a", "a", "a", "b"]})
+
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["q"],
+        output_cols=["s1", "s2"],
+        num_samples=2,
+        exclude_self=True,
+        exclude_by_value=True,
+    )
+
+    with pytest.raises(ValueError, match="eligible pool entries"):
+        block.generate(dataset)
+
+
+def test_column_mode_exclude_by_value_with_replacement():
+    """exclude_by_value works with replace=True."""
+    dataset = pd.DataFrame({"q": ["a", "a", "b"]})
+
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["q"],
+        output_cols=["s1", "s2", "s3"],
+        num_samples=3,
+        exclude_self=True,
+        exclude_by_value=True,
+        replace=True,
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+
+    # Rows 0 and 1 (value "a") can only sample "b" — all 3 shots must be "b"
+    for idx in range(2):
+        shots = [result[f"s{j + 1}"].iloc[idx] for j in range(3)]
+        assert all(s == "b" for s in shots), f"Row {idx} should only sample 'b'"
