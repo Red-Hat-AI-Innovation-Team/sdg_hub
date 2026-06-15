@@ -335,7 +335,6 @@ Randomly samples values from a list column (cell mode) or across rows of a scala
 | `exclude_self` | `bool` | `true` | Column mode only. Exclude the current row's value from the sampling pool |
 | `exclude_by_value` | `bool` | `false` | Column mode only. When `true` and `exclude_self` is `true`, exclude all pool entries matching the current row's value (not just its index). Use after `RowMultiplierBlock` to avoid sampling duplicated copies of the same row |
 | `replace` | `bool` | `false` | Sample with replacement (`true`) or without (`false`) |
-| `sample_range` | `list[int]` or `null` | `null` | Column mode only. Restrict the sampling pool to rows `[start, end)` |
 
 ### Python Example — Cell Mode
 

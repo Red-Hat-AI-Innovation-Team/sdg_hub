@@ -511,80 +511,6 @@ def test_column_mode_preserves_existing_columns():
     assert list(result["extra"]) == [1, 2, 3, 4]
 
 
-def test_column_mode_sample_range():
-    """sample_range restricts the pool to the specified row range."""
-    dataset = pd.DataFrame({"val": [f"v{i}" for i in range(10)]})
-
-    block = SamplerBlock(
-        block_name="test_col",
-        source="column",
-        input_cols=["val"],
-        output_cols=["s1", "s2"],
-        num_samples=2,
-        exclude_self=False,
-        sample_range=[0, 3],
-        random_seed=42,
-    )
-
-    result = block.generate(dataset)
-
-    pool = {"v0", "v1", "v2"}
-    for idx in range(len(result)):
-        shots = [result["s1"].iloc[idx], result["s2"].iloc[idx]]
-        for s in shots:
-            assert s in pool, f"Row {idx} sampled '{s}' outside range [0, 3)"
-
-
-def test_column_mode_sample_range_validation():
-    """Rejects invalid sample_range values."""
-    with pytest.raises(ValueError, match="2-element list"):
-        SamplerBlock(
-            block_name="test",
-            source="column",
-            input_cols=["q"],
-            output_cols=["s1"],
-            num_samples=1,
-            sample_range=[0],
-        )
-
-    with pytest.raises(ValueError, match="start must be less than end"):
-        SamplerBlock(
-            block_name="test",
-            source="column",
-            input_cols=["q"],
-            output_cols=["s1"],
-            num_samples=1,
-            sample_range=[5, 3],
-        )
-
-    with pytest.raises(ValueError, match="non-negative"):
-        SamplerBlock(
-            block_name="test",
-            source="column",
-            input_cols=["q"],
-            output_cols=["s1"],
-            num_samples=1,
-            sample_range=[-1, 3],
-        )
-
-
-def test_column_mode_sample_range_exceeds_dataset():
-    """Rejects sample_range that exceeds dataset length."""
-    dataset = pd.DataFrame({"val": ["a", "b", "c"]})
-
-    block = SamplerBlock(
-        block_name="test",
-        source="column",
-        input_cols=["val"],
-        output_cols=["s1"],
-        num_samples=1,
-        sample_range=[0, 10],
-    )
-
-    with pytest.raises(ValueError, match="exceeds dataset length"):
-        block(dataset)
-
-
 def test_column_mode_with_replacement():
     """Column mode with replace=True allows duplicate samples."""
     dataset = pd.DataFrame({"val": ["a", "b"]})
@@ -799,3 +725,22 @@ def test_column_mode_exclude_by_value_with_replacement():
     for idx in range(2):
         shots = [result[f"s{j + 1}"].iloc[idx] for j in range(3)]
         assert all(s == "b" for s in shots), f"Row {idx} should only sample 'b'"
+
+
+def test_column_mode_empty_pool_with_replacement():
+    """Raises clear error when exclude_by_value empties the pool, even with replacement."""
+    dataset = pd.DataFrame({"q": ["a", "a", "a"]})
+
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["q"],
+        output_cols=["s1"],
+        num_samples=1,
+        exclude_self=True,
+        exclude_by_value=True,
+        replace=True,
+    )
+
+    with pytest.raises(ValueError, match="no eligible pool entries"):
+        block.generate(dataset)

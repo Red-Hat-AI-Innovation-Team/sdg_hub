@@ -64,9 +64,6 @@ class SamplerBlock(BaseBlock):
         pool entries matching the current row's value, not just its index.
     replace : bool
         Sample with replacement (True) or without (False).
-    sample_range : list[int], optional
-        Column mode only. Restrict the sampling pool to rows
-        ``[start, end)``. Default ``None`` uses all rows.
     """
 
     block_type: str = "transform"
@@ -100,11 +97,6 @@ class SamplerBlock(BaseBlock):
         default=False,
         description="Sample with replacement (True) or without (False)",
     )
-    sample_range: Optional[list[int]] = Field(
-        default=None,
-        description="When source='column', restrict sampling pool to rows [start, end). "
-        "Default None uses all rows.",
-    )
 
     @field_validator("input_cols", mode="after")
     @classmethod
@@ -120,21 +112,6 @@ class SamplerBlock(BaseBlock):
         """Validate that num_samples is at least 1."""
         if v < 1:
             raise ValueError("num_samples must be at least 1")
-        return v
-
-    @field_validator("sample_range", mode="after")
-    @classmethod
-    def validate_sample_range(cls, v: Optional[list[int]]) -> Optional[list[int]]:
-        """Validate sample_range is a valid [start, end) pair."""
-        if v is None:
-            return v
-        if len(v) != 2:
-            raise ValueError("sample_range must be a 2-element list [start, end)")
-        start, end = v
-        if start < 0 or end < 0:
-            raise ValueError("sample_range values must be non-negative")
-        if start >= end:
-            raise ValueError("sample_range start must be less than end")
         return v
 
     @model_validator(mode="after")
@@ -159,15 +136,7 @@ class SamplerBlock(BaseBlock):
         if self.source != "column":
             return
 
-        if self.sample_range is not None:
-            start, end = self.sample_range
-            if end > len(dataset):
-                raise ValueError(
-                    f"sample_range end ({end}) exceeds dataset length ({len(dataset)})"
-                )
-            pool_size = end - start
-        else:
-            pool_size = len(dataset)
+        pool_size = len(dataset)
 
         if not self.replace:
             min_required = self.num_samples + (1 if self.exclude_self else 0)
@@ -251,13 +220,8 @@ class SamplerBlock(BaseBlock):
         output_cols = cast(list[str], self.output_cols)
 
         all_values = samples[input_col].to_numpy()
-        if self.sample_range is not None:
-            start, end = self.sample_range
-            pool_values = all_values[start:end]
-            pool_indices = np.arange(start, end)
-        else:
-            pool_values = all_values
-            pool_indices = np.arange(len(all_values))
+        pool_values = all_values
+        pool_indices = np.arange(len(all_values))
 
         n_rows = len(samples)
         rng = np.random.default_rng(self.random_seed)
@@ -274,6 +238,11 @@ class SamplerBlock(BaseBlock):
                 row_pool = pool_values[mask]
             else:
                 row_pool = pool_values
+
+            if len(row_pool) == 0:
+                raise ValueError(
+                    f"Row {idx} has no eligible pool entries after exclusion"
+                )
 
             if len(row_pool) < self.num_samples and not self.replace:
                 raise ValueError(
