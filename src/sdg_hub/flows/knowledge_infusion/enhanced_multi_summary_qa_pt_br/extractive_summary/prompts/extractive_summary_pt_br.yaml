@@ -9,7 +9,6 @@
     Você vai criar um Resumo Extrativo Aprimorado a partir do documento fornecido.
     Diferente de um resumo extrativo comum, que somente retira frases-chave, um Resumo Extrativo Aprimorado adiciona informações ricas em contexto e classificação cognitiva para cada segmento extraído.
     Para cada seção relevante do documento, extraia de 2 a 4 partes-chave, e liste-as. Então, extraia anotação para cada um. Estruture sua resposta deste modo:
-
     ### Extracts from the Passage:
     [Lista de extrações]
 
@@ -31,11 +30,16 @@
     2. > "Empresas notaram que a produtividade se manteve estável, enquanto a satisfação dos funcionários aumentou."
     3. > "Entretanto, desafios como vácuos na comunicação e problemas de coerência no time surgiram."
     4. > "Firmas estão adotando modelos híbridos para balancear flexibilidade e colaboração."
+
+    ### Annotations:
+
+    ### Extract 1
     > "Trabalho remoto cresceu mais que 150% desde 2020 devido a pandemia."
 
     * **Context Marker**: Esse é a frase de abertura, providenciando contexto temporal e o catalisador para as mudanças dicutidas depois.
     * **Relevance**: **Muito Alta** – A frase introduz o tema central e quantifica a escala da transformação, enraizando toda a discussão.
     * **Relationship**: Estabelece a causa das mudanças nos padrões de trabalho; aponta diretamente para as avaliações nas Citações 2 e 3, e na mudança resultante na Citação 4.
+
 
     ### Extract 2
     > "Empresas notaram que a produtividade se manteve estável, enquanto a satisfação dos funcionários aumentou."
