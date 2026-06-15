@@ -511,6 +511,80 @@ def test_column_mode_preserves_existing_columns():
     assert list(result["extra"]) == [1, 2, 3, 4]
 
 
+def test_column_mode_sample_range():
+    """sample_range restricts the pool to the specified row range."""
+    dataset = pd.DataFrame({"val": [f"v{i}" for i in range(10)]})
+
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["val"],
+        output_cols=["s1", "s2"],
+        num_samples=2,
+        exclude_self=False,
+        sample_range=[0, 3],
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+
+    pool = {"v0", "v1", "v2"}
+    for idx in range(len(result)):
+        shots = [result["s1"].iloc[idx], result["s2"].iloc[idx]]
+        for s in shots:
+            assert s in pool, f"Row {idx} sampled '{s}' outside range [0, 3)"
+
+
+def test_column_mode_sample_range_validation():
+    """Rejects invalid sample_range values."""
+    with pytest.raises(ValueError, match="2-element list"):
+        SamplerBlock(
+            block_name="test",
+            source="column",
+            input_cols=["q"],
+            output_cols=["s1"],
+            num_samples=1,
+            sample_range=[0],
+        )
+
+    with pytest.raises(ValueError, match="start must be less than end"):
+        SamplerBlock(
+            block_name="test",
+            source="column",
+            input_cols=["q"],
+            output_cols=["s1"],
+            num_samples=1,
+            sample_range=[5, 3],
+        )
+
+    with pytest.raises(ValueError, match="non-negative"):
+        SamplerBlock(
+            block_name="test",
+            source="column",
+            input_cols=["q"],
+            output_cols=["s1"],
+            num_samples=1,
+            sample_range=[-1, 3],
+        )
+
+
+def test_column_mode_sample_range_exceeds_dataset():
+    """Rejects sample_range that exceeds dataset length."""
+    dataset = pd.DataFrame({"val": ["a", "b", "c"]})
+
+    block = SamplerBlock(
+        block_name="test",
+        source="column",
+        input_cols=["val"],
+        output_cols=["s1"],
+        num_samples=1,
+        sample_range=[0, 10],
+    )
+
+    with pytest.raises(ValueError, match="exceeds dataset length"):
+        block(dataset)
+
+
 def test_column_mode_with_replacement():
     """Column mode with replace=True allows duplicate samples."""
     dataset = pd.DataFrame({"val": ["a", "b"]})
@@ -744,3 +818,55 @@ def test_column_mode_empty_pool_with_replacement():
 
     with pytest.raises(ValueError, match="no eligible pool entries"):
         block.generate(dataset)
+
+
+# --- Auto-generated output column name tests ---
+
+
+def test_column_mode_auto_output_cols():
+    """Single output_cols string auto-expands to num_samples indexed columns."""
+    dataset = pd.DataFrame({"question": [f"q{i}" for i in range(10)]})
+
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["question"],
+        output_cols=["fewshot"],
+        num_samples=3,
+        random_seed=42,
+    )
+
+    assert block.output_cols == ["fewshot_1", "fewshot_2", "fewshot_3"]
+
+    result = block.generate(dataset)
+
+    assert len(result) == 10
+    assert "fewshot_1" in result.columns
+    assert "fewshot_2" in result.columns
+    assert "fewshot_3" in result.columns
+
+
+def test_column_mode_auto_output_cols_explicit_still_works():
+    """Explicit output_cols list matching num_samples is used as-is."""
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["question"],
+        output_cols=["ex1", "ex2", "ex3"],
+        num_samples=3,
+    )
+
+    assert block.output_cols == ["ex1", "ex2", "ex3"]
+
+
+def test_column_mode_auto_output_cols_single_sample():
+    """Single output_cols with num_samples=1 stays as-is (no expansion needed)."""
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["question"],
+        output_cols=["fewshot"],
+        num_samples=1,
+    )
+
+    assert block.output_cols == ["fewshot"]

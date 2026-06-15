@@ -327,7 +327,7 @@ Randomly samples values from a list column (cell mode) or across rows of a scala
 |-----------|------|---------|-------------|
 | `block_name` | `str` | required | Unique identifier for this block instance |
 | `input_cols` | `list[str]` | required | Single input column to sample from |
-| `output_cols` | `list[str]` | required | Cell mode: single output column. Column mode: one column per sample (`len` must equal `num_samples`) |
+| `output_cols` | `list[str]` | required | Cell mode: single output column. Column mode: one column per sample (`len` must equal `num_samples`), or a single name to auto-expand (e.g., `"fewshot"` with `num_samples=3` produces `fewshot_1`, `fewshot_2`, `fewshot_3`) |
 | `num_samples` | `int` | `5` | Number of values to sample |
 | `random_seed` | `int` or `null` | `null` | Seed for reproducible sampling |
 | `return_scalar` | `bool` | `false` | Cell mode only. When `num_samples=1`, return a scalar instead of a single-element list |
@@ -335,6 +335,7 @@ Randomly samples values from a list column (cell mode) or across rows of a scala
 | `exclude_self` | `bool` | `true` | Column mode only. Exclude the current row's value from the sampling pool |
 | `exclude_by_value` | `bool` | `false` | Column mode only. When `true` and `exclude_self` is `true`, exclude all pool entries matching the current row's value (not just its index). Use after `RowMultiplierBlock` to avoid sampling duplicated copies of the same row |
 | `replace` | `bool` | `false` | Sample with replacement (`true`) or without (`false`) |
+| `sample_range` | `list[int]` or `null` | `null` | Column mode only. Restrict the sampling pool to rows `[start, end)` |
 
 ### Python Example — Cell Mode
 
@@ -406,12 +407,11 @@ result = block(dataset)
     source: "column"
     input_cols:
       - "question"
-    output_cols:
-      - "example1"
-      - "example2"
-    num_samples: 2
+    output_cols: "example"
+    num_samples: 3
     exclude_self: true
     random_seed: 42
+    # output_cols auto-expands to: example_1, example_2, example_3
 ```
 
 ---
