@@ -1,7 +1,7 @@
 metadata:
   id: coding-questions-generator
   name: "Coding Questions Generator"
-  description: "Flow to generate new coding questions and their answers based on seed questions and answers."
+  description: "Flow to generate new coding questions and their answers based on seed questions."
   version: "1.0.0"
   author: "LLM Eval UFCG"
 

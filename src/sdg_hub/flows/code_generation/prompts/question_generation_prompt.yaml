@@ -6,7 +6,7 @@
     Develop a series of three questions of the same type as the seed question.
     {{seed_question}}
 
-    Strictly follow this format for each question your generate while responding
+    Strictly follow this format for each question you generate while responding:
 
     [QUESTION]
     <Insert question here>
