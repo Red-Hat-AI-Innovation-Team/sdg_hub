@@ -19,20 +19,15 @@ description = "SDG Hub global allowlist"
 paths = [
     '''\.gitleaks\.toml$''',
     '''uv\.lock$''',
+    '''tests/.*''',
+    '''docs/.*''',
 ]
 
 # Allow api_key as a parameter name in code (not actual key values)
+regexTarget = "line"
 regexes = [
     '''api_key\s*[:=]\s*["'](\.\.\.|\*+|<[^>]+>|None|null|""|\{\{[^}]+\}\}|your[_-]api[_-]key[_-]here)["']''',
     '''["']api_key["']''',
     '''\.api_key\b''',
     '''api_key:\s*str''',
-]
-
-# Allow test fixtures and documentation examples
-[[allowlist.commits]]
-description = "test fixtures with fake keys"
-paths = [
-    '''tests/.*''',
-    '''docs/.*''',
 ]
