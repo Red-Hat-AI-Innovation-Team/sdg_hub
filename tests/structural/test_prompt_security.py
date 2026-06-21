@@ -52,7 +52,9 @@ def _discover_prompt_yamls() -> list[Path]:
                 data = yaml.safe_load(fh)
         except yaml.YAMLError:
             continue
-        if isinstance(data, list) and data and isinstance(data[0], dict) and "content" in data[0]:
+        if isinstance(data, list) and data and any(
+            isinstance(item, dict) and "content" in item for item in data
+        ):
             prompts.append(path)
     return prompts
 
@@ -68,6 +70,8 @@ def _extract_content_fields(data: list[dict]) -> list[tuple[int, str]]:
     """Extract (index, content) pairs from a prompt template."""
     results = []
     for i, entry in enumerate(data):
+        if not isinstance(entry, dict):
+            continue
         content = entry.get("content", "")
         if isinstance(content, str) and content.strip():
             results.append((i, content))
