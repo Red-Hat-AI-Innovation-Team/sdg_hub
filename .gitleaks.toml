@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: Apache-2.0
+# Gitleaks configuration for SDG Hub
+#
+# Detects accidentally committed secrets (API keys, passwords, tokens).
+# Security patterns adapted from harness-eval-lab credential detection rules.
+#
+# Usage:
+#   pre-commit:  runs automatically on git commit
+#   manual:      gitleaks detect --config .gitleaks.toml
+
+title = "SDG Hub Secret Scanning"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "SDG Hub global allowlist"
+
+paths = [
+    '''\.gitleaks\.toml$''',
+    '''uv\.lock$''',
+]
+
+# Allow api_key as a parameter name in code (not actual key values)
+regexes = [
+    '''api_key\s*[:=]\s*["'](\.\.\.|\*+|<[^>]+>|None|null|""|\{\{[^}]+\}\}|your[_-]api[_-]key[_-]here)["']''',
+    '''["']api_key["']''',
+    '''\.api_key\b''',
+    '''api_key:\s*str''',
+]
+
+# Allow test fixtures and documentation examples
+[[allowlist.commits]]
+description = "test fixtures with fake keys"
+paths = [
+    '''tests/.*''',
+    '''docs/.*''',
+]
