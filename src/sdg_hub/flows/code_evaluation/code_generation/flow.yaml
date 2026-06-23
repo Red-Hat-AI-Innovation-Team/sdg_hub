@@ -1,7 +1,10 @@
 metadata:
-  id: coding-questions-generator
-  name: "Coding Questions Generator"
-  description: "Flow to generate new coding questions and their answers based on seed questions."
+  name: "Python Coding Questions Generator"
+  description: >-
+    Flow for generating new coding questions and corresponding Python answers from seed questions.
+    The flow uses parser blocks to extract questions and answers from LLM responses, 
+    so any generated content that does not match the expected template format defined in the prompt will be discarded.
+
   version: "1.0.0"
   author: "LLM Eval UFCG"
 
@@ -12,6 +15,7 @@ metadata:
   
   tags:
     - "question-generation"
+    - "python"
   
   license: "Apache-2.0"
 
@@ -36,7 +40,8 @@ blocks:
       input_cols: [question_generation_prompt]
       output_cols: [question_list]
       max_tokens: 2048
-      async_mode: false
+      async_mode: true
+      temperature: 0.7
   - block_type: LLMResponseExtractorBlock
     block_config:
       block_name: extract_questions
@@ -45,8 +50,8 @@ blocks:
   - block_type: TagParserBlock
     block_config:
       block_name: parse_question_list
-      input_cols: extract_questions_content
-      output_cols: question
+      input_cols: [extract_questions_content]
+      output_cols: [question]
       start_tags:
       - '[QUESTION]'
       end_tags:
@@ -63,7 +68,8 @@ blocks:
       input_cols: [answer_generation_prompt]
       output_cols: [answer_list]
       max_tokens: 2048
-      async_mode: false
+      async_mode: true
+      temperature: 0.7
   - block_type: LLMResponseExtractorBlock
     block_config:
       block_name: extract_answers
@@ -72,8 +78,8 @@ blocks:
   - block_type: TagParserBlock
     block_config:
       block_name: parse_answer_list
-      input_cols: extract_answers_content
-      output_cols: answer
+      input_cols: [extract_answers_content]
+      output_cols: [answer]
       start_tags:
       - '[ANSWER]'
       end_tags:
