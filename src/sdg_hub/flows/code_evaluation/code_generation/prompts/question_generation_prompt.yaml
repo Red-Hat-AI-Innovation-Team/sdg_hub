@@ -4,6 +4,8 @@
 - role: user
   content: |
     Develop a series of three questions of the same type as the seed question.
+
+    Seed question:
     {{seed_question}}
 
     Strictly follow this format for each question you generate while responding:
