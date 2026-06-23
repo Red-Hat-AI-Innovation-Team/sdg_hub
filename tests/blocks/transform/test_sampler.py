@@ -801,6 +801,29 @@ def test_column_mode_exclude_by_value_with_replacement():
         assert all(s == "b" for s in shots), f"Row {idx} should only sample 'b'"
 
 
+def test_column_mode_exclude_by_value_nan():
+    """exclude_by_value correctly excludes NaN entries from the pool."""
+    dataset = pd.DataFrame({"q": [float("nan"), float("nan"), "a", "b"]})
+
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["q"],
+        output_cols=["s1"],
+        num_samples=1,
+        exclude_self=True,
+        exclude_by_value=True,
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+
+    for idx in range(2):
+        assert pd.notna(result["s1"].iloc[idx]), (
+            f"Row {idx} (NaN) should not sample NaN with exclude_by_value=True"
+        )
+
+
 def test_column_mode_empty_pool_with_replacement():
     """Raises clear error when exclude_by_value empties the pool, even with replacement."""
     dataset = pd.DataFrame({"q": ["a", "a", "a"]})

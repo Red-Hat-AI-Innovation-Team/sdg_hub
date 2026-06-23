@@ -277,7 +277,11 @@ class SamplerBlock(BaseBlock):
         for idx in range(n_rows):
             if self.exclude_self:
                 if self.exclude_by_value:
-                    mask = pool_values != all_values[idx]
+                    val = all_values[idx]
+                    if pd.isna(val):
+                        mask = pd.notna(pool_values)
+                    else:
+                        mask = pool_values != val
                 else:
                     mask = pool_indices != idx
                 row_pool = pool_values[mask]
