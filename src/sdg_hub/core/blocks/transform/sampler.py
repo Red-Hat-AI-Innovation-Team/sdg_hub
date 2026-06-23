@@ -163,10 +163,42 @@ class SamplerBlock(BaseBlock):
                 )
         return self
 
+    @model_validator(mode="after")
+    def validate_mode_specific_params(self) -> "SamplerBlock":
+        """Reject mode-irrelevant parameters set to non-default values."""
+        if self.source == "cell":
+            if self.sample_range is not None:
+                raise ValueError(
+                    "sample_range is only valid in column mode (source='column')"
+                )
+            if self.exclude_by_value:
+                raise ValueError(
+                    "exclude_by_value is only valid in column mode (source='column')"
+                )
+        else:
+            if self.return_scalar:
+                raise ValueError(
+                    "return_scalar is only valid in cell mode (source='cell')"
+                )
+        if self.exclude_by_value and not self.exclude_self:
+            raise ValueError("exclude_by_value requires exclude_self=True")
+        return self
+
     def _validate_custom(self, dataset: pd.DataFrame) -> None:
         """Validate dataset constraints for column mode."""
         if self.source != "column":
             return
+
+        input_col = cast(list[str], self.input_cols)[0]
+        non_null = dataset[input_col].dropna()
+        if not non_null.empty:
+            first_val = non_null.iloc[0]
+            if isinstance(first_val, (list, dict, set, np.ndarray)):
+                raise ValueError(
+                    f"Column '{input_col}' contains {type(first_val).__name__} values. "
+                    f"Column mode requires scalar values. "
+                    f"Use source='cell' for list/dict/set columns."
+                )
 
         if self.sample_range is not None:
             start, end = self.sample_range

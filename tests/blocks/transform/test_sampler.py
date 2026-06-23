@@ -843,6 +843,79 @@ def test_column_mode_empty_pool_with_replacement():
         block.generate(dataset)
 
 
+# --- Mode-specific parameter validation tests ---
+
+
+def test_cell_mode_rejects_sample_range():
+    """Cell mode rejects sample_range."""
+    with pytest.raises(ValueError, match="sample_range is only valid in column mode"):
+        SamplerBlock(
+            block_name="test",
+            input_cols=["items"],
+            output_cols=["sampled"],
+            num_samples=2,
+            sample_range=[0, 5],
+        )
+
+
+def test_cell_mode_rejects_exclude_by_value():
+    """Cell mode rejects exclude_by_value=True."""
+    with pytest.raises(
+        ValueError, match="exclude_by_value is only valid in column mode"
+    ):
+        SamplerBlock(
+            block_name="test",
+            input_cols=["items"],
+            output_cols=["sampled"],
+            num_samples=2,
+            exclude_by_value=True,
+        )
+
+
+def test_column_mode_rejects_return_scalar():
+    """Column mode rejects return_scalar=True."""
+    with pytest.raises(ValueError, match="return_scalar is only valid in cell mode"):
+        SamplerBlock(
+            block_name="test",
+            source="column",
+            input_cols=["q"],
+            output_cols=["s1"],
+            num_samples=1,
+            return_scalar=True,
+        )
+
+
+def test_exclude_by_value_requires_exclude_self():
+    """exclude_by_value=True with exclude_self=False raises."""
+    with pytest.raises(ValueError, match="exclude_by_value requires exclude_self=True"):
+        SamplerBlock(
+            block_name="test",
+            source="column",
+            input_cols=["q"],
+            output_cols=["s1"],
+            num_samples=1,
+            exclude_self=False,
+            exclude_by_value=True,
+        )
+
+
+def test_column_mode_rejects_non_scalar_input():
+    """Column mode rejects list-valued columns with a helpful message."""
+    dataset = pd.DataFrame({"items": [["a", "b"], ["c", "d"], ["e", "f"]]})
+
+    block = SamplerBlock(
+        block_name="test",
+        source="column",
+        input_cols=["items"],
+        output_cols=["s1"],
+        num_samples=1,
+        exclude_self=False,
+    )
+
+    with pytest.raises(ValueError, match="contains list values.*Use source='cell'"):
+        block(dataset)
+
+
 # --- Auto-generated output column name tests ---
 
 
