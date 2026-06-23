@@ -84,4 +84,17 @@ blocks:
       - '[ANSWER]'
       end_tags:
       - '[END_ANSWER]'
-
+  - block_type: "PythonInterpreterBlock"
+    block_config:
+      block_name: "verify_execution"
+      interpreter_framework: "monty"
+      input_cols: [answer]
+      output_cols: [execution_result]
+      timeout: 10.0
+      max_concurrency: 5
+  - block_type: "ColumnValueFilterBlock"
+    block_config:
+      block_name: "filter_failed_executions"
+      input_cols: ["execution_result_success"]
+      filter_value: true
+      operation: "eq"
