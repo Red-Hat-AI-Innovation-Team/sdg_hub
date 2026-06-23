@@ -423,6 +423,9 @@ def test_column_mode_basic():
         ]
         for s in shots:
             assert s in dataset["question"].tolist()
+        assert len(shots) == len(set(shots)), (
+            f"Row {idx} has duplicate samples (replace=False)"
+        )
 
 
 def test_column_mode_exclude_self():
@@ -583,6 +586,35 @@ def test_column_mode_sample_range_exceeds_dataset():
 
     with pytest.raises(ValueError, match="exceeds dataset length"):
         block(dataset)
+
+
+def test_column_mode_sample_range_with_exclude_self():
+    """Rows outside sample_range still exclude themselves via index."""
+    dataset = pd.DataFrame({"val": [f"v{i}" for i in range(10)]})
+
+    block = SamplerBlock(
+        block_name="test_col",
+        source="column",
+        input_cols=["val"],
+        output_cols=["s1", "s2"],
+        num_samples=2,
+        exclude_self=True,
+        sample_range=[0, 5],
+        random_seed=42,
+    )
+
+    result = block.generate(dataset)
+
+    pool = {"v0", "v1", "v2", "v3", "v4"}
+    for idx in range(len(result)):
+        shots = [result["s1"].iloc[idx], result["s2"].iloc[idx]]
+        for s in shots:
+            assert s in pool, f"Row {idx} sampled '{s}' outside range [0, 5)"
+        if idx < 5:
+            own_value = result["val"].iloc[idx]
+            assert own_value not in shots, (
+                f"Row {idx} sampled its own value '{own_value}' with exclude_self=True"
+            )
 
 
 def test_column_mode_with_replacement():

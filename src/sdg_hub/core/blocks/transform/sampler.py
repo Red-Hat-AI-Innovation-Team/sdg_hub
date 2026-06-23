@@ -16,11 +16,8 @@ import numpy as np
 import pandas as pd
 
 # Local
-from ...utils.logger_config import setup_logger
 from ..base import BaseBlock
 from ..registry import BlockRegistry
-
-logger = setup_logger(__name__)
 
 
 @BlockRegistry.register(
