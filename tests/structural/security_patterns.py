@@ -7,8 +7,8 @@ config files), so the patterns focus on adversarial LLM manipulation
 rather than shell-level exfiltration.
 
 Six injection patterns are adapted from harness-eval-lab's
-security/no-prompt-injection rule. Two patterns are new, specific
-to SDG Hub's template architecture.
+security/no-prompt-injection rule. Two template structure patterns
+are specific to SDG Hub's template architecture.
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ),
     (
         "jailbreak attempt",
-        re.compile(r"(\bDAN\b|do\s+anything\s+now|developer\s+mode)", re.I),
+        re.compile(r"(do\s+anything\s+now|developer\s+mode)", re.I),
     ),
     (
         "role hijack",
@@ -50,19 +50,25 @@ INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 
 # Patterns specific to SDG Hub's template architecture.
 #
-# All 68 legitimate templates use simple {{ variable }} Jinja2 substitution.
-# Only the red_team flow uses {% if/for %} control flow. If Jinja2 control
-# flow appears in a non-red-team template, it could indicate template logic
-# that processes untrusted input or bypasses expected flow behavior.
+# All legitimate templates use simple {{ variable }} Jinja2 substitution.
+# Only the red_team flow uses {% if %} control flow. Jinja2 directives in
+# other templates could indicate template logic that processes untrusted
+# input, loads external files, or bypasses expected flow behavior.
 TEMPLATE_STRUCTURE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     (
-        "jinja2 control flow",
-        re.compile(r"\{%[-\s]*(if|for|while|set|macro)\s+", re.I),
+        "jinja2 control flow or file inclusion",
+        re.compile(
+            r"\{%[-+\s]*"
+            r"(if|for|set|macro|include|import|extends|raw|call|filter)"
+            r"\s+",
+            re.I,
+        ),
     ),
     (
         "inline code execution directive",
         re.compile(
             r"\b(?:exec|eval|compile)\s*\(|"
+            r"__import__\s*\(|"
             r"\bos\.(?:system|popen)\s*\(|"
             r"\bsubprocess\.",
             re.I,

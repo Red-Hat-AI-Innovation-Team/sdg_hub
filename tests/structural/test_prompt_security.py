@@ -9,14 +9,15 @@ that manipulate model behavior. These tests catch two classes of issues:
    instruction override) that have no legitimate use in data generation
    prompt templates.
 
-2. Template structure anomalies: Jinja2 control flow ({% if/for %}) in
-   non-red-team templates. All existing templates use simple {{ variable }}
-   substitution only; the red_team flow is the sole user of conditional
-   logic. Control flow in other templates could indicate template logic
-   that processes untrusted input.
+2. Template structure anomalies: Jinja2 directives (control flow, file
+   inclusion, macros) in non-red-team templates. All existing templates
+   use simple {{ variable }} substitution only; the red_team flow is the
+   sole user of Jinja2 control flow. Directives in other templates could
+   indicate template logic that processes untrusted input.
 
-The red_team flow is explicitly allowlisted since it intentionally
-generates adversarial content.
+The red_team flow's prompt_generation directory is explicitly allowlisted
+since it intentionally generates adversarial content and uses Jinja2
+conditionals for dynamic prompt construction.
 
 Security patterns adapted from harness-eval-lab inspection rules,
 curated for SDG Hub's prompt template context.
@@ -24,6 +25,7 @@ curated for SDG Hub's prompt template context.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import pytest
@@ -34,15 +36,23 @@ from tests.structural.security_patterns import (
     TEMPLATE_STRUCTURE_PATTERNS,
 )
 
+logger = logging.getLogger(__name__)
+
 FLOWS_DIR = Path(__file__).resolve().parents[2] / "src" / "sdg_hub" / "flows"
 
 ALLOWLISTED_DIRS = {"red_team"}
 
 
-def _discover_prompt_yamls() -> list[Path]:
-    """Return all prompt template YAMLs (excluding allowlisted directories)."""
+def _discover_prompt_yamls() -> tuple[list[Path], list[tuple[Path, str]]]:
+    """Return prompt template YAMLs and any files that failed to parse.
+
+    Returns:
+        A tuple of (prompt_paths, parse_errors) where parse_errors is a list
+        of (path, error_message) for files that could not be parsed.
+    """
     candidates = sorted(FLOWS_DIR.rglob("*.yaml")) + sorted(FLOWS_DIR.rglob("*.yml"))
     prompts: list[Path] = []
+    parse_errors: list[tuple[Path, str]] = []
     for path in candidates:
         rel = path.relative_to(FLOWS_DIR)
         if rel.parts[0] in ALLOWLISTED_DIRS:
@@ -50,24 +60,28 @@ def _discover_prompt_yamls() -> list[Path]:
         try:
             with open(path) as fh:
                 data = yaml.safe_load(fh)
-        except yaml.YAMLError:
+        except yaml.YAMLError as exc:
+            parse_errors.append((path, str(exc)))
             continue
         if isinstance(data, list) and data and any(
             isinstance(item, dict) and "content" in item for item in data
         ):
             prompts.append(path)
-    return prompts
+    return prompts, parse_errors
 
 
 def _prompt_id(path: Path) -> str:
     return str(path.relative_to(FLOWS_DIR))
 
 
-PROMPT_YAMLS = _discover_prompt_yamls()
+PROMPT_YAMLS, _PARSE_ERRORS = _discover_prompt_yamls()
 
 
 def _extract_content_fields(data: list[dict]) -> list[tuple[int, str]]:
-    """Extract (index, content) pairs from a prompt template."""
+    """Extract (index, content) pairs from a prompt template.
+
+    Handles both string and list-of-strings content values.
+    """
     results = []
     for i, entry in enumerate(data):
         if not isinstance(entry, dict):
@@ -75,7 +89,38 @@ def _extract_content_fields(data: list[dict]) -> list[tuple[int, str]]:
         content = entry.get("content", "")
         if isinstance(content, str) and content.strip():
             results.append((i, content))
+        elif isinstance(content, list):
+            joined = "\n".join(str(item) for item in content if isinstance(item, str))
+            if joined.strip():
+                results.append((i, joined))
     return results
+
+
+def test_prompt_yamls_discovered() -> None:
+    """Prompt template discovery must find templates.
+
+    Guards against a broken discovery function silently producing
+    zero test cases, which would make CI pass with no actual scanning.
+    """
+    assert PROMPT_YAMLS, (
+        f"No prompt template YAMLs found under {FLOWS_DIR}. "
+        "Check that _discover_prompt_yamls() and FLOWS_DIR are correct."
+    )
+
+
+def test_no_yaml_parse_errors() -> None:
+    """All non-allowlisted YAML files must parse successfully.
+
+    A malformed template that silently bypasses scanning is itself a
+    security concern.
+    """
+    assert not _PARSE_ERRORS, (
+        f"{len(_PARSE_ERRORS)} YAML file(s) failed to parse:\n"
+        + "\n".join(
+            f"  {path.relative_to(FLOWS_DIR)}: {err}"
+            for path, err in _PARSE_ERRORS
+        )
+    )
 
 
 @pytest.mark.parametrize(
@@ -113,9 +158,9 @@ def test_no_injection_patterns(prompt_path: Path) -> None:
 def test_no_template_structure_anomalies(prompt_path: Path) -> None:
     """Prompt templates should use simple {{ variable }} substitution only.
 
-    Jinja2 control flow ({% if %}, {% for %}) in non-red-team templates
-    is unexpected and may indicate template logic that processes untrusted
-    input or bypasses the expected block pipeline.
+    Jinja2 directives ({% if %}, {% for %}, {% include %}, etc.) in
+    non-red-team templates are unexpected and may indicate template logic
+    that processes untrusted input or bypasses the expected block pipeline.
     """
     with open(prompt_path) as fh:
         data = yaml.safe_load(fh)
