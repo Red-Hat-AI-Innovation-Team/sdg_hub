@@ -2,7 +2,8 @@
 # Gitleaks configuration for SDG Hub
 #
 # Detects accidentally committed secrets (API keys, passwords, tokens).
-# Security patterns adapted from harness-eval-lab credential detection rules.
+# Regex allowlist tuned to suppress false positives on the ~70+ api_key
+# references in src/ (parameter names, type annotations, dict keys).
 #
 # Usage:
 #   pre-commit:  runs automatically on git commit
@@ -19,15 +20,23 @@ description = "SDG Hub global allowlist"
 paths = [
     '''\.gitleaks\.toml$''',
     '''uv\.lock$''',
+    # Test fixtures use dummy keys; docs use placeholder values.
+    # Trade-off: a real key pasted into a test file won't be caught here.
+    # CI-level scanning (follow-up) would cover this gap.
     '''tests/.*''',
     '''docs/.*''',
 ]
 
-# Allow api_key as a parameter name in code (not actual key values)
+# Match against the full source line, not just the extracted secret value.
+# This lets the regexes below distinguish code identifiers from real secrets.
 regexTarget = "line"
 regexes = [
-    '''api_key\s*[:=]\s*["'](\.\.\.|\*+|<[^>]+>|None|null|""|\{\{[^}]+\}\}|your[_-]api[_-]key[_-]here)["']''',
+    # Placeholder values: api_key="your-api-key", api_key="your_key_here", etc.
+    '''api_key\s*[:=]\s*["'](\.\.\.|\*+|<[^>]+>|None|null|""|\{\{[^}]+\}\}|your[._-](api[._-])?key([._-]here)?)["']''',
+    # Dict key access: config["api_key"], params['api_key']
     '''["']api_key["']''',
+    # Attribute access: self.api_key, model.api_key
     '''\.api_key\b''',
+    # Type annotations: api_key: str, api_key: Optional[str]
     '''api_key:\s*str''',
 ]
