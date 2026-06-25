@@ -1,0 +1,59 @@
+metadata:
+  name: JIRA Ticket Synthesis Flow
+  description: 'Synthesizes new JIRA tickets from a small set of seed examples using few-shot in-context learning. Seeds are multiplied, sampled for ICL examples, formatted into prompts, and sent to an LLM for generation.
+
+    '
+  version: 1.0.0
+  tags:
+  - jira
+  - synthesis
+  - few-shot
+  dataset_requirements:
+    required_columns:
+    - document
+    description: 'Each row should contain a ''document'' column holding the full text content of a real JIRA ticket (summary, description, comments, etc.).
+
+      '
+  id: round-snow-310
+blocks:
+- block_type: RowMultiplierBlock
+  block_config:
+    block_name: multiply_seeds
+    num_samples: 11
+    shuffle: true
+    random_seed: 42
+- block_type: SamplerBlock
+  block_config:
+    block_name: sample_icl_examples
+    source: column
+    input_cols:
+    - document
+    output_cols:
+    - icl
+    num_samples: 5
+    exclude_self: false
+    random_seed: 42
+- block_type: PromptBuilderBlock
+  block_config:
+    block_name: build_prompt
+    input_cols:
+    - icl_1
+    - icl_2
+    - icl_3
+    - icl_4
+    - icl_5
+    output_cols: messages
+    prompt_config_path: prompt_template.yaml
+- block_type: LLMChatBlock
+  block_config:
+    block_name: generate_tickets
+    input_cols: messages
+    output_cols: raw_response
+    temperature: 0.9
+    async_mode: true
+- block_type: LLMResponseExtractorBlock
+  block_config:
+    block_name: extract_response
+    input_cols: raw_response
+    extract_content: true
+    expand_lists: true

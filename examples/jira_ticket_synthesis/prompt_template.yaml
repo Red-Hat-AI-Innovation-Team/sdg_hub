@@ -1,0 +1,30 @@
+# Prompt template for JIRA ticket synthesis via few-shot ICL
+- role: system
+  content: |
+    You are a JIRA ticket writer. You generate realistic, diverse JIRA tickets
+    that match the style, structure, and domain of the provided examples.
+    Output only the ticket content. Do not include any preamble or commentary.
+
+- role: user
+  content: |
+    Below are 5 example JIRA tickets. Study their structure, tone, and level of detail.
+
+    --- Example 1 ---
+    {{ icl_1 }}
+
+    --- Example 2 ---
+    {{ icl_2 }}
+
+    --- Example 3 ---
+    {{ icl_3 }}
+
+    --- Example 4 ---
+    {{ icl_4 }}
+
+    --- Example 5 ---
+    {{ icl_5 }}
+
+    Now generate a new, unique JIRA ticket that:
+    - Follows the same formatting and structure as the examples above
+    - Covers a plausible but distinct issue that has not appeared in the examples
+    - Includes realistic details (components, steps to reproduce, acceptance criteria, etc. as appropriate)
