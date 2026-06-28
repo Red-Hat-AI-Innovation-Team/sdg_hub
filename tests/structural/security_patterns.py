@@ -42,9 +42,7 @@ INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ),
     (
         "role hijack",
-        re.compile(
-            r"forget\s+(everything|all|your)\s+(you|instructions|rules)", re.I
-        ),
+        re.compile(r"forget\s+(everything|all|your)\s+(you|instructions|rules)", re.I),
     ),
 ]
 
