@@ -25,8 +25,8 @@ curated for SDG Hub's prompt template context.
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
+import logging
 
 import pytest
 import yaml
@@ -63,8 +63,10 @@ def _discover_prompt_yamls() -> tuple[list[Path], list[tuple[Path, str]]]:
         except yaml.YAMLError as exc:
             parse_errors.append((path, str(exc)))
             continue
-        if isinstance(data, list) and data and any(
-            isinstance(item, dict) and "content" in item for item in data
+        if (
+            isinstance(data, list)
+            and data
+            and any(isinstance(item, dict) and "content" in item for item in data)
         ):
             prompts.append(path)
     return prompts, parse_errors
@@ -117,8 +119,7 @@ def test_no_yaml_parse_errors() -> None:
     assert not _PARSE_ERRORS, (
         f"{len(_PARSE_ERRORS)} YAML file(s) failed to parse:\n"
         + "\n".join(
-            f"  {path.relative_to(FLOWS_DIR)}: {err}"
-            for path, err in _PARSE_ERRORS
+            f"  {path.relative_to(FLOWS_DIR)}: {err}" for path, err in _PARSE_ERRORS
         )
     )
 
@@ -139,8 +140,7 @@ def test_no_injection_patterns(prompt_path: Path) -> None:
                 if pattern.search(line):
                     role = data[entry_idx].get("role", "unknown")
                     findings.append(
-                        f"  [{role}] line {line_offset + 1}: "
-                        f"'{label}' pattern detected"
+                        f"  [{role}] line {line_offset + 1}: '{label}' pattern detected"
                     )
 
     assert not findings, (
@@ -173,8 +173,7 @@ def test_no_template_structure_anomalies(prompt_path: Path) -> None:
                 if pattern.search(line):
                     role = data[entry_idx].get("role", "unknown")
                     findings.append(
-                        f"  [{role}] line {line_offset + 1}: "
-                        f"'{label}' detected"
+                        f"  [{role}] line {line_offset + 1}: '{label}' detected"
                     )
 
     assert not findings, (
