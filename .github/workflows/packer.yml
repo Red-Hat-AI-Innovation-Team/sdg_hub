@@ -36,7 +36,7 @@ jobs:
           role-session-name: github-actions-packer  # For tracking in CloudTrail
 
       - name: Setup Packer
-        uses: hashicorp/setup-packer@c3d53c525d422944e50ee27b840746d6522b08de
+        uses: hashicorp/setup-packer@ce93c3c08a6c2ff2275bf4b54ff0d9a75f6c9789
 
       - name: Build and create AMI
         run: |
