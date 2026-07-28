@@ -35,7 +35,7 @@ dependencies = [
     "jinja2",
     "litellm>=1.83.10,<1.85.0",       # floor: first version patching all known CVEs (ref: CVE-2026-40217); ceiling: audited range
     "mlflow-tracing>=3.1.0",
-    "mcp>=1.8.0,<2.0.0",              # Model Context Protocol for MCP agent block (1.8.0+ for streamablehttp_client)
+    "mcp>=1.8.0,<3.0.0",              # Model Context Protocol for MCP agent block (1.8.0+ for streamablehttp_client)
     "rich",
     "pandas",
     "pydantic>=2.0.0,<3.0.0",         # cap before v3; adjust the lower bound to the minimum v2.x you've tested
