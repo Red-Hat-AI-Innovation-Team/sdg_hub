@@ -81,7 +81,7 @@ jobs:
           persist-credentials: false
 
       - name: Install harness-eval
-        run: pip install -q "harness-eval==7.9.1"
+        run: pip install -q "harness-eval==7.9.2"
 
       - name: Run harness-eval lint
         run: harness-eval harness-lint . --preset recommended --fail-on-error --baseline .harness-eval-baseline.json
