@@ -1,0 +1,120 @@
+{
+  "version": "1.0",
+  "findings": [
+    {
+      "rule_id": "content/orphan-skills",
+      "file": ".claude/skills/data-generation/SKILL.md",
+      "message_hash": "26cce1b86e6f6686"
+    },
+    {
+      "rule_id": "content/orphan-skills",
+      "file": ".claude/skills/flow-browser/SKILL.md",
+      "message_hash": "ea2e816a99a3f448"
+    },
+    {
+      "rule_id": "content/orphan-skills",
+      "file": ".claude/skills/setup-guide/SKILL.md",
+      "message_hash": "0104eefa300eca9e"
+    },
+    {
+      "rule_id": "content/orphan-skills",
+      "file": ".claude/skills/synthetic-data-generation/SKILL.md",
+      "message_hash": "d4850fb01fc3676e"
+    },
+    {
+      "rule_id": "content/allowed-tools-auto-approve",
+      "file": ".claude/skills/data-generation/SKILL.md",
+      "message_hash": "0e7823ff81a5565c"
+    },
+    {
+      "rule_id": "content/allowed-tools-auto-approve",
+      "file": ".claude/skills/data-generation/SKILL.md",
+      "message_hash": "c2c2b7f8fc38bb3f"
+    },
+    {
+      "rule_id": "content/allowed-tools-auto-approve",
+      "file": ".claude/skills/data-generation/SKILL.md",
+      "message_hash": "35fa0b9a72b98d68"
+    },
+    {
+      "rule_id": "quality/unfinished-content",
+      "file": ".claude/skills/flow-browser/SKILL.md",
+      "message_hash": "8a9f55714d899adb"
+    },
+    {
+      "rule_id": "content/allowed-tools-auto-approve",
+      "file": ".claude/skills/flow-browser/SKILL.md",
+      "message_hash": "35fa0b9a72b98d68"
+    },
+    {
+      "rule_id": "content/allowed-tools-auto-approve",
+      "file": ".claude/skills/flow-browser/SKILL.md",
+      "message_hash": "c2c2b7f8fc38bb3f"
+    },
+    {
+      "rule_id": "content/broken-references",
+      "file": ".claude/skills/setup-guide/SKILL.md",
+      "message_hash": "6a8cc3154f375424"
+    },
+    {
+      "rule_id": "quality/imprecise-instruction",
+      "file": ".claude/skills/setup-guide/SKILL.md",
+      "message_hash": "6080bf04ba04737c"
+    },
+    {
+      "rule_id": "content/allowed-tools-auto-approve",
+      "file": ".claude/skills/setup-guide/SKILL.md",
+      "message_hash": "c2c2b7f8fc38bb3f"
+    },
+    {
+      "rule_id": "content/allowed-tools-auto-approve",
+      "file": ".claude/skills/setup-guide/SKILL.md",
+      "message_hash": "35fa0b9a72b98d68"
+    },
+    {
+      "rule_id": "quality/unfinished-content",
+      "file": ".claude/skills/synthetic-data-generation/SKILL.md",
+      "message_hash": "297eb7de387f6a3d"
+    },
+    {
+      "rule_id": "quality/unfinished-content",
+      "file": ".claude/skills/synthetic-data-generation/SKILL.md",
+      "message_hash": "b8df52889e9b24c7"
+    },
+    {
+      "rule_id": "security/unbounded-delegation",
+      "file": ".claude/skills/synthetic-data-generation/SKILL.md",
+      "message_hash": "af2dae57b761cdd8"
+    },
+    {
+      "rule_id": "content/description-length",
+      "file": ".claude/skills/synthetic-data-generation/SKILL.md",
+      "message_hash": "cb837b5e517f7a75"
+    },
+    {
+      "rule_id": "hooks/pre-trust-permissions",
+      "file": ".claude/settings.json",
+      "message_hash": "b5c869f9c37a57d0"
+    },
+    {
+      "rule_id": "hooks/no-commit-guard",
+      "file": ".claude/settings.json",
+      "message_hash": "5f33e2faf5a29b19"
+    },
+    {
+      "rule_id": "hooks/no-audit-trail",
+      "file": ".claude/settings.json",
+      "message_hash": "bde50376928a9cd9"
+    },
+    {
+      "rule_id": "security/no-credential-access",
+      "file": ".github/actions/free-disk-space/action.yml",
+      "message_hash": "ccc5483f1ed61f05"
+    },
+    {
+      "rule_id": "security/no-credential-access",
+      "file": ".github/actions/free-disk-space/action.yml",
+      "message_hash": "f27b25b0e1f2f8ce"
+    }
+  ]
+}
