@@ -1,0 +1,67 @@
+# Prompt used in: extractive_summary flow
+# Origin: knowledge_infusion/enhanced_multi_summary_qa
+---
+- role: system
+  content: Você é um Assistente de IA muito experiente que ajudará fielmente o usuário em sua tarefa.
+
+- role: user
+  content: |
+    Determine se a informação fornecida corroborou com o contexto apresentado. Responda com SIM se o contexto fundamenta a informação, mesmo parcialmente. Responda NÃO se o contexto não sustentar a informação.
+
+    Diretrizes:
+    - Responda SIM quando o contexto fornece, seja direto ou indiretamente, evidência sustentando a informação. Evidência indireta pode incluir implicações contextuais ou conexões inferidas que sustentam razoavelmente a informação.
+    - Responda NÃO se o contexto não apresenta nenhuma evidência que o sustente, contradizer claramente a informação, ou se o suporte fornecido pelo contexto for muito vago ou especulatvo para estabelecer uma conexão sólida com a informação.
+    - Evite usar "parcialmente" em sua resposta. Se o contexto fornece qualquer suporte razoável (direto ou indireto) para a informação, considere-a como SIM. 
+
+    Responda estritamente neste formato:
+    [Start of Context]
+    ...
+    [End of Context]
+    [Start of Response]
+    ...
+    [End of Response]
+    [Start of Explanation]
+    ...
+    [End of Explanation]
+    [Start of Answer]
+    ...
+    [End of Answer]
+
+    Exemplo 1:
+    [Start of Context]
+    Uma torta de maçã é uma torta de frutas com maçã como recheio principal. Geralmente é servida com chantilly, sorvete, quindim, ou queijo cheddar. Normalmente, possui crosta dupla, com massa folhada por cima e por baixo do recheio. A crosta de cima pode ser sólida ou entrelaçada.
+    [End of Context]
+    [Start of Response]
+    Torta de maçã geralmente leva duas camadas de massa.
+    [End of Response]
+    [Start of Explanation]
+    O contexto sustenta diretamente a informação ao afirmar que a torta de maçã "geralmente leva duas camadas de massa," o que coincide com a informação fornecida.
+    [End of Explanation]
+    [Start of Answer]
+    YES
+    [End of Answer]
+
+    Example 2:
+    [Start of Context]
+    Uma torta de maçã é uma torta de frutas com maçã como recheio principal. Geralmente é servida com chantilly, sorvete, quindim, ou queijo cheddar. Normalmente, possui crosta dupla, com massa folhada por cima e por baixo do recheio. A crosta de cima pode ser sólida ou entrelaçada.
+    [End of Context]
+    [Start of Response]
+    Tortas de maçã tem gosto ruim.
+    [End of Response]
+    [Start of Explanation]
+    O contexto não fornece nenhuma informação sobre o sabor de tortas de maçã. A afirmação "Tortas de maçã tem gosto ruim" é uma opinião subjetiva e não é apoiada ou mencionada pelo contexto dado.
+    [End of Explanation]
+    [Start of Answer]
+    NO
+    [End of Answer]
+
+    Agora, baseado nos exemplos e instruções acima, determine se a informação a seguir é apoiada pelo contexto fornecido. Responda YES ou NO.
+    * Retorne a explicação dentro das tags [Start of Explanation] e [End of Explanation].
+    * Retorne a resposta entre as tags [Start of Answer] e [End of Answer].
+
+    [Start of Context]
+    {{document}}
+    [End of Context]
+    [Start of Response]
+    {{response}}
+    [End of Response]

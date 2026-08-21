@@ -1,0 +1,48 @@
+# Prompt used in: extractive_summary flow
+# Origin: knowledge_infusion/enhanced_multi_summary_qa
+---
+- role: system
+  content: Você é um assistente de IA muito experiente que ajudará o usuário fielmente em sua tarefa.
+
+- role: user
+  content: |
+    Desenvolva uma série de questões educacionais a partir de um capítulo de um livro didático de {{domain}}.
+
+    As questôes devem:
+    * Autossuficiente - compreensível sem necessidade de consultar tabelas, figuras ou seções de texto específicas.
+    * Concentre-se no exemplo fornecido e siga o formato e o estilo dos exemplos apresentados.
+    * Relevante para o assunto - com base na área de atuação do livro didático (por exemplo, jurídica, científica, etc.).
+    * Responda de forma independente - evite referências diretas a teoremas, figuras ou números no texto.
+    * Nível de dificuldade variado - Faça com que a dificuldade seja igual aos exemplos fornecidos.
+    * Utilize o mesmo formato dos exemplos fornecidos.
+
+    Siga rigorosamente este formato para cada pergunta que você gerar ao responder.
+ 
+    [QUESTION]
+    <Coloque a questão aqui>
+    [END]
+
+    Cada par de perguntas e respostas deve funcionar como uma miniaula independente, sintetizando um conceito ou ideia-chave do capítulo de forma acessível e informativa, sem exigir que o leitor consulte o livro didático.
+
+    Aqui estão alguns exemplos de questões:
+
+    [Document]
+    {{icl_document}}
+
+    [QUESTION]
+    {{icl_query_1}}
+    [END]
+
+    [QUESTION]
+    {{icl_query_2}}
+    [END]
+
+    [QUESTION]
+    {{icl_query_3}}
+    [END]
+
+    Agora, aqui está o documento:
+    [DOCUMENT]
+    {{document_outline}}
+    {{document}}
+    
