@@ -87,8 +87,32 @@ jobs:
             feature-dev@claude-plugins-official
             huggingface-skills@claude-plugins-official
             frontend-design@claude-plugins-official
+            model-architecture@ai-research-skills
+            tokenization@ai-research-skills
+            fine-tuning@ai-research-skills
+            mechanistic-interpretability@ai-research-skills
+            data-processing@ai-research-skills
+            post-training@ai-research-skills
+            safety-alignment@ai-research-skills
+            distributed-training@ai-research-skills
+            infrastructure@ai-research-skills
+            optimization@ai-research-skills
+            evaluation@ai-research-skills
+            inference-serving@ai-research-skills
+            mlops@ai-research-skills
+            agents@ai-research-skills
+            rag@ai-research-skills
+            prompt-engineering@ai-research-skills
+            observability@ai-research-skills
+            multimodal@ai-research-skills
+            emerging-techniques@ai-research-skills
+            autoresearch@ai-research-skills
+            ml-paper-writing@ai-research-skills
+            ideation@ai-research-skills
+            agent-native-research-artifact@ai-research-skills
           plugin_marketplaces: |
             https://github.com/anthropics/claude-plugins-official.git
+            https://github.com/Orchestra-Research/AI-research-SKILLs.git
         env:
           ANTHROPIC_VERTEX_PROJECT_ID: ${{ secrets.GCP_PROJECT }}
           CLOUD_ML_REGION: ${{ secrets.GCP_REGION }}
