@@ -277,3 +277,54 @@ class TestGenericHTTPConnector:
                 config=ConnectorConfig(url="http://test"),
                 request_message_path="input.question",
             )
+
+    def test_parse_response_extracts_context_list_as_json(self):
+        connector = self._make_connector(
+            response_context_path="output.context",
+        )
+        response = {
+            "output": {
+                "answer": "hi",
+                "context": [{"doc": "a"}, {"doc": "b"}],
+            },
+        }
+        result = connector.parse_response(response)
+
+        assert result.custom_outputs is not None
+        assert result.custom_outputs["context"] == '[{"doc": "a"}, {"doc": "b"}]'
+
+    def test_parse_response_extracts_context_dict_as_json(self):
+        connector = self._make_connector(
+            response_context_path="output.context",
+        )
+        response = {"output": {"answer": "hi", "context": {"key": "value"}}}
+        result = connector.parse_response(response)
+
+        assert result.custom_outputs is not None
+        assert result.custom_outputs["context"] == '{"key": "value"}'
+
+    def test_parse_response_extracts_context_string(self):
+        connector = self._make_connector(
+            response_context_path="output.context",
+        )
+        response = {"output": {"answer": "hi", "context": "some context"}}
+        result = connector.parse_response(response)
+
+        assert result.custom_outputs is not None
+        assert result.custom_outputs["context"] == "some context"
+
+    def test_parse_response_context_path_missing_in_response(self):
+        connector = self._make_connector(
+            response_context_path="output.context",
+        )
+        response = {"output": {"answer": "hi"}}
+        result = connector.parse_response(response)
+
+        assert result.custom_outputs is None
+
+    def test_parse_response_no_context_without_path(self):
+        connector = self._make_connector()
+        response = {"output": {"answer": "hi", "context": "ignored"}}
+        result = connector.parse_response(response)
+
+        assert result.custom_outputs is None
