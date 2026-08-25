@@ -9,6 +9,12 @@ on:
     types:
       - opened
       - synchronize
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'eval/**'
+      - 'pyproject.toml'
+      - '.github/workflows/score-gate.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
