@@ -68,6 +68,13 @@ class FlowValidator:
                     )
                     errors.extend(oc_errors)
 
+            # Validate rename blocks don't reuse previously-existing column names
+            rename_errors = self._validate_rename_column_reuse(
+                flow_config.get("blocks", []),
+                flow_config.get("metadata", {}),
+            )
+            errors.extend(rename_errors)
+
         # Validate parameters if present
         if "parameters" in flow_config:
             param_errors = self._validate_parameters_config(flow_config["parameters"])
@@ -267,6 +274,74 @@ class FlowValidator:
         if isinstance(output_cols, dict):
             return list(output_cols.keys())
         return []
+
+    def _validate_rename_column_reuse(
+        self,
+        block_configs: list[dict[str, Any]],
+        metadata: dict[str, Any] | None = None,
+    ) -> list[str]:
+        """Validate that RenameColumnsBlock targets don't reuse historical names.
+
+        Tracks all column names that have ever existed during the block chain
+        (seeded from dataset_requirements) and flags any RenameColumnsBlock
+        whose target name matches a previously-existing column.
+
+        Parameters
+        ----------
+        block_configs : list[dict[str, Any]]
+            Raw block configurations from YAML.
+        metadata : dict[str, Any] | None
+            Full metadata dict, used to read dataset_requirements.
+
+        Returns
+        -------
+        list[str]
+            Validation error messages.
+        """
+        errors: list[str] = []
+        historical_columns: set[str] = set()
+
+        if metadata:
+            dataset_req = metadata.get("dataset_requirements", {})
+            if isinstance(dataset_req, dict):
+                for key in ("required_columns", "optional_columns"):
+                    cols = dataset_req.get(key, [])
+                    if isinstance(cols, list):
+                        historical_columns.update(c for c in cols if isinstance(c, str))
+
+        for block_config in block_configs:
+            if not isinstance(block_config, dict):
+                continue
+
+            block_type = block_config.get("block_type", "")
+            config = block_config.get("block_config", {})
+            if not isinstance(config, dict):
+                continue
+
+            block_name = config.get("block_name", block_type)
+            output_cols = config.get("output_cols")
+
+            if block_type == "RenameColumnsBlock":
+                input_cols = config.get("input_cols")
+                if isinstance(input_cols, dict):
+                    for old_name, new_name in input_cols.items():
+                        if not isinstance(new_name, str):
+                            continue
+                        reused = new_name in historical_columns and old_name != new_name
+                        if reused:
+                            errors.append(
+                                f"Block '{block_name}': renaming '{old_name}' → "
+                                f"'{new_name}' reuses a previously-existing column "
+                                f"name. Choose a name that has not appeared earlier "
+                                f"in the flow to avoid confusion about column "
+                                f"identity."
+                            )
+                        historical_columns.add(new_name)
+            else:
+                if output_cols:
+                    historical_columns.update(self._extract_column_names(output_cols))
+
+        return errors
 
     def _validate_output_columns_against_blocks(
         self,

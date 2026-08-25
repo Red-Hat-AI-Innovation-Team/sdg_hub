@@ -1,7 +1,7 @@
+from typing import Any, List, Optional
 import json
-from typing import List, Optional, Any
+
 import polars as pl
-from datasets import Dataset
 
 
 def get_avg_summaries_per_raw_doc(df: pl.DataFrame) -> float:
@@ -9,108 +9,98 @@ def get_avg_summaries_per_raw_doc(df: pl.DataFrame) -> float:
     Calculate average summaries per raw document in the dataset.
 
     Args:
-        df: Input dataframe with document and raw_document columns
+        df: Input dataframe with summary and document columns
 
     Returns:
         Average number of summaries per raw document
     """
-    # Calculate average summaries per raw document
-    summary_counts = df.group_by("raw_document").agg(
-        pl.col("document").n_unique().alias("unique_summaries")
+    summary_counts = df.group_by("document").agg(
+        pl.col("summary").n_unique().alias("unique_summaries")
     )
     avg_summaries = summary_counts["unique_summaries"].mean()
 
     return avg_summaries
 
 
-def sample_docs(
-    df: pl.DataFrame, n_docs_per_raw: int = 50
-) -> pl.DataFrame:
+def sample_docs(df: pl.DataFrame, n_docs_per_raw: int = 50) -> pl.DataFrame:
     """
-    Sample unique summaries (documents) per raw document.
+    Sample unique summaries per document.
 
     Args:
-        df: Input dataframe with 'document', 'raw_document', 'document_outline' columns
-        n_docs_per_raw: Maximum number of unique summaries to sample per raw document (cut size)
+        df: Input dataframe with 'summary', 'document', 'document_outline' columns
+        n_docs_per_raw: Maximum number of unique summaries to sample per document (cut size)
 
     Returns:
-        Sampled dataframe with 'document', 'raw_document', 'document_outline'
+        Sampled dataframe with 'summary', 'document', 'document_outline'
     """
-    # Validate required columns
     required_cols = [
+        "summary",
         "document",
-        "raw_document",
         "document_outline",
     ]
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
         raise ValueError(f"Missing required columns: {missing_cols}")
 
-    # Check if cut size is feasible
     avg_summaries = get_avg_summaries_per_raw_doc(df)
     if avg_summaries < n_docs_per_raw:
         print(
             f"⚠️ Warning: Cut size {n_docs_per_raw} exceeds available summaries (avg: {avg_summaries:.1f} per raw document)"
         )
 
-    # For uniqueness, group by document
-    df_unique = df.group_by("document").agg(
+    df_unique = df.group_by("summary").agg(
         [
-            pl.col("raw_document").first().alias("raw_document"),
+            pl.col("document").first().alias("document"),
             pl.col("document_outline").first().alias("document_outline"),
         ]
     )
 
-    # Sample unique summaries per raw document
-    sampled_docs = df_unique.group_by("raw_document").map_groups(
+    sampled_docs = df_unique.group_by("document").map_groups(
         lambda g: g.sample(n=min(n_docs_per_raw, g.height))
     )
 
     return sampled_docs
 
+
 def sample_doc_qa(
     df: pl.DataFrame, n_docs_per_raw: int = 50, qa_per_doc: int = 3
 ) -> pl.DataFrame:
     """
-    Sample Q&A pairs from documents with optional reasoning.
+    Sample Q&A pairs from summaries with optional reasoning.
 
-    Note: 'document' column contains summaries, 'raw_document' contains original documents.
-    n_docs_per_raw is the number of unique summaries to sample per raw document.
+    Note: 'summary' column contains summaries, 'document' contains original documents.
+    n_docs_per_raw is the number of unique summaries to sample per document.
 
     Args:
-        df: Input dataframe with document and Q&A data
-        n_docs_per_raw: Maximum number of unique summaries to sample per raw document (cut size)
-        qa_per_doc: Maximum number of Q&A pairs per document/summary
+        df: Input dataframe with summary and Q&A data
+        n_docs_per_raw: Maximum number of unique summaries to sample per document (cut size)
+        qa_per_doc: Maximum number of Q&A pairs per summary
 
     Returns:
         Sampled dataframe with Q&A pairs
     """
-    # Validate required columns
     required_cols = [
         "question",
         "response",
+        "summary",
         "document",
-        "raw_document",
         "document_outline",
     ]
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
         raise ValueError(f"Missing required columns: {missing_cols}")
 
-    # Check if cut size is feasible
     avg_summaries = get_avg_summaries_per_raw_doc(df)
     if avg_summaries < n_docs_per_raw:
         print(
             f"⚠️ Warning: Cut size {n_docs_per_raw} exceeds available summaries (avg: {avg_summaries:.1f} per raw document)"
         )
 
-    # Create Q&A pair structure
     df = df.with_columns([pl.struct(["question", "response"]).alias("qa_pair")])
 
-    # Handle optional reasoning column
     agg_cols = [
         pl.col("qa_pair"),
-        pl.col("raw_document").first(),
+        pl.col("document").first(),
         pl.col("document_outline").first(),
     ]
 
@@ -120,20 +110,16 @@ def sample_doc_qa(
         )
         agg_cols.append(pl.col("reasoning").first())
 
-    # Group by document (summaries) and aggregate Q&A pairs
-    df = df.group_by("document").agg(agg_cols)
+    df = df.group_by("summary").agg(agg_cols)
 
-    # Sample unique summaries per raw document
-    sampled_docs = df.group_by("raw_document").map_groups(
+    sampled_docs = df.group_by("document").map_groups(
         lambda g: g.sample(n=min(n_docs_per_raw, g.height))
     )
 
-    # Limit Q&A pairs per summary and explode
     sampled_docs = sampled_docs.with_columns(
         pl.col("qa_pair").list.slice(0, qa_per_doc)
     ).explode(pl.col("qa_pair"))
 
-    # Extract question and response from struct
     sampled_docs = sampled_docs.with_columns(
         [
             pl.col("qa_pair").struct.field("question").alias("question"),
@@ -160,9 +146,9 @@ def _create_metadata(df: pl.DataFrame) -> pl.Expr:
     return (
         pl.struct(
             [
-                pl.col("document").alias("sdg_document"),
+                pl.col("summary").alias("sdg_document"),
                 pl.lit("document_knowledge_qa").alias("dataset"),
-                pl.col("raw_document"),
+                pl.col("document"),
             ]
         )
         .map_elements(json.dumps)
@@ -175,7 +161,7 @@ def _create_messages_with_reasoning(record: dict) -> List[dict]:
     return [
         {
             "role": "user",
-            "content": f"{record['document_outline']}\n{record['document']}\n\n{record['question']}",
+            "content": f"{record['document_outline']}\n{record['summary']}\n\n{record['question']}",
             "thinking": None,
         },
         {
@@ -207,7 +193,7 @@ def _create_messages_without_reasoning(record: dict) -> List[dict]:
     return [
         {
             "role": "user",
-            "content": f"{record['document_outline']}\n{record['document']}\n\n{record['question']}",
+            "content": f"{record['document_outline']}\n{record['summary']}\n\n{record['question']}",
             "thinking": None,
         },
         {"role": "assistant", "content": record["response"], "thinking": ""},
@@ -248,13 +234,12 @@ def generate_knowledge_qa_dataset(
     if keep_columns is None:
         keep_columns = []
 
-    # Validate required columns
     required_cols = [
         "question",
         "response",
-        "document",
+        "summary",
         "document_outline",
-        "raw_document",
+        "document",
     ]
     missing_cols = [
         col for col in required_cols if col not in generated_dataset.columns
@@ -262,21 +247,17 @@ def generate_knowledge_qa_dataset(
     if missing_cols:
         raise ValueError(f"Missing required columns: {missing_cols}")
 
-    # Clean response text
     generated_dataset = _clean_response_text(generated_dataset)
 
-    # Create base columns
     base_columns = [_create_metadata(generated_dataset)]
 
-    # Handle reasoning column
     has_reasoning = "reasoning" in generated_dataset.columns
 
-    # TODO: Fix the name of reasoning column, test with reasoning model
     if has_reasoning and not keep_document_in_context:
         message_columns = [
             "question",
             "response",
-            "document",
+            "summary",
             "document_outline",
             "reasoning",
         ]
@@ -289,7 +270,7 @@ def generate_knowledge_qa_dataset(
         message_columns = [
             "question",
             "response",
-            "document",
+            "summary",
             "document_outline",
             "reasoning",
         ]
@@ -299,14 +280,14 @@ def generate_knowledge_qa_dataset(
             .alias("messages")
         )
     elif keep_document_in_context:
-        message_columns = ["question", "response", "document", "document_outline"]
+        message_columns = ["question", "response", "summary", "document_outline"]
         messages_expr = (
             pl.struct(message_columns)
             .map_elements(_create_messages_without_reasoning)
             .alias("messages")
         )
     else:
-        message_columns = ["question", "response", "document", "document_outline"]
+        message_columns = ["question", "response", "summary", "document_outline"]
         messages_expr = (
             pl.struct(message_columns)
             .map_elements(_create_messages_without_reasoning_no_document)
@@ -315,13 +296,10 @@ def generate_knowledge_qa_dataset(
 
     base_columns.append(messages_expr)
 
-    # Apply transformations
     knowledge_ds = generated_dataset.with_columns(base_columns)
 
-    # Select final columns
     final_columns = keep_columns + ["messages", "metadata"]
     knowledge_ds = knowledge_ds.select(final_columns)
-    # Add unmask column for pre-training if needed
     if pre_training:
         knowledge_ds = knowledge_ds.with_columns(pl.lit(True).alias("unmask"))
     else:
